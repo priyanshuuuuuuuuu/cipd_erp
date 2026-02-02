@@ -1,0 +1,195 @@
+import React, { useState } from 'react';
+import './Dashboard.css';
+import {
+    LayoutGrid,
+    Calendar,
+    BookOpen,
+    Users,
+    MessageSquare,
+    Settings,
+    LogOut,
+    Bell,
+    Search,
+    ChevronLeft,
+    ChevronRight,
+    Menu,
+    Mail,
+    Phone,
+    MoreHorizontal
+} from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+
+const TeachersPage = () => {
+    const navigate = useNavigate();
+    const [isCollapsed, setIsCollapsed] = useState(false);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [activeFilter, setActiveFilter] = useState('All Teachers');
+
+    const handleLogout = () => {
+        navigate('/');
+    };
+
+    const filters = ['All Teachers', 'Science', 'History', 'Art', 'Mathematics', 'Physics', 'Chemistry', 'Literature', 'Information Technology'];
+
+    // Mock data for teachers
+    const teachers = Array(8).fill({
+        name: 'Anuj Grover',
+        email: 'anuj@iiitd.ac.in',
+        dept: 'Electronics',
+        image: '/anujsir.jpg'
+    });
+
+    return (
+        <div className="dashboard-container">
+            {/* Sidebar Overlay (Mobile) */}
+            <div
+                className={`sidebar-overlay ${isMobileMenuOpen ? 'visible' : ''}`}
+                onClick={() => setIsMobileMenuOpen(false)}
+            />
+
+            {/* Sidebar */}
+            <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobileMenuOpen ? 'open' : ''}`}>
+                <div>
+                    <div className="user-profile" style={{ position: 'relative' }}>
+                        <div className="user-avatar">
+                            <img src="/studentPic.png" alt="Student" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                        </div>
+                        <div className="user-info">
+                            <h3>Student</h3>
+                            <p>student@gmail.com</p>
+                        </div>
+                        <div
+                            onClick={() => setIsCollapsed(!isCollapsed)}
+                            style={{
+                                position: 'absolute',
+                                right: '-12px',
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                background: '#1a1a1a',
+                                borderRadius: '50%',
+                                width: '24px',
+                                height: '24px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                border: '1px solid #333',
+                                color: '#888',
+                                boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
+                            }}
+                        >
+                            {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+                        </div>
+                    </div>
+
+                    <nav className="nav-menu">
+                        <div onClick={() => navigate('/dashboard')} className="nav-item" style={{ cursor: 'pointer' }}>
+                            <LayoutGrid size={18} /> <span>Home</span>
+                        </div>
+                        <div onClick={() => navigate('/attendance')} className="nav-item" style={{ cursor: 'pointer' }}>
+                            <Users size={18} /> <span>Attendance</span>
+                        </div>
+                        <div onClick={() => navigate('/grades')} className="nav-item" style={{ cursor: 'pointer' }}>
+                            <BookOpen size={18} /> <span>Grades</span>
+                        </div>
+                        <div className="nav-item active" style={{ cursor: 'pointer' }}>
+                            <Users size={18} /> <span>Teachers</span>
+                        </div>
+                        <div onClick={() => navigate('/feedback')} className="nav-item" style={{ cursor: 'pointer' }}>
+                            <MessageSquare size={18} /> <span>Feedback</span>
+                        </div>
+                        <div onClick={() => navigate('/courses')} className="nav-item" style={{ cursor: 'pointer' }}>
+                            <BookOpen size={18} /> <span>Courses</span>
+                        </div>
+                        <div onClick={() => navigate('/calendar')} className="nav-item" style={{ cursor: 'pointer' }}>
+                            <Calendar size={18} /> <span>Calendar</span>
+                        </div>
+                    </nav>
+                </div>
+
+                <div className="sidebar-footer">
+                    <div onClick={() => navigate('/settings')} className="nav-item" style={{ cursor: 'pointer' }}><Settings size={18} /> <span>Settings</span></div>
+                    <div className="nav-item" onClick={handleLogout} style={{ cursor: 'pointer' }}><LogOut size={18} /> <span>Log out</span></div>
+                </div>
+            </aside>
+
+            {/* Main Content */}
+            <div className="main-content" style={{ flexDirection: 'column', overflowY: 'auto' }}>
+                <header className="dashboard-header" style={{ padding: '1rem 2rem', borderBottom: '1px solid #f0f0f0' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div className="mobile-menu-btn" onClick={() => setIsMobileMenuOpen(true)} style={{ cursor: 'pointer' }}>
+                            <Menu size={24} />
+                        </div>
+                        <h1>Teachers</h1>
+                    </div>
+                    <div className="header-actions">
+                        <div className="search-bar">
+                            <Search size={16} color="#aaa" />
+                            <input type="text" placeholder="Search" className="search-input" />
+                        </div>
+                        <MessageSquare size={20} color="#555" />
+                        <img src="/logo.png" alt="Logo" style={{ height: '35px', marginLeft: '0.5rem' }} />
+                        {/* Avatar removed as per design consistency request */}
+                    </div>
+                </header>
+
+                <div style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+
+                    {/* Filters */}
+                    <div className="filters-scroll-container" style={{ overflowX: 'auto', paddingBottom: '5px' }}>
+                        <div style={{ display: 'flex', gap: '1rem', minWidth: 'max-content' }}>
+                            {filters.map(filter => (
+                                <button
+                                    key={filter}
+                                    onClick={() => setActiveFilter(filter)}
+                                    style={{
+                                        padding: '8px 20px',
+                                        borderRadius: '25px',
+                                        border: activeFilter === filter ? '1px solid #111' : '1px solid #e0e0e0',
+                                        background: activeFilter === filter ? '#111' : 'transparent',
+                                        color: activeFilter === filter ? '#fff' : '#888',
+                                        cursor: 'pointer',
+                                        fontSize: '0.9rem',
+                                        fontWeight: activeFilter === filter ? '500' : '400',
+                                        transition: 'all 0.2s'
+                                    }}
+                                >
+                                    {filter}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Teachers Grid */}
+                    <div className="teachers-grid">
+                        {teachers.map((teacher, index) => (
+                            <div key={index} className="teacher-card">
+                                <span className="dept-pill">{teacher.dept}</span>
+                                <div className="teacher-img-container">
+                                    <img src={teacher.image} alt={teacher.name} className="teacher-img" />
+                                </div>
+                                <h3 style={{ fontSize: '1.1rem', margin: '0 0 5px 0' }}>{teacher.name}</h3>
+                                <p style={{ fontSize: '0.8rem', color: '#888', margin: 0, textDecoration: 'underline' }}>{teacher.email}</p>
+
+                                <div className="teacher-actions">
+                                    <button className="action-btn">
+                                        <Mail size={18} />
+                                    </button>
+                                    <button className="action-btn">
+                                        <Phone size={18} />
+                                    </button>
+                                    <button className="action-btn">
+                                        <MoreHorizontal size={18} />
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default TeachersPage;
