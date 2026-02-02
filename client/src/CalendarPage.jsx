@@ -160,12 +160,12 @@ const CalendarPage = () => {
                                     <div style={{ background: '#e0f2fe', padding: '15px', borderRadius: '12px', position: 'absolute', top: '10px', left: '10px', right: '10px', height: '140px', border: '1px solid #bae6fd' }}>
                                         <div style={{ fontWeight: '700', fontSize: '0.9rem', color: '#0369a1' }}>8:00 AM - 10:00 AM</div>
                                         <h3 style={{ margin: '5px 0', fontSize: '1.1rem' }}>Course 1: Advanced Mathematics</h3>
-                                        <p style={{ color: '#555', fontSize: '0.85rem' }}>Lecture Hall C • Prof. Smith</p>
+                                        <p style={{ color: '#555', fontSize: '0.85rem' }}>Lecture Hall C • Prof. Anuj Grover</p>
                                     </div>
                                     <div style={{ background: '#f3e8ff', padding: '15px', borderRadius: '12px', position: 'absolute', top: '180px', left: '10px', right: '10px', height: '100px', border: '1px solid #e9d5ff' }}>
                                         <div style={{ fontWeight: '700', fontSize: '0.9rem', color: '#7e22ce' }}>11:00 AM - 12:30 PM</div>
                                         <h3 style={{ margin: '5px 0', fontSize: '1.1rem' }}>Course 3: Physics Lab</h3>
-                                        <p style={{ color: '#555', fontSize: '0.85rem' }}>Lab 4 • Dr. Jones</p>
+                                        <p style={{ color: '#555', fontSize: '0.85rem' }}>Lab 4 • Dr. Sameer Verma</p>
                                     </div>
                                 </div>
                             </div>
@@ -198,13 +198,13 @@ const CalendarPage = () => {
                                                         <div style={{ background: '#e0f2fe', padding: '10px', borderRadius: '12px', position: 'absolute', top: '20px', left: '5px', right: '5px', height: '100px', border: '1px solid #bae6fd' }}>
                                                             <div style={{ fontWeight: '700', fontSize: '0.8rem', color: '#0369a1' }}>8 AM</div>
                                                             <div style={{ fontWeight: '700', marginTop: '5px', fontSize: '0.9rem' }}>Course 1</div>
-                                                            <div style={{ fontSize: '0.7rem', color: '#555' }}>Detail 1 (Venue, time)</div>
+                                                            <div style={{ fontSize: '0.7rem', color: '#555' }}>LHC-101 • Prof. Anuj Grover</div>
                                                         </div>
                                                         <div style={{ background: '#f3e8ff', padding: '10px', borderRadius: '12px', position: 'absolute', top: '350px', left: '5px', right: '5px', height: '140px', border: '1px solid #e9d5ff' }}>
                                                             <div style={{ fontWeight: '700', fontSize: '0.8rem', color: '#7e22ce' }}>1 PM</div>
                                                             <img src="/course2.png" alt="" style={{ height: '30px', objectFit: 'contain', margin: '5px 0' }} />
                                                             <div style={{ fontWeight: '700', fontSize: '0.9rem' }}>Course 2</div>
-                                                            <div style={{ fontSize: '0.7rem', color: '#555' }}>Detail 2</div>
+                                                            <div style={{ fontSize: '0.7rem', color: '#555' }}>C-102 • Dr. Priya Sharma</div>
                                                         </div>
                                                     </>
                                                 )}
@@ -215,18 +215,18 @@ const CalendarPage = () => {
                                                             <div style={{ fontWeight: '700', fontSize: '0.8rem', color: '#3f6212' }}>9 AM</div>
                                                             <img src="/course4.png" alt="" style={{ height: '40px', objectFit: 'contain', margin: '5px 0' }} />
                                                             <div style={{ fontWeight: '700', fontSize: '0.9rem' }}>Course 4</div>
-                                                            <div style={{ fontSize: '0.7rem', color: '#555' }}>Detail 4</div>
+                                                            <div style={{ fontSize: '0.7rem', color: '#555' }}>LHC-201 • Prof. Amit Patel</div>
                                                         </div>
                                                         <div style={{ background: '#fce7f3', padding: '10px', borderRadius: '12px', position: 'absolute', top: '300px', left: '5px', right: '5px', height: '80px', border: '1px solid #fbcfe8' }}>
                                                             <div style={{ fontWeight: '700', fontSize: '0.8rem', color: '#be185d' }}>12 PM</div>
                                                             <div style={{ fontWeight: '700', fontSize: '0.9rem' }}>Course 5</div>
-                                                            <div style={{ fontSize: '0.7rem', color: '#555' }}>Detail 5</div>
+                                                            <div style={{ fontSize: '0.7rem', color: '#555' }}>Lab 3 • Dr. Neha Gupta</div>
                                                         </div>
                                                         <div style={{ background: '#e0fcf5', padding: '10px', borderRadius: '12px', position: 'absolute', top: '400px', left: '5px', right: '5px', height: '140px', border: '1px solid #99f6e4' }}>
                                                             <div style={{ fontWeight: '700', fontSize: '0.8rem', color: '#0f766e' }}>2 PM</div>
                                                             <img src="/course3.png" alt="" style={{ height: '40px', objectFit: 'contain', margin: '5px 0' }} />
                                                             <div style={{ fontWeight: '700', fontSize: '0.9rem' }}>Course 3</div>
-                                                            <div style={{ fontSize: '0.7rem', color: '#555' }}>Detail 3</div>
+                                                            <div style={{ fontSize: '0.7rem', color: '#555' }}>Design Studio • Prof. Anuj Grover</div>
                                                         </div>
                                                     </>
                                                 )}
@@ -241,7 +241,7 @@ const CalendarPage = () => {
                                                 {index === 3 && ( /* Thu */
                                                     <div style={{ background: '#eef2ff', padding: '10px', borderRadius: '12px', position: 'absolute', top: '310px', left: '5px', right: '5px', height: '100px', border: '1px solid #c7d2fe' }}>
                                                         <div style={{ fontWeight: '700', fontSize: '0.9rem' }}>Course 7</div>
-                                                        <div style={{ fontSize: '0.7rem', color: '#555' }}>Detail 7 (Venue, time)</div>
+                                                        <div style={{ fontSize: '0.7rem', color: '#555' }}>Lecture Hall B • Dr. Sameer Verma</div>
                                                     </div>
                                                 )}
 
@@ -249,7 +249,7 @@ const CalendarPage = () => {
                                                     <div style={{ background: '#ecfccb', padding: '10px', borderRadius: '12px', position: 'absolute', top: '150px', left: '5px', right: '5px', height: '70px', border: '1px solid #d9f99d' }}>
                                                         <div style={{ fontWeight: '700', fontSize: '0.8rem', color: '#3f6212' }}>9 AM</div>
                                                         <div style={{ fontWeight: '700', fontSize: '0.9rem' }}>Course 8</div>
-                                                        <div style={{ fontSize: '0.7rem', color: '#555' }}>Detail 1</div>
+                                                        <div style={{ fontSize: '0.7rem', color: '#555' }}>LHC-301 • Prof. Anuj Grover</div>
                                                     </div>
                                                 )}
                                             </div>

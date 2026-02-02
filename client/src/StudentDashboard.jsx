@@ -243,7 +243,7 @@ const StudentDashboard = () => {
                                         <div className="event-badge">Class</div>
                                         <strong>Assignment 1</strong>
                                         <div>Subject</div>
-                                        <div>Professor</div>
+                                        <div>Prof. Anuj Grover</div>
                                     </div>
                                 </div>
                                 {/* Day 6 */}
@@ -254,7 +254,7 @@ const StudentDashboard = () => {
                                         <div className="event-badge">Class</div>
                                         <strong>Assignment 1</strong>
                                         <div>Subject</div>
-                                        <div>Professor</div>
+                                        <div>Prof. Anuj Grover</div>
                                     </div>
                                 </div>
                             </div>
@@ -313,7 +313,7 @@ const StudentDashboard = () => {
                             <div className="icon-box"><FileText size={20} /></div>
                             <div>
                                 <div style={{ fontSize: '0.9rem', fontWeight: '700' }}>Assignment 1</div>
-                                <div style={{ fontSize: '0.7rem', color: '#888' }}>Detail 1</div>
+                                <div style={{ fontSize: '0.7rem', color: '#888' }}>Calculus 1 • Prof. Anuj Grover</div>
                             </div>
                         </div>
                         <div className="score-circle green">98</div>
@@ -324,7 +324,7 @@ const StudentDashboard = () => {
                             <div className="icon-box"><div style={{ fontSize: '16px' }}>🎨</div></div>
                             <div>
                                 <div style={{ fontSize: '0.9rem', fontWeight: '700' }}>Assignment 2</div>
-                                <div style={{ fontSize: '0.7rem', color: '#888' }}>Detail 2</div>
+                                <div style={{ fontSize: '0.7rem', color: '#888' }}>Modern Art • Dr. Priya Sharma</div>
                             </div>
                         </div>
                         <div className="score-circle peach">72</div>
@@ -335,7 +335,7 @@ const StudentDashboard = () => {
                             <div className="icon-box"><div style={{ fontSize: '16px' }}>🔢</div></div>
                             <div>
                                 <div style={{ fontSize: '0.9rem', fontWeight: '700' }}>Assignment 3</div>
-                                <div style={{ fontSize: '0.7rem', color: '#888' }}>Detail 3</div>
+                                <div style={{ fontSize: '0.7rem', color: '#888' }}>Linear Algebra • Amit Patel</div>
                             </div>
                         </div>
                         <div className="score-circle pink">34</div>
@@ -345,7 +345,7 @@ const StudentDashboard = () => {
                     <div className="feedback-box" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
                             <div className="feedback-text" style={{ fontSize: '0.9rem' }}>You have missed submitting<br />feedback on 27/01/2025</div>
-                            <div className="feedback-sub">Required for course name: Course 1</div>
+                            <div className="feedback-sub">Required for Course 1: Prof. Anuj Grover</div>
                         </div>
                         <div style={{ width: '40px', height: '40px', background: '#e0e7ff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4f46e5' }}>
                             <ChevronDown size={20} style={{ transform: 'rotate(-90deg)' }} />
