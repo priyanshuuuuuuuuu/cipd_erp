@@ -10,6 +10,7 @@ import AdminAttendancePage from './AdminAttendancePage';
 import AdminFeedbackPage from './AdminFeedbackPage';
 import StudentAttendancePage from './StudentAttendancePage';
 import StudentFeedbackPage from './StudentFeedbackPage';
+import AdminWifiLogsPage from './AdminWifiLogsPage';
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/admin-attendance" element={<AdminAttendancePage />} />
         <Route path="/admin-feedback" element={<AdminFeedbackPage />} />
+        <Route path="/admin-wifi-logs" element={<AdminWifiLogsPage />} />
 
         {/* Placeholder Routes */}
         <Route path="/attendance" element={<StudentAttendancePage />} />

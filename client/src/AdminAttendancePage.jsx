@@ -137,7 +137,7 @@ const AdminAttendancePage = () => {
                         <div className="nav-item" onClick={() => navigate('/admin')} style={{ cursor: 'pointer' }}><LayoutGrid size={18} /> <span>Dashboard</span></div>
                         <div className="nav-item" style={{ cursor: 'pointer' }}><Calendar size={18} /> <span>Schedule Management</span></div>
                         <div className="nav-item active"><CheckCircle size={18} /> <span>Attendance Monitoring</span></div>
-                        <div className="nav-item" style={{ cursor: 'pointer' }}><Wifi size={18} /> <span>Wi-Fi Logs</span></div>
+                        <div className="nav-item" onClick={() => navigate('/admin-wifi-logs')} style={{ cursor: 'pointer' }}><Wifi size={18} /> <span>Wi-Fi Logs</span></div>
 
                         <div style={{ fontSize: '0.6rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', color: '#555', padding: '10px 1rem 4px' }}><span>Analytics</span></div>
                         <div className="nav-item" onClick={() => navigate('/admin-feedback')} style={{ cursor: 'pointer' }}><MessageSquare size={18} /> <span>Feedback Analytics</span></div>
