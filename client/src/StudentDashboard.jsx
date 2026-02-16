@@ -17,9 +17,12 @@ import {
     AlertCircle,
     CheckCircle,
     XCircle,
-    Menu,        // Hamburger for mobile
-    ChevronLeft, // Collapse toggle
-    ChevronRight // Expand toggle
+    Menu,
+    ChevronLeft,
+    ChevronRight,
+    Wifi,
+    X,
+    Fingerprint
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -44,6 +47,55 @@ const StudentDashboard = () => {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+    // Profile panel state
+    const [showProfile, setShowProfile] = useState(false);
+
+    // MAC Address state
+    const [registeredMac, setRegisteredMac] = useState('A4:83:E7:2B:9F:01');
+    const [macInput, setMacInput] = useState('');
+    const [isEditingMac, setIsEditingMac] = useState(false);
+    const [showMacConfirm, setShowMacConfirm] = useState(false);
+    const [macUpdateLog, setMacUpdateLog] = useState([{ mac: 'A4:83:E7:2B:9F:01', timestamp: '2026-01-15 09:12:34' }]);
+    const [macError, setMacError] = useState('');
+
+    // MAC formatting helper — auto-insert colons
+    const formatMacInput = (value) => {
+        // Remove all non-hex characters
+        const clean = value.replace(/[^a-fA-F0-9]/g, '').toUpperCase();
+        // Insert colons every 2 characters
+        const parts = [];
+        for (let i = 0; i < clean.length && i < 12; i += 2) {
+            parts.push(clean.substring(i, i + 2));
+        }
+        return parts.join(':');
+    };
+
+    const isValidMac = (mac) => /^([A-F0-9]{2}:){5}[A-F0-9]{2}$/.test(mac);
+
+    const handleMacChange = (e) => {
+        const formatted = formatMacInput(e.target.value);
+        setMacInput(formatted);
+        setMacError('');
+    };
+
+    const handleMacUpdate = () => {
+        if (!isValidMac(macInput)) {
+            setMacError('Invalid MAC address format. Use XX:XX:XX:XX:XX:XX');
+            return;
+        }
+        // Show confirmation
+        setShowMacConfirm(true);
+    };
+
+    const confirmMacUpdate = () => {
+        const ts = new Date().toLocaleString('en-IN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        setRegisteredMac(macInput);
+        setMacUpdateLog(prev => [...prev, { mac: macInput, timestamp: ts }]);
+        setShowMacConfirm(false);
+        setIsEditingMac(false);
+        setMacInput('');
+    };
+
     const handleLogout = () => {
         navigate('/');
     };
@@ -60,7 +112,7 @@ const StudentDashboard = () => {
             <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobileMenuOpen ? 'open' : ''}`}>
                 <div>
                     <div className="user-profile" style={{ position: 'relative' }}>
-                        <div className="user-avatar">
+                        <div className="user-avatar" onClick={() => setShowProfile(true)} style={{ cursor: 'pointer' }}>
                             <img src="/studentPic.png" alt="Student" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
                         </div>
                         <div className="user-info">
@@ -353,6 +405,205 @@ const StudentDashboard = () => {
                     </div>
                 </div>
             </div>
+
+            {/* ═══════ PROFILE PANEL OVERLAY ═══════ */}
+            {showProfile && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(0,0,0,0.25)', zIndex: 9999,
+                    display: 'flex', justifyContent: 'flex-end'
+                }} onClick={() => setShowProfile(false)}>
+                    <div style={{
+                        width: '380px', maxWidth: '90vw', background: '#fff',
+                        borderLeft: '1px solid #e8e8e8', height: '100%',
+                        overflowY: 'auto', boxShadow: '-4px 0 20px rgba(0,0,0,0.05)'
+                    }} onClick={e => e.stopPropagation()}>
+                        {/* Header */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 20px', borderBottom: '1px solid #f0f0f0' }}>
+                            <span style={{ fontSize: '0.92rem', fontWeight: 700, color: '#111' }}>Student Profile</span>
+                            <button onClick={() => setShowProfile(false)}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#999', padding: '2px' }}>
+                                <X size={16} />
+                            </button>
+                        </div>
+
+                        {/* Student info section */}
+                        <div style={{ padding: '20px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '20px' }}>
+                                <div style={{ width: '52px', height: '52px', borderRadius: '50%', overflow: 'hidden', border: '2px solid #e8e8e8', flexShrink: 0 }}>
+                                    <img src="/studentPic.png" alt="Student" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                </div>
+                                <div>
+                                    <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#111' }}>Student</div>
+                                    <div style={{ fontSize: '0.78rem', color: '#888' }}>student@gmail.com</div>
+                                    <div style={{ fontSize: '0.72rem', color: '#aaa', fontFamily: 'monospace', marginTop: '2px' }}>STU2021078</div>
+                                </div>
+                            </div>
+
+                            {/* Basic info */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.78rem', marginBottom: '24px', padding: '14px', background: '#fafafa', borderRadius: '8px', border: '1px solid #f0f0f0' }}>
+                                {[
+                                    ['Program', 'B.Tech CSE'],
+                                    ['Semester', '4th'],
+                                    ['Section', 'CS-A'],
+                                    ['Enrollment', '2021'],
+                                    ['Status', 'Active'],
+                                ].map(([label, val], i) => (
+                                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 0', borderBottom: i < 4 ? '1px solid #f5f5f5' : 'none' }}>
+                                        <span style={{ color: '#888' }}>{label}</span>
+                                        <span style={{ fontWeight: 600, color: '#333', fontFamily: 'monospace', fontSize: '0.76rem' }}>{val}</span>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* ═══════ DEVICE REGISTRATION ═══════ */}
+                            <div style={{ marginBottom: '20px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+                                    <Wifi size={14} color="#888" />
+                                    <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#111' }}>Device Registration</span>
+                                </div>
+
+                                {/* Current MAC display */}
+                                <div style={{ padding: '14px', background: '#fafafa', borderRadius: '8px', border: '1px solid #f0f0f0', marginBottom: '12px' }}>
+                                    <div style={{ fontSize: '0.68rem', fontWeight: 600, color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '8px' }}>Primary Device MAC Address</div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <span style={{ fontFamily: 'monospace', fontSize: '0.85rem', fontWeight: 700, color: '#111', letterSpacing: '0.5px' }}>
+                                            {registeredMac || '—'}
+                                        </span>
+                                        <span style={{
+                                            display: 'inline-flex', alignItems: 'center', gap: '4px',
+                                            padding: '2px 8px', borderRadius: '4px', fontSize: '0.68rem', fontWeight: 600,
+                                            background: registeredMac ? '#f0fdf4' : '#fef2f2',
+                                            color: registeredMac ? '#16a34a' : '#dc2626',
+                                            border: '1px solid ' + (registeredMac ? '#bbf7d0' : '#fecaca')
+                                        }}>
+                                            <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: registeredMac ? '#16a34a' : '#dc2626' }} />
+                                            {registeredMac ? 'Registered' : 'Not Registered'}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Edit MAC */}
+                                {!isEditingMac ? (
+                                    <button onClick={() => { setIsEditingMac(true); setMacInput(registeredMac || ''); }}
+                                        style={{
+                                            display: 'flex', alignItems: 'center', gap: '5px',
+                                            padding: '6px 14px', borderRadius: '6px', border: '1px solid #e8e8e8',
+                                            background: '#fff', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, color: '#555',
+                                            transition: 'all 0.15s'
+                                        }}>
+                                        {registeredMac ? 'Update MAC Address' : 'Register MAC Address'}
+                                    </button>
+                                ) : (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                        <div style={{ position: 'relative' }}>
+                                            <input
+                                                type="text"
+                                                value={macInput}
+                                                onChange={handleMacChange}
+                                                placeholder="XX:XX:XX:XX:XX:XX"
+                                                maxLength={17}
+                                                style={{
+                                                    width: '100%', padding: '8px 12px', borderRadius: '6px',
+                                                    border: '1px solid ' + (macError ? '#fca5a5' : '#e8e8e8'),
+                                                    fontSize: '0.85rem', fontFamily: 'monospace', color: '#111',
+                                                    letterSpacing: '0.5px', outline: 'none', background: '#fff',
+                                                    boxSizing: 'border-box'
+                                                }}
+                                            />
+                                        </div>
+                                        {macError && (
+                                            <div style={{ fontSize: '0.72rem', color: '#dc2626' }}>{macError}</div>
+                                        )}
+                                        <div style={{ display: 'flex', gap: '6px' }}>
+                                            <button onClick={handleMacUpdate}
+                                                style={{
+                                                    padding: '6px 14px', borderRadius: '6px', border: 'none',
+                                                    background: '#111', color: '#fff',
+                                                    fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer'
+                                                }}>
+                                                Save
+                                            </button>
+                                            <button onClick={() => { setIsEditingMac(false); setMacInput(''); setMacError(''); }}
+                                                style={{
+                                                    padding: '6px 14px', borderRadius: '6px',
+                                                    border: '1px solid #e8e8e8', background: '#fff',
+                                                    fontSize: '0.75rem', fontWeight: 600, color: '#888', cursor: 'pointer'
+                                                }}>
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Info text */}
+                                <div style={{ marginTop: '12px', fontSize: '0.72rem', color: '#aaa', lineHeight: '1.5' }}>
+                                    This MAC address will be used for Wi-Fi‑based attendance detection during lectures.
+                                </div>
+
+                                {/* Update log */}
+                                {macUpdateLog.length > 1 && (
+                                    <div style={{ marginTop: '14px' }}>
+                                        <div style={{ fontSize: '0.68rem', fontWeight: 600, color: '#bbb', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>Update History</div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                            {macUpdateLog.slice().reverse().slice(0, 3).map((log, i) => (
+                                                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', padding: '3px 0', borderBottom: '1px solid #f5f5f5' }}>
+                                                    <span style={{ fontFamily: 'monospace', color: '#999', fontSize: '0.7rem' }}>{log.mac}</span>
+                                                    <span style={{ color: '#bbb' }}>{log.timestamp}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ═══════ MAC UPDATE CONFIRMATION MODAL ═══════ */}
+            {showMacConfirm && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    zIndex: 10000
+                }}>
+                    <div style={{
+                        background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8',
+                        width: '340px', maxWidth: '90vw', boxShadow: '0 8px 30px rgba(0,0,0,0.08)',
+                        overflow: 'hidden'
+                    }}>
+                        <div style={{ padding: '16px 20px', borderBottom: '1px solid #f0f0f0' }}>
+                            <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#111' }}>Confirm Device Update</span>
+                        </div>
+                        <div style={{ padding: '20px' }}>
+                            <div style={{ fontSize: '0.82rem', color: '#555', lineHeight: '1.6', marginBottom: '16px' }}>
+                                Are you sure you want to update your registered device?
+                            </div>
+                            <div style={{ padding: '10px 14px', background: '#fafafa', borderRadius: '8px', border: '1px solid #f0f0f0', marginBottom: '16px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', marginBottom: '4px' }}>
+                                    <span style={{ color: '#888' }}>Current</span>
+                                    <span style={{ fontFamily: 'monospace', color: '#999', fontWeight: 500 }}>{registeredMac || 'None'}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem' }}>
+                                    <span style={{ color: '#888' }}>New</span>
+                                    <span style={{ fontFamily: 'monospace', color: '#111', fontWeight: 700 }}>{macInput}</span>
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                <button onClick={() => setShowMacConfirm(false)}
+                                    style={{ padding: '6px 16px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', fontSize: '0.78rem', fontWeight: 600, color: '#888', cursor: 'pointer' }}>
+                                    Cancel
+                                </button>
+                                <button onClick={confirmMacUpdate}
+                                    style={{ padding: '6px 16px', borderRadius: '6px', border: 'none', background: '#111', fontSize: '0.78rem', fontWeight: 600, color: '#fff', cursor: 'pointer' }}>
+                                    Confirm Update
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

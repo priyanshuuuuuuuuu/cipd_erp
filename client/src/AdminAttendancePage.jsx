@@ -13,7 +13,6 @@ import {
     ChevronLeft,
     ChevronRight,
     Wifi,
-    Radio,
     Clock,
     FileBarChart,
     Download,
@@ -21,7 +20,10 @@ import {
     Activity,
     CheckCircle,
     AlertTriangle,
-    Filter
+    Filter,
+    Fingerprint,
+    Shield,
+    X
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -31,6 +33,12 @@ const AdminAttendancePage = () => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [sessionFilter, setSessionFilter] = useState('all');
     const [dateFilter, setDateFilter] = useState('2026-02-14');
+
+    // Session & Auth State
+    const [sessionActive, setSessionActive] = useState(false);
+    const [showAuthModal, setShowAuthModal] = useState(false);
+    const [authState, setAuthState] = useState('idle'); // idle | verifying | success | failed
+    const [macFilter, setMacFilter] = useState('all'); // all | registered | not-registered
 
     // Live timer
     const [timer, setTimer] = useState({ min: 7, sec: 24 });
@@ -51,14 +59,44 @@ const AdminAttendancePage = () => {
 
     // Mock Data
     const attendanceSnapshot = [
-        { id: 'STU-2023001', hash: 'a7f3...e1d2', pings: 4, status: 'Present' },
-        { id: 'STU-2023002', hash: 'b2c1...f4a8', pings: 2, status: 'Absent' },
-        { id: 'STU-2023003', hash: 'c9d4...b7e3', pings: 5, status: 'Present' },
-        { id: 'STU-2023004', hash: 'd1e5...a3c7', pings: 3, status: 'Present' },
-        { id: 'STU-2023005', hash: 'e8f2...d6b1', pings: 1, status: 'Absent' },
-        { id: 'STU-2023006', hash: 'f3a7...c2e9', pings: 3, status: 'Present' },
-        { id: 'STU-2023007', hash: 'g6b8...e5d4', pings: 0, status: 'Absent' },
+        { id: 'STU-2023001', name: 'Aarav Gupta', rollNo: 'CS21034', hash: 'a7f3...e1d2', pings: 4, status: 'Present', mac: 'A4:83:E7:2B:9F:01', lastSeen: '09:36:15' },
+        { id: 'STU-2023002', name: 'Sneha Kumar', rollNo: 'CS21056', hash: 'b2c1...f4a8', pings: 2, status: 'Absent', mac: 'B2:C1:D4:8E:3A:02', lastSeen: '09:36:09' },
+        { id: 'STU-2023003', name: 'Rohan Patel', rollNo: 'CS21023', hash: 'c9d4...b7e3', pings: 5, status: 'Present', mac: 'C9:D4:A1:7B:E3:03', lastSeen: '09:48:19' },
+        { id: 'STU-2023004', name: 'Priya Malhotra', rollNo: 'CS21045', hash: 'd1e5...a3c7', pings: 3, status: 'Present', mac: null, lastSeen: '09:24:05' },
+        { id: 'STU-2023005', name: 'Karan Singh', rollNo: 'CS21067', hash: 'e8f2...d6b1', pings: 1, status: 'Absent', mac: 'E8:F2:B5:6D:1C:05', lastSeen: '09:48:03' },
+        { id: 'STU-2023006', name: 'Vivaan Singh', rollNo: 'CS21091', hash: 'f3a7...c2e9', pings: 3, status: 'Present', mac: null, lastSeen: '09:36:02' },
+        { id: 'STU-2023007', name: 'Aditya Kumar', rollNo: 'CS21012', hash: 'g6b8...e5d4', pings: 0, status: 'Absent', mac: 'G6:B8:3F:E5:D4:07', lastSeen: '—' },
     ];
+
+    const filteredStudents = attendanceSnapshot.filter(s => {
+        if (macFilter === 'registered') return s.mac !== null;
+        if (macFilter === 'not-registered') return s.mac === null;
+        return true;
+    });
+
+    // Fingerprint auth handler
+    const handleStartAttendance = () => {
+        if (sessionActive) return;
+        setShowAuthModal(true);
+        setAuthState('idle');
+    };
+
+    const handleFingerprint = () => {
+        setAuthState('verifying');
+        setTimeout(() => {
+            // Simulate 90% success rate
+            if (Math.random() > 0.1) {
+                setAuthState('success');
+                setTimeout(() => {
+                    setShowAuthModal(false);
+                    setSessionActive(true);
+                    setAuthState('idle');
+                }, 1200);
+            } else {
+                setAuthState('failed');
+            }
+        }, 1800);
+    };
 
     const rawLogs = [
         { timestamp: '2026-02-14 09:00:12', hash: 'a7f3...e1d2', bssid: 'C4:E9:84:A2:3F:01', session: 'CS301-A' },
@@ -134,104 +172,108 @@ const AdminAttendancePage = () => {
                         </div>
                     </header>
 
-                    {/* Mini Stats */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
-                        {[
-                            { label: 'Active Session', value: 'CS301-A', sub: 'In progress', color: '#16a34a', accent: '#3B2D82' },
-                            { label: 'Total Students', value: `${attendanceSnapshot.length}`, sub: 'Enrolled in session', color: '#2563eb', accent: '#00A5A0' },
-                            { label: 'Present', value: `${presentCount}`, sub: `${Math.round(presentCount / attendanceSnapshot.length * 100)}% detected`, color: '#16a34a', accent: '#00A5A0' },
-                            { label: 'Absent', value: `${absentCount}`, sub: `${Math.round(absentCount / attendanceSnapshot.length * 100)}% missing`, color: '#dc2626', accent: '#E91E87' },
-                        ].map((stat, i) => (
-                            <div key={i} style={{ background: '#fff', borderRadius: '12px', padding: '1.2rem 1.5rem', border: '1px solid #e8e8e8', borderLeft: `3px solid ${stat.accent}`, boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
-                                <div style={{ fontSize: '0.8rem', color: '#888', fontWeight: 500, marginBottom: '6px' }}>{stat.label}</div>
-                                <div style={{ fontSize: '1.8rem', fontWeight: 700, color: '#111', letterSpacing: '-0.5px' }}>{stat.value}</div>
-                                <div style={{ fontSize: '0.75rem', color: stat.color, fontWeight: 500, marginTop: '4px' }}>{stat.sub}</div>
+                    {/* ═══════ SESSION MONITORING STRIP ═══════ */}
+                    <div style={{
+                        background: '#fff', borderRadius: '10px', border: '1px solid #e8e8e8',
+                        padding: '0', marginBottom: '1.2rem', overflow: 'hidden',
+                        boxShadow: '0 1px 4px rgba(0,0,0,0.02)'
+                    }}>
+                        {/* Primary strip — inline session data */}
+                        <div style={{
+                            display: 'flex', alignItems: 'center', padding: '10px 1.2rem',
+                            fontSize: '0.78rem', borderBottom: '1px solid #f0f0f0',
+                            overflowX: 'auto', whiteSpace: 'nowrap'
+                        }}>
+                            {/* Session ID */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', paddingRight: '14px', flexShrink: 0 }}>
+                                <span style={{ color: '#999', fontWeight: 500, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Session</span>
+                                <span style={{ fontWeight: 700, color: '#111', fontFamily: 'monospace', fontSize: '0.78rem' }}>CS301-A</span>
                             </div>
-                        ))}
-                    </div>
+                            <div style={{ width: '1px', height: '20px', background: '#e8e8e8', flexShrink: 0 }} />
 
-                    {/* Two Column: Engine Status + Attendance Table */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
-                        {/* Wi-Fi Engine */}
-                        <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', borderTop: '3px solid #E91E87', boxShadow: '0 2px 8px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.5rem', borderBottom: '1px solid #f0f0f0' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1rem', fontWeight: 700 }}><Radio size={16} /> Wi-Fi Attendance Engine</div>
-                                <button style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 10px', borderRadius: '8px', border: '1px solid #eee', background: '#fff', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500, color: '#555' }}><RefreshCw size={12} /> Refresh</button>
+                            {/* Status */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '0 14px', flexShrink: 0 }}>
+                                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: sessionActive ? '#16a34a' : '#999', display: 'inline-block', boxShadow: sessionActive ? '0 0 0 2px rgba(22,163,106,0.15)' : 'none', flexShrink: 0 }} />
+                                <span style={{ fontWeight: 600, color: sessionActive ? '#111' : '#999', fontSize: '0.78rem' }}>{sessionActive ? 'Active' : 'Inactive'}</span>
+                                <span style={{ color: '#bbb', fontSize: '0.68rem' }}>{sessionActive ? '(Live Tracking)' : '(standby)'}</span>
                             </div>
-                            <div style={{ padding: '1rem 1.5rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                                <div style={{ background: '#f9f9f9', padding: '10px 14px', borderRadius: '10px', border: '1px solid #f0f0f0' }}>
-                                    <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.3px', marginBottom: '4px' }}>Session Status</div>
-                                    <div style={{ fontSize: '0.9rem', fontWeight: 600, color: '#111', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#16a34a', display: 'inline-block' }}></span>
-                                        Active — CS301-A
-                                    </div>
+                            <div style={{ width: '1px', height: '20px', background: '#e8e8e8', flexShrink: 0 }} />
+
+                            {/* Enrolled */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '0 14px', flexShrink: 0 }}>
+                                <span style={{ color: '#999', fontWeight: 500, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Students</span>
+                                <span style={{ fontWeight: 700, color: '#111', fontFamily: 'monospace' }}>{attendanceSnapshot.length}</span>
+                            </div>
+                            <div style={{ width: '1px', height: '20px', background: '#e8e8e8', flexShrink: 0 }} />
+
+                            {/* Detected */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '0 14px', flexShrink: 0 }}>
+                                <span style={{ color: '#999', fontWeight: 500, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Detected</span>
+                                <span style={{ fontWeight: 700, color: '#111', fontFamily: 'monospace' }}>{presentCount}/{attendanceSnapshot.length}</span>
+                            </div>
+                            <div style={{ width: '1px', height: '20px', background: '#e8e8e8', flexShrink: 0 }} />
+
+                            {/* Ping Progress — inline bar */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0 14px', flexShrink: 0 }}>
+                                <span style={{ color: '#999', fontWeight: 500, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Ping</span>
+                                <span style={{ fontWeight: 700, color: '#111', fontFamily: 'monospace', fontSize: '0.78rem' }}>3/6</span>
+                                <div style={{ width: '48px', height: '3px', background: '#e5e7eb', borderRadius: '2px', overflow: 'hidden', flexShrink: 0 }}>
+                                    <div style={{ width: '50%', height: '100%', background: '#111', borderRadius: '2px' }} />
                                 </div>
-                                <div style={{ background: '#f9f9f9', padding: '10px 14px', borderRadius: '10px', border: '1px solid #f0f0f0' }}>
-                                    <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.3px', marginBottom: '4px' }}>Next Ping In</div>
-                                    <div style={{ fontSize: '1.3rem', fontWeight: 700, color: '#111', fontFamily: 'monospace', letterSpacing: '1px' }}>{pad(timer.min)}:{pad(timer.sec)}</div>
-                                </div>
-                                <div style={{ background: '#f9f9f9', padding: '10px 14px', borderRadius: '10px', border: '1px solid #f0f0f0' }}>
-                                    <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.3px', marginBottom: '4px' }}>Ping Progress</div>
-                                    <div style={{ fontSize: '0.9rem', fontWeight: 600, color: '#111' }}>3 / 5 completed</div>
-                                    <div style={{ width: '100%', height: '5px', background: '#e5e7eb', borderRadius: '3px', marginTop: '6px', overflow: 'hidden' }}>
-                                        <div style={{ width: '60%', height: '100%', background: '#111', borderRadius: '3px', transition: 'width 0.4s' }}></div>
-                                    </div>
-                                </div>
-                                <div style={{ background: '#f9f9f9', padding: '10px 14px', borderRadius: '10px', border: '1px solid #f0f0f0' }}>
-                                    <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.3px', marginBottom: '4px' }}>Detection Rule</div>
-                                    <div style={{ fontSize: '0.9rem', fontWeight: 600, color: '#111' }}>≥ 3 pings = Present</div>
-                                </div>
-                                <div style={{ background: '#f9f9f9', padding: '10px 14px', borderRadius: '10px', border: '1px solid #f0f0f0' }}>
-                                    <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.3px', marginBottom: '4px' }}>Mapped BSSID</div>
-                                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#111', fontFamily: 'monospace' }}>C4:E9:84:A2:3F:01</div>
-                                </div>
-                                <div style={{ background: '#f9f9f9', padding: '10px 14px', borderRadius: '10px', border: '1px solid #f0f0f0' }}>
-                                    <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.3px', marginBottom: '4px' }}>Venue</div>
-                                    <div style={{ fontSize: '0.9rem', fontWeight: 600, color: '#111' }}>Room 204, Block A</div>
-                                </div>
-                                <div style={{ background: '#f9f9f9', padding: '10px 14px', borderRadius: '10px', border: '1px solid #f0f0f0', gridColumn: '1 / -1' }}>
-                                    <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.3px', marginBottom: '4px' }}>Attendance Window</div>
-                                    <div style={{ fontSize: '0.9rem', fontWeight: 600, color: '#111' }}>09:00 AM — 10:00 AM · 60 min session</div>
-                                </div>
+                            </div>
+                            <div style={{ width: '1px', height: '20px', background: '#e8e8e8', flexShrink: 0 }} />
+
+                            {/* Next Ping Timer */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '0 14px', flexShrink: 0 }}>
+                                <span style={{ color: '#999', fontWeight: 500, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Next</span>
+                                <span style={{ fontWeight: 700, color: '#111', fontFamily: 'monospace', fontSize: '0.82rem', letterSpacing: '0.5px' }}>{pad(timer.min)}:{pad(timer.sec)}</span>
+                            </div>
+                            <div style={{ width: '1px', height: '20px', background: '#e8e8e8', flexShrink: 0 }} />
+
+                            {/* Window */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '0 14px', flexShrink: 0 }}>
+                                <span style={{ color: '#999', fontWeight: 500, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Window</span>
+                                <span style={{ fontWeight: 600, color: '#111', fontSize: '0.78rem' }}>09:00–10:00</span>
+                            </div>
+                            <div style={{ width: '1px', height: '20px', background: '#e8e8e8', flexShrink: 0 }} />
+
+                            {/* Start Attendance Button */}
+                            <div style={{ padding: '0 14px', flexShrink: 0, marginLeft: 'auto' }}>
+                                <button
+                                    onClick={handleStartAttendance}
+                                    disabled={sessionActive}
+                                    style={{
+                                        display: 'flex', alignItems: 'center', gap: '5px',
+                                        padding: '5px 14px', borderRadius: '6px',
+                                        border: '1px solid ' + (sessionActive ? '#e8e8e8' : '#111'),
+                                        background: sessionActive ? '#fafafa' : '#111',
+                                        color: sessionActive ? '#999' : '#fff',
+                                        fontSize: '0.72rem', fontWeight: 600,
+                                        cursor: sessionActive ? 'not-allowed' : 'pointer',
+                                        transition: 'all 0.15s'
+                                    }}
+                                >
+                                    {sessionActive ? <><CheckCircle size={11} /> Live Tracking Enabled</> : <><Shield size={11} /> Start Attendance</>}
+                                </button>
                             </div>
                         </div>
 
-                        {/* Attendance Snapshot Table */}
-                        <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', borderTop: '3px solid #00A5A0', boxShadow: '0 2px 8px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.5rem', borderBottom: '1px solid #f0f0f0' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1rem', fontWeight: 700 }}><Activity size={16} /> Attendance Snapshot — CS301-A</div>
-                                <button style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 10px', borderRadius: '8px', border: '1px solid #eee', background: '#fff', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500, color: '#555' }}><Download size={12} /> Export</button>
-                            </div>
-                            <div style={{ overflowX: 'auto' }}>
-                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
-                                    <thead>
-                                        <tr style={{ background: '#f9f9f9' }}>
-                                            {['Student ID', 'Device Hash', 'Total Pings', 'Status', 'Action'].map(h => (
-                                                <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#888', borderBottom: '1px solid #eee' }}>{h}</th>
-                                            ))}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {attendanceSnapshot.map((s, i) => (
-                                            <tr key={i} style={{ borderBottom: '1px solid #f5f5f5' }} className="attendance-row">
-                                                <td style={{ padding: '10px 16px', fontWeight: 600, color: '#111' }}>{s.id}</td>
-                                                <td style={{ padding: '10px 16px', fontFamily: 'monospace', fontSize: '0.8rem', color: '#777' }}>{s.hash}</td>
-                                                <td style={{ padding: '10px 16px' }}>
-                                                    <span style={{ fontWeight: 600, color: s.pings >= 3 ? '#16a34a' : s.pings >= 1 ? '#b45309' : '#dc2626' }}>{s.pings} / 5</span>
-                                                </td>
-                                                <td style={{ padding: '10px 16px' }}>
-                                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '3px 10px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 500, background: s.status === 'Present' ? '#ecfdf5' : '#fef2f2', color: s.status === 'Present' ? '#166534' : '#991b1b' }}>
-                                                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: s.status === 'Present' ? '#16a34a' : '#dc2626' }}></span>
-                                                        {s.status}
-                                                    </span>
-                                                </td>
-                                                <td style={{ padding: '10px 16px' }}>
-                                                    <button style={{ padding: '4px 10px', borderRadius: '8px', border: '1px solid #eee', background: '#fff', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 500, color: '#555' }} className="change-status-btn">Override</button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
+                        {/* Secondary strip — system config context */}
+                        <div style={{
+                            display: 'flex', alignItems: 'center', padding: '7px 1.5rem',
+                            gap: '20px', fontSize: '0.7rem', color: '#aaa', background: '#fafafa'
+                        }}>
+                            <span>BSSID <span style={{ fontFamily: 'monospace', color: '#888', fontWeight: 500 }}>C4:E9:84:A2:3F:01</span></span>
+                            <span style={{ color: '#ddd' }}>·</span>
+                            <span>Venue <span style={{ color: '#888', fontWeight: 500 }}>Room 204, Block A</span></span>
+                            <span style={{ color: '#ddd' }}>·</span>
+                            <span>Rule <span style={{ color: '#888', fontWeight: 500 }}>≥ 3 pings = Present</span></span>
+                            <span style={{ color: '#ddd' }}>·</span>
+                            <span>Interval <span style={{ color: '#888', fontWeight: 500 }}>10 min</span></span>
+                            <span style={{ color: '#ddd' }}>·</span>
+                            <span>Faculty <span style={{ color: '#888', fontWeight: 500 }}>Prof. Anuj Grover</span></span>
+                            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <button style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '3px 8px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', fontSize: '0.68rem', fontWeight: 500, color: '#888' }}><RefreshCw size={10} /> Refresh</button>
                             </div>
                         </div>
                     </div>
@@ -404,6 +446,123 @@ const AdminAttendancePage = () => {
                         );
                     })()}
 
+                    {/* ═══════ ATTENDANCE SNAPSHOT ═══════ */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: '1.2rem', marginBottom: '1.5rem' }}>
+                        {/* Student table */}
+                        <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e8e8e8', boxShadow: '0 1px 4px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 1.5rem', borderBottom: '1px solid #f0f0f0' }}>
+                                <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#111', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <Activity size={14} /> Attendance Snapshot
+                                </div>
+                                <button style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 10px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 500, color: '#888' }}><Download size={11} /> Export</button>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 1.5rem 8px', borderBottom: '1px solid #f0f0f0' }}>
+                                <span style={{ fontSize: '0.68rem', color: '#aaa', fontWeight: 500 }}>Filter MAC:</span>
+                                {['all', 'registered', 'not-registered'].map(f => (
+                                    <button key={f} onClick={() => setMacFilter(f)}
+                                        style={{
+                                            padding: '2px 8px', borderRadius: '4px', fontSize: '0.68rem', fontWeight: 600,
+                                            border: '1px solid ' + (macFilter === f ? '#111' : '#e8e8e8'),
+                                            background: macFilter === f ? '#111' : '#fff',
+                                            color: macFilter === f ? '#fff' : '#888',
+                                            cursor: 'pointer', transition: 'all 0.15s', textTransform: 'capitalize'
+                                        }}>
+                                        {f === 'not-registered' ? 'Not Registered' : f === 'all' ? 'All' : 'Registered'}
+                                    </button>
+                                ))}
+                                <span style={{ fontSize: '0.68rem', color: '#bbb', marginLeft: 'auto' }}>{filteredStudents.length} students</span>
+                            </div>
+                            <div style={{ overflowX: 'auto' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                                    <thead>
+                                        <tr style={{ background: '#fafafa' }}>
+                                            {['Student Name', 'Roll No', 'Detection Status', 'MAC Address', 'Last Seen', 'Attendance', ''].map(h => (
+                                                <th key={h} style={{ padding: '8px 16px', textAlign: 'left', fontSize: '0.68rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#aaa', borderBottom: '1px solid #f0f0f0' }}>{h}</th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {filteredStudents.map((s, i) => (
+                                            <tr key={i} style={{ borderBottom: '1px solid #f5f5f5' }} className="attendance-row">
+                                                <td style={{ padding: '9px 16px', fontWeight: 600, color: '#111', fontSize: '0.82rem' }}>{s.name}</td>
+                                                <td style={{ padding: '9px 16px', fontFamily: 'monospace', fontSize: '0.78rem', color: '#555' }}>{s.rollNo}</td>
+                                                <td style={{ padding: '9px 16px' }}>
+                                                    <span style={{ fontWeight: 600, fontFamily: 'monospace', color: s.pings >= 3 ? '#111' : s.pings >= 1 ? '#b45309' : '#dc2626' }}>{s.pings}/5 pings</span>
+                                                </td>
+                                                <td style={{ padding: '9px 16px' }}>
+                                                    {s.mac ? (
+                                                        <span style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: '#999' }}>{s.mac}</span>
+                                                    ) : (
+                                                        <span style={{ fontSize: '0.75rem', color: '#ccc', fontStyle: 'italic' }}>Not Registered</span>
+                                                    )}
+                                                </td>
+                                                <td style={{ padding: '9px 16px', fontFamily: 'monospace', fontSize: '0.78rem', color: '#888' }}>{s.lastSeen}</td>
+                                                <td style={{ padding: '9px 16px' }}>
+                                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '2px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 500, background: s.status === 'Present' ? '#ecfdf5' : '#fef2f2', color: s.status === 'Present' ? '#166534' : '#991b1b' }}>
+                                                        <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: s.status === 'Present' ? '#16a34a' : '#dc2626' }}></span>
+                                                        {s.status}
+                                                    </span>
+                                                </td>
+                                                <td style={{ padding: '9px 16px' }}>
+                                                    <button style={{ padding: '3px 8px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 500, color: '#999' }} className="change-status-btn">Override</button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        {/* Summary sidebar */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            {/* Detection Summary */}
+                            <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e8e8e8', padding: '1.2rem', boxShadow: '0 1px 4px rgba(0,0,0,0.02)' }}>
+                                <div style={{ fontSize: '0.72rem', fontWeight: 600, color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>Detection Summary</div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <span style={{ fontSize: '0.8rem', color: '#777' }}>Present</span>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <span style={{ fontWeight: 700, fontFamily: 'monospace', color: '#111', fontSize: '0.9rem' }}>{presentCount}</span>
+                                            <span style={{ fontSize: '0.68rem', color: '#aaa' }}>({Math.round(presentCount / attendanceSnapshot.length * 100)}%)</span>
+                                        </div>
+                                    </div>
+                                    <div style={{ width: '100%', height: '4px', background: '#e5e7eb', borderRadius: '2px', overflow: 'hidden' }}>
+                                        <div style={{ width: `${(presentCount / attendanceSnapshot.length) * 100}%`, height: '100%', background: '#16a34a', borderRadius: '2px', transition: 'width 0.4s' }} />
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <span style={{ fontSize: '0.8rem', color: '#777' }}>Absent</span>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <span style={{ fontWeight: 700, fontFamily: 'monospace', color: '#111', fontSize: '0.9rem' }}>{absentCount}</span>
+                                            <span style={{ fontSize: '0.68rem', color: '#aaa' }}>({Math.round(absentCount / attendanceSnapshot.length * 100)}%)</span>
+                                        </div>
+                                    </div>
+                                    <div style={{ width: '100%', height: '4px', background: '#e5e7eb', borderRadius: '2px', overflow: 'hidden' }}>
+                                        <div style={{ width: `${(absentCount / attendanceSnapshot.length) * 100}%`, height: '100%', background: '#dc2626', borderRadius: '2px', transition: 'width 0.4s' }} />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* System info */}
+                            <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e8e8e8', padding: '1.2rem', boxShadow: '0 1px 4px rgba(0,0,0,0.02)', flex: 1 }}>
+                                <div style={{ fontSize: '0.72rem', fontWeight: 600, color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>System Config</div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.78rem' }}>
+                                    {[
+                                        ['Detection Rule', '≥ 3 pings'],
+                                        ['Ping Interval', '10 min'],
+                                        ['Total Pings', '6 per session'],
+                                        ['Window', '60 min'],
+                                        ['BSSID Verified', 'Yes'],
+                                    ].map(([label, val], i) => (
+                                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 0', borderBottom: i < 4 ? '1px solid #f5f5f5' : 'none' }}>
+                                            <span style={{ color: '#888' }}>{label}</span>
+                                            <span style={{ fontWeight: 600, color: '#333', fontFamily: 'monospace', fontSize: '0.76rem' }}>{val}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Raw Wi-Fi Ping Logs */}
                     <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', borderTop: '3px solid #3B2D82', boxShadow: '0 2px 8px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.5rem', borderBottom: '1px solid #f0f0f0', flexWrap: 'wrap', gap: '10px' }}>
@@ -457,6 +616,125 @@ const AdminAttendancePage = () => {
 
                 </div>
             </div>
+
+            {/* ═══════ FINGERPRINT AUTHENTICATION MODAL ═══════ */}
+            {showAuthModal && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    zIndex: 9999
+                }} onClick={() => { if (authState !== 'verifying') { setShowAuthModal(false); setAuthState('idle'); } }}>
+                    <div style={{
+                        background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8',
+                        width: '380px', maxWidth: '90vw', boxShadow: '0 8px 30px rgba(0,0,0,0.08)',
+                        overflow: 'hidden'
+                    }} onClick={e => e.stopPropagation()}>
+                        {/* Modal header */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 20px', borderBottom: '1px solid #f0f0f0' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <Shield size={14} color="#555" />
+                                <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#111' }}>Admin Authentication Required</span>
+                            </div>
+                            <button onClick={() => { setShowAuthModal(false); setAuthState('idle'); }}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#999', padding: '2px' }}>
+                                <X size={16} />
+                            </button>
+                        </div>
+
+                        {/* Modal body */}
+                        <div style={{ padding: '24px 20px', textAlign: 'center' }}>
+                            <div style={{ fontSize: '0.8rem', color: '#888', lineHeight: '1.6', marginBottom: '20px' }}>
+                                This action will initiate live attendance tracking for the current session.
+                            </div>
+
+                            {/* Fingerprint icon area */}
+                            <div style={{
+                                width: '80px', height: '80px', margin: '0 auto 16px',
+                                borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                border: '2px solid ' + (
+                                    authState === 'success' ? '#16a34a' :
+                                        authState === 'failed' ? '#dc2626' :
+                                            authState === 'verifying' ? '#999' : '#e8e8e8'
+                                ),
+                                background: authState === 'success' ? '#f0fdf4' :
+                                    authState === 'failed' ? '#fef2f2' : '#fafafa',
+                                transition: 'all 0.3s'
+                            }}>
+                                {authState === 'success' ? (
+                                    <CheckCircle size={32} color="#16a34a" />
+                                ) : (
+                                    <Fingerprint size={32} color={
+                                        authState === 'failed' ? '#dc2626' :
+                                            authState === 'verifying' ? '#555' : '#bbb'
+                                    } style={authState === 'verifying' ? { animation: 'pulse 1s infinite' } : {}} />
+                                )}
+                            </div>
+
+                            {/* State text */}
+                            <div style={{
+                                fontSize: '0.82rem', fontWeight: 600, marginBottom: '4px',
+                                color: authState === 'success' ? '#16a34a' :
+                                    authState === 'failed' ? '#dc2626' : '#333'
+                            }}>
+                                {authState === 'idle' && 'Waiting for authentication'}
+                                {authState === 'verifying' && 'Verifying...'}
+                                {authState === 'success' && 'Authentication Successful ✓'}
+                                {authState === 'failed' && 'Authentication Failed — Try Again'}
+                            </div>
+                            <div style={{ fontSize: '0.72rem', color: '#aaa', marginBottom: '20px' }}>
+                                {authState === 'idle' && 'Place your registered fingerprint to authenticate.'}
+                                {authState === 'verifying' && 'Processing biometric data...'}
+                                {authState === 'success' && 'Session will be activated shortly.'}
+                                {authState === 'failed' && 'Fingerprint did not match. Please try again.'}
+                            </div>
+
+                            {/* Action button */}
+                            {(authState === 'idle' || authState === 'failed') && (
+                                <button onClick={handleFingerprint}
+                                    style={{
+                                        display: 'inline-flex', alignItems: 'center', gap: '6px',
+                                        padding: '8px 20px', borderRadius: '8px', border: 'none',
+                                        background: '#111', color: '#fff',
+                                        fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer',
+                                        transition: 'background 0.2s'
+                                    }}>
+                                    <Fingerprint size={14} />
+                                    {authState === 'failed' ? 'Retry Authentication' : 'Authenticate'}
+                                </button>
+                            )}
+
+                            {/* Session info footer */}
+                            <div style={{
+                                marginTop: '18px', padding: '10px 14px', background: '#fafafa',
+                                borderRadius: '8px', border: '1px solid #f0f0f0',
+                                fontSize: '0.72rem', color: '#aaa',
+                                display: 'flex', flexDirection: 'column', gap: '4px', textAlign: 'left'
+                            }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span>Session</span>
+                                    <span style={{ fontFamily: 'monospace', color: '#888', fontWeight: 500 }}>CS301-A</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span>Admin</span>
+                                    <span style={{ fontFamily: 'monospace', color: '#888', fontWeight: 500 }}>ADM-001</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span>Timestamp</span>
+                                    <span style={{ fontFamily: 'monospace', color: '#888', fontWeight: 500 }}>{new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Pulse animation for fingerprint verifying state */}
+            <style>{`
+                @keyframes pulse {
+                    0%, 100% { opacity: 1; }
+                    50% { opacity: 0.4; }
+                }
+            `}</style>
         </div>
     );
 };

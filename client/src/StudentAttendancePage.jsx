@@ -17,16 +17,15 @@ const StudentAttendancePage = () => {
     const overall = { total: 84, attended: 68, missed: 16, pct: 80.9 };
     const streak = 5;
 
-    // Soft dashboard palette per course — bg + border pairs like .cal-event variants
     const courses = [
-        { code: 'CS301', name: 'Data Structures', total: 22, attended: 20, pct: 90.9, bg: '#e0faff', border: '#7dd3fc', ring: '#7dd3fc' },
-        { code: 'PHY201', name: 'Quantum Physics', total: 20, attended: 16, pct: 80.0, bg: '#e0fcf5', border: '#5eead4', ring: '#5eead4' },
-        { code: 'MATH101', name: 'Calculus II', total: 18, attended: 15, pct: 83.3, bg: '#dbeafe', border: '#93c5fd', ring: '#93c5fd' },
-        { code: 'ENG102', name: 'Technical Writing', total: 14, attended: 10, pct: 71.4, bg: '#fce7f3', border: '#f9a8d4', ring: '#f9a8d4' },
-        { code: 'CS202', name: 'DBMS', total: 10, attended: 7, pct: 70.0, bg: '#edfedd', border: '#a5d974', ring: '#a5d974' },
+        { code: 'CS301', name: 'Data Structures', faculty: 'Prof. Anuj Grover', total: 22, attended: 20, pct: 90.9, color: '#66d9e8' },
+        { code: 'PHY201', name: 'Quantum Physics', faculty: 'Dr. Priya Sharma', total: 20, attended: 16, pct: 80.0, color: '#a78bfa' },
+        { code: 'MATH101', name: 'Calculus II', faculty: 'Prof. Amit Patel', total: 18, attended: 15, pct: 83.3, color: '#93c5fd' },
+        { code: 'ENG102', name: 'Technical Writing', faculty: 'Dr. Neha Kapoor', total: 14, attended: 10, pct: 71.4, color: '#f9a8d4' },
+        { code: 'CS202', name: 'DBMS', faculty: 'Prof. Rahul Mehta', total: 10, attended: 7, pct: 70.0, color: '#fdba74' },
     ];
 
-    // Feb 2026 calendar (1=present, 0=absent, -1=no class, null=future)
+    // Feb 2026 calendar heatmap (1=present, 0=absent, -1=no class, null=future)
     const calendarDays = [
         -1, -1, 1, 1, 1, 0, 1,
         1, 0, 1, 1, 1, 1, -1,
@@ -50,12 +49,12 @@ const StudentAttendancePage = () => {
 
     const filtered = selectedCourse === 'all' ? sessions : sessions.filter(s => s.course === selectedCourse);
 
-    const statusLabel = (p) => p >= 85 ? 'On Track' : p >= 75 ? 'Needs Attention' : 'At Risk';
-    const statusBg = (p) => p >= 85 ? '#edfedd' : p >= 75 ? '#fef9c3' : '#fce7f3';
-    const statusBorder = (p) => p >= 85 ? '#a5d974' : p >= 75 ? '#fde68a' : '#f9a8d4';
+    const statusColor = (p) => p >= 85 ? '#4ade80' : p >= 75 ? '#fbbf24' : '#f9a8d4';
     const statusTextColor = (p) => p >= 85 ? '#166534' : p >= 75 ? '#854d0e' : '#9f1239';
+    const statusBg = (p) => p >= 85 ? '#ecfccb' : p >= 75 ? '#fef9c3' : '#fce7f3';
+    const statusLabel = (p) => p >= 85 ? 'On Track' : p >= 75 ? 'Needs Attention' : 'At Risk';
 
-    // SVG Donut — soft style
+    // SVG donut — soft style
     const Donut = ({ pct, size = 120, stroke = 10, color = '#66d9e8', bg = '#f0f0f0' }) => {
         const r = (size - stroke) / 2;
         const circ = 2 * Math.PI * r;
@@ -135,66 +134,55 @@ const StudentAttendancePage = () => {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
 
                         {/* Left — Donut + Summary */}
-                        <div style={{
-                            background: '#fff', borderRadius: '20px', border: '1px solid #eee',
-                            padding: '2rem', display: 'flex', alignItems: 'center', gap: '2.5rem',
-                            boxShadow: '0 4px 12px rgba(0,0,0,0.02)'
-                        }}>
+                        <div className="stat-card" style={{ padding: '2rem', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '2.5rem' }}>
                             <div style={{ position: 'relative', flexShrink: 0 }}>
-                                <Donut pct={overall.pct} size={140} stroke={12} color="#5eead4" bg="#e0fcf5" />
+                                <Donut pct={overall.pct} size={140} stroke={12} color="#66d9e8" bg="#e8f9fb" />
                                 <div style={{
                                     position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%) rotate(0deg)',
                                     textAlign: 'center'
                                 }}>
-                                    <div style={{ fontSize: '1.7rem', fontWeight: 800, color: '#333', letterSpacing: '-1px', lineHeight: 1 }}>{overall.pct}%</div>
+                                    <div style={{ fontSize: '1.7rem', fontWeight: 800, color: '#003366', letterSpacing: '-1px', lineHeight: 1 }}>{overall.pct}%</div>
                                     <div style={{ fontSize: '0.6rem', color: '#aaa', fontWeight: 500, marginTop: '3px' }}>overall</div>
                                 </div>
                             </div>
                             <div style={{ flex: 1 }}>
-                                <div style={{ fontSize: '1rem', fontWeight: 700, color: '#333', marginBottom: '14px' }}>Semester Overview</div>
+                                <div style={{ fontSize: '1rem', fontWeight: 700, color: '#000', marginBottom: '14px' }}>Semester Overview</div>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                                    {/* Attended — soft green (same as .cal-event.green) */}
-                                    <div style={{ background: '#edfedd', borderRadius: '14px', padding: '12px 14px', border: '1px solid #a5d974' }}>
-                                        <div style={{ fontSize: '1.35rem', fontWeight: 700, color: '#333' }}>{overall.attended}</div>
-                                        <div style={{ fontSize: '0.68rem', color: '#777', fontWeight: 500 }}>Attended</div>
+                                    <div style={{ background: '#ecfccb', borderRadius: '14px', padding: '12px 14px' }}>
+                                        <div style={{ fontSize: '1.35rem', fontWeight: 700, color: '#365314' }}>{overall.attended}</div>
+                                        <div style={{ fontSize: '0.68rem', color: '#4d7c0f', fontWeight: 500 }}>Attended</div>
                                     </div>
-                                    {/* Missed — soft pink */}
-                                    <div style={{ background: '#fce7f3', borderRadius: '14px', padding: '12px 14px', border: '1px solid #f9a8d4' }}>
-                                        <div style={{ fontSize: '1.35rem', fontWeight: 700, color: '#333' }}>{overall.missed}</div>
-                                        <div style={{ fontSize: '0.68rem', color: '#777', fontWeight: 500 }}>Missed</div>
+                                    <div style={{ background: '#ffe4e6', borderRadius: '14px', padding: '12px 14px' }}>
+                                        <div style={{ fontSize: '1.35rem', fontWeight: 700, color: '#9f1239' }}>{overall.missed}</div>
+                                        <div style={{ fontSize: '0.68rem', color: '#be123c', fontWeight: 500 }}>Missed</div>
                                     </div>
-                                    {/* Total — soft blue (same as .cal-event.blue) */}
-                                    <div style={{ background: '#dbeafe', borderRadius: '14px', padding: '12px 14px', border: '1px solid #93c5fd' }}>
-                                        <div style={{ fontSize: '1.35rem', fontWeight: 700, color: '#333' }}>{overall.total}</div>
-                                        <div style={{ fontSize: '0.68rem', color: '#777', fontWeight: 500 }}>Total Classes</div>
+                                    <div style={{ background: '#e0e7ff', borderRadius: '14px', padding: '12px 14px' }}>
+                                        <div style={{ fontSize: '1.35rem', fontWeight: 700, color: '#3730a3' }}>{overall.total}</div>
+                                        <div style={{ fontSize: '0.68rem', color: '#4338ca', fontWeight: 500 }}>Total Classes</div>
                                     </div>
-                                    {/* Streak — soft teal (same as .cal-event.teal) */}
-                                    <div style={{ background: '#e0fcf5', borderRadius: '14px', padding: '12px 14px', border: '1px solid #5eead4' }}>
-                                        <div style={{ fontSize: '1.35rem', fontWeight: 700, color: '#333', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                    <div style={{ background: '#fef9c3', borderRadius: '14px', padding: '12px 14px' }}>
+                                        <div style={{ fontSize: '1.35rem', fontWeight: 700, color: '#854d0e', display: 'flex', alignItems: 'center', gap: '4px' }}>
                                             <Flame size={15} /> {streak}
                                         </div>
-                                        <div style={{ fontSize: '0.68rem', color: '#777', fontWeight: 500 }}>Day Streak</div>
+                                        <div style={{ fontSize: '0.68rem', color: '#a16207', fontWeight: 500 }}>Day Streak</div>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
                         {/* Right — Calendar Heatmap */}
-                        <div style={{
-                            background: '#fff', borderRadius: '20px', border: '1px solid #eee',
-                            padding: '1.5rem 2rem', boxShadow: '0 4px 12px rgba(0,0,0,0.02)'
-                        }}>
+                        <div className="stat-card" style={{ padding: '1.5rem 2rem', borderRadius: '20px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                                <span style={{ fontSize: '1rem', fontWeight: 700, color: '#333' }}>February 2026</span>
+                                <span style={{ fontSize: '1rem', fontWeight: 700, color: '#000' }}>February 2026</span>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.65rem', color: '#aaa' }}>
                                     <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                        <span style={{ width: '10px', height: '10px', borderRadius: '4px', background: '#e0fcf5', border: '1px solid #5eead4', display: 'inline-block' }}></span> Present
+                                        <span style={{ width: '10px', height: '10px', borderRadius: '4px', background: '#86efac', display: 'inline-block' }}></span> Present
                                     </span>
                                     <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                        <span style={{ width: '10px', height: '10px', borderRadius: '4px', background: '#fce7f3', border: '1px solid #f9a8d4', display: 'inline-block' }}></span> Absent
+                                        <span style={{ width: '10px', height: '10px', borderRadius: '4px', background: '#fda4af', display: 'inline-block' }}></span> Absent
                                     </span>
                                     <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                        <span style={{ width: '10px', height: '10px', borderRadius: '4px', background: '#f5f5f5', border: '1px solid #eee', display: 'inline-block' }}></span> No Class
+                                        <span style={{ width: '10px', height: '10px', borderRadius: '4px', background: '#f5f5f5', display: 'inline-block', border: '1px solid #eee' }}></span> No Class
                                     </span>
                                 </div>
                             </div>
@@ -208,16 +196,14 @@ const StudentAttendancePage = () => {
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px' }}>
                                 {calendarDays.map((val, i) => {
                                     let bg = '#f5f5f5';
-                                    let borderCol = '#eee';
                                     let textCol = '#ccc';
-                                    if (val === 1) { bg = '#e0fcf5'; borderCol = '#5eead4'; textCol = '#0d9488'; }
-                                    else if (val === 0) { bg = '#fce7f3'; borderCol = '#f9a8d4'; textCol = '#be185d'; }
-                                    else if (val === -1) { bg = '#f5f5f5'; borderCol = '#eee'; textCol = '#ccc'; }
-                                    else if (val === null) { bg = '#fafafa'; borderCol = '#e8e8e8'; textCol = '#ddd'; }
+                                    let border = '1px solid #eee';
+                                    if (val === 1) { bg = '#86efac'; textCol = '#166534'; border = '1px solid #a7f3d0'; }
+                                    else if (val === 0) { bg = '#fda4af'; textCol = '#9f1239'; border = '1px solid #fecdd3'; }
+                                    else if (val === null) { bg = '#fafafa'; textCol = '#ddd'; border = '1px dashed #e8e8e8'; }
                                     return (
                                         <div key={i} style={{
-                                            aspectRatio: '1', borderRadius: '8px', background: bg,
-                                            border: val === null ? `1px dashed ${borderCol}` : `1px solid ${borderCol}`,
+                                            aspectRatio: '1', borderRadius: '8px', background: bg, border,
                                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                                             fontSize: '0.7rem', fontWeight: 600, color: textCol,
                                             transition: 'transform 0.15s'
@@ -237,25 +223,22 @@ const StudentAttendancePage = () => {
 
                     {/* ═══════ COURSE CARDS ═══════ */}
                     <div style={{ marginBottom: '1.5rem' }}>
-                        <div style={{ fontSize: '1rem', fontWeight: 700, color: '#333', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ fontSize: '1rem', fontWeight: 700, color: '#000', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <BookOpen size={16} /> Course-wise Attendance
                         </div>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px' }}>
                             {courses.map((c, i) => (
-                                <div key={i} style={{
-                                    background: selectedCourse === c.code ? c.bg : '#fff',
-                                    borderRadius: '20px', textAlign: 'center',
-                                    padding: '1.2rem 1rem',
-                                    border: `1px solid ${selectedCourse === c.code ? c.border : '#eee'}`,
-                                    boxShadow: '0 4px 12px rgba(0,0,0,0.02)',
-                                    cursor: 'pointer', transition: 'all 0.2s'
+                                <div key={i} className="stat-card" style={{
+                                    padding: '1.2rem 1rem', borderRadius: '20px', textAlign: 'center',
+                                    cursor: 'pointer', transition: 'all 0.2s',
+                                    border: selectedCourse === c.code ? `2px solid ${c.color}` : '1px solid #eee'
                                 }}
-                                    onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.background = c.bg; e.currentTarget.style.borderColor = c.border; }}
-                                    onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; if (selectedCourse !== c.code) { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#eee'; } }}
+                                    onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.06)'; }}
+                                    onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.02)'; }}
                                     onClick={() => setSelectedCourse(c.code === selectedCourse ? 'all' : c.code)}
                                 >
                                     <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px', position: 'relative' }}>
-                                        <MiniDonut pct={c.pct} size={52} stroke={5} color={c.ring} />
+                                        <MiniDonut pct={c.pct} size={52} stroke={5} color={c.color} />
                                         <div style={{
                                             position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%) rotate(0deg)',
                                             fontSize: '0.68rem', fontWeight: 700, color: '#333'
@@ -263,17 +246,16 @@ const StudentAttendancePage = () => {
                                             {Math.round(c.pct)}
                                         </div>
                                     </div>
-                                    <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#333', marginBottom: '2px' }}>{c.code}</div>
+                                    <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#000', marginBottom: '2px' }}>{c.code}</div>
                                     <div style={{ fontSize: '0.68rem', color: '#888', marginBottom: '8px', lineHeight: 1.3 }}>{c.name}</div>
                                     <div style={{ display: 'flex', justifyContent: 'center', gap: '6px', fontSize: '0.65rem' }}>
-                                        <span style={{ padding: '2px 8px', borderRadius: '8px', background: '#edfedd', border: '1px solid #a5d974', color: '#333', fontWeight: 600 }}>{c.attended}</span>
-                                        <span style={{ padding: '2px 8px', borderRadius: '8px', background: '#fce7f3', border: '1px solid #f9a8d4', color: '#333', fontWeight: 600 }}>{c.total - c.attended}</span>
+                                        <span style={{ padding: '2px 8px', borderRadius: '8px', background: '#ecfccb', color: '#365314', fontWeight: 600 }}>{c.attended}</span>
+                                        <span style={{ padding: '2px 8px', borderRadius: '8px', background: '#ffe4e6', color: '#9f1239', fontWeight: 600 }}>{c.total - c.attended}</span>
                                     </div>
                                     <div style={{
                                         marginTop: '8px', fontSize: '0.6rem', fontWeight: 600,
                                         padding: '3px 8px', borderRadius: '10px', display: 'inline-block',
-                                        background: statusBg(c.pct), border: `1px solid ${statusBorder(c.pct)}`,
-                                        color: statusTextColor(c.pct)
+                                        background: statusBg(c.pct), color: statusTextColor(c.pct)
                                     }}>
                                         {statusLabel(c.pct)}
                                     </div>
@@ -283,15 +265,12 @@ const StudentAttendancePage = () => {
                     </div>
 
                     {/* ═══════ SESSION HISTORY ═══════ */}
-                    <div style={{
-                        background: '#fff', borderRadius: '20px', border: '1px solid #eee',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.02)', overflow: 'hidden'
-                    }}>
+                    <div className="stat-card" style={{ padding: '0', borderRadius: '20px', overflow: 'hidden' }}>
                         <div style={{
                             padding: '1rem 1.5rem', borderBottom: '1px solid #f0f0f0',
                             display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px'
                         }}>
-                            <span style={{ fontSize: '1rem', fontWeight: 700, color: '#333', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '1rem', fontWeight: 700, color: '#000', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <Clock size={15} /> Recent Sessions
                             </span>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -310,15 +289,15 @@ const StudentAttendancePage = () => {
                         <div style={{ padding: '6px 0' }}>
                             {filtered.map((s, i) => {
                                 const courseData = courses.find(c => c.code === s.course);
-                                const dotBg = s.status === 'Present' ? '#e0fcf5' : '#fce7f3';
-                                const dotBorder = s.status === 'Present' ? '#5eead4' : '#f9a8d4';
+                                const dotColor = s.status === 'Present' ? '#86efac' : '#fda4af';
+                                const dotBorder = s.status === 'Present' ? '#dcfce7' : '#ffe4e6';
                                 return (
                                     <div key={i} style={{ display: 'flex', alignItems: 'stretch', padding: '0 1.5rem' }}>
-                                        {/* Timeline dot + line */}
+                                        {/* Timeline line + dot */}
                                         <div style={{ width: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0, position: 'relative' }}>
                                             <div style={{
-                                                width: '12px', height: '12px', borderRadius: '50%', flexShrink: 0,
-                                                background: dotBg, border: `2px solid ${dotBorder}`,
+                                                width: '10px', height: '10px', borderRadius: '50%', flexShrink: 0,
+                                                background: dotColor, border: `2.5px solid ${dotBorder}`,
                                                 marginTop: '18px', zIndex: 1
                                             }} />
                                             {i < filtered.length - 1 && (
@@ -333,18 +312,17 @@ const StudentAttendancePage = () => {
                                             borderBottom: i < filtered.length - 1 ? '1px solid #fafafa' : 'none'
                                         }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1, minWidth: 0 }}>
-                                                {/* Course badge — soft fill + soft border like cal-event */}
                                                 <div style={{
                                                     width: '40px', height: '40px', borderRadius: '12px', display: 'flex',
                                                     alignItems: 'center', justifyContent: 'center', fontSize: '0.55rem',
                                                     fontWeight: 700, flexShrink: 0, letterSpacing: '0.3px',
-                                                    background: courseData ? courseData.bg : '#f5f5f5',
-                                                    color: '#555', border: `1px solid ${courseData ? courseData.border : '#eee'}`
+                                                    background: courseData ? `${courseData.color}20` : '#f5f5f5',
+                                                    color: '#555', border: '1px solid #eee'
                                                 }}>
                                                     {s.course}
                                                 </div>
                                                 <div style={{ minWidth: 0 }}>
-                                                    <div style={{ fontSize: '0.84rem', fontWeight: 600, color: '#333', marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                    <div style={{ fontSize: '0.84rem', fontWeight: 600, color: '#111', marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                                         {s.topic}
                                                     </div>
                                                     <div style={{ fontSize: '0.7rem', color: '#bbb' }}>
@@ -353,15 +331,14 @@ const StudentAttendancePage = () => {
                                                 </div>
                                             </div>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
-                                                <span style={{ fontFamily: 'monospace', fontSize: '0.75rem', fontWeight: 500, color: '#888' }}>
+                                                <span style={{ fontFamily: 'monospace', fontSize: '0.75rem', fontWeight: 500, color: parseInt(s.pings) >= 3 ? '#4d7c0f' : '#be123c' }}>
                                                     {s.pings}
                                                 </span>
                                                 <span style={{
                                                     display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 12px',
                                                     borderRadius: '12px', fontSize: '0.72rem', fontWeight: 600,
-                                                    background: s.status === 'Present' ? '#edfedd' : '#fce7f3',
-                                                    border: `1px solid ${s.status === 'Present' ? '#a5d974' : '#f9a8d4'}`,
-                                                    color: s.status === 'Present' ? '#166534' : '#9f1239'
+                                                    background: s.status === 'Present' ? '#ecfccb' : '#ffe4e6',
+                                                    color: s.status === 'Present' ? '#365314' : '#9f1239'
                                                 }}>
                                                     {s.status === 'Present' ? <CheckCircle size={12} /> : <XCircle size={12} />}
                                                     {s.status}
@@ -381,20 +358,19 @@ const StudentAttendancePage = () => {
 
                     {/* ═══════ BOTTOM ALERT ═══════ */}
                     {courses.some(c => c.pct < 75) && (
-                        <div style={{
-                            marginTop: '1.2rem', background: '#fce7f3', borderRadius: '20px', border: '1px solid #f9a8d4',
-                            padding: '14px 1.5rem', display: 'flex', alignItems: 'center', gap: '14px',
-                            boxShadow: '0 4px 12px rgba(0,0,0,0.02)'
+                        <div className="feedback-box" style={{
+                            marginTop: '1.2rem', borderRadius: '20px',
+                            display: 'flex', alignItems: 'center', gap: '14px', padding: '14px 1.5rem'
                         }}>
-                            <div style={{ width: '36px', height: '36px', borderRadius: '12px', background: '#fff', border: '1px solid #f9a8d4', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#be185d', flexShrink: 0 }}>
+                            <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#ffe4e6', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#be123c', flexShrink: 0 }}>
                                 <AlertCircle size={18} />
                             </div>
                             <div>
-                                <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#333', marginBottom: '2px' }}>
+                                <div className="feedback-text" style={{ fontSize: '0.85rem', marginBottom: '2px' }}>
                                     {courses.filter(c => c.pct < 75).length} course(s) below 75% minimum
                                 </div>
-                                <div style={{ fontSize: '0.72rem', color: '#777' }}>
-                                    {courses.filter(c => c.pct < 75).map(c => c.code).join(', ')} — Attend upcoming sessions to improve
+                                <div className="feedback-sub">
+                                    {courses.filter(c => c.pct < 75).map(c => c.code).join(', ')} — Attend upcoming sessions to meet the requirement
                                 </div>
                             </div>
                         </div>

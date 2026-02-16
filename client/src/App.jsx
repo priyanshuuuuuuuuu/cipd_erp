@@ -9,6 +9,7 @@ import AdminDashboard from './AdminDashboard';
 import AdminAttendancePage from './AdminAttendancePage';
 import AdminFeedbackPage from './AdminFeedbackPage';
 import StudentAttendancePage from './StudentAttendancePage';
+import StudentFeedbackPage from './StudentFeedbackPage';
 
 function App() {
   return (
@@ -25,7 +26,7 @@ function App() {
         {/* Placeholder Routes */}
         <Route path="/attendance" element={<StudentAttendancePage />} />
         <Route path="/grades" element={<ComingSoonPage />} />
-        <Route path="/feedback" element={<ComingSoonPage />} />
+        <Route path="/feedback" element={<StudentFeedbackPage />} />
         <Route path="/courses" element={<ComingSoonPage />} />
         <Route path="/settings" element={<ComingSoonPage />} />
       </Routes>
