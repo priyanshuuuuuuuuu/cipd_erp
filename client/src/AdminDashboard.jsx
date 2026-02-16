@@ -31,7 +31,8 @@ import {
     User,
     AlertCircle,
     ArrowRight,
-    X
+    X,
+    BarChart3
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -68,6 +69,16 @@ const AdminDashboard = () => {
         { type: 'schedule', text: 'PHY201 class confirmed for 2:00 PM today', time: '1 hr ago', color: '#2563eb' },
         { type: 'notification', text: 'Notification sent to 42 students for CS301', time: '2 hrs ago', color: '#7c3aed' },
         { type: 'attendance', text: 'ENG102 session — 3 overrides applied by admin', time: '3 hrs ago', color: '#dc2626' },
+    ];
+
+    // Weekly attendance data for bar chart
+    const weeklyAttendance = [
+        { day: 'Mon', pct: 82 },
+        { day: 'Tue', pct: 75 },
+        { day: 'Wed', pct: 88 },
+        { day: 'Thu', pct: 71 },
+        { day: 'Fri', pct: 85 },
+        { day: 'Sat', pct: 90 },
     ];
 
     const totalPending = feedbackPending.reduce((acc, c) => acc + c.pending, 0);
@@ -127,7 +138,7 @@ const AdminDashboard = () => {
                         <div className="nav-item active"><LayoutGrid size={18} /> <span>Dashboard</span></div>
                         <div className="nav-item" style={{ cursor: 'pointer' }}><Calendar size={18} /> <span>Schedule Management</span></div>
                         <div className="nav-item" onClick={() => navigate('/admin-attendance')} style={{ cursor: 'pointer' }}><CheckCircle size={18} /> <span>Attendance Monitoring</span></div>
-                        <div className="nav-item" style={{ cursor: 'pointer' }}><Wifi size={18} /> <span>Wi-Fi Logs</span></div>
+                        <div className="nav-item" onClick={() => navigate('/admin-wifi-logs')} style={{ cursor: 'pointer' }}><Wifi size={18} /> <span>Wi-Fi Logs</span></div>
 
                         <div style={{ fontSize: '0.6rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', color: '#555', padding: '10px 1rem 4px' }}><span>Analytics</span></div>
                         <div className="nav-item" onClick={() => navigate('/admin-feedback')} style={{ cursor: 'pointer' }}><MessageSquare size={18} /> <span>Feedback Analytics</span></div>
@@ -166,28 +177,83 @@ const AdminDashboard = () => {
                         </div>
                     </header>
 
-                    {/* Stats Row */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
-                        {[
-                            { label: 'Total Sessions', value: '42', sub: 'This week', trend: '↑ 8%', trendColor: '#16a34a', accent: '#3B2D82' },
-                            { label: 'Avg. Attendance', value: '78.4%', sub: 'All courses', trend: '↓ 2.1%', trendColor: '#dc2626', accent: '#00A5A0' },
-                            { label: 'Pending Feedback', value: `${totalPending}`, sub: `${totalPending} of ${totalStudents} students`, trend: '—', trendColor: '#888', accent: '#E91E87' },
-                            { label: 'Faculty Hours', value: '312h', sub: 'This month', trend: '↑ 12%', trendColor: '#16a34a', accent: '#3B2D82' },
-                        ].map((stat, i) => (
-                            <div key={i} style={{ background: '#fff', borderRadius: '12px', padding: '1.2rem 1.5rem', border: '1px solid #e8e8e8', borderLeft: `3px solid ${stat.accent}`, boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
-                                <div style={{ fontSize: '0.8rem', color: '#888', fontWeight: 500, marginBottom: '6px' }}>{stat.label}</div>
-                                <div style={{ fontSize: '1.8rem', fontWeight: 700, color: '#111', letterSpacing: '-0.5px' }}>{stat.value}</div>
-                                <div style={{ fontSize: '0.75rem', color: '#999', marginTop: '4px' }}>
-                                    {stat.sub} · <span style={{ color: stat.trendColor, fontWeight: 600 }}>{stat.trend}</span>
+                    {/* ═══════ ROW 1 — Quick Actions (left) + Weekly Attendance (right) ═══════ */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr', gap: '1.5rem', marginBottom: '1.5rem', alignItems: 'stretch' }}>
+
+                        {/* Quick Actions — icon-above-label horizontal buttons */}
+                        <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', borderTop: '3px solid #00A5A0', boxShadow: '0 2px 8px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
+                            <div style={{ padding: '0.8rem 1.5rem', borderBottom: '1px solid #f0f0f0', fontSize: '0.95rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <Activity size={16} /> Quick Actions
+                            </div>
+                            <div style={{ padding: '1rem 1.2rem', display: 'flex', gap: '8px' }}>
+                                {[
+                                    { label: 'Schedule New Class', icon: Plus, bg: '#eff6ff', color: '#2563eb', action: () => setShowScheduleModal(true) },
+                                    { label: 'Start Attendance', icon: Radio, bg: '#ecfdf5', color: '#16a34a', action: () => navigate('/admin-attendance') },
+                                    { label: 'View Attendance', icon: CheckCircle, bg: '#f0fdf4', color: '#15803d', action: () => navigate('/admin-attendance') },
+                                    { label: 'Send Notification', icon: Send, bg: '#faf5ff', color: '#7c3aed', action: () => { } },
+                                    { label: 'Generate Reports', icon: FileBarChart, bg: '#fff7ed', color: '#c2410c', action: () => { } },
+                                ].map((item, i) => (
+                                    <button key={i} onClick={item.action} style={{
+                                        flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px',
+                                        padding: '12px 6px', borderRadius: '10px', border: '1px solid #f0f0f0', background: '#fff',
+                                        cursor: 'pointer', fontSize: '0.72rem', fontWeight: 500, color: '#555',
+                                        transition: 'all 0.15s', textAlign: 'center'
+                                    }} className="change-status-btn">
+                                        <div style={{
+                                            width: '34px', height: '34px', borderRadius: '10px', display: 'flex',
+                                            alignItems: 'center', justifyContent: 'center', background: item.bg, color: item.color
+                                        }}>
+                                            <item.icon size={16} />
+                                        </div>
+                                        {item.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Weekly Attendance — compact chart */}
+                        <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', borderTop: '3px solid #00A5A0', boxShadow: '0 2px 8px rgba(0,0,0,0.02)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ padding: '0.8rem 1.5rem', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.95rem', fontWeight: 700 }}>
+                                    <BarChart3 size={16} /> Weekly Attendance
+                                </div>
+                                <span style={{ fontSize: '0.7rem', color: '#888', fontWeight: 500 }}>This Week</span>
+                            </div>
+                            <div style={{ flex: 1, padding: '1rem 1.2rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                                {/* Teal bar chart */}
+                                <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px', height: '80px', padding: '0 2px' }}>
+                                    {weeklyAttendance.map((d, i) => (
+                                        <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px' }}>
+                                            <span style={{ fontSize: '0.6rem', fontWeight: 600, color: '#555' }}>{d.pct}%</span>
+                                            <div style={{
+                                                width: '100%', maxWidth: '24px', borderRadius: '5px',
+                                                height: `${d.pct * 0.65}px`,
+                                                background: d.pct >= 85 ? '#0b6861' : '#66d9e8',
+                                                transition: 'height 0.3s'
+                                            }} />
+                                            <span style={{ fontSize: '0.55rem', color: '#aaa', fontWeight: 500 }}>{d.day}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                                {/* Summary pills */}
+                                <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+                                    <div style={{ flex: 1, padding: '7px 10px', borderRadius: '10px', background: '#ecfdf5', textAlign: 'center' }}>
+                                        <div style={{ fontSize: '1rem', fontWeight: 700, color: '#065f46' }}>81.8%</div>
+                                        <div style={{ fontSize: '0.58rem', color: '#065f46', fontWeight: 500 }}>Avg. This Week</div>
+                                    </div>
+                                    <div style={{ flex: 1, padding: '7px 10px', borderRadius: '10px', background: '#fef2f2', textAlign: 'center' }}>
+                                        <div style={{ fontSize: '1rem', fontWeight: 700, color: '#dc2626' }}>7</div>
+                                        <div style={{ fontSize: '0.58rem', color: '#dc2626', fontWeight: 500 }}>Absent Today</div>
+                                    </div>
                                 </div>
                             </div>
-                        ))}
+                        </div>
                     </div>
 
-                    {/* Two Column: Upcoming Classes + Feedback Overview */}
+                    {/* ═══════ ROW 2 — Operational Layer: Upcoming Classes + Feedback Status ═══════ */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
 
-                        {/* Left — Upcoming Classes + Scheduling */}
+                        {/* Left — Upcoming Classes */}
                         <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', borderTop: '3px solid #3B2D82', boxShadow: '0 2px 8px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.5rem', borderBottom: '1px solid #f0f0f0' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1rem', fontWeight: 700 }}>
@@ -251,7 +317,7 @@ const AdminDashboard = () => {
                             </div>
                         </div>
 
-                        {/* Right — Feedback Overview */}
+                        {/* Right — Feedback Status */}
                         <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', borderTop: '3px solid #E91E87', boxShadow: '0 2px 8px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.5rem', borderBottom: '1px solid #f0f0f0' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1rem', fontWeight: 700 }}>
@@ -305,62 +371,29 @@ const AdminDashboard = () => {
                         </div>
                     </div>
 
-                    {/* Bottom Row: Quick Actions + Recent Activity */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '1.5rem' }}>
-                        {/* Quick Actions */}
-                        <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', borderTop: '3px solid #00A5A0', boxShadow: '0 2px 8px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
-                            <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid #f0f0f0', fontSize: '1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <Activity size={16} /> Quick Actions
-                            </div>
-                            <div style={{ padding: '1rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                {[
-                                    { label: 'Schedule a New Class', icon: Plus, bg: '#eff6ff', color: '#2563eb', action: () => setShowScheduleModal(true) },
-                                    { label: 'View Attendance Monitoring', icon: CheckCircle, bg: '#ecfdf5', color: '#16a34a', action: () => navigate('/admin-attendance') },
-                                    { label: 'Send Bulk Notification', icon: Send, bg: '#faf5ff', color: '#7c3aed', action: () => { } },
-                                    { label: 'Generate Reports', icon: FileBarChart, bg: '#fff7ed', color: '#c2410c', action: () => { } },
-                                    { label: 'View Feedback Analytics', icon: MessageSquare, bg: '#fef2f2', color: '#dc2626', action: () => navigate('/admin-feedback') },
-                                ].map((item, i) => (
-                                    <button key={i} onClick={item.action} style={{
-                                        display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px',
-                                        borderRadius: '10px', border: '1px solid #f0f0f0', background: '#fff',
-                                        cursor: 'pointer', fontSize: '0.85rem', fontWeight: 500, color: '#333',
-                                        transition: 'all 0.15s', textAlign: 'left', width: '100%'
-                                    }} className="change-status-btn">
-                                        <div style={{
-                                            width: '32px', height: '32px', borderRadius: '8px', display: 'flex',
-                                            alignItems: 'center', justifyContent: 'center', background: item.bg, color: item.color, flexShrink: 0
-                                        }}>
-                                            <item.icon size={15} />
-                                        </div>
-                                        {item.label}
-                                        <ArrowRight size={14} color="#ccc" style={{ marginLeft: 'auto' }} />
-                                    </button>
-                                ))}
-                            </div>
+                    {/* ═══════ ROW 3 — Informational Layer: Recent Activity (full width) ═══════ */}
+                    <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', borderTop: '3px solid #3B2D82', boxShadow: '0 2px 8px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
+                        <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid #f0f0f0', fontSize: '1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <Clock size={16} /> Recent Activity
                         </div>
-
-                        {/* Recent Activity */}
-                        <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', borderTop: '3px solid #3B2D82', boxShadow: '0 2px 8px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
-                            <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid #f0f0f0', fontSize: '1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <Clock size={16} /> Recent Activity
-                            </div>
-                            <div style={{ padding: '0' }}>
-                                {recentActivity.map((item, i) => (
-                                    <div key={i} style={{
-                                        display: 'flex', alignItems: 'flex-start', gap: '12px',
-                                        padding: '14px 1.5rem', borderBottom: i < recentActivity.length - 1 ? '1px solid #f5f5f5' : 'none',
-                                    }}>
-                                        <div style={{
-                                            width: '8px', height: '8px', borderRadius: '50%', background: item.color,
-                                            marginTop: '6px', flexShrink: 0
-                                        }}></div>
-                                        <div style={{ flex: 1 }}>
-                                            <div style={{ fontSize: '0.85rem', fontWeight: 500, color: '#333', lineHeight: 1.4 }}>{item.text}</div>
-                                            <div style={{ fontSize: '0.7rem', color: '#aaa', marginTop: '2px' }}>{item.time}</div>
-                                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0' }}>
+                            {recentActivity.map((item, i) => (
+                                <div key={i} style={{
+                                    display: 'flex', alignItems: 'flex-start', gap: '12px',
+                                    padding: '14px 1.5rem',
+                                    borderBottom: i < recentActivity.length - 2 ? '1px solid #f5f5f5' : 'none',
+                                    borderRight: i % 2 === 0 ? '1px solid #f5f5f5' : 'none',
+                                }}>
+                                    <div style={{
+                                        width: '8px', height: '8px', borderRadius: '50%', background: item.color,
+                                        marginTop: '6px', flexShrink: 0
+                                    }}></div>
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ fontSize: '0.85rem', fontWeight: 500, color: '#333', lineHeight: 1.4 }}>{item.text}</div>
+                                        <div style={{ fontSize: '0.7rem', color: '#aaa', marginTop: '2px' }}>{item.time}</div>
                                     </div>
-                                ))}
-                            </div>
+                                </div>
+                            ))}
                         </div>
                     </div>
 
