@@ -266,6 +266,7 @@ const AdminDashboard = () => {
                                     <Plus size={13} /> Schedule Class
                                 </button>
                             </div>
+                            {/* hello */}
                             <div style={{ padding: '0' }}>
                                 {upcomingClasses.map((cls, i) => (
                                     <div key={i} style={{
