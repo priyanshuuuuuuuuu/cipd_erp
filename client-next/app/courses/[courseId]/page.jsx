@@ -14,23 +14,6 @@ import { api } from '@/lib/api';
 
 const TABS = ['Materials', 'Assignments'];
 
-const MOCK_COURSE = { id: 'cs301', code: 'CS301', name: 'Data Structures & Algorithms', faculty_name: 'Prof. Anuj Grover', venue: 'LHC-101', schedule: 'Mon, Wed, Fri · 9:00 AM' };
-
-const MOCK_MATERIALS = [
-    { id: 'm1', title: 'Lecture 1 – Introduction to DSA', type: 'pdf', session_topic: 'Week 1', size: 2457600, uploaded_at: '2026-01-15T09:00:00Z', url: '#' },
-    { id: 'm2', title: 'Sorting Algorithms – Slides', type: 'pdf', session_topic: 'Week 3', size: 1843200, uploaded_at: '2026-01-29T09:00:00Z', url: '#' },
-    { id: 'm3', title: 'AVL Trees – Reference Notes', type: 'pdf', session_topic: 'Week 5', size: 921600, uploaded_at: '2026-02-12T09:00:00Z', url: '#' },
-    { id: 'm4', title: 'Graph Traversals – Video Lecture', type: 'link', session_topic: 'Week 7', uploaded_at: '2026-02-26T09:00:00Z', url: '#' },
-    { id: 'm5', title: 'Dynamic Programming Cheatsheet', type: 'pdf', session_topic: 'Week 9', size: 512000, uploaded_at: '2026-03-05T09:00:00Z', url: '#' },
-];
-
-const MOCK_ASSIGNMENTS = [
-    { id: 'a1', title: 'Assignment 1 – Linked List Operations', description: 'Implement singly and doubly linked list with all CRUD operations', total_marks: 20, due_date: '2026-02-10T23:59:00Z', submission_status: 'graded', marks: 18, feedback: 'Excellent work!' },
-    { id: 'a2', title: 'Assignment 2 – Sorting Comparison', description: 'Compare time complexity of Merge Sort, Quick Sort and Heap Sort with benchmarks', total_marks: 25, due_date: '2026-02-24T23:59:00Z', submission_status: 'submitted' },
-    { id: 'a3', title: 'Assignment 3 – BST & AVL Trees', description: 'Implement self-balancing AVL tree with rotation operations', total_marks: 30, due_date: '2026-03-15T23:59:00Z', submission_status: 'pending' },
-    { id: 'a4', title: 'Assignment 4 – Graph Algorithms', description: 'Implement BFS, DFS, and Dijkstra shortest path algorithm', total_marks: 30, due_date: '2026-03-28T23:59:00Z', submission_status: 'pending' },
-];
-
 const StatusBadge = ({ status }) => {
     const map = {
         submitted: { bg: '#dcfce7', color: '#16a34a', icon: <CheckCircle size={11} />, label: 'Submitted' },
@@ -74,16 +57,9 @@ export default function CourseDetailPage() {
                 api.get(`/api/courses/${courseId}/materials`),
                 api.get(`/api/students/assignments?course_id=${courseId}`),
             ]);
-            const c = courseRes.status === 'fulfilled' ? (courseRes.value.course || courseRes.value) : null;
-            const m = matRes.status === 'fulfilled' ? (matRes.value.materials || []) : [];
-            const a = asnRes.status === 'fulfilled' ? (asnRes.value.assignments || []) : [];
-            setCourse(c || MOCK_COURSE);
-            setMaterials(m.length > 0 ? m : MOCK_MATERIALS);
-            setAssignments(a.length > 0 ? a : MOCK_ASSIGNMENTS);
-        } catch {
-            setCourse(MOCK_COURSE);
-            setMaterials(MOCK_MATERIALS);
-            setAssignments(MOCK_ASSIGNMENTS);
+            if (courseRes.status === 'fulfilled') setCourse(courseRes.value.course || courseRes.value);
+            if (matRes.status === 'fulfilled') setMaterials(matRes.value.materials || []);
+            if (asnRes.status === 'fulfilled') setAssignments(asnRes.value.assignments || []);
         } finally {
             setLoading(false);
         }
