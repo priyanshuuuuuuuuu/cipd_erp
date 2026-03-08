@@ -3,9 +3,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import '../Dashboard.css';
 import {
-    LayoutGrid, Calendar, BookOpen, Users, MessageSquare,
-    Settings, LogOut, Bell, Search, ChevronDown, Clock,
-    FileText, Menu, ChevronLeft, ChevronRight, Wifi, X
+    LayoutGrid, Calendar, BookOpen, Users, MessageSquare, Settings, LogOut, Bell, Search,
+    ChevronDown, Clock, FileText, AlertCircle, CheckCircle, XCircle, Menu, ChevronLeft,
+    ChevronRight, Wifi, X, Fingerprint
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Cell } from 'recharts';
@@ -14,69 +14,60 @@ import { api } from '@/lib/api';
 
 const DAY_KEYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-export default function StudentDashboard() {
+const StudentDashboard = () => {
     const router = useRouter();
     const { user, logout, authReady } = useAuth();
-
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [showProfile, setShowProfile] = useState(false);
 
     // Live data
     const [todaySessions, setTodaySessions] = useState([]);
-    const [weekSessions, setWeekSessions]   = useState([]);
-    const [attendance, setAttendance]        = useState(null);
-    const [assignments, setAssignments]      = useState([]);
+    const [weekSessions, setWeekSessions] = useState([]);
+    const [attendance, setAttendance] = useState(null);
+    const [assignments, setAssignments] = useState([]);
     const [pendingFeedback, setPendingFeedback] = useState(null);
-    const [profile, setProfile]              = useState(null);
-    const [loading, setLoading]              = useState(true);
+    const [profile, setProfile] = useState(null);
 
     // MAC state
-    const [macInput, setMacInput]           = useState('');
-    const [isEditingMac, setIsEditingMac]   = useState(false);
+    const [macInput, setMacInput] = useState('');
+    const [isEditingMac, setIsEditingMac] = useState(false);
     const [showMacConfirm, setShowMacConfirm] = useState(false);
-    const [macError, setMacError]           = useState('');
-    const [macSaving, setMacSaving]         = useState(false);
+    const [macError, setMacError] = useState('');
+    const [macSaving, setMacSaving] = useState(false);
+
+    const displayName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Student' : 'Student';
+    const registeredMac = profile?.mac_address || '';
 
     const fetchAll = useCallback(async () => {
-        try {
-            const [todayRes, weekRes, attRes, assRes, fbRes, profRes] = await Promise.allSettled([
-                api.get('/api/students/schedule/today'),
-                api.get('/api/students/schedule/week'),
-                api.get('/api/students/attendance/summary'),
-                api.get('/api/students/assignments'),
-                api.get('/api/feedback/pending'),
-                api.get('/api/students/profile'),
-            ]);
-            if (todayRes.status === 'fulfilled') setTodaySessions(todayRes.value.sessions || []);
-            if (weekRes.status === 'fulfilled')  setWeekSessions(weekRes.value.sessions  || []);
-            if (attRes.status === 'fulfilled')   setAttendance(attRes.value);
-            if (assRes.status === 'fulfilled')   setAssignments((assRes.value.assignments || []).filter(a => !a.is_submitted));
-            if (fbRes.status === 'fulfilled')    setPendingFeedback(fbRes.value.pending);
-            if (profRes.status === 'fulfilled')  setProfile(profRes.value.profile);
-        } finally {
-            setLoading(false);
-        }
+        const [todayRes, weekRes, attRes, assRes, fbRes, profRes] = await Promise.allSettled([
+            api.get('/api/students/schedule/today'),
+            api.get('/api/students/schedule/week'),
+            api.get('/api/students/attendance/summary'),
+            api.get('/api/students/assignments'),
+            api.get('/api/feedback/pending'),
+            api.get('/api/students/profile'),
+        ]);
+        if (todayRes.status === 'fulfilled') setTodaySessions(todayRes.value.sessions || []);
+        if (weekRes.status === 'fulfilled') setWeekSessions(weekRes.value.sessions || []);
+        if (attRes.status === 'fulfilled') setAttendance(attRes.value);
+        if (assRes.status === 'fulfilled') setAssignments((assRes.value.assignments || []).filter(a => !a.is_submitted));
+        if (fbRes.status === 'fulfilled') setPendingFeedback(fbRes.value.pending);
+        if (profRes.status === 'fulfilled') setProfile(profRes.value.profile);
     }, []);
 
     useEffect(() => { if (authReady) fetchAll(); }, [fetchAll, authReady]);
 
-    // Build weekly bar data from weekSessions
+    // Build bar chart data from weekSessions
     const weeklyBarData = (() => {
-        const map = {};
-        DAY_KEYS.forEach(d => { map[d] = 0; });
-        weekSessions.forEach(s => {
-            const d = DAY_KEYS[new Date(s.session_date).getDay()];
-            map[d]++;
+        const counts = { Sun: 0, Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0 };
+        (weekSessions || []).forEach(s => {
+            const d = new Date(s.session_date);
+            const key = DAY_KEYS[d.getDay()];
+            counts[key] = (counts[key] || 0) + 1;
         });
-        return DAY_KEYS.slice(1,6).map(d => ({ day: d, val: map[d] > 0 ? 80 : 20 }));
+        return DAY_KEYS.map(day => ({ day, val: counts[day] * 20 || 0 }));
     })();
-
-    const formatTime = (t) => {
-        if (!t) return '';
-        const [h, m] = t.split(':').map(Number);
-        return `${h > 12 ? h - 12 : h || 12}:${String(m).padStart(2,'0')} ${h >= 12 ? 'PM' : 'AM'}`;
-    };
 
     const formatMacInput = (value) => {
         const clean = value.replace(/[^a-fA-F0-9]/g, '').toUpperCase();
@@ -85,20 +76,19 @@ export default function StudentDashboard() {
         return parts.join(':');
     };
     const isValidMac = (mac) => /^([A-F0-9]{2}:){5}[A-F0-9]{2}$/.test(mac);
-
+    const handleMacChange = (e) => { setMacInput(formatMacInput(e.target.value)); setMacError(''); };
     const handleMacUpdate = () => {
         if (!isValidMac(macInput)) { setMacError('Invalid MAC address format. Use XX:XX:XX:XX:XX:XX'); return; }
         setShowMacConfirm(true);
     };
-
     const confirmMacUpdate = async () => {
         setMacSaving(true);
         try {
             await api.patch('/api/students/mac', { mac_address: macInput });
-            setProfile(p => ({ ...p, mac_address: macInput }));
             setShowMacConfirm(false);
             setIsEditingMac(false);
             setMacInput('');
+            fetchAll();
         } catch (e) {
             setMacError(e.message);
         } finally {
@@ -106,14 +96,7 @@ export default function StudentDashboard() {
         }
     };
 
-    const handleLogout = async () => { await logout(); router.push('/'); };
-
-    const registeredMac = profile?.mac_address || '';
-    const displayName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Student' : 'Student';
-    const attPct = attendance?.overall?.pct || 0;
-
-    const courseIcons = ['/course1.png', '/active.png', '/course3.png', '/course4.png', '/course5.png'];
-    const now = new Date();
+    const courseImages = ['/course1.png', '/active.png', '/course3.png', '/course4.png', '/course5.png'];
 
     return (
         <div className="dashboard-container">
@@ -122,14 +105,14 @@ export default function StudentDashboard() {
             <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobileMenuOpen ? 'open' : ''}`}>
                 <div>
                     <div className="user-profile" style={{ position: 'relative' }}>
-                        <div className="user-avatar" onClick={() => navTo('/profile')} style={{ cursor: 'pointer', background: '#0b6861', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: '0.9rem' }}>
-                            {user?.firstName?.[0]?.toUpperCase() || 'S'}
+                        <div className="user-avatar" onClick={() => setShowProfile(true)} style={{ cursor: 'pointer' }}>
+                            <img src="/studentPic.png" alt="Student" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
                         </div>
                         <div className="user-info">
                             <h3>{displayName}</h3>
-                            <p>{user?.email || ''}</p>
+                            <p>{user?.email}</p>
                         </div>
-                        <div onClick={() => setIsCollapsed(!isCollapsed)} style={{ position: 'absolute', right: '-12px', top: '50%', transform: 'translateY(-50%)', background: '#1a1a1a', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '1px solid #333', color: '#888' }}>
+                        <div onClick={() => setIsCollapsed(!isCollapsed)} style={{ position: 'absolute', right: '-12px', top: '50%', transform: 'translateY(-50%)', background: '#1a1a1a', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '1px solid #333', color: '#888', boxShadow: '0 2px 5px rgba(0,0,0,0.2)' }}>
                             {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
                         </div>
                     </div>
@@ -137,19 +120,20 @@ export default function StudentDashboard() {
                         <div className="nav-item active"><LayoutGrid size={18} /> <span>Home</span></div>
                         <div onClick={() => router.push('/attendance')} className="nav-item" style={{ cursor: 'pointer' }}><Users size={18} /> <span>Attendance</span></div>
                         <div onClick={() => router.push('/grades')} className="nav-item" style={{ cursor: 'pointer' }}><BookOpen size={18} /> <span>Grades</span></div>
-                        <div onClick={() => router.push('/teachers')} className="nav-item" style={{ cursor: 'pointer' }}><Users size={18} /> <span>Teachers</span></div>
+                        <div className="nav-item" onClick={() => router.push('/teachers')} style={{ cursor: 'pointer' }}><Users size={18} /> <span>Teachers</span></div>
                         <div onClick={() => router.push('/feedback')} className="nav-item" style={{ cursor: 'pointer' }}><MessageSquare size={18} /> <span>Feedback</span></div>
                         <div onClick={() => router.push('/courses')} className="nav-item" style={{ cursor: 'pointer' }}><BookOpen size={18} /> <span>Courses</span></div>
-                        <div onClick={() => router.push('/calendar')} className="nav-item" style={{ cursor: 'pointer' }}><Calendar size={18} /> <span>Calendar</span></div>
+                        <div className="nav-item" onClick={() => router.push('/calendar')} style={{ cursor: 'pointer' }}><Calendar size={18} /> <span>Calendar</span></div>
                     </nav>
                 </div>
                 <div className="sidebar-footer">
                     <div onClick={() => router.push('/settings')} className="nav-item" style={{ cursor: 'pointer' }}><Settings size={18} /> <span>Settings</span></div>
-                    <div className="nav-item" onClick={handleLogout} style={{ cursor: 'pointer' }}><LogOut size={18} /> <span>Log out</span></div>
+                    <div className="nav-item" onClick={async () => { await logout(); router.push('/'); }} style={{ cursor: 'pointer' }}><LogOut size={18} /> <span>Log out</span></div>
                 </div>
             </aside>
 
             <div className="main-content">
+                {/* Centre Panel */}
                 <div className="content-center">
                     <header className="dashboard-header">
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -166,33 +150,24 @@ export default function StudentDashboard() {
                     {/* Today's Schedule */}
                     <section>
                         <div className="section-title">Today's Schedule</div>
-                        {loading ? (
-                            <div style={{ color: '#aaa', fontSize: '0.85rem', padding: '1rem 0' }}>Loading schedule...</div>
-                        ) : todaySessions.length === 0 ? (
-                            <div style={{ color: '#888', fontSize: '0.85rem', padding: '1rem 0', textAlign: 'center', background: '#fafafa', borderRadius: '10px', border: '1px dashed #e8e8e8' }}>
-                                No sessions scheduled for today 🎉
-                            </div>
-                        ) : (
-                            <div className="schedule-cards">
-                                {todaySessions.map((s, i) => {
-                                    const isNext = todaySessions.findIndex(ss => new Date(`${ss.session_date}T${ss.start_time}`) > now) === i;
-                                    return (
-                                        <div key={s.id} className={`schedule-card ${isNext ? 'active' : ''}`}>
-                                            {isNext && <div className="next-class-badge">Next Class</div>}
-                                            <div className="icon-container">
-                                                <img src={courseIcons[i % courseIcons.length]} alt="Course" style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '5px' }} />
-                                            </div>
-                                            <div className="course-title">{s.courses?.name || s.title}</div>
-                                            <div className="course-info">
-                                                {s.title}<br />
-                                                Venue: {s.venues?.name || '—'}<br />
-                                                {formatTime(s.start_time)}
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        )}
+                        <div className="schedule-cards">
+                            {todaySessions.length === 0 ? (
+                                <div style={{ padding: '1.5rem', color: '#aaa', fontSize: '0.82rem' }}>No classes scheduled for today.</div>
+                            ) : todaySessions.map((s, i) => (
+                                <div key={s.id} className={`schedule-card${i === 1 ? ' active' : ''}`}>
+                                    {i === 1 && <div className="next-class-badge">Next Class</div>}
+                                    <div className="icon-container">
+                                        <img src={courseImages[i % courseImages.length]} alt="Course" style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '5px' }} />
+                                    </div>
+                                    <div className="course-title">{s.courses?.name || s.title}</div>
+                                    <div className="course-info">
+                                        {s.topic || ''}<br />
+                                        Venue: {s.venues?.name || 'TBA'}<br />
+                                        {s.start_time ? s.start_time.slice(0, 5) : ''}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </section>
 
                     {/* Weekly Schedule */}
@@ -200,29 +175,34 @@ export default function StudentDashboard() {
                         <div className="section-title" onClick={() => router.push('/calendar')} style={{ cursor: 'pointer' }}>
                             Weekly Schedule
                             <div style={{ fontSize: '0.8rem', color: '#666', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                {new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} <ChevronDown size={14} />
+                                This Week <ChevronDown size={14} />
                             </div>
                         </div>
                         <div className="calendar-container">
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '1px solid #f0f0f0', paddingBottom: '10px', marginBottom: '10px' }}>
-                                {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d => (
-                                    <div key={d} style={{ textAlign: 'left', paddingLeft: '5px', fontSize: '0.8rem', color: '#888' }}>{d}</div>
+                                {DAY_KEYS.map((d, i) => (
+                                    <div key={i} style={{ textAlign: 'left', paddingLeft: '5px', fontSize: '0.8rem', color: '#888' }}>{d}</div>
                                 ))}
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', flex: 1, gap: '10px', position: 'relative' }}>
-                                {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map((day, ci) => {
-                                    const daySessions = weekSessions.filter(s => DAY_KEYS[new Date(s.session_date).getDay()] === day || (day === 'Mon' && new Date(s.session_date).getDay() === 1));
-                                    const colors = ['blue','teal','purple','green','blue','teal','purple'];
+                                {DAY_KEYS.map((day, idx) => {
+                                    const dayS = weekSessions.filter(s => {
+                                        const d = new Date(s.session_date);
+                                        return DAY_KEYS[d.getDay()] === day;
+                                    });
                                     return (
-                                        <div key={day} className="cal-col" style={{ position: 'relative', borderLeft: ci > 0 ? '1px solid #f9f9f9' : 'none' }}>
-                                            {daySessions.slice(0,1).map((s, si) => (
-                                                <div key={s.id} className={`cal-event ${colors[ci]}`} style={{ position: 'absolute', top: `${20 * si}%`, width: '100%' }}>
-                                                    <div className="event-badge">Class</div>
-                                                    <strong>{s.courses?.name || s.title}</strong>
-                                                    <div>{s.venues?.name || ''}</div>
-                                                    <div>{formatTime(s.start_time)}</div>
-                                                </div>
-                                            ))}
+                                        <div key={day} className="cal-col" style={{ position: 'relative', borderLeft: idx > 0 ? '1px solid #f9f9f9' : 'none' }}>
+                                            {dayS.slice(0, 2).map((s, si) => {
+                                                const colors = ['blue', 'teal', 'purple', 'green'];
+                                                return (
+                                                    <div key={s.id} className={`cal-event ${colors[si % colors.length]}`} style={{ position: 'absolute', top: `${si * 45}%`, width: '100%' }}>
+                                                        <div className="event-badge">Class</div>
+                                                        <strong>{s.courses?.name || s.title}</strong>
+                                                        <div>{s.venues?.name || 'TBA'}</div>
+                                                        <div>{s.start_time ? s.start_time.slice(0, 5) : ''}</div>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     );
                                 })}
@@ -238,7 +218,7 @@ export default function StudentDashboard() {
                         <img src="/logo.png" alt="Logo" style={{ height: '30px' }} />
                     </div>
                     <div className="stat-card" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        <div style={{ position: 'relative', cursor: 'default', width: '290px', height: '110px' }}>
+                        <div style={{ position: 'relative', cursor: 'default', width: '100%', height: '110px' }}>
                             <ResponsiveContainer width="100%" height="100%">
                                 <BarChart data={weeklyBarData} barSize={10} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
                                     <CartesianGrid vertical={false} stroke="#eee" strokeDasharray="3 3" />
@@ -246,7 +226,7 @@ export default function StudentDashboard() {
                                     <YAxis hide={false} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#888' }} domain={[0, 100]} width={25} />
                                     <Bar dataKey="val" radius={[4, 4, 4, 4]}>
                                         {weeklyBarData.map((_, index) => (
-                                            <Cell key={`cell-${index}`} fill={index === weeklyBarData.length - 1 ? '#003366' : '#66d9e8'} />
+                                            <Cell key={`cell-${index}`} fill={index === 6 ? '#003366' : '#66d9e8'} />
                                         ))}
                                     </Bar>
                                 </BarChart>
@@ -255,72 +235,52 @@ export default function StudentDashboard() {
                         <div className="attendance-summary">
                             <div className="summary-left">
                                 <div className="summary-label">Total Attendance</div>
-                                <div className="progress-circle">{loading ? '...' : `${attPct}%`}</div>
+                                <div className="progress-circle">{attendance ? `${Math.round(attendance.overall_pct || 0)}%` : '—'}</div>
                             </div>
                             <div className="summary-right">
-                                <div className="badge-pill blue">Attended: {attendance?.overall?.attended ?? '—'}</div>
-                                <div className="badge-pill pink">Missed: {attendance?.overall?.missed ?? '—'}</div>
+                                <div className="badge-pill blue">Attended: {attendance?.attended || 0}</div>
+                                <div className="badge-pill pink">Missed: {attendance?.missed || 0}</div>
                             </div>
                         </div>
                     </div>
 
                     <div className="section-title" style={{ marginTop: '0.5rem', marginBottom: '0.5rem' }}>Pending Assignments</div>
 
-                    {loading ? (
-                        <div style={{ color: '#aaa', fontSize: '0.82rem' }}>Loading...</div>
-                    ) : assignments.length === 0 ? (
-                        <div style={{ color: '#888', fontSize: '0.82rem', padding: '10px', background: '#fafafa', borderRadius: '8px', textAlign: 'center' }}>
-                            No pending assignments ✓
-                        </div>
+                    {assignments.length === 0 ? (
+                        <div style={{ padding: '1rem', color: '#aaa', fontSize: '0.82rem' }}>No pending assignments!</div>
                     ) : assignments.slice(0, 3).map((a, i) => (
                         <div key={a.id} className="assignment-card">
                             <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
                                 <div className="icon-box"><FileText size={20} /></div>
                                 <div>
                                     <div style={{ fontSize: '0.9rem', fontWeight: '700' }}>{a.title}</div>
-                                    <div style={{ fontSize: '0.7rem', color: '#888' }}>
-                                        {a.courses?.name} • {a.faculty?.users ? `${a.faculty.users.first_name} ${a.faculty.users.last_name}` : ''}
-                                    </div>
-                                    <div style={{ fontSize: '0.65rem', color: a.is_overdue ? '#dc2626' : '#888', marginTop: '2px' }}>
-                                        Due: {new Date(a.due_date).toLocaleDateString('en-GB')}
-                                        {a.is_overdue && ' • Overdue'}
-                                    </div>
+                                    <div style={{ fontSize: '0.7rem', color: '#888' }}>{a.courses?.name || ''}{a.faculty ? ` • ${a.faculty}` : ''}</div>
                                 </div>
                             </div>
-                            <div className={`score-circle ${['green', 'peach', 'pink'][i % 3]}`}>
-                                {a.days_left !== undefined ? `${a.days_left}d` : '—'}
+                            <div className={`score-circle ${['green','peach','pink'][i % 3]}`}>
+                                {a.max_marks || '—'}
                             </div>
                         </div>
                     ))}
 
                     <div className="section-title" style={{ marginTop: '0.5rem', marginBottom: '0.5rem' }}>Pending Feedback</div>
-                    {loading ? (
-                        <div style={{ color: '#aaa', fontSize: '0.82rem' }}>Loading...</div>
-                    ) : !pendingFeedback ? (
-                        <div style={{ color: '#888', fontSize: '0.82rem', padding: '10px', background: '#fafafa', borderRadius: '8px', textAlign: 'center' }}>
-                            All feedback submitted ✓
-                        </div>
-                    ) : (
+                    {pendingFeedback ? (
                         <div className="feedback-box" onClick={() => router.push('/feedback')} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}>
                             <div>
-                                <div className="feedback-text" style={{ fontSize: '0.9rem' }}>
-                                    Pending feedback for<br />{new Date(pendingFeedback.session_date).toLocaleDateString('en-GB')}
-                                </div>
-                                <div className="feedback-sub">
-                                    {pendingFeedback.courses?.name} — {pendingFeedback.faculty?.users
-                                        ? `${pendingFeedback.faculty.users.first_name} ${pendingFeedback.faculty.users.last_name}`
-                                        : ''}
-                                </div>
+                                <div className="feedback-text" style={{ fontSize: '0.9rem' }}>Feedback pending<br />for {pendingFeedback.courses?.name || 'a session'}</div>
+                                <div className="feedback-sub">Tap to submit your feedback</div>
                             </div>
                             <div style={{ width: '40px', height: '40px', background: '#e0e7ff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4f46e5' }}>
                                 <ChevronDown size={20} style={{ transform: 'rotate(-90deg)' }} />
                             </div>
                         </div>
+                    ) : (
+                        <div className="feedback-box" style={{ color: '#888', fontSize: '0.82rem' }}>No pending feedback.</div>
                     )}
                 </div>
             </div>
 
-            {/* PROFILE PANEL */}
+            {/* PROFILE PANEL OVERLAY */}
             {showProfile && (
                 <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.25)', zIndex: 9999, display: 'flex', justifyContent: 'flex-end' }} onClick={() => setShowProfile(false)}>
                     <div style={{ width: '380px', maxWidth: '90vw', background: '#fff', borderLeft: '1px solid #e8e8e8', height: '100%', overflowY: 'auto', boxShadow: '-4px 0 20px rgba(0,0,0,0.05)' }} onClick={e => e.stopPropagation()}>
@@ -330,8 +290,8 @@ export default function StudentDashboard() {
                         </div>
                         <div style={{ padding: '20px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '20px' }}>
-                                <div style={{ width: '52px', height: '52px', borderRadius: '50%', background: '#0b6861', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: '1.2rem', flexShrink: 0 }}>
-                                    {user?.firstName?.[0]?.toUpperCase() || 'S'}
+                                <div style={{ width: '52px', height: '52px', borderRadius: '50%', overflow: 'hidden', border: '2px solid #e8e8e8', flexShrink: 0 }}>
+                                    <img src="/studentPic.png" alt="Student" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                 </div>
                                 <div>
                                     <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#111' }}>{displayName}</div>
@@ -343,16 +303,15 @@ export default function StudentDashboard() {
                                 {[
                                     ['Program', profile?.program_name || '—'],
                                     ['Enrollment', profile?.enrollment_no || '—'],
-                                    ['Status', profile?.is_active ? 'Active' : 'Inactive'],
+                                    ['Email', user?.email || '—'],
+                                    ['Status', 'Active'],
                                 ].map(([label, val], i) => (
-                                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 0', borderBottom: i < 2 ? '1px solid #f5f5f5' : 'none' }}>
+                                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 0', borderBottom: i < 3 ? '1px solid #f5f5f5' : 'none' }}>
                                         <span style={{ color: '#888' }}>{label}</span>
                                         <span style={{ fontWeight: 600, color: '#333', fontFamily: 'monospace', fontSize: '0.76rem' }}>{val}</span>
                                     </div>
                                 ))}
                             </div>
-
-                            {/* MAC Section */}
                             <div style={{ marginBottom: '20px' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
                                     <Wifi size={14} color="#888" />
@@ -374,7 +333,7 @@ export default function StudentDashboard() {
                                     </button>
                                 ) : (
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                        <input type="text" value={macInput} onChange={e => { setMacInput(formatMacInput(e.target.value)); setMacError(''); }} placeholder="XX:XX:XX:XX:XX:XX" maxLength={17}
+                                        <input type="text" value={macInput} onChange={handleMacChange} placeholder="XX:XX:XX:XX:XX:XX" maxLength={17}
                                             style={{ width: '100%', padding: '8px 12px', borderRadius: '6px', border: '1px solid ' + (macError ? '#fca5a5' : '#e8e8e8'), fontSize: '0.85rem', fontFamily: 'monospace', color: '#111', outline: 'none', background: '#fff', boxSizing: 'border-box' }} />
                                         {macError && <div style={{ fontSize: '0.72rem', color: '#dc2626' }}>{macError}</div>}
                                         <div style={{ display: 'flex', gap: '6px' }}>
@@ -392,7 +351,7 @@ export default function StudentDashboard() {
                 </div>
             )}
 
-            {/* MAC CONFIRM MODAL */}
+            {/* MAC UPDATE CONFIRMATION MODAL */}
             {showMacConfirm && (
                 <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}>
                     <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', width: '340px', maxWidth: '90vw', boxShadow: '0 8px 30px rgba(0,0,0,0.08)', overflow: 'hidden' }}>
@@ -400,11 +359,11 @@ export default function StudentDashboard() {
                             <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#111' }}>Confirm Device Update</span>
                         </div>
                         <div style={{ padding: '20px' }}>
-                            <div style={{ fontSize: '0.82rem', color: '#555', lineHeight: '1.6', marginBottom: '16px' }}>Update your registered device MAC address?</div>
+                            <div style={{ fontSize: '0.82rem', color: '#555', lineHeight: '1.6', marginBottom: '16px' }}>Are you sure you want to update your registered device?</div>
                             <div style={{ padding: '10px 14px', background: '#fafafa', borderRadius: '8px', border: '1px solid #f0f0f0', marginBottom: '16px' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', marginBottom: '4px' }}>
                                     <span style={{ color: '#888' }}>Current</span>
-                                    <span style={{ fontFamily: 'monospace', color: '#999' }}>{registeredMac || 'None'}</span>
+                                    <span style={{ fontFamily: 'monospace', color: '#999', fontWeight: 500 }}>{registeredMac || 'None'}</span>
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem' }}>
                                     <span style={{ color: '#888' }}>New</span>
@@ -423,4 +382,6 @@ export default function StudentDashboard() {
             )}
         </div>
     );
-}
+};
+
+export default StudentDashboard;
