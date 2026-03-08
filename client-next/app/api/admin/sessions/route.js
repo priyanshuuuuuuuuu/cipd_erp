@@ -61,8 +61,8 @@ async function postHandler(req) {
   try {
     const { course_id, faculty_id, title, venue_id, session_date, start_time, end_time } = await req.json();
 
-    if (!course_id || !title || !session_date || !start_time || !end_time) {
-      return NextResponse.json({ error: 'course_id, title, session_date, start_time, and end_time are required' }, { status: 400 });
+    if (!title || !session_date || !start_time || !end_time) {
+      return NextResponse.json({ error: 'title, session_date, start_time, and end_time are required' }, { status: 400 });
     }
 
     const { data, error } = await supabaseAdmin

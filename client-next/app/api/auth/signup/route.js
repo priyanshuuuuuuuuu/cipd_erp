@@ -2,13 +2,36 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { hashPassword, signToken } from '@/lib/auth';
 
+async function generateEnrollmentNo() {
+  // Find the highest existing CiPD_ enrollment number
+  const { data } = await supabaseAdmin
+    .from('students')
+    .select('enrollment_no')
+    .like('enrollment_no', 'CiPD_%')
+    .order('enrollment_no', { ascending: false });
+
+  let maxNum = 0;
+  for (const row of data || []) {
+    const match = row.enrollment_no?.match(/^CiPD_(\d+)$/);
+    if (match) {
+      const n = parseInt(match[1], 10);
+      if (n > maxNum) maxNum = n;
+    }
+  }
+
+  return `CiPD_${maxNum + 1}`;
+}
+
 export async function POST(req) {
   try {
-    const { firstName, lastName, email, password, enrollmentNo, programName } = await req.json();
+    const { firstName, lastName, email, password, programName } = await req.json();
 
-    // Validation — only core fields required
+    // Validation
     if (!firstName || !lastName || !email || !password) {
-      return NextResponse.json({ error: 'First name, last name, email and password are required' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'First name, last name, email and password are required' },
+        { status: 400 }
+      );
     }
 
     if (password.length < 6) {
@@ -29,18 +52,6 @@ export async function POST(req) {
 
     if (existing) {
       return NextResponse.json({ error: 'An account with this email already exists' }, { status: 409 });
-    }
-
-    // Check duplicate enrollment only if provided
-    if (enrollmentNo) {
-      const { data: existingEnroll } = await supabaseAdmin
-        .from('students')
-        .select('id')
-        .eq('enrollment_no', enrollmentNo.toUpperCase())
-        .single();
-      if (existingEnroll) {
-        return NextResponse.json({ error: 'This enrollment number is already registered' }, { status: 409 });
-      }
     }
 
     // Hash password
@@ -65,23 +76,26 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Failed to create account' }, { status: 500 });
     }
 
-    // Insert into students table
-    const studentData = {
-      id: newUser.id,
-      mac_verified: false,
-    };
-    if (enrollmentNo) studentData.enrollment_no = enrollmentNo.toUpperCase().trim();
-    if (programName) studentData.program_name = programName.trim();
+    // Auto-generate enrollment number
+    const enrollmentNo = await generateEnrollmentNo();
 
+    // Upsert into students table
     const { error: studentError } = await supabaseAdmin
       .from('students')
-      .insert(studentData);
+      .upsert({
+        id: newUser.id,
+        enrollment_no: enrollmentNo,
+        program_name: programName?.trim() || null,
+        mac_verified: false,
+      }, { onConflict: 'id' });
 
     if (studentError) {
-      console.error('Signup student insert error:', studentError);
+      console.error('Signup student upsert error:', studentError.message, studentError.details);
       // Rollback user creation
       await supabaseAdmin.from('users').delete().eq('id', newUser.id);
-      return NextResponse.json({ error: 'Failed to create student profile' }, { status: 500 });
+      return NextResponse.json({
+        error: `Failed to create student profile: ${studentError.message}`,
+      }, { status: 500 });
     }
 
     // Issue JWT
@@ -91,10 +105,11 @@ export async function POST(req) {
       role: 'student',
       firstName: newUser.first_name,
       lastName: newUser.last_name,
+      enrollmentNo,
     };
     const token = signToken(payload);
 
-    const response = NextResponse.json({ token, user: payload }, { status: 201 });
+    const response = NextResponse.json({ token, user: payload, enrollmentNo }, { status: 201 });
     response.cookies.set('token', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
