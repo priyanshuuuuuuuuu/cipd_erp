@@ -1,0 +1,22 @@
+:root {
+  --primary-cyan: #00bfff;
+  --primary-cyan-hover: #009ecd;
+  --text-dark: #333333;
+  --text-muted: #666666;
+  --glass-bg: rgba(255, 255, 255, 0.824);
+  --input-bg: #e6eef1; /* Light grayish blue/green from design */
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
