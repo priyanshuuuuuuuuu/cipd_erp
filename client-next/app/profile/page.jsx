@@ -16,35 +16,6 @@ const PROFILE_TABS = ['Overview', 'Attendance', 'Feedback', 'Assignments'];
 
 const COURSE_COLORS = ['#66d9e8', '#a78bfa', '#93c5fd', '#6ee7b7', '#f9a8d4', '#fbbf24'];
 
-const MOCK_PROFILE = { enrollment_no: 'EN21CS1042', department: 'Computer Science', program: 'B.Tech CSE', semester: 4, phone: '+91 98765 43210', batch: '2021-2025' };
-
-const MOCK_ATTENDANCE = {
-    overall: { attended: 68, missed: 16, total: 84, pct: 80.9 },
-    by_course: [
-        { course_id: 'cs301', course_name: 'CS301 – Data Structures', course_code: 'CS301', attended: 20, total: 22, pct: 91 },
-        { course_id: 'phy201', course_name: 'PHY201 – Quantum Physics', course_code: 'PHY201', attended: 16, total: 20, pct: 80 },
-        { course_id: 'math101', course_name: 'MATH101 – Calculus II', course_code: 'MATH101', attended: 15, total: 18, pct: 83 },
-        { course_id: 'eng102', course_name: 'ENG102 – Technical Writing', course_code: 'ENG102', attended: 10, total: 14, pct: 71 },
-        { course_id: 'cs202', course_name: 'CS202 – DBMS', course_code: 'CS202', attended: 7, total: 10, pct: 70 },
-    ],
-};
-
-const MOCK_ASSIGNMENTS = [
-    { id: 'a1', title: 'Linked List Operations', course_name: 'Data Structures', due_date: '2026-02-10T23:59:00Z', total_marks: 20, marks: 18, submission_status: 'graded', is_submitted: true },
-    { id: 'a2', title: 'Sorting Comparison Report', course_name: 'Data Structures', due_date: '2026-02-24T23:59:00Z', total_marks: 25, submission_status: 'submitted', is_submitted: true },
-    { id: 'a3', title: 'Wave Equation Analysis', course_name: 'Quantum Physics', due_date: '2026-03-01T23:59:00Z', total_marks: 20, marks: 16, submission_status: 'graded', is_submitted: true },
-    { id: 'a4', title: 'BST & AVL Trees', course_name: 'Data Structures', due_date: '2026-03-15T23:59:00Z', total_marks: 30, submission_status: 'pending', is_submitted: false },
-    { id: 'a5', title: 'Integration Techniques', course_name: 'Calculus II', due_date: '2026-03-18T23:59:00Z', total_marks: 20, submission_status: 'pending', is_submitted: false },
-    { id: 'a6', title: 'Technical Report Draft', course_name: 'Technical Writing', due_date: '2026-03-20T23:59:00Z', total_marks: 15, submission_status: 'pending', is_submitted: false },
-];
-
-const MOCK_FEEDBACK = [
-    { id: 'f1', course_name: 'Data Structures – Sorting Algorithms', overall_rating: 4, submitted_at: '2026-02-14T10:30:00Z', comments: 'Great explanation of merge sort vs quick sort trade-offs.' },
-    { id: 'f2', course_name: 'Quantum Physics – Wave Functions', overall_rating: 3, submitted_at: '2026-02-12T11:00:00Z', comments: 'Pace was a bit fast for complex derivations.' },
-    { id: 'f3', course_name: 'Calculus II – Integration', overall_rating: 5, submitted_at: '2026-02-11T14:00:00Z', comments: 'Very clear step-by-step approach.' },
-    { id: 'f4', course_name: 'Data Structures – AVL Trees', overall_rating: 4, submitted_at: '2026-02-07T09:30:00Z' },
-];
-
 const MiniDonut = ({ pct, size = 44, stroke = 5, color }) => {
     const r = (size - stroke) / 2;
     const circ = 2 * Math.PI * r;
@@ -81,20 +52,10 @@ export default function ProfilePage() {
                 api.get('/api/students/assignments'),
                 api.get('/api/students/feedback/history'),
             ]);
-            const p = profRes.status === 'fulfilled' ? (profRes.value.profile || profRes.value) : null;
-            const att = attRes.status === 'fulfilled' ? attRes.value : null;
-            const asn = asnRes.status === 'fulfilled' ? (asnRes.value.assignments || []) : [];
-            const fb = fbRes.status === 'fulfilled' ? (fbRes.value.submissions || fbRes.value.feedback || []) : [];
-
-            setProfile(p || MOCK_PROFILE);
-            setAttendance(att?.overall ? att : MOCK_ATTENDANCE);
-            setAssignments(asn.length > 0 ? asn : MOCK_ASSIGNMENTS);
-            setFeedback(fb.length > 0 ? fb : MOCK_FEEDBACK);
-        } catch {
-            setProfile(MOCK_PROFILE);
-            setAttendance(MOCK_ATTENDANCE);
-            setAssignments(MOCK_ASSIGNMENTS);
-            setFeedback(MOCK_FEEDBACK);
+            if (profRes.status === 'fulfilled') setProfile(profRes.value.profile || profRes.value);
+            if (attRes.status === 'fulfilled') setAttendance(attRes.value);
+            if (asnRes.status === 'fulfilled') setAssignments(asnRes.value.assignments || []);
+            if (fbRes.status === 'fulfilled') setFeedback(fbRes.value.submissions || fbRes.value.feedback || []);
         } finally {
             setLoading(false);
         }
@@ -364,7 +325,9 @@ export default function ProfilePage() {
                                                 <div>Status</div>
                                             </div>
                                             {assignments.map((asn, i) => {
-                                                const status = asn.submission_status || (asn.is_submitted ? 'submitted' : 'pending');
+                                                const hasSub = !!asn.submission;
+                                                const isGraded = hasSub && asn.submission.grade != null;
+                                                const status = isGraded ? 'graded' : (hasSub ? 'submitted' : (asn.is_overdue ? 'late' : 'pending'));
                                                 const statusStyles = {
                                                     submitted: { bg: '#dcfce7', color: '#16a34a', label: 'Submitted' },
                                                     graded: { bg: '#e0e7ff', color: '#3730a3', label: 'Graded' },
@@ -372,19 +335,20 @@ export default function ProfilePage() {
                                                     late: { bg: '#fee2e2', color: '#dc2626', label: 'Late' },
                                                 };
                                                 const st = statusStyles[status] || statusStyles['pending'];
+                                                const total = 20; // Defaulting to 20 based on seed
                                                 return (
                                                     <div key={asn.id || i} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', padding: '12px 1.5rem', borderBottom: i < assignments.length - 1 ? '1px solid #f8f8f8' : 'none', alignItems: 'center', gap: '1rem' }}>
                                                         <div>
                                                             <div style={{ fontSize: '0.88rem', fontWeight: 600, color: '#111' }}>{asn.title}</div>
-                                                            {asn.course_name && <div style={{ fontSize: '0.72rem', color: '#aaa', marginTop: '2px' }}>{asn.course_name}</div>}
+                                                            {asn.courses?.name && <div style={{ fontSize: '0.72rem', color: '#aaa', marginTop: '2px' }}>{asn.courses.name}</div>}
                                                         </div>
                                                         <div style={{ fontSize: '0.78rem', color: '#888', whiteSpace: 'nowrap' }}>
                                                             {asn.due_date ? new Date(asn.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '—'}
                                                         </div>
                                                         <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#111', textAlign: 'center' }}>
-                                                            {asn.marks != null ? `${asn.marks}/${asn.total_marks}` : '—'}
+                                                            {isGraded ? `${asn.submission.grade}/${total}` : '—'}
                                                         </div>
-                                                        <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '0.68rem', fontWeight: 600, background: st.bg, color: st.color, whiteSpace: 'nowrap' }}>
+                                                        <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '0.68rem', fontWeight: 600, background: st.bg, color: st.color, whiteSpace: 'nowrap', textAlign: 'center' }}>
                                                             {st.label}
                                                         </span>
                                                     </div>

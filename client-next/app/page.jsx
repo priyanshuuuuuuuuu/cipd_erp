@@ -24,8 +24,9 @@ const Login = () => {
 
   // Demo credentials (hint only — actual auth goes through the API)
   const demoCredentials = [
-    { role: 'Student', email: 'student@cipd.edu', password: 'student@123', path: '/dashboard', color: '#16a34a', bg: '#ecfdf5' },
-    { role: 'Admin', email: 'admin@cipd.edu', password: 'admin@123', path: '/admin', color: '#2563eb', bg: '#eff6ff' },
+    { role: 'Student', email: 'student@cipd.edu', password: 'student123', path: '/dashboard', color: '#16a34a', bg: '#ecfdf5' },
+    { role: 'Faculty', email: 'anuj.grover@cipd.edu', password: 'faculty123', path: '/dashboard', color: '#b45309', bg: '#fef9c3' },
+    { role: 'Admin', email: 'admin@cipd.edu', password: 'admin123', path: '/admin', color: '#2563eb', bg: '#eff6ff' },
   ];
 
   const handleLogin = async (e) => {
