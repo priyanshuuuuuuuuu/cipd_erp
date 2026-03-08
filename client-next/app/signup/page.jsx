@@ -4,11 +4,22 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import '../Login.css';
 import CardContainer from '../components/CardContainer';
-import { useAuth } from '../contexts/AuthContext';
+
+const PROGRAMS = [
+  'B.Tech Computer Science',
+  'B.Tech Electronics',
+  'B.Tech Mechanical',
+  'B.Tech Civil',
+  'M.Tech Computer Science',
+  'M.Tech Electronics',
+  'MBA',
+  'MCA',
+  'BCA',
+  'Other',
+];
 
 export default function SignupPage() {
   const router = useRouter();
-  const { login } = useAuth();
 
   const [form, setForm] = useState({
     firstName: '',
@@ -19,7 +30,7 @@ export default function SignupPage() {
   });
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [successData, setSuccessData] = useState(null); // { enrollmentNo }
 
   const set = (field) => (e) => setForm(f => ({ ...f, [field]: e.target.value }));
 
@@ -63,13 +74,13 @@ export default function SignupPage() {
         return;
       }
 
-      // Auto-login: store token and redirect
+      // Store auth & show success with enrollment number
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
-      setSuccess(true);
+      setSuccessData({ enrollmentNo: data.enrollmentNo });
 
-      // Brief success flash, then redirect
-      setTimeout(() => router.push('/dashboard'), 1000);
+      // Redirect after brief delay
+      setTimeout(() => router.push('/dashboard'), 2200);
     } catch {
       setError('Something went wrong. Please try again.');
     } finally {
@@ -122,15 +133,25 @@ export default function SignupPage() {
             Create Account
           </h2>
           <p style={{ fontSize: '0.78rem', color: '#777', marginBottom: '18px' }}>
-            Register as a student to get started
+            Register as a student — your enrollment ID will be generated automatically
           </p>
 
-          {success && (
+          {/* Success state */}
+          {successData && (
             <div style={{
-              background: '#ecfdf5', border: '1px solid #6ee7b7', borderRadius: '8px',
-              padding: '8px 12px', fontSize: '0.78rem', color: '#065f46', marginBottom: '12px', fontWeight: 500
+              background: '#ecfdf5', border: '1px solid #6ee7b7', borderRadius: '10px',
+              padding: '12px 16px', fontSize: '0.82rem', color: '#065f46', marginBottom: '12px'
             }}>
-              ✓ Account created! Redirecting to dashboard...
+              <div style={{ fontWeight: 700, marginBottom: '6px' }}>✓ Account created successfully!</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#d1fae5', padding: '8px 12px', borderRadius: '8px' }}>
+                <span style={{ color: '#065f46' }}>Your Enrollment ID:</span>
+                <span style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '1rem', letterSpacing: '1px', color: '#047857' }}>
+                  {successData.enrollmentNo}
+                </span>
+              </div>
+              <div style={{ fontSize: '0.72rem', color: '#6ee7b7' }}>
+                Redirecting to dashboard...
+              </div>
             </div>
           )}
 
@@ -143,59 +164,65 @@ export default function SignupPage() {
             </div>
           )}
 
-          <form onSubmit={handleSignup} style={{ width: '100%' }}>
-            {/* Name row */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              <div className="form-group">
-                <label style={labelStyle}>First Name</label>
-                <input style={inputStyle} placeholder="First name" value={form.firstName} onChange={set('firstName')} />
+          {!successData && (
+            <form onSubmit={handleSignup} style={{ width: '100%' }}>
+              {/* Name row */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div className="form-group">
+                  <label style={labelStyle}>First Name</label>
+                  <input style={inputStyle} placeholder="First name" value={form.firstName} onChange={set('firstName')} />
+                </div>
+                <div className="form-group">
+                  <label style={labelStyle}>Last Name</label>
+                  <input style={inputStyle} placeholder="Last name" value={form.lastName} onChange={set('lastName')} />
+                </div>
               </div>
+
               <div className="form-group">
-                <label style={labelStyle}>Last Name</label>
-                <input style={inputStyle} placeholder="Last name" value={form.lastName} onChange={set('lastName')} />
+                <label style={labelStyle}>Email Address</label>
+                <input style={inputStyle} type="email" placeholder="Enter your college email" value={form.email} onChange={set('email')} />
               </div>
-            </div>
 
-            <div className="form-group">
-              <label style={labelStyle}>Email Address</label>
-              <input style={inputStyle} type="email" placeholder="Enter your college email" value={form.email} onChange={set('email')} />
-            </div>
+              <div className="form-group">
+                <label style={labelStyle}>Password</label>
+                <input style={inputStyle} type="password" placeholder="Min. 6 characters" value={form.password} onChange={set('password')} />
+              </div>
 
+              <div className="form-group">
+                <label style={labelStyle}>Confirm Password</label>
+                <input style={inputStyle} type="password" placeholder="Re-enter password" value={form.confirmPassword} onChange={set('confirmPassword')} />
+              </div>
 
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 12px', background: '#f0f9ff', borderRadius: '8px', marginBottom: '10px', fontSize: '0.72rem', color: '#0369a1' }}>
+                <span>🎓</span>
+                <span>Your enrollment number (e.g. <strong>CiPD_1</strong>) will be auto-generated on signup.</span>
+              </div>
 
-            <div className="form-group">
-              <label style={labelStyle}>Password</label>
-              <input style={inputStyle} type="password" placeholder="Min. 6 characters" value={form.password} onChange={set('password')} />
-            </div>
-
-            <div className="form-group">
-              <label style={labelStyle}>Confirm Password</label>
-              <input style={inputStyle} type="password" placeholder="Re-enter password" value={form.confirmPassword} onChange={set('confirmPassword')} />
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading || success}
-              style={{
-                width: '100%', padding: '0.85rem', background: isLoading || success ? '#aaa' : 'var(--primary-cyan, #00bfff)',
-                color: '#000', border: 'none', borderRadius: '8px', fontSize: '0.95rem', fontWeight: 600,
-                cursor: isLoading || success ? 'not-allowed' : 'pointer', marginTop: '6px',
-                opacity: isLoading || success ? 0.7 : 0.9, transition: 'all 0.2s'
-              }}
-            >
-              {isLoading ? 'Creating account...' : success ? 'Done ✓' : 'Create Account'}
-            </button>
-
-            <p style={{ textAlign: 'center', marginTop: '14px', fontSize: '0.78rem', color: '#777' }}>
-              Already have an account?{' '}
-              <span
-                onClick={() => router.push('/')}
-                style={{ color: '#00AEAE', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
+              <button
+                type="submit"
+                disabled={isLoading}
+                style={{
+                  width: '100%', padding: '0.85rem',
+                  background: isLoading ? '#aaa' : 'var(--primary-cyan, #00bfff)',
+                  color: '#000', border: 'none', borderRadius: '8px', fontSize: '0.95rem', fontWeight: 600,
+                  cursor: isLoading ? 'not-allowed' : 'pointer', marginTop: '6px',
+                  opacity: isLoading ? 0.7 : 0.9, transition: 'all 0.2s'
+                }}
               >
-                Log in
-              </span>
-            </p>
-          </form>
+                {isLoading ? 'Creating account...' : 'Create Account'}
+              </button>
+
+              <p style={{ textAlign: 'center', marginTop: '14px', fontSize: '0.78rem', color: '#777' }}>
+                Already have an account?{' '}
+                <span
+                  onClick={() => router.push('/')}
+                  style={{ color: '#00AEAE', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
+                >
+                  Log in
+                </span>
+              </p>
+            </form>
+          )}
         </div>
       </CardContainer>
     </div>
