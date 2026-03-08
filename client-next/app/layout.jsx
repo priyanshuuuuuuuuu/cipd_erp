@@ -1,5 +1,6 @@
 import './globals.css';
 import './Dashboard.css';
+import { Providers } from './providers';
 
 export const metadata = {
   title: 'CIPD 360 — Academic ERP',
@@ -9,7 +10,9 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }

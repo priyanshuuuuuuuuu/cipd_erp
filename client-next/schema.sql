@@ -1,0 +1,420 @@
+BEGIN;
+
+--------------------------------------------------
+-- EXTENSIONS
+--------------------------------------------------
+
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+--------------------------------------------------
+-- ENUM TYPES
+--------------------------------------------------
+
+CREATE TYPE user_role AS ENUM (
+    'admin',
+    'faculty',
+    'student'
+);
+
+CREATE TYPE attendance_status AS ENUM (
+    'present',
+    'absent',
+    'partial'
+);
+
+CREATE TYPE feedback_question_type AS ENUM (
+    'rating',
+    'yes_no',
+    'text'
+);
+
+CREATE TYPE session_status AS ENUM (
+    'scheduled',
+    'completed',
+    'cancelled'
+);
+
+--------------------------------------------------
+-- USERS
+--------------------------------------------------
+
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+
+    email TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+
+    role user_role NOT NULL,
+
+    first_name TEXT,
+    last_name TEXT,
+
+    is_active BOOLEAN DEFAULT TRUE,
+
+    created_at TIMESTAMP DEFAULT now(),
+    updated_at TIMESTAMP DEFAULT now()
+);
+
+CREATE INDEX idx_users_role ON users(role);
+
+--------------------------------------------------
+-- STUDENTS
+--------------------------------------------------
+
+CREATE TABLE students (
+    id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+
+    enrollment_no TEXT UNIQUE,
+    program_name TEXT,
+
+    device_hash TEXT,
+    mac_address TEXT,
+
+    mac_verified BOOLEAN DEFAULT FALSE,
+
+    created_at TIMESTAMP DEFAULT now()
+);
+
+--------------------------------------------------
+-- FACULTY
+--------------------------------------------------
+
+CREATE TABLE faculty (
+    id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+
+    designation TEXT,
+    years_experience INT,
+
+    honorarium_rate_per_hour NUMERIC(10,2),
+
+    created_at TIMESTAMP DEFAULT now()
+);
+
+--------------------------------------------------
+-- COURSES
+--------------------------------------------------
+
+CREATE TABLE courses (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+
+    name TEXT NOT NULL,
+    description TEXT,
+
+    created_at TIMESTAMP DEFAULT now()
+);
+
+--------------------------------------------------
+-- COURSE ENROLLMENTS
+--------------------------------------------------
+
+CREATE TABLE course_enrollments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+
+    course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
+    student_id UUID REFERENCES students(id) ON DELETE CASCADE,
+
+    enrolled_at TIMESTAMP DEFAULT now(),
+
+    UNIQUE(course_id, student_id)
+);
+
+--------------------------------------------------
+-- VENUES
+--------------------------------------------------
+
+CREATE TABLE venues (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+
+    name TEXT NOT NULL,
+    building TEXT,
+
+    router_bssid TEXT UNIQUE,
+
+    created_at TIMESTAMP DEFAULT now()
+);
+
+--------------------------------------------------
+-- SESSIONS
+--------------------------------------------------
+
+CREATE TABLE sessions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+
+    course_id UUID REFERENCES courses(id),
+    faculty_id UUID REFERENCES faculty(id),
+
+    title TEXT NOT NULL,
+
+    venue_id UUID REFERENCES venues(id),
+
+    session_date DATE NOT NULL,
+
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL,
+
+    status session_status DEFAULT 'scheduled',
+
+    created_by UUID REFERENCES users(id),
+
+    created_at TIMESTAMP DEFAULT now()
+);
+
+CREATE INDEX idx_sessions_date ON sessions(session_date);
+CREATE INDEX idx_sessions_faculty ON sessions(faculty_id);
+CREATE INDEX idx_sessions_course ON sessions(course_id);
+
+--------------------------------------------------
+-- VENUE CONFLICT PROTECTION
+--------------------------------------------------
+
+CREATE UNIQUE INDEX unique_venue_schedule
+ON sessions(venue_id, session_date, start_time, end_time)
+WHERE status <> 'cancelled';
+
+--------------------------------------------------
+-- ATTENDANCE PING LOGS
+--------------------------------------------------
+
+CREATE TABLE attendance_ping_logs (
+    id BIGSERIAL PRIMARY KEY,
+
+    session_id UUID REFERENCES sessions(id) ON DELETE CASCADE,
+
+    student_id UUID REFERENCES students(id),
+
+    device_hash TEXT,
+
+    bssid TEXT,
+
+    signal_strength INT,
+
+    ping_time TIMESTAMP DEFAULT now()
+);
+
+CREATE INDEX idx_ping_session_student
+ON attendance_ping_logs(session_id, student_id);
+
+CREATE INDEX idx_ping_time
+ON attendance_ping_logs(ping_time);
+
+--------------------------------------------------
+-- ATTENDANCE RECORDS
+--------------------------------------------------
+
+CREATE TABLE attendance_records (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+
+    session_id UUID REFERENCES sessions(id) ON DELETE CASCADE,
+    student_id UUID REFERENCES students(id),
+
+    ping_count INT DEFAULT 0,
+
+    status attendance_status,
+
+    calculated_at TIMESTAMP DEFAULT now(),
+
+    UNIQUE(session_id, student_id)
+);
+
+CREATE INDEX idx_attendance_student
+ON attendance_records(student_id);
+
+CREATE INDEX idx_attendance_session
+ON attendance_records(session_id);
+
+--------------------------------------------------
+-- FEEDBACK QUESTIONS
+--------------------------------------------------
+
+CREATE TABLE feedback_questions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+
+    question TEXT NOT NULL,
+
+    category TEXT,
+
+    type feedback_question_type,
+
+    active BOOLEAN DEFAULT TRUE,
+
+    created_at TIMESTAMP DEFAULT now()
+);
+
+--------------------------------------------------
+-- FEEDBACK RESPONSES
+--------------------------------------------------
+
+CREATE TABLE feedback_responses (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+
+    session_id UUID REFERENCES sessions(id) ON DELETE CASCADE,
+    student_id UUID REFERENCES students(id),
+
+    question_id UUID REFERENCES feedback_questions(id),
+
+    rating INT,
+    yes_no BOOLEAN,
+    text_answer TEXT,
+
+    submitted_at TIMESTAMP DEFAULT now()
+);
+
+CREATE INDEX idx_feedback_session
+ON feedback_responses(session_id);
+
+CREATE INDEX idx_feedback_student
+ON feedback_responses(student_id);
+
+--------------------------------------------------
+-- SESSION MATERIALS
+--------------------------------------------------
+
+CREATE TABLE session_materials (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+
+    session_id UUID REFERENCES sessions(id) ON DELETE CASCADE,
+
+    uploaded_by UUID REFERENCES users(id),
+
+    title TEXT,
+    file_url TEXT,
+
+    created_at TIMESTAMP DEFAULT now()
+);
+
+--------------------------------------------------
+-- ASSIGNMENTS
+--------------------------------------------------
+
+CREATE TABLE assignments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+
+    course_id UUID REFERENCES courses(id),
+
+    faculty_id UUID REFERENCES faculty(id),
+
+    title TEXT,
+    description TEXT,
+
+    due_date TIMESTAMP,
+
+    created_at TIMESTAMP DEFAULT now()
+);
+
+--------------------------------------------------
+-- ASSIGNMENT SUBMISSIONS
+--------------------------------------------------
+
+CREATE TABLE assignment_submissions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+
+    assignment_id UUID REFERENCES assignments(id),
+
+    student_id UUID REFERENCES students(id),
+
+    file_url TEXT,
+
+    submitted_at TIMESTAMP DEFAULT now(),
+
+    grade NUMERIC(5,2),
+
+    feedback TEXT
+);
+
+--------------------------------------------------
+-- ATTENDANCE CALCULATION FUNCTION
+--------------------------------------------------
+
+CREATE OR REPLACE FUNCTION calculate_attendance(p_session UUID)
+RETURNS VOID
+LANGUAGE plpgsql
+AS $$
+BEGIN
+
+INSERT INTO attendance_records (session_id, student_id, ping_count, status)
+
+SELECT
+    session_id,
+    student_id,
+    COUNT(*) as ping_count,
+
+    CASE
+        WHEN COUNT(*) >= 3 THEN 'present'
+        WHEN COUNT(*) = 2 THEN 'partial'
+        ELSE 'absent'
+    END
+
+FROM attendance_ping_logs
+WHERE session_id = p_session
+
+GROUP BY session_id, student_id
+
+ON CONFLICT (session_id, student_id)
+DO UPDATE SET
+ping_count = EXCLUDED.ping_count,
+status = EXCLUDED.status,
+calculated_at = now();
+
+END;
+$$;
+
+--------------------------------------------------
+-- FACULTY MONTHLY HOURS VIEW
+--------------------------------------------------
+
+CREATE VIEW faculty_monthly_hours AS
+
+SELECT
+
+faculty_id,
+
+date_trunc('month', session_date) AS month,
+
+COUNT(*) AS sessions,
+
+SUM(
+    EXTRACT(EPOCH FROM (end_time - start_time))/3600
+) AS hours
+
+FROM sessions
+
+WHERE status='completed'
+
+GROUP BY faculty_id, month;
+
+--------------------------------------------------
+-- STUDENT ATTENDANCE SUMMARY
+--------------------------------------------------
+
+CREATE VIEW student_attendance_summary AS
+
+SELECT
+
+student_id,
+
+COUNT(*) FILTER (WHERE status='present') * 100.0
+/
+COUNT(*) AS attendance_percentage
+
+FROM attendance_records
+
+GROUP BY student_id;
+
+--------------------------------------------------
+-- ADMIN DASHBOARD SUMMARY
+--------------------------------------------------
+
+CREATE VIEW admin_dashboard_summary AS
+
+SELECT
+
+COUNT(DISTINCT students.id) AS total_students,
+
+COUNT(DISTINCT faculty.id) AS total_faculty,
+
+COUNT(DISTINCT sessions.id) AS total_sessions
+
+FROM students, faculty, sessions;
+
+COMMIT;
