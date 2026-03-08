@@ -11,32 +11,42 @@ import InputField from './components/InputField';
 import Button from './components/Button';
 import ForgotPasswordText from './components/ForgotPasswordText';
 import CardContainer from './components/CardContainer';
+import { useAuth } from './contexts/AuthContext';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const router = useRouter();
+  const { login } = useAuth();
 
-  // Demo credentials
+  // Demo credentials (hint only — actual auth goes through the API)
   const demoCredentials = [
-    { role: 'Student', email: 'student@cipd.edu', password: '123456', path: '/dashboard', color: '#16a34a', bg: '#ecfdf5' },
-    { role: 'Admin', email: 'admin@cipd.edu', password: '123456', path: '/admin', color: '#2563eb', bg: '#eff6ff' },
+    { role: 'Student', email: 'student@cipd.edu', password: 'student@123', path: '/dashboard', color: '#16a34a', bg: '#ecfdf5' },
+    { role: 'Admin', email: 'admin@cipd.edu', password: 'admin@123', path: '/admin', color: '#2563eb', bg: '#eff6ff' },
   ];
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
+    setIsLoading(true);
 
-    const match = demoCredentials.find(
-      (c) => c.email.toLowerCase() === email.toLowerCase() && c.password === password
-    );
-
-    if (match) {
-      router.push(match.path);
-    } else {
-      setError('Invalid credentials. Use the demo accounts below.');
+    try {
+      const user = await login(email, password);
+      // Redirect based on role
+      if (user.role === 'admin') {
+        router.push('/admin');
+      } else if (user.role === 'faculty') {
+        router.push('/dashboard');
+      } else {
+        router.push('/dashboard');
+      }
+    } catch (err) {
+      setError(err.message || 'Invalid credentials. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -93,9 +103,19 @@ const Login = () => {
               </div>
             )}
 
-            <Button label="Log in" type="submit" />
+            <Button label={isLoading ? 'Logging in...' : 'Log in'} type="submit" />
 
             <ForgotPasswordText />
+
+            <p style={{ textAlign: 'center', marginTop: '12px', fontSize: '0.78rem', color: '#777' }}>
+              Don&apos;t have an account?{' '}
+              <span
+                onClick={() => router.push('/signup')}
+                style={{ color: '#00AEAE', fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}
+              >
+                Sign up
+              </span>
+            </p>
           </form>
         </div>
       </CardContainer>
