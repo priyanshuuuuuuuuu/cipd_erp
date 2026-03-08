@@ -122,7 +122,7 @@ export default function StudentDashboard() {
             <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobileMenuOpen ? 'open' : ''}`}>
                 <div>
                     <div className="user-profile" style={{ position: 'relative' }}>
-                        <div className="user-avatar" onClick={() => setShowProfile(true)} style={{ cursor: 'pointer', background: '#0b6861', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: '0.9rem' }}>
+                        <div className="user-avatar" onClick={() => navTo('/profile')} style={{ cursor: 'pointer', background: '#0b6861', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: '0.9rem' }}>
                             {user?.firstName?.[0]?.toUpperCase() || 'S'}
                         </div>
                         <div className="user-info">

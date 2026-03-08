@@ -92,7 +92,7 @@ export default function AttendancePage() {
             <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobileMenuOpen ? 'open' : ''}`}>
                 <div>
                     <div className="user-profile" style={{ position: 'relative' }}>
-                        <div className="user-avatar" style={{ background: '#0b6861', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: '0.9rem' }}>
+                        <div className="user-avatar" style={{ background: '#0b6861', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer' }} onClick={() => navTo('/profile')}>
                             {user?.firstName?.[0]?.toUpperCase() || 'S'}
                         </div>
                         <div className="user-info"><h3>{displayName}</h3><p>{user?.email}</p></div>
