@@ -102,7 +102,7 @@ const StudentDashboard = () => {
         <div className="dashboard-container">
             <div className={`sidebar-overlay ${isMobileMenuOpen ? 'visible' : ''}`} onClick={() => setIsMobileMenuOpen(false)} />
 
-            <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobileMenuOpen ? 'open' : ''}`}>
+            <aside className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
                 <div>
                     <div className="user-profile" style={{ position: 'relative' }}>
                         <div className="user-avatar" onClick={() => setShowProfile(true)} style={{ cursor: 'pointer' }}>
@@ -111,9 +111,6 @@ const StudentDashboard = () => {
                         <div className="user-info">
                             <h3>{displayName}</h3>
                             <p>{user?.email}</p>
-                        </div>
-                        <div onClick={() => setIsCollapsed(!isCollapsed)} style={{ position: 'absolute', right: '-12px', top: '50%', transform: 'translateY(-50%)', background: '#1a1a1a', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '1px solid #333', color: '#888', boxShadow: '0 2px 5px rgba(0,0,0,0.2)' }}>
-                            {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
                         </div>
                     </div>
                     <nav className="nav-menu">
@@ -184,18 +181,18 @@ const StudentDashboard = () => {
                                     <div key={i} style={{ textAlign: 'left', paddingLeft: '5px', fontSize: '0.8rem', color: '#888' }}>{d}</div>
                                 ))}
                             </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', flex: 1, gap: '10px', position: 'relative' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', flex: 1, gap: '6px' }}>
                                 {DAY_KEYS.map((day, idx) => {
                                     const dayS = weekSessions.filter(s => {
                                         const d = new Date(s.session_date);
                                         return DAY_KEYS[d.getDay()] === day;
                                     });
                                     return (
-                                        <div key={day} className="cal-col" style={{ position: 'relative', borderLeft: idx > 0 ? '1px solid #f9f9f9' : 'none' }}>
+                                        <div key={day} className="cal-col" style={{ borderLeft: idx > 0 ? '1px solid #f9f9f9' : 'none', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                             {dayS.slice(0, 2).map((s, si) => {
                                                 const colors = ['blue', 'teal', 'purple', 'green'];
                                                 return (
-                                                    <div key={s.id} className={`cal-event ${colors[si % colors.length]}`} style={{ position: 'absolute', top: `${si * 45}%`, width: '100%' }}>
+                                                    <div key={s.id} className={`cal-event ${colors[si % colors.length]}`}>
                                                         <div className="event-badge">Class</div>
                                                         <strong>{s.courses?.name || s.title}</strong>
                                                         <div>{s.venues?.name || 'TBA'}</div>
@@ -235,11 +232,11 @@ const StudentDashboard = () => {
                         <div className="attendance-summary">
                             <div className="summary-left">
                                 <div className="summary-label">Total Attendance</div>
-                                <div className="progress-circle">{attendance ? `${Math.round(attendance.overall_pct || 0)}%` : '—'}</div>
+                                <div className="progress-circle">{attendance ? `${Math.round(attendance.overall?.pct || 0)}%` : '—'}</div>
                             </div>
                             <div className="summary-right">
-                                <div className="badge-pill blue">Attended: {attendance?.attended || 0}</div>
-                                <div className="badge-pill pink">Missed: {attendance?.missed || 0}</div>
+                                <div className="badge-pill blue">Attended: {attendance?.overall?.attended || 0}</div>
+                                <div className="badge-pill pink">Missed: {attendance?.overall?.missed || 0}</div>
                             </div>
                         </div>
                     </div>
@@ -248,20 +245,27 @@ const StudentDashboard = () => {
 
                     {assignments.length === 0 ? (
                         <div style={{ padding: '1rem', color: '#aaa', fontSize: '0.82rem' }}>No pending assignments!</div>
-                    ) : assignments.slice(0, 3).map((a, i) => (
-                        <div key={a.id} className="assignment-card">
-                            <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-                                <div className="icon-box"><FileText size={20} /></div>
-                                <div>
-                                    <div style={{ fontSize: '0.9rem', fontWeight: '700' }}>{a.title}</div>
-                                    <div style={{ fontSize: '0.7rem', color: '#888' }}>{a.courses?.name || ''}{a.faculty ? ` • ${a.faculty}` : ''}</div>
+                    ) : assignments.slice(0, 3).map((a, i) => {
+                        const daysLeft = a.due_date ? Math.ceil((new Date(a.due_date) - new Date()) / (1000 * 60 * 60 * 24)) : null;
+                        const daysColor = daysLeft !== null ? (daysLeft <= 3 ? '#ef4444' : daysLeft <= 7 ? '#f59e0b' : '#22c55e') : '#ccc';
+                        const daysLabel = daysLeft !== null ? (daysLeft <= 0 ? 'Due!' : `${daysLeft}d`) : '—';
+                        const facultyName = a.faculty?.users ? `${a.faculty.users.first_name} ${a.faculty.users.last_name}` : '';
+                        return (
+                            <div key={a.id} className="assignment-card">
+                                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                    <div className="icon-box"><FileText size={18} /></div>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{ fontSize: '0.82rem', fontWeight: '700', lineHeight: 1.3 }}>{a.title}</div>
+                                        <div style={{ fontSize: '0.68rem', color: '#888', marginTop: '2px' }}>{a.courses?.name || ''}</div>
+                                        {facultyName && <div style={{ fontSize: '0.65rem', color: '#aaa', marginTop: '1px' }}>{facultyName}</div>}
+                                    </div>
+                                </div>
+                                <div style={{ width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem', fontWeight: 700, color: daysColor, border: `2px solid ${daysColor}`, background: `${daysColor}10`, flexShrink: 0 }}>
+                                    {daysLabel}
                                 </div>
                             </div>
-                            <div className={`score-circle ${['green','peach','pink'][i % 3]}`}>
-                                {a.max_marks || '—'}
-                            </div>
-                        </div>
-                    ))}
+                        );
+                    })}
 
                     <div className="section-title" style={{ marginTop: '0.5rem', marginBottom: '0.5rem' }}>Pending Feedback</div>
                     {pendingFeedback ? (
