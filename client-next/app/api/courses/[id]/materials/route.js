@@ -6,32 +6,21 @@ async function handler(req, { params }) {
   try {
     const { id } = params;
 
-    // 1. Get all session IDs for this course
-    const { data: sessions, error: sessErr } = await supabaseAdmin
-      .from('sessions')
-      .select('id')
-      .eq('course_id', id);
-
-    if (sessErr) throw sessErr;
-
-    const sessionIds = (sessions || []).map(s => s.id);
-
-    if (sessionIds.length === 0) {
-      return NextResponse.json({ materials: [] });
-    }
-
-    // 2. Fetch materials for those sessions
+    // Query materials directly by course_id (populated by seed script)
     const { data: materials, error: matErr } = await supabaseAdmin
       .from('session_materials')
       .select(`
         id, title, file_url, file_type, content, created_at,
         sessions ( id, title, session_date ),
-        users:uploaded_by ( first_name, last_name )
+        faculty ( id, users ( first_name, last_name ) )
       `)
-      .in('session_id', sessionIds)
+      .eq('course_id', id)
       .order('created_at', { ascending: false });
 
-    if (matErr) throw matErr;
+    if (matErr) {
+      console.error('Course materials query error:', matErr);
+      return NextResponse.json({ error: 'Failed to fetch materials', details: matErr.message }, { status: 500 });
+    }
 
     return NextResponse.json({ materials: materials || [] });
   } catch (err) {
