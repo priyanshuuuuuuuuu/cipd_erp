@@ -67,12 +67,12 @@ export default function AttendancePage() {
 
     useEffect(() => { if (authReady) fetchData(); }, [fetchData, authReady]);
 
-    // Build from API data
+    // Build from API data — API returns { overall: { attended, missed, total, pct }, streak, courses }
     const overall = {
-        total: summaryData?.total || 0,
-        attended: summaryData?.attended || 0,
-        missed: summaryData?.missed || 0,
-        pct: summaryData?.overall_pct || 0,
+        total: summaryData?.overall?.total || 0,
+        attended: summaryData?.overall?.attended || 0,
+        missed: summaryData?.overall?.missed || 0,
+        pct: summaryData?.overall?.pct || 0,
     };
     const streak = summaryData?.streak || 0;
     const courses = (summaryData?.courses || []).map((c, i) => ({
@@ -85,15 +85,22 @@ export default function AttendancePage() {
         color: ['#66d9e8', '#a78bfa', '#93c5fd', '#f9a8d4', '#fdba74'][i % 5],
     }));
 
-    const sessions = sessionHistory.map(s => ({
-        date: new Date(s.session_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }),
-        day: new Date(s.session_date).toLocaleDateString('en-GB', { weekday: 'short' }),
-        time: s.start_time ? s.start_time.slice(0, 5) : '',
-        course: s.course_code || '',
-        topic: s.topic || s.course_name || '',
-        status: s.status === 'present' ? 'Present' : 'Absent',
-        pings: s.ping_count ? `${s.ping_count}/${s.total_pings || 5}` : '0/5',
-    }));
+    // Sessions API returns attendance_records with nested sessions object
+    const sessions = sessionHistory.map((s, i) => {
+        const sess = s.sessions || {};
+        const sessionDate = sess.session_date ? new Date(sess.session_date + 'T00:00:00') : null;
+        const courseName = sess.courses?.name || '';
+        const courseCode = courseName ? courseName.split(' ').map(w => w[0]).join('').slice(0, 4).toUpperCase() : `C${i + 1}`;
+        return {
+            date: sessionDate ? sessionDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : 'N/A',
+            day: sessionDate ? sessionDate.toLocaleDateString('en-GB', { weekday: 'short' }) : '',
+            time: sess.start_time ? sess.start_time.slice(0, 5) : '',
+            course: courseCode,
+            topic: sess.title || courseName || 'Session',
+            status: s.status === 'present' ? 'Present' : 'Absent',
+            pings: s.ping_count != null ? `${s.ping_count}/5` : '0/5',
+        };
+    });
 
     const filtered = selectedCourse === 'all' ? sessions : sessions.filter(s => s.course === selectedCourse);
     const statusTextColor = (p) => p >= 85 ? '#166534' : p >= 75 ? '#854d0e' : '#9f1239';
@@ -114,8 +121,8 @@ export default function AttendancePage() {
         })
     );
     // Build a simpler approach: mark each day
-    const presentDays = new Set(sessionHistory.filter(s => s.status === 'present').map(s => new Date(s.session_date).getDate()));
-    const absentDays = new Set(sessionHistory.filter(s => s.status !== 'present').map(s => new Date(s.session_date).getDate()));
+    const presentDays = new Set(sessionHistory.filter(s => s.status === 'present' && s.sessions?.session_date).map(s => new Date(s.sessions.session_date + 'T00:00:00').getDate()));
+    const absentDays = new Set(sessionHistory.filter(s => s.status !== 'present' && s.sessions?.session_date).map(s => new Date(s.sessions.session_date + 'T00:00:00').getDate()));
     const dayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
     const calDays = Array(firstDay).fill(null).concat(Array.from({ length: daysInMonth }, (_, i) => i + 1));
 

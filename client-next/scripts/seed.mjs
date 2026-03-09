@@ -192,11 +192,12 @@ async function seed() {
   const sessions = [];
   const sessionMap = {}; // courseId -> [sessionIds]
 
-  for (let daysBack = 42; daysBack >= 1; daysBack--) {
+  for (let daysBack = 42; daysBack >= -7; daysBack--) {
     const date = new Date();
     date.setDate(date.getDate() - daysBack);
     const dayOfWeek = date.getDay(); // 0=Sun
     const dateStr = date.toISOString().split('T')[0];
+    const isPast = daysBack > 0;
 
     for (const sched of courseSchedule) {
       if (sched.days.includes(dayOfWeek)) {
@@ -210,7 +211,7 @@ async function seed() {
           session_date: dateStr,
           start_time: sched.start,
           end_time: sched.end,
-          status: 'completed',
+          status: isPast ? 'completed' : 'scheduled',
           created_by: IDS.admin1,
         });
         if (!sessionMap[sched.course]) sessionMap[sched.course] = [];
@@ -225,12 +226,14 @@ async function seed() {
     const { error: sesErr } = await supabase.from('sessions').upsert(batch, { onConflict: 'id' });
     if (sesErr) err(`Sessions batch ${i}`, sesErr);
   }
-  log(`Created ${sessions.length} sessions`);
+  log(`Created ${sessions.length} sessions (past & future)`);
 
   // ── 8. Attendance Records ──
   log('Creating attendance records...');
   const attendanceRecords = [];
   for (const session of sessions) {
+    if (session.status !== 'completed') continue;
+
     // ~80% present, ~10% partial, ~10% absent for realistic data
     const rand = Math.random();
     let status, pings;
@@ -258,33 +261,44 @@ async function seed() {
   log('Creating session materials...');
   const materials = [];
   const materialData = [
-    { course: IDS.cs301, titles: ['Intro to DSA', 'Sorting Algorithms – Slides', 'AVL Trees – Notes', 'Graph Traversals', 'Dynamic Programming Cheatsheet'] },
-    { course: IDS.phy201, titles: ['Wave-Particle Duality', 'Schrodinger Equation', 'Quantum Entanglement'] },
-    { course: IDS.math101, titles: ['Integration by Parts', 'Taylor Series', 'Partial Derivatives'] },
-    { course: IDS.eng102, titles: ['Report Structure Guide', 'Citation Standards'] },
-    { course: IDS.cs202, titles: ['ER Diagram Guide', 'SQL Joins Reference', 'Normalization Notes'] },
-  ];
+    { title: 'Intro to DSA', type: 'notes', content: 'Data structures are ways of organizing data.\n\nTypes:\n- Linear: Arrays, Linked Lists, Stacks, Queues\n- Non-linear: Trees, Graphs, Hash Tables\n\nBig-O Notation:\n- O(1) Constant, O(log n) Log, O(n) Linear, O(n²) Quadratic' },
+    { title: 'Sorting Algorithms', type: 'slides', content: 'Sorting Algorithms Comparison\n\n1. Bubble Sort – O(n²), stable\n2. Merge Sort – O(n log n), stable, O(n) space\n3. Quick Sort – O(n log n) avg, O(n²) worst\n4. Heap Sort – O(n log n), O(1) space, not stable' },
+    { title: 'Wave-Particle Duality', type: 'notes', content: 'Every particle can be described as a particle or a wave.\n\nde Broglie: λ = h / p\n\nHeisenberg Uncertainty Principle: position and momentum cannot both be known precisely.' },
+    { title: 'Integration by Parts', type: 'notes', content: 'Formula: ∫u dv = uv - ∫v du\n\nLIATE Rule: Logarithmic > Inverse trig > Algebraic > Trig > Exponential' },
+    { title: 'Taylor Series', type: 'pdf', content: 'f(x) = Σ [f⁽ⁿ⁾(a)/n!]·(x-a)ⁿ\n\nCommon:\n- eˣ = 1 + x + x²/2! + ...\n- sin(x) = x - x³/3! + ...\n- cos(x) = 1 - x²/2! + ...' },
+    { title: 'Report Structure Guide', type: 'notes', content: '1. Title Page\n2. Abstract\n3. Introduction\n4. Literature Review\n5. Methodology\n6. Results and Discussion\n7. Conclusion\n8. References' },
+    { title: 'SQL Joins Reference', type: 'notes', content: '1. INNER JOIN – matching rows in both tables\n2. LEFT JOIN – all left rows, matched right\n3. RIGHT JOIN – all right rows, matched left\n4. FULL OUTER JOIN – all rows from either\n5. CROSS JOIN – Cartesian product' },
+    { title: 'Presentation Slides – Intro', type: 'slides', content: 'Slide 1: Welcome & Agenda\nSlide 2: Learning Objectives\nSlide 3: Assessment Breakdown\nSlide 4: Key Textbooks\nSlide 5: Weekly Schedule' },
+  ]
 
-  for (const md of materialData) {
-    const courseSessions = sessionMap[md.course] || [];
-    md.titles.forEach((title, idx) => {
-      const sesId = courseSessions[idx] || courseSessions[0];
-      if (sesId) {
-        materials.push({
-          id: uuid(),
-          session_id: sesId,
-          uploaded_by: IDS.faculty1,
-          title,
-          file_url: `https://example.com/materials/${title.replace(/\s/g, '_').toLowerCase()}.pdf`,
-        });
-      }
-    });
+  for (const session of sessions) {
+    if (session.status !== 'completed') continue;
+    
+    // ~60% chance a session has a material
+    if (Math.random() < 0.6) {
+      const matTemplate = materialData[Math.floor(Math.random() * materialData.length)];
+      materials.push({
+        id: uuid(),
+        session_id: session.id,
+        course_id: session.course_id, // include course_id to make API easier
+        faculty_id: session.faculty_id, // keep track of who uploaded it
+        title: matTemplate.title,
+        file_url: 'https://example.com/dummy.pdf', // valid URL
+        file_type: matTemplate.type,
+        content: matTemplate.content,
+        created_at: session.session_date,
+      });
+    }
   }
 
-  const { error: matErr } = await supabase.from('session_materials').upsert(materials, { onConflict: 'id' });
-  if (matErr) err('Materials', matErr);
-  log(`Created ${materials.length} materials`);
-
+  // Handle empty materials array (rare but possible if random chance fails for all)
+  if (materials.length > 0) {
+    const { error: matErr } = await supabase.from('session_materials').upsert(materials, { onConflict: 'id' });
+    if (matErr) err('Session materials', matErr);
+    log(`Created ${materials.length} materials`);
+  } else {
+    log('Created 0 materials');
+  }
   // ── 10. Assignments ──
   log('Creating assignments...');
   const assignments = [
