@@ -120,12 +120,12 @@ async function seed() {
   // ── 1. Users ──
   log('Creating users...');
   const users = [
-    { id: IDS.student1, email: 'student@cipd.edu', password_hash: password, role: 'student', first_name: 'Virat', last_name: 'Kohli', is_active: true },
+    { id: IDS.student1, email: 'student@cipd.edu', password_hash: password, role: 'student', first_name: 'Parsh', last_name: 'Jain', is_active: true },
     { id: IDS.faculty1, email: 'anuj.grover@cipd.edu', password_hash: facultyPwd, role: 'faculty', first_name: 'Anuj', last_name: 'Grover', is_active: true },
-    { id: IDS.faculty2, email: 'priya.sharma@cipd.edu', password_hash: facultyPwd, role: 'faculty', first_name: 'Pankaj', last_name: 'Jalote', is_active: true },
-    { id: IDS.faculty3, email: 'amit.patel@cipd.edu', password_hash: facultyPwd, role: 'faculty', first_name: 'Sneh', last_name: 'Saurabh', is_active: true },
-    { id: IDS.faculty4, email: 'neha.gupta@cipd.edu', password_hash: facultyPwd, role: 'faculty', first_name: 'Neha', last_name: 'Gupta', is_active: true },
-    { id: IDS.faculty5, email: 'sameer.verma@cipd.edu', password_hash: facultyPwd, role: 'faculty', first_name: 'Sameer', last_name: 'Verma', is_active: true },
+    { id: IDS.faculty2, email: 'pankaj.jalote@cipd.edu', password_hash: facultyPwd, role: 'faculty', first_name: 'Pankaj', last_name: 'Jalote', is_active: true },
+    { id: IDS.faculty3, email: 'sneh.saurabh@cipd.edu', password_hash: facultyPwd, role: 'faculty', first_name: 'Sneh', last_name: 'Saurabh', is_active: true },
+    { id: IDS.faculty4, email: 'tanmoy.kundu@cipd.edu', password_hash: facultyPwd, role: 'faculty', first_name: 'Tanmoy', last_name: 'Kundu', is_active: true },
+    { id: IDS.faculty5, email: 'sujay.deb@cipd.edu', password_hash: facultyPwd, role: 'faculty', first_name: 'Sujay', last_name: 'Deb', is_active: true },
     { id: IDS.admin1, email: 'admin@cipd.edu', password_hash: adminPwd, role: 'admin', first_name: 'Admin', last_name: 'User', is_active: true },
   ];
   const { error: usersErr } = await supabase.from('users').insert(users);
