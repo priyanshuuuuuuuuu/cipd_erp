@@ -75,16 +75,13 @@ export default function ProfilePage() {
     return (
         <div className="dashboard-container">
             <div className={`sidebar-overlay ${isMobileMenuOpen ? 'visible' : ''}`} onClick={() => setIsMobileMenuOpen(false)} />
-            <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobileMenuOpen ? 'open' : ''}`}>
+            <aside className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
                 <div>
-                    <div className="user-profile" style={{ position: 'relative' }}>
+                    <div className="user-profile">
                         <div className="user-avatar" style={{ background: '#0b6861', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer' }} onClick={() => navTo('/profile')}>
                             {user?.firstName?.[0]?.toUpperCase() || 'S'}
                         </div>
                         <div className="user-info"><h3>{displayName}</h3><p>{user?.email}</p></div>
-                        <div onClick={() => setIsCollapsed(!isCollapsed)} style={{ position: 'absolute', right: '-12px', top: '50%', transform: 'translateY(-50%)', background: '#1a1a1a', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '1px solid #333', color: '#888' }}>
-                            {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-                        </div>
                     </div>
                     <nav className="nav-menu">
                         <div onClick={() => navTo('/dashboard')} className="nav-item" style={{ cursor: 'pointer' }}><LayoutGrid size={18} /> <span>Home</span></div>
