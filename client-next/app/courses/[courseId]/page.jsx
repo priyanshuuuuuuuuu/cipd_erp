@@ -41,6 +41,7 @@ export default function CourseDetailPage() {
     const [assignments, setAssignments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedAssignment, setSelectedAssignment] = useState(null);
+    const [selectedMaterial, setSelectedMaterial] = useState(null);
     const [uploadFiles, setUploadFiles] = useState([]);
     const [isDragging, setIsDragging] = useState(false);
     const [submitting, setSubmitting] = useState(false);
@@ -99,11 +100,20 @@ export default function CourseDetailPage() {
         }
     };
 
-    const getFileIcon = (type) => {
-        if (!type) return <FileText size={16} color="#6b7280" />;
-        if (type.includes('pdf')) return <FileText size={16} color="#dc2626" />;
-        if (type.includes('link') || type.includes('url')) return <LinkIcon size={16} color="#2563eb" />;
-        return <Paperclip size={16} color="#6b7280" />;
+    const getFileIcon = (type, size = 16) => {
+        if (!type) return <FileText size={size} color="#6b7280" />;
+        if (type === 'notes') return <FileText size={size} color="#16a34a" />;
+        if (type === 'slides') return <FileText size={size} color="#f59e0b" />;
+        if (type === 'pdf') return <FileText size={size} color="#dc2626" />;
+        if (type.includes('link') || type.includes('url')) return <LinkIcon size={size} color="#2563eb" />;
+        return <Paperclip size={size} color="#6b7280" />;
+    };
+
+    const getFileTypeLabel = (type) => {
+        if (type === 'notes') return { label: 'Notes', bg: '#dcfce7', color: '#16a34a' };
+        if (type === 'slides') return { label: 'Slides', bg: '#fef9c3', color: '#b45309' };
+        if (type === 'pdf') return { label: 'PDF', bg: '#fee2e2', color: '#dc2626' };
+        return { label: 'File', bg: '#f5f5f5', color: '#666' };
     };
 
     const formatSize = (bytes) => {
@@ -210,42 +220,143 @@ export default function CourseDetailPage() {
                                         <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#555' }}>No materials uploaded yet</div>
                                         <div style={{ fontSize: '0.8rem', color: '#aaa', marginTop: '6px' }}>Your faculty will upload lecture materials here.</div>
                                     </div>
-                                ) : (
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-                                        {materials.map((mat, i) => (
-                                            <div
-                                                key={mat.id || i}
-                                                style={{ background: '#fff', border: '1px solid #e8e8e8', borderRadius: '12px', padding: '1rem 1.5rem', display: 'flex', alignItems: 'center', gap: '1rem', transition: 'box-shadow 0.2s' }}
-                                                onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.05)'}
-                                                onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}
-                                            >
-                                                <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                                    {getFileIcon(mat.type)}
-                                                </div>
-                                                <div style={{ flex: 1, minWidth: 0 }}>
-                                                    <div style={{ fontSize: '0.9rem', fontWeight: 600, color: '#111', marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                        {mat.title || mat.file_name || 'Untitled'}
-                                                    </div>
-                                                    <div style={{ fontSize: '0.72rem', color: '#aaa', display: 'flex', gap: '12px' }}>
-                                                        {mat.session_topic && <span>{mat.session_topic}</span>}
-                                                        {mat.size && <span>{formatSize(mat.size)}</span>}
-                                                        {mat.uploaded_at && <span>{new Date(mat.uploaded_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>}
-                                                    </div>
-                                                </div>
-                                                {mat.url && (
-                                                    <a href={mat.url} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 14px', background: '#f5f5f5', borderRadius: '8px', color: '#555', fontSize: '0.8rem', fontWeight: 500, textDecoration: 'none', transition: 'background 0.15s', flexShrink: 0 }}
-                                                        onMouseEnter={e => e.currentTarget.style.background = '#e8e8e8'}
-                                                        onMouseLeave={e => e.currentTarget.style.background = '#f5f5f5'}
+                                ) : selectedMaterial ? (
+                                    /* ── FULL-SCREEN MATERIAL DETAIL ── */
+                                    <div style={{
+                                        background: '#fff', border: '1px solid #e8e8e8', borderRadius: '16px',
+                                        display: 'flex', flexDirection: 'column',
+                                        minHeight: 'calc(100vh - 220px)',
+                                    }}>
+                                        {/* Detail header */}
+                                        <div style={{ padding: '1.5rem 2rem', borderBottom: '1px solid #f0f0f0' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                    <button
+                                                        onClick={() => setSelectedMaterial(null)}
+                                                        style={{
+                                                            display: 'flex', alignItems: 'center', gap: '5px',
+                                                            background: 'none', border: 'none', cursor: 'pointer',
+                                                            color: '#888', fontSize: '0.82rem', padding: '4px 0',
+                                                        }}
                                                     >
-                                                        {mat.type === 'link' ? <LinkIcon size={14} /> : <Download size={14} />}
-                                                        {mat.type === 'link' ? 'Open' : 'Download'}
-                                                    </a>
+                                                        <ArrowLeft size={15} /> Back to materials
+                                                    </button>
+                                                </div>
+                                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                                    {selectedMaterial.file_url && (
+                                                        <a
+                                                            href={selectedMaterial.file_url}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            style={{
+                                                                display: 'inline-flex', alignItems: 'center', gap: '6px',
+                                                                padding: '7px 16px', background: '#0b6861', color: '#fff',
+                                                                borderRadius: '8px', fontSize: '0.82rem', fontWeight: 600,
+                                                                textDecoration: 'none', transition: 'background 0.15s',
+                                                            }}
+                                                            onMouseEnter={e => e.currentTarget.style.background = '#095550'}
+                                                            onMouseLeave={e => e.currentTarget.style.background = '#0b6861'}
+                                                        >
+                                                            <Download size={14} /> Download
+                                                        </a>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <h2 style={{ margin: '0 0 10px', fontSize: '1.4rem', fontWeight: 700, color: '#111', lineHeight: 1.3 }}>
+                                                {selectedMaterial.title}
+                                            </h2>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                                                {selectedMaterial.users && (
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                                                        <div style={{
+                                                            width: '26px', height: '26px', borderRadius: '50%', background: '#0b6861',
+                                                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                            color: '#fff', fontSize: '0.65rem', fontWeight: 700, flexShrink: 0,
+                                                        }}>
+                                                            {selectedMaterial.users.first_name?.[0]}
+                                                        </div>
+                                                        <span style={{ fontSize: '0.82rem', color: '#666' }}>
+                                                            {selectedMaterial.users.first_name} {selectedMaterial.users.last_name} (Lecturer)
+                                                        </span>
+                                                    </div>
+                                                )}
+                                                {(() => {
+                                                    const typeInfo = getFileTypeLabel(selectedMaterial.file_type);
+                                                    return (
+                                                        <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '0.7rem', fontWeight: 600, background: typeInfo.bg, color: typeInfo.color }}>
+                                                            {typeInfo.label}
+                                                        </span>
+                                                    );
+                                                })()}
+                                                {selectedMaterial.sessions?.session_date && (
+                                                    <span style={{ fontSize: '0.78rem', color: '#aaa' }}>
+                                                        {new Date(selectedMaterial.sessions.session_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                                    </span>
                                                 )}
                                             </div>
-                                        ))}
+                                        </div>
+
+                                        {/* Content body */}
+                                        <div style={{ padding: '2rem 2.5rem', flex: 1 }}>
+                                            {selectedMaterial.content ? (
+                                                <div style={{
+                                                    fontSize: '0.93rem', lineHeight: 1.9, color: '#222',
+                                                    whiteSpace: 'pre-wrap', fontFamily: "'Manrope', sans-serif",
+                                                    maxWidth: '780px',
+                                                }}>
+                                                    {selectedMaterial.content}
+                                                </div>
+                                            ) : (
+                                                <div style={{ textAlign: 'center', padding: '4rem', color: '#aaa' }}>
+                                                    <FileText size={40} color="#e0e0e0" style={{ marginBottom: '12px' }} />
+                                                    <div style={{ fontSize: '0.9rem', fontWeight: 500 }}>Content preview not available</div>
+                                                    <div style={{ fontSize: '0.78rem', marginTop: '6px' }}>Use the Download button to get the file</div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    /* ── MATERIAL LIST ── */
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                                        {materials.map((mat, i) => {
+                                            const typeInfo = getFileTypeLabel(mat.file_type);
+                                            const uploaderName = mat.users ? `${mat.users.first_name} ${mat.users.last_name}` : null;
+                                            return (
+                                                <div
+                                                    key={mat.id || i}
+                                                    onClick={() => setSelectedMaterial(mat)}
+                                                    style={{
+                                                        background: '#fff', border: '1px solid #e8e8e8',
+                                                        borderRadius: '12px', padding: '1rem 1.5rem',
+                                                        display: 'flex', alignItems: 'center', gap: '1rem',
+                                                        cursor: 'pointer', transition: 'all 0.2s',
+                                                    }}
+                                                    onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.05)'; e.currentTarget.style.borderColor = '#d0d0d0'; }}
+                                                    onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.borderColor = '#e8e8e8'; }}
+                                                >
+                                                    <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                                        {getFileIcon(mat.file_type)}
+                                                    </div>
+                                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                                        <div style={{ fontSize: '0.92rem', fontWeight: 600, color: '#111', marginBottom: '3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                                            {mat.title || 'Untitled'}
+                                                        </div>
+                                                        <div style={{ fontSize: '0.72rem', color: '#aaa', display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                                            {uploaderName && <span>{uploaderName}</span>}
+                                                            {mat.sessions?.session_date && <span>{new Date(mat.sessions.session_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>}
+                                                        </div>
+                                                    </div>
+                                                    <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '0.68rem', fontWeight: 600, background: typeInfo.bg, color: typeInfo.color, flexShrink: 0 }}>
+                                                        {typeInfo.label}
+                                                    </span>
+                                                    <ChevronRight size={16} color="#ccc" />
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 )}
                             </div>
+
                         )}
 
                         {/* ── ASSIGNMENTS TAB ── */}
