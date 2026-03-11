@@ -18,14 +18,13 @@ export default function FeedbackPage() {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [submitted, setSubmitted] = useState(false);
     const [activeTab, setActiveTab] = useState('feedback');
-    const [ratings, setRatings] = useState({ q1: 0, q2: 0, q3: 0, q4: 0 });
-    const [meetsExpectations, setMeetsExpectations] = useState(null);
-    const [descriptive, setDescriptive] = useState('');
+    const [responses, setResponses] = useState({});
     const [creditTimer, setCreditTimer] = useState({ min: 18, sec: 34 });
     const [submitting, setSubmitting] = useState(false);
 
     // Live data
     const [pendingSession, setPendingSession] = useState(null);
+    const [questions, setQuestions] = useState([]);
     const [leaderboard, setLeaderboard] = useState([]);
     const formOpen = Boolean(pendingSession);
 
@@ -38,6 +37,7 @@ export default function FeedbackPage() {
         ]);
         if (fbRes.status === 'fulfilled' && fbRes.value.pending) {
             setPendingSession(fbRes.value.pending);
+            setQuestions(fbRes.value.questions || []);
         }
         if (lbRes.status === 'fulfilled') {
             setLeaderboard(lbRes.value.leaderboard || []);
@@ -59,23 +59,32 @@ export default function FeedbackPage() {
     }, [formOpen]);
 
     const pad = (n) => String(n).padStart(2, '0');
-    const ratingQuestions = [
-        { key: 'q1', text: 'Rate the overall quality of this lecture' },
-        { key: 'q2', text: 'How clear was the explanation of concepts?' },
-        { key: 'q3', text: 'Was the lecture well-structured and organized?' },
-        { key: 'q4', text: 'How engaging was the session?' },
-    ];
-    const canSubmit = Object.values(ratings).every(v => v > 0) && meetsExpectations !== null;
+
+    // Check if all mandatory questions are answered
+    const canSubmit = questions.filter(q => q.type === 'rating' || q.type === 'yes_no').every(q => responses[q.id] !== undefined && responses[q.id] !== null && responses[q.id] !== '');
+
+    const handleResponseChange = (questionId, value) => {
+        setResponses(prev => ({ ...prev, [questionId]: value }));
+    };
 
     const handleSubmit = async () => {
         if (!canSubmit || submitting) return;
         setSubmitting(true);
         try {
+            // Build responses array matching backend schema
+            const responseArray = questions.map(q => {
+                const val = responses[q.id];
+                return {
+                    question_id: q.id,
+                    rating: q.type === 'rating' ? (parseInt(val) || null) : null,
+                    yes_no: q.type === 'yes_no' ? val : null,
+                    text_answer: q.type === 'text' ? (val || null) : null,
+                };
+            }).filter(r => r.rating !== null || r.yes_no !== null || r.text_answer !== null);
+
             await api.post('/api/feedback/submit', {
-                session_id: pendingSession?.session_id,
-                ratings,
-                meets_expectations: meetsExpectations === 'Yes',
-                comments: descriptive,
+                session_id: pendingSession?.id,
+                responses: responseArray,
             });
             setSubmitted(true);
         } catch (e) {
@@ -186,45 +195,48 @@ export default function FeedbackPage() {
                                     <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e8e8e8', boxShadow: '0 1px 4px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
                                         <div style={{ padding: '12px 1.5rem', borderBottom: '1px solid #f0f0f0', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                             <FileText size={14} color="#888" /><span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#111' }}>Lecture Evaluation</span>
-                                            <span style={{ fontSize: '0.7rem', color: '#bbb', marginLeft: 'auto' }}>All fields marked with scale are mandatory</span>
+                                            <span style={{ fontSize: '0.7rem', color: '#bbb', marginLeft: 'auto' }}>Rating and Yes/No questions are mandatory</span>
                                         </div>
                                         <div style={{ padding: '1.2rem 1.5rem' }}>
-                                            {ratingQuestions.map((q, idx) => (
-                                                <div key={q.key} style={{ marginBottom: idx < ratingQuestions.length - 1 ? '1.4rem' : '1.2rem', paddingBottom: idx < ratingQuestions.length - 1 ? '1.4rem' : '0', borderBottom: idx < ratingQuestions.length - 1 ? '1px solid #f5f5f5' : 'none' }}>
+                                            {questions.length === 0 ? (
+                                                <div style={{ padding: '2rem', textAlign: 'center', color: '#aaa' }}>No feedback questions configured. Please contact admin.</div>
+                                            ) : questions.map((q, idx) => (
+                                                <div key={q.id} style={{ marginBottom: idx < questions.length - 1 ? '1.4rem' : '1.2rem', paddingBottom: idx < questions.length - 1 ? '1.4rem' : '0', borderBottom: idx < questions.length - 1 ? '1px solid #f5f5f5' : 'none' }}>
                                                     <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '10px' }}>
                                                         <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#aaa', fontFamily: 'monospace', minWidth: '18px' }}>{idx + 1}.</span>
-                                                        <span style={{ fontSize: '0.85rem', fontWeight: 500, color: '#333' }}>{q.text}</span>
+                                                        <span style={{ fontSize: '0.85rem', fontWeight: 500, color: '#333' }}>{q.question}</span>
+                                                        {q.type === 'text' && <span style={{ fontSize: '0.68rem', color: '#bbb' }}>(Optional)</span>}
                                                     </div>
-                                                    <div style={{ display: 'flex', gap: '0', marginLeft: '26px' }}>
-                                                        {[1,2,3,4,5].map(n => (
-                                                            <label key={n} style={{ display:'flex',flexDirection:'column',alignItems:'center',gap:'4px',padding:'8px 16px',cursor:'pointer',border:'1px solid #e8e8e8',borderLeft:n===1?'1px solid #e8e8e8':'none',borderRadius:n===1?'6px 0 0 6px':n===5?'0 6px 6px 0':'0',background:ratings[q.key]===n?'#111':'#fff',transition:'background 0.15s' }}>
-                                                                <input type="radio" name={q.key} value={n} checked={ratings[q.key]===n} onChange={()=>setRatings(prev=>({...prev,[q.key]:n}))} style={{ display:'none' }} />
-                                                                <span style={{ fontSize:'0.82rem',fontWeight:600,fontFamily:'monospace',color:ratings[q.key]===n?'#fff':'#555' }}>{n}</span>
-                                                            </label>
-                                                        ))}
-                                                        <div style={{ marginLeft:'12px',display:'flex',alignItems:'center',gap:'16px',fontSize:'0.68rem',color:'#bbb' }}><span>1 = Poor</span><span>5 = Excellent</span></div>
-                                                    </div>
+
+                                                    {/* Rating type */}
+                                                    {q.type === 'rating' && (
+                                                        <div style={{ display: 'flex', gap: '0', marginLeft: '26px' }}>
+                                                            {[1,2,3,4,5].map(n => (
+                                                                <label key={n} style={{ display:'flex',flexDirection:'column',alignItems:'center',gap:'4px',padding:'8px 16px',cursor:'pointer',border:'1px solid #e8e8e8',borderLeft:n===1?'1px solid #e8e8e8':'none',borderRadius:n===1?'6px 0 0 6px':n===5?'0 6px 6px 0':'0',background:responses[q.id]===n?'#111':'#fff',transition:'background 0.15s' }}>
+                                                                    <input type="radio" name={q.id} value={n} checked={responses[q.id]===n} onChange={()=>handleResponseChange(q.id, n)} style={{ display:'none' }} />
+                                                                    <span style={{ fontSize:'0.82rem',fontWeight:600,fontFamily:'monospace',color:responses[q.id]===n?'#fff':'#555' }}>{n}</span>
+                                                                </label>
+                                                            ))}
+                                                            <div style={{ marginLeft:'12px',display:'flex',alignItems:'center',gap:'16px',fontSize:'0.68rem',color:'#bbb' }}><span>1 = Poor</span><span>5 = Excellent</span></div>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Yes/No type */}
+                                                    {q.type === 'yes_no' && (
+                                                        <div style={{ display:'flex',gap:'0',marginLeft:'26px' }}>
+                                                            {[true, false].map(opt => (
+                                                                <button key={String(opt)} onClick={()=>handleResponseChange(q.id, opt)} style={{ padding:'8px 24px',cursor:'pointer',fontSize:'0.82rem',fontWeight:600,border:'1px solid #e8e8e8',borderLeft:!opt?'none':'1px solid #e8e8e8',borderRadius:opt?'6px 0 0 6px':'0 6px 6px 0',background:responses[q.id]===opt?'#111':'#fff',color:responses[q.id]===opt?'#fff':'#555',transition:'background 0.15s' }}>{opt ? 'Yes' : 'No'}</button>
+                                                            ))}
+                                                        </div>
+                                                    )}
+
+                                                    {/* Text/Descriptive type */}
+                                                    {q.type === 'text' && (
+                                                        <textarea value={responses[q.id] || ''} onChange={e=>handleResponseChange(q.id, e.target.value)} placeholder="Write your response here..." rows={3} style={{ width:'100%',marginLeft:'26px',maxWidth:'calc(100% - 26px)',padding:'10px 14px',borderRadius:'8px',border:'1px solid #e8e8e8',fontSize:'0.85rem',fontFamily:'inherit',color:'#333',resize:'vertical',outline:'none',background:'#fafafa',lineHeight:'1.5',boxSizing:'border-box' }} />
+                                                    )}
                                                 </div>
                                             ))}
-                                            <div style={{ marginBottom: '1.4rem', paddingBottom: '1.4rem', borderBottom: '1px solid #f5f5f5' }}>
-                                                <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '10px' }}>
-                                                    <span style={{ fontSize:'0.72rem',fontWeight:600,color:'#aaa',fontFamily:'monospace',minWidth:'18px' }}>5.</span>
-                                                    <span style={{ fontSize:'0.85rem',fontWeight:500,color:'#333' }}>Did the lecture meet your learning expectations?</span>
-                                                </div>
-                                                <div style={{ display:'flex',gap:'0',marginLeft:'26px' }}>
-                                                    {['Yes','No'].map(opt=>(
-                                                        <button key={opt} onClick={()=>setMeetsExpectations(opt)} style={{ padding:'8px 24px',cursor:'pointer',fontSize:'0.82rem',fontWeight:600,border:'1px solid #e8e8e8',borderLeft:opt==='No'?'none':'1px solid #e8e8e8',borderRadius:opt==='Yes'?'6px 0 0 6px':'0 6px 6px 0',background:meetsExpectations===opt?'#111':'#fff',color:meetsExpectations===opt?'#fff':'#555',transition:'background 0.15s' }}>{opt}</button>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                            <div style={{ marginBottom: '1.2rem' }}>
-                                                <div style={{ display:'flex',alignItems:'baseline',gap:'8px',marginBottom:'10px' }}>
-                                                    <span style={{ fontSize:'0.72rem',fontWeight:600,color:'#aaa',fontFamily:'monospace',minWidth:'18px' }}>6.</span>
-                                                    <span style={{ fontSize:'0.85rem',fontWeight:500,color:'#333' }}>What specific improvement would you suggest?</span>
-                                                    <span style={{ fontSize:'0.68rem',color:'#bbb' }}>(Optional)</span>
-                                                </div>
-                                                <textarea value={descriptive} onChange={e=>setDescriptive(e.target.value)} placeholder="Write your suggestion here..." rows={4} style={{ width:'100%',marginLeft:'26px',maxWidth:'calc(100% - 26px)',padding:'10px 14px',borderRadius:'8px',border:'1px solid #e8e8e8',fontSize:'0.85rem',fontFamily:'inherit',color:'#333',resize:'vertical',outline:'none',background:'#fafafa',lineHeight:'1.5',boxSizing:'border-box' }} />
-                                            </div>
+
                                             <div style={{ display:'flex',justifyContent:'flex-end',paddingTop:'8px',borderTop:'1px solid #f0f0f0' }}>
                                                 <button onClick={handleSubmit} disabled={!canSubmit || submitting} style={{ display:'flex',alignItems:'center',gap:'6px',padding:'8px 20px',borderRadius:'8px',border:'none',background:canSubmit?'#111':'#e5e7eb',color:canSubmit?'#fff':'#aaa',fontSize:'0.82rem',fontWeight:600,cursor:canSubmit?'pointer':'not-allowed' }}>
                                                     <Send size={13} /> {submitting ? 'Submitting...' : 'Submit Feedback'}
