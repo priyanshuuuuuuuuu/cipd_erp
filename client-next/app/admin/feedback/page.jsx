@@ -1,72 +1,188 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import '../../Dashboard.css';
 import {
     LayoutGrid, Calendar, MessageSquare, Settings, LogOut, Bell, Search, Menu,
     ChevronLeft, ChevronRight, Wifi, Clock, FileBarChart, Download, CheckCircle,
-    Filter, Edit3, Trash2, Plus, ToggleLeft, ToggleRight, ArrowLeft, GripVertical
+    Filter, Edit3, Trash2, Plus, ToggleLeft, ToggleRight, ArrowLeft, GripVertical, RefreshCw
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '../../contexts/AuthContext';
+import { api } from '@/lib/api';
 
 export default function AdminFeedbackPage() {
     const router = useRouter();
+    const { authReady } = useAuth();
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [activeTab, setActiveTab] = useState('overview');
     const [viewingLecture, setViewingLecture] = useState(null);
     const [filterRating, setFilterRating] = useState('all');
-    const [questions, setQuestions] = useState([
-        { id: 1, text: 'Rate the overall quality of this lecture', type: 'Rating (1-5)', mandatory: true, active: true },
-        { id: 2, text: 'How clear was the explanation of concepts?', type: 'Rating (1-5)', mandatory: true, active: true },
-        { id: 3, text: 'Was the lecture well-structured and organized?', type: 'Rating (1-5)', mandatory: true, active: true },
-        { id: 4, text: 'How engaging was the session?', type: 'Rating (1-5)', mandatory: true, active: true },
-        { id: 5, text: 'Did the lecture meet your learning expectations?', type: 'Yes / No', mandatory: true, active: true },
-        { id: 6, text: 'What specific improvement would you suggest?', type: 'Descriptive', mandatory: false, active: true },
-    ]);
+    const [loading, setLoading] = useState(true);
+
+    // Live data states
+    const [summaryData, setSummaryData] = useState({ totalLectures: 0, avgRating: 0, onTimeRate: 0, descriptiveCount: 0, totalSubmissions: 0, totalEnrolled: 0 });
+    const [ratingDistribution, setRatingDistribution] = useState([]);
+    const [lectureFeedbacks, setLectureFeedbacks] = useState([]);
+    const [trendData, setTrendData] = useState([]);
+    const [questions, setQuestions] = useState([]);
+
+    // Detail view data
+    const [detailData, setDetailData] = useState(null);
+    const [detailLoading, setDetailLoading] = useState(false);
+
+    // Question modal state
+    const [showQuestionModal, setShowQuestionModal] = useState(false);
+    const [editingQuestion, setEditingQuestion] = useState(null);
+    const [questionForm, setQuestionForm] = useState({ question: '', type: 'rating' });
+    const [savingQuestion, setSavingQuestion] = useState(false);
+
+    // Fetch overview data
+    const fetchOverview = useCallback(async () => {
+        setLoading(true);
+        try {
+            const [analyticsRes, questionsRes] = await Promise.allSettled([
+                api.get('/api/admin/feedback/analytics'),
+                api.get('/api/admin/feedback/questions'),
+            ]);
+
+            if (analyticsRes.status === 'fulfilled') {
+                const d = analyticsRes.value;
+                setSummaryData(d.summary || {});
+                setRatingDistribution(d.ratingDistribution || []);
+                setLectureFeedbacks(d.lectures || []);
+                setTrendData(d.trendData || []);
+            }
+
+            if (questionsRes.status === 'fulfilled') {
+                setQuestions((questionsRes.value.questions || []).map(q => ({
+                    id: q.id,
+                    text: q.question,
+                    type: q.type === 'rating' ? 'Rating (1-5)' : q.type === 'yes_no' ? 'Yes / No' : 'Descriptive',
+                    mandatory: true,
+                    active: q.active !== false,
+                    category: q.category,
+                })));
+            }
+        } catch (e) {
+            console.error('Failed to load feedback analytics:', e);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    // Fetch detail for a specific lecture/session
+    const fetchDetail = async (sessionId) => {
+        setDetailLoading(true);
+        try {
+            const res = await api.get(`/api/admin/feedback/analytics?session_id=${sessionId}`);
+            setDetailData(res);
+        } catch (e) {
+            console.error('Failed to load session detail:', e);
+        } finally {
+            setDetailLoading(false);
+        }
+    };
+
+    useEffect(() => { if (authReady) fetchOverview(); }, [fetchOverview, authReady]);
+
+    // Auto-refresh every 30 seconds for live updates
+    useEffect(() => {
+        if (!authReady) return;
+        const interval = setInterval(fetchOverview, 30000);
+        return () => clearInterval(interval);
+    }, [fetchOverview, authReady]);
+
+    const handleViewDetail = (lf) => {
+        setViewingLecture(lf);
+        fetchDetail(lf.id);
+    };
+
+    // Question CRUD handlers
+    const handleToggleQuestion = async (q, field) => {
+        const updates = { id: q.id };
+        if (field === 'active') updates.active = !q.active;
+        try {
+            await api.patch('/api/admin/feedback/questions', updates);
+            fetchOverview();
+        } catch (e) {
+            console.error('Failed to update question:', e);
+        }
+    };
+
+    const handleDeleteQuestion = async (q) => {
+        if (!confirm(`Delete "${q.text}"?`)) return;
+        try {
+            await api.delete(`/api/admin/feedback/questions?id=${q.id}`);
+            fetchOverview();
+        } catch (e) {
+            console.error('Failed to delete question:', e);
+        }
+    };
+
+    const openAddModal = () => {
+        setEditingQuestion(null);
+        setQuestionForm({ question: '', type: 'rating' });
+        setShowQuestionModal(true);
+    };
+
+    const openEditModal = (q) => {
+        setEditingQuestion(q);
+        setQuestionForm({ question: q.text, type: q.type.includes('Rating') ? 'rating' : q.type === 'Yes / No' ? 'yes_no' : 'text' });
+        setShowQuestionModal(true);
+    };
+
+    const handleSaveQuestion = async () => {
+        if (!questionForm.question.trim()) return;
+        setSavingQuestion(true);
+        try {
+            if (editingQuestion) {
+                await api.patch('/api/admin/feedback/questions', { id: editingQuestion.id, question: questionForm.question, type: questionForm.type });
+            } else {
+                await api.post('/api/admin/feedback/questions', { question: questionForm.question, type: questionForm.type });
+            }
+            setShowQuestionModal(false);
+            fetchOverview();
+        } catch (e) {
+            console.error('Failed to save question:', e);
+            alert('Failed to save question: ' + e.message);
+        } finally {
+            setSavingQuestion(false);
+        }
+    };
 
     const navTo = p => router.push(p);
 
-    const summaryData = { totalLectures: 18, avgRating: 4.2, onTimeRate: 82, descriptiveCount: 164, totalSubmissions: 312, totalEnrolled: 380 };
-    const ratingDistribution = [{ rating: 5, count: 82, pct: 45 }, { rating: 4, count: 60, pct: 32 }, { rating: 3, count: 25, pct: 14 }, { rating: 2, count: 10, pct: 6 }, { rating: 1, count: 5, pct: 3 }];
-    const lectureFeedbacks = [
-        { id: 1, lecture: 'CS301 – Lec 14', date: '16 Feb', faculty: 'Prof. Anuj Grover', avg: 4.4, submissions: '32/38', descCount: 18, topic: 'Binary Search Trees' },
-        { id: 2, lecture: 'CS301 – Lec 13', date: '14 Feb', faculty: 'Prof. Anuj Grover', avg: 4.1, submissions: '30/38', descCount: 14, topic: 'Linked List Operations' },
-        { id: 3, lecture: 'PHY201 – Lec 8', date: '15 Feb', faculty: 'Dr. Priya Sharma', avg: 3.8, submissions: '28/35', descCount: 12, topic: 'Wave Optics' },
-        { id: 4, lecture: 'MTH101 – Lec 12', date: '14 Feb', faculty: 'Prof. Rajesh Mehta', avg: 4.6, submissions: '40/42', descCount: 22, topic: 'Eigenvalues & Eigenvectors' },
-        { id: 5, lecture: 'PHY201 – Lec 7', date: '12 Feb', faculty: 'Dr. Priya Sharma', avg: 3.5, submissions: '25/35', descCount: 10, topic: 'Interference & Diffraction' },
-        { id: 6, lecture: 'CHM101 – Lec 6', date: '13 Feb', faculty: 'Dr. Kavita Iyer', avg: 4.5, submissions: '29/30', descCount: 15, topic: 'Chemical Bonding' },
-    ];
-    const descriptiveResponses = [
-        { student: 'STU2021034', rating: 5, text: 'The step-by-step derivation of BST operations was very helpful. Would appreciate more worked examples for deletion cases.' },
-        { student: 'STU2021078', rating: 4, text: 'Good pacing overall. The comparison with hash tables helped clarify when to use BSTs. Slides could have more diagrams.' },
-        { student: 'STU2021012', rating: 4, text: 'Clear explanation but the transition from balanced to unbalanced trees was too quick. Please spend more time on edge cases.' },
-        { student: 'STU2021091', rating: 3, text: 'Found it hard to follow the recursive traversal explanation. Maybe a visual walkthrough would help.' },
-        { student: 'STU2021045', rating: 5, text: 'Excellent session. The live coding demo was the highlight — it really helped connect theory to implementation.' },
-        { student: 'STU2021067', rating: 2, text: 'Pace was too fast for the complexity. Need more practice problems discussed in class.' },
-        { student: 'STU2021056', rating: 5, text: 'The analogy used for tree rotations was brilliant. More such real-world analogies would improve understanding.' },
-    ];
+    const filteredResponses = detailData?.descriptive
+        ? (filterRating === 'all' ? detailData.descriptive : detailData.descriptive.filter(r => r.rating === parseInt(filterRating)))
+        : [];
 
-    const trendData = [{ l: 'L8', avg: 3.5, sub: 71 }, { l: 'L9', avg: 3.8, sub: 76 }, { l: 'L10', avg: 4.0, sub: 79 }, { l: 'L11', avg: 4.1, sub: 80 }, { l: 'L12', avg: 4.3, sub: 84 }, { l: 'L13', avg: 4.1, sub: 79 }, { l: 'L14', avg: 4.4, sub: 84 }];
-
-    const filteredResponses = filterRating === 'all' ? descriptiveResponses : descriptiveResponses.filter(r => r.rating === parseInt(filterRating));
     const tabStyle = active => ({ padding: '6px 16px', borderRadius: '6px', border: `1px solid ${active ? '#111' : '#e8e8e8'}`, background: active ? '#111' : '#fff', color: active ? '#fff' : '#888', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s' });
     const labelStyle = { color: '#999', fontWeight: 500, fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.4px' };
     const valueStyle = { fontWeight: 700, color: '#111', fontFamily: 'monospace', fontSize: '0.78rem' };
 
     // Mini SVG trend chart
     const TrendChart = ({ dataKey, color, label, minY, maxY }) => {
+        if (!trendData || trendData.length === 0) return (
+            <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e8e8e8', overflow: 'hidden' }}>
+                <div style={{ padding: '10px 1.2rem', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#111' }}>{label}</span>
+                </div>
+                <div style={{ padding: '2rem', textAlign: 'center', color: '#ccc', fontSize: '0.82rem' }}>No trend data yet</div>
+            </div>
+        );
         const W = 500, H = 160;
         const p = { top: 20, right: 20, bottom: 30, left: 36 };
         const cW = W - p.left - p.right, cH = H - p.top - p.bottom;
-        const xStep = cW / (trendData.length - 1);
+        const xStep = trendData.length > 1 ? cW / (trendData.length - 1) : cW;
         const yScale = v => p.top + cH - ((v - minY) / (maxY - minY)) * cH;
-        const pts = trendData.map((d, i) => ({ x: p.left + i * xStep, y: yScale(d[dataKey]), v: d[dataKey] }));
+        const pts = trendData.map((d, i) => ({ x: p.left + i * xStep, y: yScale(d[dataKey] || 0), v: d[dataKey] || 0 }));
         const path = pts.map((pt, i) => `${i === 0 ? 'M' : 'L'}${pt.x},${pt.y}`).join(' ');
         return (
             <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e8e8e8', overflow: 'hidden' }}>
                 <div style={{ padding: '10px 1.2rem', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#111' }}>{label}</span>
-                    <span style={{ fontSize: '0.68rem', color: '#bbb' }}>Last 7 lectures</span>
+                    <span style={{ fontSize: '0.68rem', color: '#bbb' }}>Last {trendData.length} lectures</span>
                 </div>
                 <div style={{ padding: '8px 1rem' }}>
                     <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
@@ -78,6 +194,12 @@ export default function AdminFeedbackPage() {
                 </div>
             </div>
         );
+    };
+
+    const formatDate = (dateStr) => {
+        if (!dateStr) return '';
+        const d = new Date(dateStr);
+        return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
     };
 
     return (
@@ -132,17 +254,23 @@ export default function AdminFeedbackPage() {
                         <button style={tabStyle(activeTab === 'config')} onClick={() => { setActiveTab('config'); setViewingLecture(null); }}>Question Configuration</button>
                     </div>
 
-                    {activeTab === 'overview' && !viewingLecture && (
+                    {loading && (
+                        <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem', color: '#aaa', gap: '8px', alignItems: 'center' }}>
+                            <RefreshCw size={16} style={{ animation: 'spin 1s linear infinite' }} /> Loading feedback analytics...
+                        </div>
+                    )}
+
+                    {activeTab === 'overview' && !viewingLecture && !loading && (
                         <>
                             {/* Summary strip */}
                             <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e8e8e8', marginBottom: '1.2rem', overflow: 'hidden' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', padding: '10px 1.2rem', fontSize: '0.78rem', overflowX: 'auto', whiteSpace: 'nowrap', gap: 0 }}>
                                     {[
-                                        ['Lectures This Week', String(summaryData.totalLectures)],
-                                        ['Avg Rating', `${summaryData.avgRating} /5`],
-                                        ['On-Time Submissions', `${summaryData.onTimeRate}%`],
-                                        ['Descriptive Responses', String(summaryData.descriptiveCount)],
-                                        ['Submissions', `${summaryData.totalSubmissions}/${summaryData.totalEnrolled}`],
+                                        ['Lectures', String(summaryData.totalLectures || 0)],
+                                        ['Avg Rating', `${summaryData.avgRating || 0} /5`],
+                                        ['Submission Rate', `${summaryData.onTimeRate || 0}%`],
+                                        ['Descriptive Responses', String(summaryData.descriptiveCount || 0)],
+                                        ['Submissions', `${summaryData.totalSubmissions || 0}/${summaryData.totalEnrolled || 0}`],
                                     ].map(([label, val], i) => (
                                         <React.Fragment key={label}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0 14px', flexShrink: 0 }}>
@@ -168,7 +296,7 @@ export default function AdminFeedbackPage() {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {ratingDistribution.map(r => (
+                                            {(ratingDistribution.length > 0 ? ratingDistribution : [{ rating: '—', count: 0, pct: 0 }]).map(r => (
                                                 <tr key={r.rating} style={{ borderBottom: '1px solid #f5f5f5' }}>
                                                     <td style={{ padding: '9px 16px', fontWeight: 600, fontFamily: 'monospace', color: '#111' }}>{r.rating}</td>
                                                     <td style={{ padding: '9px 16px', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600, color: '#333' }}>{r.count}</td>
@@ -184,8 +312,8 @@ export default function AdminFeedbackPage() {
                                     </table>
                                 </div>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
-                                    <TrendChart dataKey="avg" color="#555" label="Average Rating Trend" minY={3.0} maxY={5.0} />
-                                    <TrendChart dataKey="sub" color="#888" label="Submission Rate Trend" minY={60} maxY={100} />
+                                    <TrendChart dataKey="avg" color="#555" label="Average Rating Trend" minY={1.0} maxY={5.0} />
+                                    <TrendChart dataKey="sub" color="#888" label="Submission Rate Trend" minY={0} maxY={100} />
                                 </div>
                             </div>
 
@@ -205,16 +333,18 @@ export default function AdminFeedbackPage() {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {lectureFeedbacks.map(lf => (
+                                            {lectureFeedbacks.length === 0 ? (
+                                                <tr><td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: '#ccc' }}>No feedback data yet. Feedback will appear here when students submit responses.</td></tr>
+                                            ) : lectureFeedbacks.map(lf => (
                                                 <tr key={lf.id} className="attendance-row" style={{ borderBottom: '1px solid #f5f5f5' }}>
                                                     <td style={{ padding: '9px 16px', fontWeight: 600, color: '#111' }}>{lf.lecture}</td>
-                                                    <td style={{ padding: '9px 16px', color: '#888', fontFamily: 'monospace', fontSize: '0.78rem' }}>{lf.date}</td>
-                                                    <td style={{ padding: '9px 16px', color: '#555' }}>{lf.faculty}</td>
-                                                    <td style={{ padding: '9px 16px' }}><span style={{ fontWeight: 700, fontFamily: 'monospace', color: lf.avg >= 4.0 ? '#111' : lf.avg >= 3.0 ? '#b45309' : '#dc2626' }}>{lf.avg}</span></td>
-                                                    <td style={{ padding: '9px 16px', fontFamily: 'monospace', fontSize: '0.78rem', color: '#555' }}>{lf.submissions}</td>
+                                                    <td style={{ padding: '9px 16px', color: '#888', fontFamily: 'monospace', fontSize: '0.78rem' }}>{formatDate(lf.date)}</td>
+                                                    <td style={{ padding: '9px 16px', color: '#555' }}>{lf.faculty || 'TBA'}</td>
+                                                    <td style={{ padding: '9px 16px' }}><span style={{ fontWeight: 700, fontFamily: 'monospace', color: lf.avg >= 4.0 ? '#111' : lf.avg >= 3.0 ? '#b45309' : '#dc2626' }}>{lf.avg || '—'}</span></td>
+                                                    <td style={{ padding: '9px 16px', fontFamily: 'monospace', fontSize: '0.78rem', color: '#555' }}>{lf.submissions}/{lf.totalEnrolled}</td>
                                                     <td style={{ padding: '9px 16px', fontFamily: 'monospace', fontSize: '0.78rem', color: '#888' }}>{lf.descCount}</td>
                                                     <td style={{ padding: '9px 16px' }}>
-                                                        <button onClick={() => setViewingLecture(lf)} className="change-status-btn" style={{ padding: '3px 10px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', fontSize: '0.72rem', color: '#555' }}>View Details</button>
+                                                        <button onClick={() => handleViewDetail(lf)} className="change-status-btn" style={{ padding: '3px 10px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', fontSize: '0.72rem', color: '#555' }}>View Details</button>
                                                     </td>
                                                 </tr>
                                             ))}
@@ -229,75 +359,110 @@ export default function AdminFeedbackPage() {
                     {activeTab === 'overview' && viewingLecture && (
                         <>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1rem' }}>
-                                <button onClick={() => setViewingLecture(null)} style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 12px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', fontSize: '0.78rem', color: '#555' }}>
+                                <button onClick={() => { setViewingLecture(null); setDetailData(null); setFilterRating('all'); }} style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 12px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', fontSize: '0.78rem', color: '#555' }}>
                                     <ArrowLeft size={13} /> Back
                                 </button>
                             </div>
-                            <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e8e8e8', marginBottom: '1.2rem', overflow: 'hidden' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', padding: '10px 1.2rem', overflowX: 'auto', whiteSpace: 'nowrap', gap: 0 }}>
-                                    {[['Lecture', viewingLecture.lecture], ['Topic', viewingLecture.topic], ['Faculty', viewingLecture.faculty], ['Avg Rating', String(viewingLecture.avg)], ['Submissions', viewingLecture.submissions], ['Date', `${viewingLecture.date} 2026`]].map(([label, val], i) => (
-                                        <React.Fragment key={label}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0 14px', flexShrink: 0 }}>
-                                                <span style={labelStyle}>{label}</span>
-                                                <span style={valueStyle}>{val}</span>
-                                            </div>
-                                            {i < 5 && <div style={{ width: '1px', height: '20px', background: '#e8e8e8', flexShrink: 0 }} />}
-                                        </React.Fragment>
-                                    ))}
+                            {detailLoading ? (
+                                <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem', color: '#aaa', gap: '8px', alignItems: 'center' }}>
+                                    <RefreshCw size={16} style={{ animation: 'spin 1s linear infinite' }} /> Loading details...
                                 </div>
-                            </div>
-                            <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e8e8e8', overflow: 'hidden' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 1.2rem', borderBottom: '1px solid #f0f0f0' }}>
-                                    <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#111' }}>Descriptive Responses ({filteredResponses.length})</span>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <Filter size={12} color="#888" />
-                                        <select value={filterRating} onChange={e => setFilterRating(e.target.value)} style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #e8e8e8', fontSize: '0.75rem', color: '#555', background: '#fff', cursor: 'pointer' }}>
-                                            <option value="all">All Ratings</option>
-                                            {[5, 4, 3, 2, 1].map(r => <option key={r} value={String(r)}>Rating {r}</option>)}
-                                        </select>
+                            ) : detailData ? (
+                                <>
+                                    <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e8e8e8', marginBottom: '1.2rem', overflow: 'hidden' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', padding: '10px 1.2rem', overflowX: 'auto', whiteSpace: 'nowrap', gap: 0 }}>
+                                            {[
+                                                ['Lecture', viewingLecture.lecture],
+                                                ['Topic', viewingLecture.topic || ''],
+                                                ['Faculty', detailData.session?.faculty_name || viewingLecture.faculty],
+                                                ['Avg Rating', String(detailData.avgRating || 0)],
+                                                ['Submissions', `${detailData.totalResponses || 0}/${detailData.totalEnrolled || 0}`],
+                                                ['Date', formatDate(viewingLecture.date)],
+                                            ].map(([label, val], i) => (
+                                                <React.Fragment key={label}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0 14px', flexShrink: 0 }}>
+                                                        <span style={labelStyle}>{label}</span>
+                                                        <span style={valueStyle}>{val}</span>
+                                                    </div>
+                                                    {i < 5 && <div style={{ width: '1px', height: '20px', background: '#e8e8e8', flexShrink: 0 }} />}
+                                                </React.Fragment>
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
-                                <div style={{ maxHeight: '480px', overflowY: 'auto' }}>
-                                    {filteredResponses.map((resp, i) => (
-                                        <div key={i} style={{ padding: '12px 1.2rem', borderBottom: '1px solid #f5f5f5', display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
-                                            <div style={{ flexShrink: 0, minWidth: '44px', fontSize: '0.72rem', fontWeight: 600, fontFamily: 'monospace', color: '#aaa', paddingTop: '2px' }}>{resp.rating}/5</div>
-                                            <div style={{ flex: 1 }}>
-                                                <div style={{ fontSize: '0.82rem', color: '#333', lineHeight: '1.55', marginBottom: '4px' }}>{resp.text}</div>
-                                                <div style={{ fontSize: '0.68rem', color: '#bbb', fontFamily: 'monospace' }}>{resp.student}</div>
+
+                                    {/* Rating distribution for this session */}
+                                    {detailData.ratingDistribution && detailData.ratingDistribution.some(r => r.count > 0) && (
+                                        <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e8e8e8', marginBottom: '1.2rem', overflow: 'hidden' }}>
+                                            <div style={{ padding: '10px 1.2rem', borderBottom: '1px solid #f0f0f0' }}>
+                                                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#111' }}>Rating Breakdown</span>
+                                            </div>
+                                            <div style={{ display: 'flex', gap: '1rem', padding: '12px 1.2rem', flexWrap: 'wrap' }}>
+                                                {detailData.ratingDistribution.map(r => r.count > 0 && (
+                                                    <div key={r.rating} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                        <span style={{ fontSize: '0.82rem', fontWeight: 700, fontFamily: 'monospace' }}>{r.rating}★</span>
+                                                        <div style={{ width: `${Math.max(r.pct * 1.2, 10)}px`, height: '6px', background: '#333', borderRadius: '3px' }} />
+                                                        <span style={{ fontSize: '0.72rem', color: '#888' }}>{r.count} ({r.pct}%)</span>
+                                                    </div>
+                                                ))}
                                             </div>
                                         </div>
-                                    ))}
-                                    {filteredResponses.length === 0 && <div style={{ padding: '2rem', textAlign: 'center', color: '#ccc', fontSize: '0.82rem' }}>No responses match this filter.</div>}
-                                </div>
-                            </div>
+                                    )}
+
+                                    {/* Descriptive Responses */}
+                                    <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e8e8e8', overflow: 'hidden' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 1.2rem', borderBottom: '1px solid #f0f0f0' }}>
+                                            <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#111' }}>Descriptive Responses ({filteredResponses.length})</span>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                <Filter size={12} color="#888" />
+                                                <select value={filterRating} onChange={e => setFilterRating(e.target.value)} style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #e8e8e8', fontSize: '0.75rem', color: '#555', background: '#fff', cursor: 'pointer' }}>
+                                                    <option value="all">All Ratings</option>
+                                                    {[5, 4, 3, 2, 1].map(r => <option key={r} value={String(r)}>Rating {r}</option>)}
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div style={{ maxHeight: '480px', overflowY: 'auto' }}>
+                                            {filteredResponses.map((resp, i) => (
+                                                <div key={i} style={{ padding: '12px 1.2rem', borderBottom: '1px solid #f5f5f5', display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
+                                                    <div style={{ flexShrink: 0, minWidth: '44px', fontSize: '0.72rem', fontWeight: 600, fontFamily: 'monospace', color: '#aaa', paddingTop: '2px' }}>{resp.rating != null ? `${resp.rating}/5` : '—'}</div>
+                                                    <div style={{ flex: 1 }}>
+                                                        <div style={{ fontSize: '0.82rem', color: '#333', lineHeight: '1.55', marginBottom: '4px' }}>{resp.text}</div>
+                                                        <div style={{ fontSize: '0.68rem', color: '#bbb', fontFamily: 'monospace' }}>{resp.student}</div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            {filteredResponses.length === 0 && <div style={{ padding: '2rem', textAlign: 'center', color: '#ccc', fontSize: '0.82rem' }}>No descriptive responses for this session.</div>}
+                                        </div>
+                                    </div>
+                                </>
+                            ) : null}
                         </>
                     )}
 
                     {/* Question Config */}
-                    {activeTab === 'config' && (
+                    {activeTab === 'config' && !loading && (
                         <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e8e8e8', overflow: 'hidden' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 1.2rem', borderBottom: '1px solid #f0f0f0' }}>
                                 <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#111' }}>Question Configuration</span>
-                                <button style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 14px', borderRadius: '6px', border: 'none', background: '#111', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, color: '#fff' }}><Plus size={12} /> Add Question</button>
+                                <button onClick={openAddModal} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 14px', borderRadius: '6px', border: 'none', background: '#111', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, color: '#fff' }}><Plus size={12} /> Add Question</button>
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', padding: '7px 1.2rem', gap: '16px', fontSize: '0.68rem', color: '#aaa', background: '#fafafa', borderBottom: '1px solid #f0f0f0' }}>
                                 <span>Active <span style={{ fontWeight: 600, color: '#888' }}>{questions.filter(q => q.active).length}</span></span>
                                 <span style={{ color: '#ddd' }}>·</span>
-                                <span>Mandatory <span style={{ fontWeight: 600, color: '#888' }}>{questions.filter(q => q.mandatory).length}</span></span>
-                                <span style={{ color: '#ddd' }}>·</span>
-                                <span>Rating <span style={{ fontWeight: 600, color: '#888' }}>{questions.filter(q => q.type.includes('Rating')).length}</span></span>
+                                <span>Total <span style={{ fontWeight: 600, color: '#888' }}>{questions.length}</span></span>
                             </div>
                             <div style={{ overflowX: 'auto' }}>
                                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
                                     <thead>
                                         <tr style={{ background: '#fafafa' }}>
-                                            {['', '#', 'Question', 'Type', 'Mandatory', 'Active', '', ''].map((h, i) => (
+                                            {['', '#', 'Question', 'Type', 'Active', '', ''].map((h, i) => (
                                                 <th key={i} style={{ padding: '8px 14px', textAlign: 'left', fontSize: '0.68rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', color: '#aaa', borderBottom: '1px solid #f0f0f0' }}>{h}</th>
                                             ))}
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {questions.map((q, i) => (
+                                        {questions.length === 0 ? (
+                                            <tr><td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: '#ccc' }}>No questions configured yet.</td></tr>
+                                        ) : questions.map((q, i) => (
                                             <tr key={q.id} className="attendance-row" style={{ borderBottom: '1px solid #f5f5f5', opacity: q.active ? 1 : 0.5 }}>
                                                 <td style={{ padding: '9px 14px', color: '#ccc', cursor: 'grab' }}><GripVertical size={14} /></td>
                                                 <td style={{ padding: '9px 14px', fontFamily: 'monospace', color: '#aaa', fontSize: '0.78rem' }}>{i + 1}</td>
@@ -308,17 +473,12 @@ export default function AdminFeedbackPage() {
                                                     </span>
                                                 </td>
                                                 <td style={{ padding: '9px 14px', textAlign: 'center' }}>
-                                                    <span style={{ cursor: 'pointer', color: q.mandatory ? '#16a34a' : '#ddd' }} onClick={() => setQuestions(prev => prev.map(qq => qq.id === q.id ? { ...qq, mandatory: !qq.mandatory } : qq))}>
-                                                        <CheckCircle size={16} />
-                                                    </span>
-                                                </td>
-                                                <td style={{ padding: '9px 14px', textAlign: 'center' }}>
-                                                    <span style={{ cursor: 'pointer', color: q.active ? '#16a34a' : '#ccc' }} onClick={() => setQuestions(prev => prev.map(qq => qq.id === q.id ? { ...qq, active: !qq.active } : qq))}>
+                                                    <span style={{ cursor: 'pointer', color: q.active ? '#16a34a' : '#ccc' }} onClick={() => handleToggleQuestion(q, 'active')}>
                                                         {q.active ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
                                                     </span>
                                                 </td>
-                                                <td style={{ padding: '9px 14px' }}><button style={{ padding: '3px 6px', borderRadius: '4px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', color: '#888' }}><Edit3 size={12} /></button></td>
-                                                <td style={{ padding: '9px 14px' }}><button style={{ padding: '3px 6px', borderRadius: '4px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', color: '#ccc' }}><Trash2 size={12} /></button></td>
+                                                <td style={{ padding: '9px 14px' }}><button onClick={() => openEditModal(q)} style={{ padding: '3px 6px', borderRadius: '4px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', color: '#888' }}><Edit3 size={12} /></button></td>
+                                                <td style={{ padding: '9px 14px' }}><button onClick={() => handleDeleteQuestion(q)} style={{ padding: '3px 6px', borderRadius: '4px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', color: '#ccc' }}><Trash2 size={12} /></button></td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -328,6 +488,31 @@ export default function AdminFeedbackPage() {
                     )}
                 </div>
             </div>
+
+            {/* Add/Edit Question Modal */}
+            {showQuestionModal && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowQuestionModal(false)}>
+                    <div style={{ background: '#fff', borderRadius: '12px', padding: '1.5rem', width: '480px', maxWidth: '90vw', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }} onClick={e => e.stopPropagation()}>
+                        <h3 style={{ margin: '0 0 1.2rem', fontSize: '1rem', fontWeight: 700 }}>{editingQuestion ? 'Edit Question' : 'Add New Question'}</h3>
+                        <div style={{ marginBottom: '1rem' }}>
+                            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#555', marginBottom: '6px' }}>Question Text</label>
+                            <textarea value={questionForm.question} onChange={e => setQuestionForm(prev => ({ ...prev, question: e.target.value }))} placeholder="Enter question text..." rows={3} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e8e8e8', fontSize: '0.85rem', fontFamily: 'inherit', resize: 'vertical', outline: 'none', boxSizing: 'border-box' }} />
+                        </div>
+                        <div style={{ marginBottom: '1.5rem' }}>
+                            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#555', marginBottom: '6px' }}>Response Type</label>
+                            <div style={{ display: 'flex', gap: '0' }}>
+                                {[['rating', 'Rating (1-5)'], ['yes_no', 'Yes / No'], ['text', 'Descriptive']].map(([val, label]) => (
+                                    <button key={val} onClick={() => setQuestionForm(prev => ({ ...prev, type: val }))} style={{ padding: '8px 16px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, border: '1px solid #e8e8e8', borderLeft: val !== 'rating' ? 'none' : '1px solid #e8e8e8', borderRadius: val === 'rating' ? '6px 0 0 6px' : val === 'text' ? '0 6px 6px 0' : '0', background: questionForm.type === val ? '#111' : '#fff', color: questionForm.type === val ? '#fff' : '#555', transition: 'all 0.15s' }}>{label}</button>
+                                ))}
+                            </div>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                            <button onClick={() => setShowQuestionModal(false)} style={{ padding: '8px 16px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', fontSize: '0.8rem', color: '#555' }}>Cancel</button>
+                            <button onClick={handleSaveQuestion} disabled={!questionForm.question.trim() || savingQuestion} style={{ padding: '8px 20px', borderRadius: '6px', border: 'none', background: questionForm.question.trim() ? '#111' : '#e5e7eb', cursor: questionForm.question.trim() ? 'pointer' : 'not-allowed', fontSize: '0.8rem', fontWeight: 600, color: questionForm.question.trim() ? '#fff' : '#aaa' }}>{savingQuestion ? 'Saving...' : editingQuestion ? 'Save Changes' : 'Add Question'}</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
