@@ -82,16 +82,16 @@ export default function AdminAttendancePage() {
                 <nav className="nav-menu">
                     <div style={{ fontSize: '0.6rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', color: '#555', padding: '8px 1rem 4px' }}><span>Main</span></div>
                     <div className="nav-item" onClick={() => navTo('/admin')} style={{ cursor: 'pointer' }}><LayoutGrid size={18} /> <span>Dashboard</span></div>
-                    <div className="nav-item" style={{ cursor: 'pointer' }}><Calendar size={18} /> <span>Schedule Management</span></div>
+                    <div className="nav-item" onClick={() => navTo('/admin/schedule')} style={{ cursor: 'pointer' }}><Calendar size={18} /> <span>Schedule Management</span></div>
                     <div className="nav-item active"><CheckCircle size={18} /> <span>Attendance Monitoring</span></div>
                     <div className="nav-item" onClick={() => navTo('/admin/wifi-logs')} style={{ cursor: 'pointer' }}><Wifi size={18} /> <span>Wi-Fi Logs</span></div>
                     <div style={{ fontSize: '0.6rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', color: '#555', padding: '10px 1rem 4px' }}><span>Analytics</span></div>
                     <div className="nav-item" onClick={() => navTo('/admin/feedback')} style={{ cursor: 'pointer' }}><MessageSquare size={18} /> <span>Feedback Analytics</span></div>
-                    <div className="nav-item" style={{ cursor: 'pointer' }}><Clock size={18} /> <span>Faculty Hours &amp; Honorarium</span></div>
-                    <div className="nav-item" style={{ cursor: 'pointer' }}><FileBarChart size={18} /> <span>Reports</span></div>
+                    <div className="nav-item" onClick={() => navTo('/admin/faculty-hours')} style={{ cursor: 'pointer' }}><Clock size={18} /> <span>Faculty Hours &amp; Honorarium</span></div>
+                    <div className="nav-item" onClick={() => navTo('/admin/reports')} style={{ cursor: 'pointer' }}><FileBarChart size={18} /> <span>Reports</span></div>
                     <div style={{ fontSize: '0.6rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', color: '#555', padding: '10px 1rem 4px' }}><span>System</span></div>
-                    <div className="nav-item" style={{ cursor: 'pointer' }}><Bell size={18} /> <span>Notifications</span></div>
-                    <div className="nav-item" style={{ cursor: 'pointer' }}><Settings size={18} /> <span>Settings</span></div>
+                    <div className="nav-item" onClick={() => navTo('/admin/notifications')} style={{ cursor: 'pointer' }}><Bell size={18} /> <span>Notifications</span></div>
+                    <div className="nav-item" onClick={() => navTo('/admin/settings')} style={{ cursor: 'pointer' }}><Settings size={18} /> <span>Settings</span></div>
                 </nav>
             </div>
             <div className="sidebar-footer">
@@ -155,6 +155,61 @@ export default function AdminAttendancePage() {
                             <span style={{ color:'#ddd' }}>·</span>
                             <span>Faculty <span style={{ color:'#888', fontWeight:500 }}>Prof. Anuj Grover</span></span>
                             <button style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:'4px', padding:'3px 8px', borderRadius:'6px', border:'1px solid #e8e8e8', background:'#fff', cursor:'pointer', fontSize:'0.68rem', color:'#888' }}><RefreshCw size={10}/> Refresh</button>
+                        </div>
+                    </div>
+
+                    {/* Live Detection Progress Chart */}
+                    <div style={{ background:'#fff', borderRadius:'12px', border:'1px solid #e8e8e8', borderTop:'3px solid #00A5A0', overflow:'hidden', marginBottom:'1.5rem' }}>
+                        <div style={{ padding:'0.8rem 1.5rem', borderBottom:'1px solid #f0f0f0', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                            <div style={{ display:'flex', alignItems:'center', gap:'8px', fontSize:'0.95rem', fontWeight:700 }}><Activity size={16}/> Live Detection Progress — CS301-A</div>
+                            <div style={{ display:'flex', alignItems:'center', gap:'20px', fontSize:'0.72rem' }}>
+                                <span style={{ display:'flex', alignItems:'center', gap:'5px' }}><span style={{ width:'16px', height:'2px', background:'#111', display:'inline-block' }} /> Per-interval</span>
+                                <span style={{ display:'flex', alignItems:'center', gap:'5px' }}><span style={{ width:'16px', height:'2px', background:'#00A5A0', display:'inline-block' }} /> Cumulative unique</span>
+                                <span style={{ display:'flex', alignItems:'center', gap:'5px' }}><span style={{ width:'16px', height:'2px', background:'#ccc', display:'inline-block', borderTop:'1px dashed #aaa' }} /> Threshold (≥3)</span>
+                            </div>
+                        </div>
+                        <div style={{ padding:'1rem 1.5rem' }}>
+                            {(() => {
+                                const W = 700, H = 260;
+                                const pad2 = { top: 30, right: 40, bottom: 40, left: 50 };
+                                const cW = W - pad2.left - pad2.right, cH = H - pad2.top - pad2.bottom;
+                                const intervals = ['0 min', '10 min', '20 min', '30 min', '40 min', '50 min', '60 min'];
+                                const perInterval = [0, 4, 4, 6, 5, 6, 0];
+                                const cumUnique = [0, 4, 5, 6, 5, 6, 0];
+                                const maxY = 8;
+                                const xStep = cW / (intervals.length - 1);
+                                const yScale = v => pad2.top + cH - (v / maxY) * cH;
+                                const makePath = data => data.map((v, i) => `${i === 0 ? 'M' : 'L'}${pad2.left + i * xStep},${yScale(v)}`).join(' ');
+                                const thresholdY = yScale(3);
+                                return (
+                                    <svg viewBox={`0 0 ${W} ${H}`} style={{ width:'100%', height:'auto', display:'block' }}>
+                                        {/* Y grid lines and labels */}
+                                        {Array.from({ length: 9 }, (_, i) => {
+                                            const y = yScale(i);
+                                            return <g key={i}><line x1={pad2.left} y1={y} x2={W - pad2.right} y2={y} stroke="#f0f0f0" strokeWidth="1" /><text x={pad2.left - 10} y={y + 4} textAnchor="end" fontSize="10" fill="#bbb">{i}</text></g>;
+                                        })}
+                                        {/* X labels */}
+                                        {intervals.map((label, i) => <text key={i} x={pad2.left + i * xStep} y={H - 10} textAnchor="middle" fontSize="10" fill="#bbb">{label}</text>)}
+                                        {/* Threshold dashed line */}
+                                        <line x1={pad2.left} y1={thresholdY} x2={W - pad2.right} y2={thresholdY} stroke="#ccc" strokeWidth="1" strokeDasharray="6 4" />
+                                        <text x={W - pad2.right + 5} y={thresholdY + 4} fontSize="9" fill="#bbb">≥3</text>
+                                        {/* All students line */}
+                                        <line x1={pad2.left} y1={yScale(7)} x2={W - pad2.right} y2={yScale(7)} stroke="#e8e8e8" strokeWidth="1" strokeDasharray="3 3" />
+                                        <text x={W - pad2.right + 5} y={yScale(7) + 4} fontSize="9" fill="#ccc">All (7)</text>
+                                        {/* Per-interval line (black) */}
+                                        <path d={makePath(perInterval)} fill="none" stroke="#111" strokeWidth="2" strokeLinejoin="round" />
+                                        {perInterval.map((v, i) => <g key={i}><circle cx={pad2.left + i * xStep} cy={yScale(v)} r="4" fill="#fff" stroke="#111" strokeWidth="2" />{v > 0 && <text x={pad2.left + i * xStep} y={yScale(v) - 10} textAnchor="middle" fontSize="10" fill="#111" fontWeight="600">{v}</text>}</g>)}
+                                        {/* Cumulative unique line (teal) */}
+                                        <path d={makePath(cumUnique)} fill="none" stroke="#00A5A0" strokeWidth="2" strokeLinejoin="round" />
+                                        {cumUnique.map((v, i) => <g key={i}><circle cx={pad2.left + i * xStep} cy={yScale(v)} r="4" fill="#fff" stroke="#00A5A0" strokeWidth="2" />{v > 0 && <text x={pad2.left + i * xStep} y={yScale(v) - 10} textAnchor="middle" fontSize="10" fill="#00A5A0" fontWeight="600">{v}</text>}</g>)}
+                                    </svg>
+                                );
+                            })()}
+                        </div>
+                        <div style={{ display:'flex', alignItems:'center', padding:'8px 1.5rem', gap:'24px', fontSize:'0.72rem', color:'#888', background:'#fafafa', borderTop:'1px solid #f0f0f0' }}>
+                            <span style={{ display:'flex', alignItems:'center', gap:'5px' }}><span style={{ width:'6px', height:'6px', borderRadius:'50%', background:'#16a34a', display:'inline-block' }} /> Session active · Ping 3 of 5 completed</span>
+                            <span>Detection window: 09:00 AM — 10:00 AM · 10 min intervals</span>
+                            <span style={{ marginLeft:'auto', color:'#bbb' }}>Final status computed after session ends</span>
                         </div>
                     </div>
 
