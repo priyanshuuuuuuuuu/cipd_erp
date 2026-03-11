@@ -19,15 +19,14 @@ async function handler(req) {
       .eq('session_date', today)
       .neq('status', 'cancelled');
 
-    // Get recent activity - last completed sessions with attendance rates
+    // Get recent activity - ordered by creation time so latest actions appear first
     const { data: recentSessions } = await supabaseAdmin
       .from('sessions')
       .select(`
-        id, title, session_date, start_time, end_time, status,
+        id, title, session_date, start_time, end_time, status, created_at,
         courses ( name )
       `)
-      .order('session_date', { ascending: false })
-      .order('start_time', { ascending: false })
+      .order('created_at', { ascending: false })
       .limit(10);
 
     return NextResponse.json({
