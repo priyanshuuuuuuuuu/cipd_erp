@@ -44,6 +44,7 @@ export function getUserFromRequest(req) {
       return verifyToken(match[1]);
     }
   }
+  // test
 
   return null;
 }
