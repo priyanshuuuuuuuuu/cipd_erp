@@ -8,125 +8,195 @@ async function getHandler(req) {
     const { searchParams } = new URL(req.url);
     const sessionId = searchParams.get('session_id');
 
-    // Get feedback analytics — overview or detail
+    // ===== DETAIL VIEW for a specific session =====
     if (sessionId) {
-      // Detail view for a specific session
       const { data: session } = await supabaseAdmin
         .from('sessions')
         .select(`
-          id, title, session_date,
+          id, title, session_date, course_id,
           courses ( name ),
           faculty ( id, users ( first_name, last_name ) )
         `)
         .eq('id', sessionId)
         .single();
 
+      if (!session) {
+        return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+      }
+
+      // Get enrolled count for this course
+      const { count: enrolled } = await supabaseAdmin
+        .from('course_enrollments')
+        .select('*', { count: 'exact', head: true })
+        .eq('course_id', session.course_id);
+
+      // Get all feedback responses for this session
       const { data: responses } = await supabaseAdmin
         .from('feedback_responses')
         .select(`
           student_id, rating, yes_no, text_answer, submitted_at,
-          feedback_questions ( question, type ),
-          students ( enrollment_no )
+          feedback_questions:question_id ( question, type ),
+          students:student_id ( enrollment_no )
         `)
         .eq('session_id', sessionId);
 
-      // Rating distribution
-      const ratingDist = [1, 2, 3, 4, 5].map(r => ({
+      // Rating distribution from rating column
+      const ratings = (responses || []).filter(r => r.rating != null).map(r => r.rating);
+      const ratingDist = [5, 4, 3, 2, 1].map(r => ({
         rating: r,
-        count: (responses || []).filter(resp => resp.rating === r).length,
+        count: ratings.filter(rating => rating === r).length,
       }));
-      const totalRatings = ratingDist.reduce((a, d) => a + d.count, 0);
+      const totalRatings = ratings.length;
       const ratingDistWithPct = ratingDist.map(r => ({
         ...r,
         pct: totalRatings > 0 ? Math.round((r.count / totalRatings) * 100) : 0,
       }));
 
       // Average rating
-      const ratingsOnly = (responses || []).filter(r => r.rating != null).map(r => r.rating);
-      const avgRating = ratingsOnly.length > 0
-        ? Math.round((ratingsOnly.reduce((a, b) => a + b, 0) / ratingsOnly.length) * 10) / 10
+      const avgRating = ratings.length > 0
+        ? Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 10) / 10
         : 0;
 
-      // Descriptive responses
+      // Descriptive responses (text_answer column)
       const descriptive = (responses || [])
         .filter(r => r.text_answer)
         .map(r => ({
-          student: r.students?.enrollment_no || r.student_id,
-          rating: r.rating,
+          student: r.students?.enrollment_no || r.student_id?.slice(0, 8),
+          rating: (responses || []).find(
+            rr => rr.student_id === r.student_id && rr.rating != null
+          )?.rating || null,
           text: r.text_answer,
         }));
 
+      // Unique students who submitted
+      const uniqueStudents = new Set((responses || []).map(r => r.student_id)).size;
+
       return NextResponse.json({
-        session,
+        session: {
+          ...session,
+          faculty_name: session.faculty?.users
+            ? `${session.faculty.users.first_name} ${session.faculty.users.last_name}`
+            : 'TBA',
+        },
         avgRating,
         ratingDistribution: ratingDistWithPct,
         descriptive,
-        totalResponses: (responses || []).length,
+        totalResponses: uniqueStudents,
+        totalEnrolled: enrolled || 0,
       });
     }
 
-    // Overview — summary across all sessions
+    // ===== OVERVIEW — summary across all completed sessions =====
+
+    // Get all completed sessions with their course and faculty info
+    const { data: sessions } = await supabaseAdmin
+      .from('sessions')
+      .select(`
+        id, title, session_date, course_id,
+        courses ( name ),
+        faculty ( id, users ( first_name, last_name ) )
+      `)
+      .eq('status', 'completed')
+      .order('session_date', { ascending: false });
+
+    // Get all feedback responses with columns: rating, yes_no, text_answer
     const { data: allResponses } = await supabaseAdmin
       .from('feedback_responses')
-      .select('rating, text_answer, session_id, submitted_at')
-      .not('rating', 'is', null);
+      .select('student_id, session_id, rating, yes_no, text_answer, submitted_at, question_id');
 
-    const ratings = (allResponses || []).map(r => r.rating).filter(Boolean);
+    // Get all enrollments for quick lookup
+    const { data: enrollments } = await supabaseAdmin
+      .from('course_enrollments')
+      .select('course_id, student_id');
+
+    // Build enrollment count map per course
+    const enrollmentMap = {};
+    (enrollments || []).forEach(e => {
+      enrollmentMap[e.course_id] = (enrollmentMap[e.course_id] || 0) + 1;
+    });
+
+    // Extract ratings from the rating column
+    const ratings = (allResponses || []).filter(r => r.rating != null).map(r => r.rating);
     const avgRating = ratings.length > 0
       ? Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 10) / 10
       : 0;
 
+    // Count text_answer responses
     const totalDescriptive = (allResponses || []).filter(r => r.text_answer).length;
-    const uniqueSessions = new Set((allResponses || []).map(r => r.session_id)).size;
 
     // Rating distribution
-    const ratingDist = [1, 2, 3, 4, 5].map(r => ({
+    const ratingDist = [5, 4, 3, 2, 1].map(r => ({
       rating: r,
       count: ratings.filter(rating => rating === r).length,
     }));
-    const totalRatings = ratingDist.reduce((a, d) => a + d.count, 0);
+    const totalRatings = ratings.length;
     const ratingDistWithPct = ratingDist.map(r => ({
       ...r,
       pct: totalRatings > 0 ? Math.round((r.count / totalRatings) * 100) : 0,
     }));
 
-    // Per-lecture list
-    const { data: sessions } = await supabaseAdmin
-      .from('sessions')
-      .select(`
-        id, title, session_date,
-        courses ( name ),
-        faculty ( id, users ( first_name, last_name ) )
-      `)
-      .eq('status', 'completed')
-      .order('session_date', { ascending: false })
-      .limit(20);
+    // Total unique (session, student) pairs = total submissions
+    const submissionPairs = new Set(
+      (allResponses || []).map(r => `${r.session_id}::${r.student_id}`)
+    );
+    const totalSubmissions = submissionPairs.size;
 
+    // Total expected submissions (sum of enrollments for each completed session's course)
+    let totalExpected = 0;
+    (sessions || []).forEach(s => {
+      totalExpected += enrollmentMap[s.course_id] || 0;
+    });
+
+    // Submission rate
+    const onTimeRate = totalExpected > 0 ? Math.round((totalSubmissions / totalExpected) * 100) : 0;
+
+    // Per-lecture breakdown
     const lectures = (sessions || []).map(s => {
       const sessionResponses = (allResponses || []).filter(r => r.session_id === s.id);
-      const sessionRatings = sessionResponses.map(r => r.rating).filter(Boolean);
+      const sessionRatings = sessionResponses.filter(r => r.rating != null).map(r => r.rating);
+      const sessionDesc = sessionResponses.filter(r => r.text_answer).length;
+      const uniqueStudents = new Set(sessionResponses.map(r => r.student_id)).size;
+      const enrolled = enrollmentMap[s.course_id] || 0;
+
       return {
         id: s.id,
         lecture: `${s.courses?.name || ''} – ${s.title}`,
         date: s.session_date,
-        faculty: `${s.faculty?.users?.first_name || ''} ${s.faculty?.users?.last_name || ''}`.trim(),
+        faculty: s.faculty?.users
+          ? `${s.faculty.users.first_name} ${s.faculty.users.last_name}`
+          : 'TBA',
         avg: sessionRatings.length > 0
           ? Math.round((sessionRatings.reduce((a, b) => a + b, 0) / sessionRatings.length) * 10) / 10
           : 0,
-        submissions: sessionResponses.length,
-        descCount: sessionResponses.filter(r => r.text_answer).length,
+        submissions: uniqueStudents,
+        totalEnrolled: enrolled,
+        descCount: sessionDesc,
+        topic: s.title,
       };
     });
 
+    // Trend data — last 7 completed sessions that have feedback
+    const lecturesWithFeedback = lectures.filter(l => l.submissions > 0);
+    const trendLectures = lecturesWithFeedback.slice(0, 7).reverse();
+    const trendData = trendLectures.map((l, i) => ({
+      l: `L${i + 1}`,
+      label: l.lecture.split(' – ')[1] || l.lecture,
+      avg: l.avg,
+      sub: l.totalEnrolled > 0 ? Math.round((l.submissions / l.totalEnrolled) * 100) : 0,
+    }));
+
     return NextResponse.json({
       summary: {
-        totalLectures: uniqueSessions,
+        totalLectures: (sessions || []).length,
         avgRating,
-        totalSubmissions: (allResponses || []).length,
+        onTimeRate,
         descriptiveCount: totalDescriptive,
+        totalSubmissions,
+        totalEnrolled: totalExpected,
       },
       ratingDistribution: ratingDistWithPct,
       lectures,
+      trendData,
     });
   } catch (err) {
     console.error('Admin feedback analytics error:', err);
