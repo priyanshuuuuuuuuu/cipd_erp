@@ -23,11 +23,11 @@ const Login = () => {
   const { login } = useAuth();
 
   // Demo credentials (hint only — actual auth goes through the API)
-  // const demoCredentials = [
-  //   { role: 'Student', email: 'student@cipd.edu', password: 'student123', path: '/dashboard', color: '#16a34a', bg: '#ecfdf5' },
-  //   { role: 'Faculty', email: 'anuj.grover@cipd.edu', password: 'faculty123', path: '/dashboard', color: '#b45309', bg: '#fef9c3' },
-  //   { role: 'Admin', email: 'admin@cipd.edu', password: 'admin123', path: '/admin', color: '#2563eb', bg: '#eff6ff' },
-  // ];
+  const demoCredentials = [
+    { role: 'Student', email: 'student@cipd.edu', password: 'student123', path: '/dashboard', color: '#16a34a', bg: '#ecfdf5' },
+    { role: 'Faculty', email: 'anuj.grover@cipd.edu', password: 'faculty123', path: '/dashboard', color: '#b45309', bg: '#fef9c3' },
+    { role: 'Admin', email: 'admin@cipd.edu', password: 'admin123', path: '/admin', color: '#2563eb', bg: '#eff6ff' },
+  ];
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -144,7 +144,7 @@ const Login = () => {
       </CardContainer>
 
       {/* Demo Credentials — floating top-right */}
-      {/* <div
+      <div
         style={{
           position: 'fixed',
           top: '20px',
@@ -158,8 +158,8 @@ const Login = () => {
           backdropFilter: 'blur(8px)',
           maxWidth: '260px',
         }}
-      > */}
-      {/* <div
+      >
+        <div
           style={{
             fontSize: '0.68rem',
             fontWeight: 700,
@@ -247,9 +247,9 @@ const Login = () => {
             marginTop: '8px',
           }}
         >
-          Click to auto-fill &amp; login
-        </div> */}
-      {/* </div> */}
+          Click to auto-fill
+        </div>
+      </div>
     </div>
   );
 };
