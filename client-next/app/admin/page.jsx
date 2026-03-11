@@ -18,7 +18,11 @@ export default function AdminDashboard() {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [showScheduleModal, setShowScheduleModal] = useState(false);
     const [notifyStatus, setNotifyStatus] = useState(null);
-    const [newClass, setNewClass] = useState({ course: '', date: '', time: '', venue: '', faculty: '' });
+    const [reminderStatus, setReminderStatus] = useState(null);
+    const [newClass, setNewClass] = useState({ course_id: '', faculty_id: '', date: '', start_time: '', end_time: '', venue_id: '', title: '' });
+
+    // Lookup data for dropdowns
+    const [lookupData, setLookupData] = useState({ courses: [], faculty: [], venues: [] });
 
     // Live data state
     const [upcomingClasses, setUpcomingClasses] = useState([]);
@@ -32,11 +36,12 @@ export default function AdminDashboard() {
 
     const fetchAll = useCallback(async () => {
         try {
-            const [sessRes, fbRes, wkRes, dashRes] = await Promise.allSettled([
+            const [sessRes, fbRes, wkRes, dashRes, lookupRes] = await Promise.allSettled([
                 api.get('/api/admin/sessions?upcoming=true'),
                 api.get('/api/admin/feedback/status'),
                 api.get('/api/admin/attendance/weekly'),
                 api.get('/api/admin/dashboard'),
+                api.get('/api/admin/lookup'),
             ]);
 
             if (sessRes.status === 'fulfilled') {
@@ -58,6 +63,8 @@ export default function AdminDashboard() {
                     total: f.total,
                     submitted: f.submitted,
                     pending: f.pending,
+                    total_enrolled: f.total_enrolled,
+                    completed_sessions: f.completed_sessions,
                 })));
             }
 
@@ -66,13 +73,35 @@ export default function AdminDashboard() {
             }
 
             if (dashRes.status === 'fulfilled') {
-                const recent = (dashRes.value.recent_sessions || []).slice(0, 6).map((s, i) => ({
-                    type: 'session',
-                    text: `${s.courses?.name || s.title} — ${s.status}`,
-                    time: new Date(s.session_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
-                    color: ['#16a34a','#b45309','#2563eb','#7c3aed','#dc2626','#0891b2'][i % 6],
-                }));
+                const recent = (dashRes.value.recent_sessions || []).slice(0, 6).map((s, i) => {
+                    // Show relative time from created_at
+                    const createdAt = s.created_at ? new Date(s.created_at) : new Date(s.session_date);
+                    const now = new Date();
+                    const diffMs = now - createdAt;
+                    const diffMins = Math.floor(diffMs / 60000);
+                    let timeStr;
+                    if (diffMins < 1) timeStr = 'Just now';
+                    else if (diffMins < 60) timeStr = `${diffMins}m ago`;
+                    else if (diffMins < 1440) timeStr = `${Math.floor(diffMins / 60)}h ago`;
+                    else timeStr = `${Math.floor(diffMins / 1440)}d ago`;
+
+                    return {
+                        type: 'session',
+                        text: `${s.courses?.name || s.title} — ${s.status}`,
+                        time: timeStr,
+                        sessionDate: new Date(s.session_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+                        color: ['#16a34a','#b45309','#2563eb','#7c3aed','#dc2626','#0891b2'][i % 6],
+                    };
+                });
                 setRecentActivity(recent);
+            }
+
+            if (lookupRes.status === 'fulfilled') {
+                setLookupData({
+                    courses: lookupRes.value.courses || [],
+                    faculty: lookupRes.value.faculty || [],
+                    venues: lookupRes.value.venues || [],
+                });
             }
         } finally {
             setLoadingData(false);
@@ -89,7 +118,11 @@ export default function AdminDashboard() {
     const handleNotifyAll = async (sessionId) => {
         setNotifyStatus('sending');
         try {
-            await api.post('/api/admin/notifications', { session_id: sessionId, message: 'Reminder: Class is scheduled. Please attend.' });
+            await api.post('/api/admin/notifications', {
+                type: 'class_reminder',
+                session_id: sessionId,
+                message: 'Reminder: Class is scheduled. Please attend.',
+            });
             setNotifyStatus('sent');
             setTimeout(() => setNotifyStatus(null), 2500);
         } catch {
@@ -97,17 +130,36 @@ export default function AdminDashboard() {
         }
     };
 
-    const handleScheduleSubmit = async () => {
-        if (!newClass.course || !newClass.date || !newClass.time) return;
+    const handleSendFeedbackReminders = async () => {
+        setReminderStatus('sending');
         try {
+            const res = await api.post('/api/admin/notifications', {
+                type: 'feedback_reminder',
+                message: 'You have pending feedback. Please submit your feedback.',
+            });
+            setReminderStatus(`sent-${res.recipientCount || 0}`);
+            setTimeout(() => setReminderStatus(null), 4000);
+        } catch (e) {
+            alert('Failed to send reminders: ' + e.message);
+            setReminderStatus(null);
+        }
+    };
+
+    const handleScheduleSubmit = async () => {
+        if (!newClass.course_id || !newClass.date || !newClass.start_time || !newClass.title) return;
+        try {
+            const selectedCourse = lookupData.courses.find(c => c.id === newClass.course_id);
             await api.post('/api/admin/sessions', {
-                title: newClass.course,
+                course_id: newClass.course_id,
+                faculty_id: newClass.faculty_id || null,
+                venue_id: newClass.venue_id || null,
+                title: newClass.title,
                 session_date: newClass.date,
-                start_time: newClass.time,
-                end_time: newClass.time,
+                start_time: newClass.start_time,
+                end_time: newClass.end_time || newClass.start_time,
             });
             setShowScheduleModal(false);
-            setNewClass({ course: '', date: '', time: '', venue: '', faculty: '' });
+            setNewClass({ course_id: '', faculty_id: '', date: '', start_time: '', end_time: '', venue_id: '', title: '' });
             fetchAll();
         } catch (e) {
             alert('Failed to schedule: ' + e.message);
@@ -277,13 +329,14 @@ export default function AdminDashboard() {
                                                 </div>
                                                 <span style={{ fontSize: '0.7rem', color: '#888', fontWeight: 500, minWidth: '55px', textAlign: 'right' }}>{item.submitted}/{item.total}</span>
                                             </div>
+                                            <div style={{ fontSize: '0.6rem', color: '#aaa', marginTop: '2px' }}>{item.total_enrolled || '?'} enrolled × {item.completed_sessions || '?'} sessions</div>
                                         </div>
                                     );
                                 })}
                             </div>
                             <div style={{ padding: '10px 1.5rem', borderTop: '1px solid #f0f0f0' }}>
-                                <button className="change-status-btn" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '8px', borderRadius: '8px', border: '1px solid #eee', background: '#fff', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, color: '#555' }}>
-                                    <Mail size={13} /> Send Reminder to All Pending
+                                <button onClick={handleSendFeedbackReminders} disabled={reminderStatus === 'sending'} className="change-status-btn" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '8px', borderRadius: '8px', border: '1px solid #eee', background: reminderStatus?.startsWith('sent') ? '#ecfdf5' : '#fff', cursor: reminderStatus === 'sending' ? 'wait' : 'pointer', fontSize: '0.8rem', fontWeight: 600, color: reminderStatus?.startsWith('sent') ? '#166534' : '#555', transition: 'all 0.2s' }}>
+                                    {reminderStatus === 'sending' ? <><RefreshCw size={13} style={{ animation: 'spin 1s linear infinite' }} /> Sending Reminders...</> : reminderStatus?.startsWith('sent') ? <><CheckCircle size={13} /> Sent to {reminderStatus.split('-')[1]} students!</> : <><Mail size={13} /> Send Reminder to All Pending</>}
                                 </button>
                             </div>
                         </div>
@@ -298,7 +351,7 @@ export default function AdminDashboard() {
                                     <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: item.color, marginTop: '6px', flexShrink: 0 }} />
                                     <div style={{ flex: 1 }}>
                                         <div style={{ fontSize: '0.85rem', fontWeight: 500, color: '#333', lineHeight: 1.4 }}>{item.text}</div>
-                                        <div style={{ fontSize: '0.7rem', color: '#aaa', marginTop: '2px' }}>{item.time}</div>
+                                        <div style={{ fontSize: '0.7rem', color: '#aaa', marginTop: '2px' }}>{item.time}{item.sessionDate ? ` · ${item.sessionDate}` : ''}</div>
                                     </div>
                                 </div>
                             ))}
@@ -316,20 +369,56 @@ export default function AdminDashboard() {
                             <button onClick={() => setShowScheduleModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888' }}><X size={18} /></button>
                         </div>
                         <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                            {[
-                                { label: 'Course', key: 'course', type: 'text', placeholder: 'e.g. CS301 — Data Structures' },
-                                { label: 'Faculty', key: 'faculty', type: 'text', placeholder: 'e.g. Prof. Anuj Grover' },
-                                { label: 'Date', key: 'date', type: 'date', placeholder: '' },
-                                { label: 'Time', key: 'time', type: 'time', placeholder: '' },
-                                { label: 'Venue', key: 'venue', type: 'text', placeholder: 'e.g. Room 204, Block A' },
-                            ].map(field => (
-                                <div key={field.key}>
-                                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>{field.label}</label>
-                                    <input type={field.type} placeholder={field.placeholder} value={newClass[field.key]} onChange={e => setNewClass({ ...newClass, [field.key]: e.target.value })}
+                            <div>
+                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>Course *</label>
+                                <select value={newClass.course_id} onChange={e => setNewClass({ ...newClass, course_id: e.target.value })}
+                                    style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '0.85rem', fontFamily: 'inherit', color: '#333', outline: 'none', boxSizing: 'border-box', background: '#fff', cursor: 'pointer' }}>
+                                    <option value=''>Select a course...</option>
+                                    {lookupData.courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>Lecture Title *</label>
+                                <input type='text' placeholder='e.g. Lec 15 - AVL Trees' value={newClass.title} onChange={e => setNewClass({ ...newClass, title: e.target.value })}
+                                    style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '0.85rem', fontFamily: 'inherit', color: '#333', outline: 'none', boxSizing: 'border-box' }}
+                                    onFocus={e => e.target.style.borderColor = '#111'} onBlur={e => e.target.style.borderColor = '#e5e7eb'} />
+                            </div>
+                            <div>
+                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>Faculty</label>
+                                <select value={newClass.faculty_id} onChange={e => setNewClass({ ...newClass, faculty_id: e.target.value })}
+                                    style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '0.85rem', fontFamily: 'inherit', color: '#333', outline: 'none', boxSizing: 'border-box', background: '#fff', cursor: 'pointer' }}>
+                                    <option value=''>Select faculty...</option>
+                                    {lookupData.faculty.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>Date *</label>
+                                <input type='date' value={newClass.date} onChange={e => setNewClass({ ...newClass, date: e.target.value })}
+                                    style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '0.85rem', fontFamily: 'inherit', color: '#333', outline: 'none', boxSizing: 'border-box' }}
+                                    onFocus={e => e.target.style.borderColor = '#111'} onBlur={e => e.target.style.borderColor = '#e5e7eb'} />
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                <div>
+                                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>Start Time *</label>
+                                    <input type='time' value={newClass.start_time} onChange={e => setNewClass({ ...newClass, start_time: e.target.value })}
                                         style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '0.85rem', fontFamily: 'inherit', color: '#333', outline: 'none', boxSizing: 'border-box' }}
                                         onFocus={e => e.target.style.borderColor = '#111'} onBlur={e => e.target.style.borderColor = '#e5e7eb'} />
                                 </div>
-                            ))}
+                                <div>
+                                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>End Time</label>
+                                    <input type='time' value={newClass.end_time} onChange={e => setNewClass({ ...newClass, end_time: e.target.value })}
+                                        style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '0.85rem', fontFamily: 'inherit', color: '#333', outline: 'none', boxSizing: 'border-box' }}
+                                        onFocus={e => e.target.style.borderColor = '#111'} onBlur={e => e.target.style.borderColor = '#e5e7eb'} />
+                                </div>
+                            </div>
+                            <div>
+                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>Venue</label>
+                                <select value={newClass.venue_id} onChange={e => setNewClass({ ...newClass, venue_id: e.target.value })}
+                                    style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '0.85rem', fontFamily: 'inherit', color: '#333', outline: 'none', boxSizing: 'border-box', background: '#fff', cursor: 'pointer' }}>
+                                    <option value=''>Select venue...</option>
+                                    {lookupData.venues.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                                </select>
+                            </div>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', padding: '1rem 1.5rem', borderTop: '1px solid #f0f0f0' }}>
                             <button onClick={() => setShowScheduleModal(false)} style={{ padding: '8px 20px', borderRadius: '8px', border: '1px solid #eee', background: '#fff', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 500, color: '#555' }}>Cancel</button>
