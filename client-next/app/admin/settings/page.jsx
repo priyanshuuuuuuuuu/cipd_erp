@@ -13,8 +13,11 @@ export default function AdminSettingsPage() {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [showBssidModal, setShowBssidModal] = useState(false);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [editingBssid, setEditingBssid] = useState(null);
     const [showPassword, setShowPassword] = useState(false);
     const [saveStatus, setSaveStatus] = useState({});
+    const [errorMsg, setErrorMsg] = useState('');
 
     const [detectionConfig, setDetectionConfig] = useState({
         pingInterval: 10,
@@ -23,40 +26,143 @@ export default function AdminSettingsPage() {
         attendanceWindow: 60,
     });
 
-    const [bssidList, setBssidList] = useState([
-        { id: 1, bssid: 'C4:E9:84:A2:3F:01', venue: 'Room 204, Block A', active: true },
-        { id: 2, bssid: 'C4:E9:84:A2:3F:02', venue: 'Room 305, Block C', active: true },
-        { id: 3, bssid: 'C4:E9:84:A2:3F:03', venue: 'LHC 3, Block B', active: true },
-        { id: 4, bssid: 'C4:E9:84:A2:3F:04', venue: 'Lab 2, Block D', active: false },
-        { id: 5, bssid: 'C4:E9:84:A2:3F:05', venue: 'Room 102, Block A', active: true },
-    ]);
-
+    const [bssidList, setBssidList] = useState([]);
     const [newBssid, setNewBssid] = useState({ bssid: '', venue: '' });
-    const [accountSettings, setAccountSettings] = useState({ email: 'admin@cipd.edu', currentPassword: '', newPassword: '', confirmPassword: '' });
+    const [accountSettings, setAccountSettings] = useState({ email: 'admin@cipd.edu', currentPassword: '', newPassword: '' });
 
     const navTo = p => router.push(p);
 
-    const handleSave = (section) => {
+    React.useEffect(() => {
+        const loadData = async () => {
+            try {
+                const confRes = await fetch('/api/admin/settings/config');
+                const conf = await confRes.json();
+                if (conf && conf.ping_interval) {
+                    setDetectionConfig({
+                        pingInterval: conf.ping_interval,
+                        pingsPerSession: conf.pings_per_session,
+                        presenceThreshold: conf.presence_threshold,
+                        attendanceWindow: conf.attendance_window,
+                    });
+                }
+                const venRes = await fetch('/api/admin/settings/bssid');
+                const venues = await venRes.json();
+                setBssidList(venues || []);
+            } catch (err) {
+                console.error("Error loading settings:", err);
+            }
+        };
+        loadData();
+    }, []);
+
+    const handleSave = async (section) => {
         setSaveStatus({ ...saveStatus, [section]: 'saving' });
-        setTimeout(() => {
+        setErrorMsg('');
+        try {
+            if (section === 'detection') {
+                const res = await fetch('/api/admin/settings/config', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(detectionConfig),
+                });
+                if (!res.ok) throw new Error("Failed to save config");
+            } else if (section === 'account') {
+                if (!accountSettings.currentPassword || !accountSettings.newPassword) {
+                    throw new Error("Both current and new passwords are required");
+                }
+                const res = await fetch('/api/admin/settings/password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        currentPassword: accountSettings.currentPassword,
+                        newPassword: accountSettings.newPassword,
+                    }),
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || "Password update failed");
+                setAccountSettings({ ...accountSettings, currentPassword: '', newPassword: '' });
+                alert("Password successfully updated!");
+            }
             setSaveStatus({ ...saveStatus, [section]: 'saved' });
             setTimeout(() => setSaveStatus(prev => ({ ...prev, [section]: null })), 2000);
-        }, 800);
+        } catch (err) {
+            console.error("Save error:", err);
+            setErrorMsg(err.message);
+            setSaveStatus({ ...saveStatus, [section]: null });
+            alert(err.message);
+        }
     };
 
-    const handleAddBssid = () => {
+    const handleAddBssid = async () => {
         if (!newBssid.bssid || !newBssid.venue) return;
-        setBssidList(prev => [...prev, { id: Date.now(), bssid: newBssid.bssid, venue: newBssid.venue, active: true }]);
-        setNewBssid({ bssid: '', venue: '' });
-        setShowBssidModal(false);
+        try {
+            const res = await fetch('/api/admin/settings/bssid', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ bssid: newBssid.bssid, venue: newBssid.venue }),
+            });
+            const { data } = await res.json();
+            if (data) {
+                setBssidList(prev => [...prev, data]);
+                setNewBssid({ bssid: '', venue: '' });
+                setShowBssidModal(false);
+            }
+        } catch (err) {
+            console.error("Error adding BSSID:", err);
+            alert("Failed to add BSSID");
+        }
     };
 
-    const toggleBssid = (id) => {
-        setBssidList(prev => prev.map(b => b.id === id ? { ...b, active: !b.active } : b));
+    const toggleBssid = async (id) => {
+        const item = bssidList.find(b => b.id === id);
+        if(!item) return;
+        try {
+            const res = await fetch('/api/admin/settings/bssid', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, is_active: !item.is_active }),
+            });
+            if (res.ok) {
+                setBssidList(prev => prev.map(b => b.id === id ? { ...b, is_active: !b.is_active } : b));
+            }
+        } catch (err) {
+            console.error("Error toggling BSSID:", err);
+        }
     };
 
-    const removeBssid = (id) => {
-        setBssidList(prev => prev.filter(b => b.id !== id));
+    const handleEditBssid = async () => {
+        if (!editingBssid || !editingBssid.router_bssid || !editingBssid.name) return;
+        try {
+            const res = await fetch('/api/admin/settings/bssid', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    id: editingBssid.id, 
+                    router_bssid: editingBssid.router_bssid, 
+                    name: editingBssid.name 
+                }),
+            });
+            if (res.ok) {
+                setBssidList(prev => prev.map(b => b.id === editingBssid.id ? editingBssid : b));
+                setShowEditModal(false);
+                setEditingBssid(null);
+            }
+        } catch (err) {
+            console.error("Error editing BSSID:", err);
+            alert("Failed to update BSSID");
+        }
+    };
+
+    const removeBssid = async (id) => {
+        if(!confirm("Are you sure you want to delete this venue?")) return;
+        try {
+            const res = await fetch(`/api/admin/settings/bssid?id=${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                setBssidList(prev => prev.filter(b => b.id !== id));
+            }
+        } catch (err) {
+            console.error("Error removing BSSID:", err);
+        }
     };
 
     const SaveButton = ({ section }) => (
@@ -163,17 +269,26 @@ export default function AdminSettingsPage() {
                                 </thead>
                                 <tbody>
                                     {bssidList.map(b => (
-                                        <tr key={b.id} className="attendance-row" style={{ borderBottom: '1px solid #f5f5f5', opacity: b.active ? 1 : 0.5 }}>
-                                            <td style={{ padding: '10px 16px', fontFamily: 'monospace', fontWeight: 600, fontSize: '0.82rem', color: '#333' }}>{b.bssid}</td>
-                                            <td style={{ padding: '10px 16px', color: '#555' }}>{b.venue}</td>
+                                        <tr key={b.id} className="attendance-row" style={{ borderBottom: '1px solid #f5f5f5', opacity: b.is_active !== false ? 1 : 0.5 }}>
+                                            <td style={{ padding: '10px 16px', fontFamily: 'monospace', fontWeight: 600, fontSize: '0.82rem', color: '#333' }}>{b.router_bssid || b.bssid}</td>
+                                            <td style={{ padding: '10px 16px', color: '#555' }}>{b.name || b.venue}</td>
                                             <td style={{ padding: '10px 16px' }}>
-                                                <button onClick={() => toggleBssid(b.id)} className="change-status-btn" style={{ padding: '3px 10px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600, border: 'none', cursor: 'pointer', background: b.active ? '#ecfdf5' : '#fef2f2', color: b.active ? '#166534' : '#991b1b' }}>
-                                                    {b.active ? 'Active' : 'Inactive'}
+                                                <button onClick={() => toggleBssid(b.id)} className="change-status-btn" style={{ padding: '3px 10px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600, border: 'none', cursor: 'pointer', background: b.is_active !== false ? '#ecfdf5' : '#fef2f2', color: b.is_active !== false ? '#166534' : '#991b1b' }}>
+                                                    {b.is_active !== false ? 'Active' : 'Inactive'}
                                                 </button>
                                             </td>
                                             <td style={{ padding: '10px 16px' }}>
                                                 <div style={{ display: 'flex', gap: '6px' }}>
-                                                    <button className="change-status-btn" style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', color: '#888' }}><Edit3 size={13} /></button>
+                                                    <button 
+                                                        onClick={() => {
+                                                            setEditingBssid({ ...b });
+                                                            setShowEditModal(true);
+                                                        }}
+                                                        className="change-status-btn" 
+                                                        style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', color: '#888' }}
+                                                    >
+                                                        <Edit3 size={13} />
+                                                    </button>
                                                     <button onClick={() => removeBssid(b.id)} className="change-status-btn" style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', color: '#ccc' }}><Trash2 size={13} /></button>
                                                 </div>
                                             </td>
@@ -188,7 +303,10 @@ export default function AdminSettingsPage() {
                     <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', borderTop: '3px solid #E91E87', overflow: 'hidden', marginBottom: '1.5rem' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.8rem 1.5rem', borderBottom: '1px solid #f0f0f0' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.95rem', fontWeight: 700 }}><SettingsIcon size={16} /> Account Settings</div>
-                            <SaveButton section="account" />
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                                {errorMsg && <div style={{ fontSize: '0.75rem', color: '#e11d48', fontWeight: 600 }}>{errorMsg}</div>}
+                                <SaveButton section="account" />
+                            </div>
                         </div>
                         <div style={{ padding: '1.2rem 1.5rem' }}>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', maxWidth: '600px' }}>
@@ -242,6 +360,35 @@ export default function AdminSettingsPage() {
                             <button onClick={() => setShowBssidModal(false)} style={{ padding: '8px 20px', borderRadius: '8px', border: '1px solid #eee', background: '#fff', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 500, color: '#555' }}>Cancel</button>
                             <button onClick={handleAddBssid} style={{ padding: '8px 20px', borderRadius: '8px', border: 'none', background: '#111', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, color: '#fff', display: 'flex', alignItems: 'center', gap: '5px' }}>
                                 <Plus size={14} /> Add BSSID
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Edit BSSID Modal */}
+            {showEditModal && editingBssid && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }} onClick={() => { setShowEditModal(false); setEditingBssid(null); }}>
+                    <div style={{ background: '#fff', borderRadius: '16px', width: '420px', maxWidth: '90vw', boxShadow: '0 20px 60px rgba(0,0,0,0.15)', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.5rem', borderBottom: '1px solid #f0f0f0' }}>
+                            <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>Edit BSSID</h3>
+                            <button onClick={() => { setShowEditModal(false); setEditingBssid(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888' }}><X size={18} /></button>
+                        </div>
+                        <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                            <div>
+                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>BSSID (MAC Address)</label>
+                                <input type="text" value={editingBssid.router_bssid || ''} onChange={e => setEditingBssid({ ...editingBssid, router_bssid: e.target.value })}
+                                    style={{ ...inputStyle, fontFamily: 'monospace' }} onFocus={e => e.target.style.borderColor = '#111'} onBlur={e => e.target.style.borderColor = '#e5e7eb'} />
+                            </div>
+                            <div>
+                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>Venue Name</label>
+                                <input type="text" value={editingBssid.name || ''} onChange={e => setEditingBssid({ ...editingBssid, name: e.target.value })}
+                                    style={inputStyle} onFocus={e => e.target.style.borderColor = '#111'} onBlur={e => e.target.style.borderColor = '#e5e7eb'} />
+                            </div>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', padding: '1rem 1.5rem', borderTop: '1px solid #f0f0f0' }}>
+                            <button onClick={() => { setShowEditModal(false); setEditingBssid(null); }} style={{ padding: '8px 20px', borderRadius: '8px', border: '1px solid #eee', background: '#fff', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 500, color: '#555' }}>Cancel</button>
+                            <button onClick={handleEditBssid} style={{ padding: '8px 20px', borderRadius: '8px', border: 'none', background: '#111', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, color: '#fff', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                <Save size={14} /> Update BSSID
                             </button>
                         </div>
                     </div>
