@@ -19,24 +19,29 @@ export default function AdminSchedulePage() {
     const [editingSession, setEditingSession] = useState(null);
     const [showConflictWarning, setShowConflictWarning] = useState(false);
     const [newClass, setNewClass] = useState({ course: '', faculty: '', date: '', time: '', endTime: '', duration: '60', venue: '', recurrence: 'one-time' });
+    const [sessions, setSessions] = useState([]);
+    const [loading, setLoading] = useState(true);
 
     const navTo = p => router.push(p);
 
-    const sessions = [
-        { id: 1, course: 'CS301 — Data Structures', faculty: 'Prof. Anuj Grover', venue: 'Room 204, Block A', date: '2026-02-17', time: '09:00', endTime: '10:00', students: 42, status: 'Confirmed' },
-        { id: 2, course: 'PHY201 — Quantum Physics', faculty: 'Dr. Priya Sharma', venue: 'LHC 3, Block B', date: '2026-02-17', time: '11:00', endTime: '12:00', students: 38, status: 'Confirmed' },
-        { id: 3, course: 'MATH101 — Calculus II', faculty: 'Prof. Amit Patel', venue: 'Room 102, Block A', date: '2026-02-17', time: '14:00', endTime: '15:00', students: 45, status: 'Pending' },
-        { id: 4, course: 'ENG102 — Technical Writing', faculty: 'Dr. Sneha Kapoor', venue: 'Room 305, Block C', date: '2026-02-18', time: '09:00', endTime: '10:00', students: 40, status: 'Confirmed' },
-        { id: 5, course: 'CS301 — Data Structures', faculty: 'Prof. Anuj Grover', venue: 'Room 204, Block A', date: '2026-02-18', time: '11:00', endTime: '12:00', students: 42, status: 'Confirmed' },
-        { id: 6, course: 'CHM101 — Organic Chemistry', faculty: 'Dr. Kavita Iyer', venue: 'Lab 2, Block D', date: '2026-02-18', time: '14:00', endTime: '15:00', students: 30, status: 'Cancelled' },
-        { id: 7, course: 'MTH101 — Linear Algebra', faculty: 'Prof. Rajesh Mehta', venue: 'Room 102, Block A', date: '2026-02-19', time: '09:00', endTime: '10:00', students: 42, status: 'Pending' },
-        { id: 8, course: 'PHY201 — Quantum Physics', faculty: 'Dr. Priya Sharma', venue: 'LHC 3, Block B', date: '2026-02-19', time: '11:00', endTime: '12:00', students: 38, status: 'Confirmed' },
-    ];
+    React.useEffect(() => {
+        setLoading(true);
+        fetch(`/api/admin/schedule?filter=${activeFilter}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.sessions) {
+                    setSessions(data.sessions);
+                }
+                setLoading(false);
+            })
+            .catch(err => {
+                console.error("Failed to fetch schedule:", err);
+                setLoading(false);
+            });
+    }, [activeFilter]);
 
-    const filteredSessions = activeFilter === 'all' ? sessions
-        : activeFilter === 'today' ? sessions.filter(s => s.date === '2026-02-17')
-        : activeFilter === 'week' ? sessions
-        : sessions.filter(s => s.status.toLowerCase() === activeFilter);
+    // Format for Week Calendar View parsing
+    const filteredSessions = sessions; // Filtering is handled server-side now
 
     const formatDate = d => {
         const dt = new Date(d + 'T00:00:00');
@@ -60,15 +65,27 @@ export default function AdminSchedulePage() {
         setShowConflictWarning(false);
     };
 
-    const calendarDays = ['Mon 17', 'Tue 18', 'Wed 19', 'Thu 20', 'Fri 21'];
+    const calendarDays = [];
+    const todayStrFull = new Date();
+    // Generate the next 5 days dynamically for the calendar view header
+    for (let i = 0; i < 5; i++) {
+        const d = new Date(todayStrFull);
+        d.setDate(d.getDate() + i);
+        const dayStr = d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' });
+        calendarDays.push({ 
+            label: dayStr, 
+            dateKey: d.toISOString().split('T')[0] // 'YYYY-MM-DD'
+        });
+    }
+
     const timeSlots = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00'];
 
-    const getSessionsForSlot = (day, time) => {
-        const dayNum = day.split(' ')[1];
-        return sessions.filter(s => s.date.endsWith(`-02-${dayNum}`) && s.time === time);
+    const getSessionsForSlot = (dateKey, time) => {
+        return sessions.filter(s => s.date === dateKey && s.time?.startsWith(time.split(':')[0]));
     };
 
-    const totalToday = sessions.filter(s => s.date === '2026-02-17').length;
+    const todayStr = todayStrFull.toISOString().split('T')[0];
+    const totalToday = sessions.filter(s => s.date === todayStr).length;
     const confirmed = sessions.filter(s => s.status === 'Confirmed').length;
     const pending = sessions.filter(s => s.status === 'Pending').length;
 
@@ -210,7 +227,7 @@ export default function AdminSchedulePage() {
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.95rem', fontWeight: 700 }}><CalendarDays size={16} /> Weekly Calendar</div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                     <button style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', color: '#888' }}><ChevronLeft size={14} /></button>
-                                    <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#333' }}>Week of Feb 17, 2026</span>
+                                    <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#333' }}>Upcoming</span>
                                     <button style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', color: '#888' }}><ChevronRight size={14} /></button>
                                 </div>
                             </div>
@@ -218,17 +235,17 @@ export default function AdminSchedulePage() {
                                 <div style={{ display: 'grid', gridTemplateColumns: '70px repeat(5, 1fr)', minWidth: '700px' }}>
                                     {/* Header row */}
                                     <div style={{ padding: '8px', background: '#fafafa', borderBottom: '1px solid #f0f0f0', borderRight: '1px solid #f0f0f0' }} />
-                                    {calendarDays.map(day => (
-                                        <div key={day} style={{ padding: '10px 8px', background: '#fafafa', borderBottom: '1px solid #f0f0f0', borderRight: '1px solid #f0f0f0', fontSize: '0.75rem', fontWeight: 600, color: '#555', textAlign: 'center' }}>{day}</div>
+                                    {calendarDays.map(dayObj => (
+                                        <div key={dayObj.dateKey} style={{ padding: '10px 8px', background: '#fafafa', borderBottom: '1px solid #f0f0f0', borderRight: '1px solid #f0f0f0', fontSize: '0.75rem', fontWeight: 600, color: '#555', textAlign: 'center' }}>{dayObj.label}</div>
                                     ))}
                                     {/* Time slots */}
                                     {timeSlots.map(time => (
                                         <React.Fragment key={time}>
                                             <div style={{ padding: '8px', borderBottom: '1px solid #f5f5f5', borderRight: '1px solid #f0f0f0', fontSize: '0.7rem', color: '#aaa', fontFamily: 'monospace', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', minHeight: '60px' }}>{time}</div>
-                                            {calendarDays.map(day => {
-                                                const daySession = getSessionsForSlot(day, time);
+                                            {calendarDays.map(dayObj => {
+                                                const daySession = getSessionsForSlot(dayObj.dateKey, time);
                                                 return (
-                                                    <div key={`${day}-${time}`} style={{ padding: '4px', borderBottom: '1px solid #f5f5f5', borderRight: '1px solid #f0f0f0', minHeight: '60px' }}>
+                                                    <div key={`${dayObj.dateKey}-${time}`} style={{ padding: '4px', borderBottom: '1px solid #f5f5f5', borderRight: '1px solid #f0f0f0', minHeight: '60px' }}>
                                                         {daySession.map(s => (
                                                             <div key={s.id} style={{
                                                                 padding: '6px 8px', borderRadius: '6px', marginBottom: '2px',

@@ -18,24 +18,42 @@ export default function AdminWifiLogsPage() {
     const [sortColumn, setSortColumn] = useState('timestamp');
     const [sortAsc, setSortAsc] = useState(false);
 
+    const [rawLogs, setRawLogs] = useState([]);
+    const [loading, setLoading] = useState(true);
+
     const navTo = p => router.push(p);
 
-    const rawLogs = [
-        { timestamp: '2026-02-14 09:00:12', deviceHash: 'a7f3...e1d2', studentId: 'STU-2023001', studentName: 'Aarav Gupta', bssid: 'C4:E9:84:A2:3F:01', rssi: -42, venue: 'Room 204, Block A', session: 'CS301-A' },
-        { timestamp: '2026-02-14 09:06:45', deviceHash: 'b2c1...f4a8', studentId: 'STU-2023002', studentName: 'Sneha Kumar', bssid: 'C4:E9:84:A2:3F:01', rssi: -68, venue: 'Room 204, Block A', session: 'CS301-A' },
-        { timestamp: '2026-02-14 09:12:08', deviceHash: 'b2c1...f4a8', studentId: 'STU-2023002', studentName: 'Sneha Kumar', bssid: 'C4:E9:84:A2:3F:02', rssi: -71, venue: 'Corridor, Block A', session: 'CS301-A' },
-        { timestamp: '2026-02-14 09:12:14', deviceHash: 'c9d4...b7e3', studentId: 'STU-2023003', studentName: 'Rohan Patel', bssid: 'C4:E9:84:A2:3F:01', rssi: -38, venue: 'Room 204, Block A', session: 'CS301-A' },
-        { timestamp: '2026-02-14 09:12:22', deviceHash: 'a7f3...e1d2', studentId: 'STU-2023001', studentName: 'Aarav Gupta', bssid: 'C4:E9:84:A2:3F:01', rssi: -45, venue: 'Room 204, Block A', session: 'CS301-A' },
-        { timestamp: '2026-02-14 09:18:33', deviceHash: 'e8f2...d6b1', studentId: 'STU-2023005', studentName: 'Karan Singh', bssid: 'C4:E9:84:A2:3F:03', rssi: -82, venue: 'Parking Lot', session: '—' },
-        { timestamp: '2026-02-14 09:24:05', deviceHash: 'd1e5...a3c7', studentId: 'STU-2023004', studentName: 'Priya Malhotra', bssid: 'C4:E9:84:A2:3F:01', rssi: -51, venue: 'Room 204, Block A', session: 'CS301-A' },
-        { timestamp: '2026-02-14 09:24:11', deviceHash: 'a7f3...e1d2', studentId: 'STU-2023001', studentName: 'Aarav Gupta', bssid: 'C4:E9:84:A2:3F:01', rssi: -40, venue: 'Room 204, Block A', session: 'CS301-A' },
-        { timestamp: '2026-02-14 09:30:02', deviceHash: 'f3a7...c2e9', studentId: 'STU-2023006', studentName: 'Vivaan Singh', bssid: 'C4:E9:84:A2:3F:01', rssi: -55, venue: 'Room 204, Block A', session: 'CS301-A' },
-        { timestamp: '2026-02-14 09:36:15', deviceHash: 'a7f3...e1d2', studentId: 'STU-2023001', studentName: 'Aarav Gupta', bssid: 'C4:E9:84:A2:3F:01', rssi: -43, venue: 'Room 204, Block A', session: 'CS301-A' },
-        { timestamp: '2026-02-14 09:42:07', deviceHash: 'd1e5...a3c7', studentId: 'STU-2023004', studentName: 'Priya Malhotra', bssid: 'C4:E9:84:A2:3F:01', rssi: -49, venue: 'Room 204, Block A', session: 'CS301-A' },
-        { timestamp: '2026-02-14 09:48:19', deviceHash: 'c9d4...b7e3', studentId: 'STU-2023003', studentName: 'Rohan Patel', bssid: 'C4:E9:84:A2:3F:01', rssi: -35, venue: 'Room 204, Block A', session: 'CS301-A' },
-        { timestamp: '2026-02-14 10:00:05', deviceHash: 'g6b8...e5d4', studentId: 'STU-2023007', studentName: 'Aditya Kumar', bssid: 'C4:E9:84:A2:3F:04', rssi: -88, venue: 'Canteen', session: '—' },
-        { timestamp: '2026-02-14 10:06:22', deviceHash: 'f3a7...c2e9', studentId: 'STU-2023006', studentName: 'Vivaan Singh', bssid: 'C4:E9:84:A2:3F:01', rssi: -52, venue: 'Room 204, Block A', session: 'CS301-A' },
-    ];
+    React.useEffect(() => {
+        setLoading(true);
+        fetch('/api/admin/wifi-logs')
+            .then(res => res.json())
+            .then(data => {
+                if (data.logs) {
+                    // Map backend logs format to what the frontend expects
+                    const mappedLogs = data.logs.map(log => {
+                        const timeObj = new Date(log.timestamp);
+                        const timeStrFormat = timeObj.toLocaleString('sv-SE').replace('T', ' '); // YYYY-MM-DD HH:mm:ss
+                        
+                        return {
+                            timestamp: timeStrFormat,
+                            deviceHash: log.deviceHash || 'Unknown',
+                            studentId: log.studentId || 'N/A',
+                            studentName: log.studentName || 'Unknown',
+                            bssid: log.bssid || 'Unknown BSSID',
+                            rssi: log.rssi || -90,
+                            venue: log.venue || 'Unknown Venue',
+                            session: log.session || '—'
+                        };
+                    });
+                    setRawLogs(mappedLogs);
+                }
+                setLoading(false);
+            })
+            .catch(err => {
+                console.error("Failed to fetch Wi-Fi logs:", err);
+                setLoading(false);
+            });
+    }, []);
 
     const getSignal = rssi => rssi >= -50 ? { label: 'Strong', color: '#16a34a', bg: '#ecfdf5' } : rssi >= -70 ? { label: 'Medium', color: '#b45309', bg: '#fffbeb' } : { label: 'Weak', color: '#dc2626', bg: '#fef2f2' };
     const SignalBars = ({ rssi }) => {
@@ -231,10 +249,16 @@ export default function AdminWifiLogsPage() {
                                     })}
                                 </tbody>
                             </table>
-                            {sortedLogs.length === 0 && (
+                            {rawLogs.length === 0 && !loading && (
                                 <div style={{ padding: '3rem', textAlign: 'center', color: '#aaa' }}>
                                     <Wifi size={32} color="#ddd" />
                                     <div style={{ fontSize: '0.9rem', fontWeight: 600, marginTop: '8px' }}>No logs match your filters</div>
+                                </div>
+                            )}
+                            {loading && (
+                                <div style={{ padding: '3rem', textAlign: 'center', color: '#aaa' }}>
+                                    <Activity size={32} color="#ddd" className="spin-animation" />
+                                    <div style={{ fontSize: '0.9rem', fontWeight: 600, marginTop: '8px' }}>Tracking probe events...</div>
                                 </div>
                             )}
                         </div>

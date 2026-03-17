@@ -35,8 +35,10 @@ export default function CalendarPage() {
     const DAY_KEYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const sessionsByDay = {};
     sessions.forEach(s => {
-        const d = new Date(s.session_date);
-        const key = DAY_KEYS[d.getDay()];
+        // Safe string parsing to avoid UTC timezone backward shifts
+        const [y, m, d] = s.session_date.split('-');
+        const dateObj = new Date(Number(y), Number(m) - 1, Number(d));
+        const key = DAY_KEYS[dateObj.getDay()];
         if (!sessionsByDay[key]) sessionsByDay[key] = [];
         sessionsByDay[key].push(s);
     });
@@ -44,7 +46,7 @@ export default function CalendarPage() {
     // Group sessions by day-of-month for month view
     const sessionsByDom = {};
     sessions.forEach(s => {
-        const dom = new Date(s.session_date).getDate();
+        const dom = Number(s.session_date.split('-')[2]);
         if (!sessionsByDom[dom]) sessionsByDom[dom] = [];
         sessionsByDom[dom].push(s);
     });
