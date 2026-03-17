@@ -12,34 +12,32 @@ export default function AdminFacultyHoursPage() {
     const router = useRouter();
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-    const [selectedMonth, setSelectedMonth] = useState('2026-02');
+    const [selectedMonth, setSelectedMonth] = useState('2026-03');
     const [viewingSessions, setViewingSessions] = useState(null);
-//
+    const [facultyData, setFacultyData] = useState([]);
+    const [loading, setLoading] = useState(true);
+
     const navTo = p => router.push(p);
 
-    const facultyData = [
-        { id: 1, name: 'Prof. Sujay Deb', dept: 'ECE', sessions: 18, hours: 27, rate: 1500, status: 'Pending' },
-        { id: 2, name: 'Prof Arani Bhattacharya', dept: 'CSE', sessions: 14, hours: 21, rate: 1500, status: 'Pending' },
-        { id: 3, name: 'Prof. Samresh Chatterji', dept: 'Mathematics', sessions: 16, hours: 24, rate: 1200, status: 'Paid' },
-        { id: 4, name: 'Dr. Arjun Ray', dept: 'Bio', sessions: 12, hours: 18, rate: 1200, status: 'Paid' },
-        { id: 5, name: 'Prof. Manokar Kumar', dept: 'SSH', sessions: 10, hours: 15, rate: 1000, status: 'Pending' },
-        { id: 6, name: 'Prof. Richa Gupta', dept: 'Design', sessions: 15, hours: 22.5, rate: 1200, status: 'Pending' },
-    ];
+    React.useEffect(() => {
+        setLoading(true);
+        fetch('/api/admin/faculty-hours')
+            .then(res => res.json())
+            .then(data => {
+                if (data.facultyData) {
+                    setFacultyData(data.facultyData);
+                }
+                setLoading(false);
+            })
+            .catch(err => {
+                console.error("Failed to fetch faculty hours:", err);
+                setLoading(false);
+            });
+    }, []);
 
-    const sessionDetails = {
-        1: [
-            { date: '03 Feb', course: 'CS301 — Data Structures', duration: '1.5h', venue: 'Room 204, Block A' },
-            { date: '05 Feb', course: 'CS301 — Data Structures', duration: '1.5h', venue: 'Room 204, Block A' },
-            { date: '07 Feb', course: 'CS301 — Data Structures', duration: '1.5h', venue: 'Room 204, Block A' },
-            { date: '10 Feb', course: 'CS301 — Data Structures', duration: '1.5h', venue: 'Room 204, Block A' },
-            { date: '12 Feb', course: 'CS301 — Data Structures', duration: '1.5h', venue: 'Room 204, Block A' },
-            { date: '14 Feb', course: 'CS301 — Data Structures', duration: '1.5h', venue: 'Room 204, Block A' },
-        ],
-    };
-
-    const totalSessions = facultyData.reduce((a, f) => a + f.sessions, 0);
-    const totalHours = facultyData.reduce((a, f) => a + f.hours, 0);
-    const totalHonorarium = facultyData.reduce((a, f) => a + f.hours * f.rate, 0);
+    const totalSessions = facultyData.reduce((a, f) => a + (f.sessions || 0), 0);
+    const totalHours = facultyData.reduce((a, f) => a + (f.hours || 0), 0);
+    const totalHonorarium = facultyData.reduce((a, f) => a + (f.hours || 0) * (f.rate || 0), 0);
     const pendingPayments = facultyData.filter(f => f.status === 'Pending').length;
 
     const sidebarNav = (
@@ -141,9 +139,9 @@ export default function AdminFacultyHoursPage() {
                                                 <span style={{ padding: '2px 10px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 500, background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe' }}>{f.dept}</span>
                                             </td>
                                             <td style={{ padding: '12px 16px', fontFamily: 'monospace', fontWeight: 600, color: '#333' }}>{f.sessions}</td>
-                                            <td style={{ padding: '12px 16px', fontFamily: 'monospace', fontWeight: 600, color: '#333' }}>{f.hours}h</td>
+                                            <td style={{ padding: '12px 16px', fontFamily: 'monospace', fontWeight: 600, color: '#333' }}>{f.hours.toFixed(1)}h</td>
                                             <td style={{ padding: '12px 16px', fontFamily: 'monospace', fontSize: '0.78rem', color: '#888' }}>₹{f.rate.toLocaleString()}</td>
-                                            <td style={{ padding: '12px 16px', fontFamily: 'monospace', fontWeight: 700, color: '#111' }}>₹{(f.hours * f.rate).toLocaleString()}</td>
+                                            <td style={{ padding: '12px 16px', fontFamily: 'monospace', fontWeight: 700, color: '#111' }}>₹{(Math.round((f.hours || 0) * (f.rate || 0))).toLocaleString()}</td>
                                             <td style={{ padding: '12px 16px' }}>
                                                 <span style={{ padding: '3px 10px', borderRadius: '8px', fontSize: '0.72rem', fontWeight: 600, background: f.status === 'Paid' ? '#ecfdf5' : '#fffbeb', color: f.status === 'Paid' ? '#166534' : '#92400e' }}>{f.status}</span>
                                             </td>
@@ -174,14 +172,18 @@ export default function AdminFacultyHoursPage() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {(sessionDetails[viewingSessions] || sessionDetails[1]).map((s, i) => (
-                                            <tr key={i} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                                                <td style={{ padding: '6px 12px', fontFamily: 'monospace', color: '#555' }}>{s.date}</td>
-                                                <td style={{ padding: '6px 12px', fontWeight: 500, color: '#333' }}>{s.course}</td>
-                                                <td style={{ padding: '6px 12px', fontFamily: 'monospace', color: '#555' }}>{s.duration}</td>
-                                                <td style={{ padding: '6px 12px', color: '#888' }}>{s.venue}</td>
-                                            </tr>
-                                        ))}
+                                        {(facultyData.find(f => f.id === viewingSessions)?.sessionDetails || []).length > 0 ? (
+                                            (facultyData.find(f => f.id === viewingSessions)?.sessionDetails).map((s, i) => (
+                                                <tr key={i} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                                                    <td style={{ padding: '6px 12px', fontFamily: 'monospace', color: '#555' }}>{s.date}</td>
+                                                    <td style={{ padding: '6px 12px', fontWeight: 500, color: '#333' }}>{s.course}</td>
+                                                    <td style={{ padding: '6px 12px', fontFamily: 'monospace', color: '#555' }}>{s.duration}</td>
+                                                    <td style={{ padding: '6px 12px', color: '#888' }}>{s.venue}</td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            <tr><td colSpan="4" style={{ padding: '10px 12px', color: '#888', textAlign: 'center' }}>No completed sessions found for this faculty member.</td></tr>
+                                        )}
                                     </tbody>
                                 </table>
                             </div>
@@ -190,11 +192,11 @@ export default function AdminFacultyHoursPage() {
 
                     {/* Summary footer */}
                     <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', padding: '1rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div style={{ fontSize: '0.82rem', color: '#888' }}>Showing {facultyData.length} faculty members for <strong style={{ color: '#333' }}>February 2026</strong></div>
+                        <div style={{ fontSize: '0.82rem', color: '#888' }}>Showing {facultyData.length} faculty members</div>
                         <div style={{ display: 'flex', gap: '20px', fontSize: '0.82rem' }}>
-                            <span style={{ color: '#888' }}>Total: <strong style={{ color: '#111', fontFamily: 'monospace' }}>₹{totalHonorarium.toLocaleString()}</strong></span>
-                            <span style={{ color: '#888' }}>Paid: <strong style={{ color: '#16a34a', fontFamily: 'monospace' }}>₹{facultyData.filter(f => f.status === 'Paid').reduce((a, f) => a + f.hours * f.rate, 0).toLocaleString()}</strong></span>
-                            <span style={{ color: '#888' }}>Pending: <strong style={{ color: '#b45309', fontFamily: 'monospace' }}>₹{facultyData.filter(f => f.status === 'Pending').reduce((a, f) => a + f.hours * f.rate, 0).toLocaleString()}</strong></span>
+                            <span style={{ color: '#888' }}>Total: <strong style={{ color: '#111', fontFamily: 'monospace' }}>₹{Math.round(totalHonorarium).toLocaleString()}</strong></span>
+                            <span style={{ color: '#888' }}>Paid: <strong style={{ color: '#16a34a', fontFamily: 'monospace' }}>₹{Math.round(facultyData.filter(f => f.status === 'Paid').reduce((a, f) => a + (f.hours || 0) * (f.rate || 0), 0)).toLocaleString()}</strong></span>
+                            <span style={{ color: '#888' }}>Pending: <strong style={{ color: '#b45309', fontFamily: 'monospace' }}>₹{Math.round(facultyData.filter(f => f.status === 'Pending').reduce((a, f) => a + (f.hours || 0) * (f.rate || 0), 0)).toLocaleString()}</strong></span>
                         </div>
                     </div>
                 </div>

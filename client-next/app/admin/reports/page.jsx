@@ -19,16 +19,26 @@ export default function AdminReportsPage() {
     const [facultyFilter, setFacultyFilter] = useState('all');
     const [format, setFormat] = useState('csv');
     const [generating, setGenerating] = useState(false);
+    const [recentReports, setRecentReports] = useState([]);
+    const [metrics, setMetrics] = useState({ totalReports: 0, generatedThisMonth: 0, avgRating: '0/5' });
+    const [loading, setLoading] = useState(true);
 
     const navTo = p => router.push(p);
 
-    const recentReports = [
-        { id: 1, name: 'Attendance Report — Feb 2026', type: 'Attendance', date: '14 Feb 2026', range: '01 Feb – 14 Feb', format: 'CSV', status: 'Ready' },
-        { id: 2, name: 'Feedback Summary — Week 6', type: 'Feedback', date: '12 Feb 2026', range: '10 Feb – 14 Feb', format: 'PDF', status: 'Ready' },
-        { id: 3, name: 'Faculty Workload — Jan 2026', type: 'Faculty', date: '01 Feb 2026', range: '01 Jan – 31 Jan', format: 'CSV', status: 'Ready' },
-        { id: 4, name: 'Wi-Fi Log Audit — CS301', type: 'Wi-Fi Logs', date: '10 Feb 2026', range: '03 Feb – 10 Feb', format: 'CSV', status: 'Ready' },
-        { id: 5, name: 'Session Analytics — Monthly', type: 'Sessions', date: '01 Feb 2026', range: '01 Jan – 31 Jan', format: 'PDF', status: 'Ready' },
-    ];
+    React.useEffect(() => {
+        setLoading(true);
+        fetch('/api/admin/reports')
+            .then(res => res.json())
+            .then(data => {
+                if (data.recentReports) setRecentReports(data.recentReports);
+                if (data.metrics) setMetrics(data.metrics);
+                setLoading(false);
+            })
+            .catch(err => {
+                console.error("Failed to fetch reports:", err);
+                setLoading(false);
+            });
+    }, []);
 
     const handleGenerate = () => {
         setGenerating(true);
@@ -90,6 +100,25 @@ export default function AdminReportsPage() {
                             <img src="/logo.png" alt="Logo" style={{ height: '30px' }} />
                         </div>
                     </header>
+
+                    {/* Report Overview */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+                        {[
+                            { title: 'Total Reports', value: loading ? '...' : metrics.totalReports, icon: FileText, color: '#3b82f6', bg: '#eff6ff' },
+                            { title: 'Generated This Month', value: loading ? '...' : metrics.generatedThisMonth, icon: Clock, color: '#8b5cf6', bg: '#f5f3ff' },
+                            { title: 'Avg. Faculty Rating', value: loading ? '...' : metrics.avgRating, icon: CheckCircle, color: '#10b981', bg: '#ecfdf5' }
+                        ].map((stat, i) => (
+                            <div key={i} style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', padding: '1.2rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                <div style={{ background: stat.bg, borderRadius: '50%', width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <stat.icon size={20} color={stat.color} />
+                                </div>
+                                <div>
+                                    <p style={{ fontSize: '0.75rem', color: '#888', marginBottom: '4px' }}>{stat.title}</p>
+                                    <h3 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#333' }}>{stat.value}</h3>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
 
                     {/* Report Generator */}
                     <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', borderTop: '3px solid #00A5A0', overflow: 'hidden', marginBottom: '1.5rem' }}>
