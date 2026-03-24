@@ -153,7 +153,7 @@ export default function AdminAttendancePage() {
                             { label: 'Total Sessions', value: sessions.length, icon: Calendar, color: '#2563eb', bg: '#eff6ff' },
                             { label: 'Ongoing', value: ongoingCount, icon: Activity, color: '#16a34a', bg: '#ecfdf5' },
                             { label: 'Students Detected', value: totalDetected, icon: Users, color: '#7c3aed', bg: '#faf5ff' },
-                            { label: 'WiFi Snapshots', value: sessions.reduce((a, s) => a + (s.snapshotCount || 0), 0), icon: Wifi, color: '#b45309', bg: '#fffbeb' },
+                            { label: 'Completed', value: sessions.filter(s => s.status === 'completed').length, icon: CheckCircle, color: '#b45309', bg: '#fffbeb' },
                         ].map((stat, i) => (
                             <div key={i} style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', padding: '1rem 1.2rem', display: 'flex', alignItems: 'center', gap: '12px' }}>
                                 <div style={{ width: '40px', height: '40px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: stat.bg, color: stat.color, flexShrink: 0 }}><stat.icon size={18} /></div>
@@ -230,11 +230,6 @@ export default function AdminAttendancePage() {
                                             <span style={{ fontWeight: 600, fontFamily: 'monospace', fontSize: '0.82rem', color: '#111' }}>{session.detectedStudents || 0} detected</span>
                                         </div>
 
-                                        {/* WiFi snapshots */}
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', minWidth: '70px' }}>
-                                            <Wifi size={12} color="#aaa" />
-                                            <span style={{ fontSize: '0.72rem', color: '#888' }}>{session.snapshotCount} snaps</span>
-                                        </div>
 
                                         {/* Status */}
                                         <div style={{ minWidth: '90px' }}>
@@ -264,7 +259,6 @@ export default function AdminAttendancePage() {
                                                             ['Present', sessionStudents.summary?.present || 0, '#16a34a'],
                                                             ['Partial', sessionStudents.summary?.partial || 0, '#b45309'],
                                                             ['Absent', sessionStudents.summary?.absent || 0, '#dc2626'],
-                                                            ['Snapshots', sessionStudents.summary?.snapshotsAnalyzed || 0, '#7c3aed'],
                                                         ].map(([label, val, color]) => (
                                                             <span key={label} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                                                                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: color, display: 'inline-block' }} />
