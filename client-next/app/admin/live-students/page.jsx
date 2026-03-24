@@ -7,6 +7,7 @@ import {
     CheckCircle, Signal, Users, Monitor, AlertCircle
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { api } from '@/lib/api';
 
 export default function AdminLiveStudentsPage() {
     const router = useRouter();
@@ -22,10 +23,7 @@ export default function AdminLiveStudentsPage() {
     const fetchData = useCallback(async () => {
         try {
             setLoading(true);
-            const res = await fetch('/api/admin/live-students', {
-                headers: { Authorization: `Bearer ${typeof window !== 'undefined' ? localStorage.getItem('token') : ''}` }
-            });
-            const json = await res.json();
+            const json = await api.get('/api/admin/live-students');
             if (json.students) setData(json);
             setLastRefresh(new Date());
         } catch (err) {
@@ -140,7 +138,7 @@ export default function AdminLiveStudentsPage() {
                             <span style={{ color: '#ddd' }}>·</span>
                             <span>Auto-refresh: <span style={{ fontWeight: 600, color: '#555' }}>Every 6 min</span></span>
                             <span style={{ color: '#ddd' }}>·</span>
-                            <span>Signal filter: <span style={{ fontWeight: 600, color: '#555' }}>≥ 3 bars</span></span>
+                            <span>Showing: <span style={{ fontWeight: 600, color: '#555' }}>Latest snapshot</span></span>
                             <button onClick={fetchData} style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 10px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', fontSize: '0.7rem', color: '#888' }}><RefreshCw size={11} /> Refresh Now</button>
                         </div>
                     </div>
