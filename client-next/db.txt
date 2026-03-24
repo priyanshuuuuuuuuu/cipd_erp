@@ -1,0 +1,652 @@
+[
+  {
+    "table_name": "admin_dashboard_summary",
+    "column_name": "total_students",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "admin_dashboard_summary",
+    "column_name": "total_faculty",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "admin_dashboard_summary",
+    "column_name": "total_sessions",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "assignment_submissions",
+    "column_name": "id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "assignment_submissions",
+    "column_name": "assignment_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "assignment_submissions",
+    "column_name": "student_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "assignment_submissions",
+    "column_name": "file_url",
+    "data_type": "text"
+  },
+  {
+    "table_name": "assignment_submissions",
+    "column_name": "submitted_at",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "assignment_submissions",
+    "column_name": "grade",
+    "data_type": "numeric"
+  },
+  {
+    "table_name": "assignment_submissions",
+    "column_name": "feedback",
+    "data_type": "text"
+  },
+  {
+    "table_name": "assignments",
+    "column_name": "id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "assignments",
+    "column_name": "course_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "assignments",
+    "column_name": "faculty_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "assignments",
+    "column_name": "title",
+    "data_type": "text"
+  },
+  {
+    "table_name": "assignments",
+    "column_name": "description",
+    "data_type": "text"
+  },
+  {
+    "table_name": "assignments",
+    "column_name": "due_date",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "assignments",
+    "column_name": "created_at",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "attendance_ping_logs",
+    "column_name": "id",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "attendance_ping_logs",
+    "column_name": "session_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "attendance_ping_logs",
+    "column_name": "student_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "attendance_ping_logs",
+    "column_name": "device_hash",
+    "data_type": "text"
+  },
+  {
+    "table_name": "attendance_ping_logs",
+    "column_name": "bssid",
+    "data_type": "text"
+  },
+  {
+    "table_name": "attendance_ping_logs",
+    "column_name": "signal_strength",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "attendance_ping_logs",
+    "column_name": "ping_time",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "attendance_records",
+    "column_name": "id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "attendance_records",
+    "column_name": "session_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "attendance_records",
+    "column_name": "student_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "attendance_records",
+    "column_name": "ping_count",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "attendance_records",
+    "column_name": "status",
+    "data_type": "USER-DEFINED"
+  },
+  {
+    "table_name": "attendance_records",
+    "column_name": "calculated_at",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "course_enrollments",
+    "column_name": "id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "course_enrollments",
+    "column_name": "course_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "course_enrollments",
+    "column_name": "student_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "course_enrollments",
+    "column_name": "enrolled_at",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "courses",
+    "column_name": "id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "courses",
+    "column_name": "name",
+    "data_type": "text"
+  },
+  {
+    "table_name": "courses",
+    "column_name": "description",
+    "data_type": "text"
+  },
+  {
+    "table_name": "courses",
+    "column_name": "created_at",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "faculty",
+    "column_name": "id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "faculty",
+    "column_name": "designation",
+    "data_type": "text"
+  },
+  {
+    "table_name": "faculty",
+    "column_name": "years_experience",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "faculty",
+    "column_name": "honorarium_rate_per_hour",
+    "data_type": "numeric"
+  },
+  {
+    "table_name": "faculty",
+    "column_name": "created_at",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "faculty_monthly_hours",
+    "column_name": "faculty_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "faculty_monthly_hours",
+    "column_name": "month",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "faculty_monthly_hours",
+    "column_name": "sessions",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "faculty_monthly_hours",
+    "column_name": "hours",
+    "data_type": "numeric"
+  },
+  {
+    "table_name": "feedback_questions",
+    "column_name": "id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "feedback_questions",
+    "column_name": "question",
+    "data_type": "text"
+  },
+  {
+    "table_name": "feedback_questions",
+    "column_name": "category",
+    "data_type": "text"
+  },
+  {
+    "table_name": "feedback_questions",
+    "column_name": "type",
+    "data_type": "USER-DEFINED"
+  },
+  {
+    "table_name": "feedback_questions",
+    "column_name": "active",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "feedback_questions",
+    "column_name": "created_at",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "feedback_responses",
+    "column_name": "id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "feedback_responses",
+    "column_name": "session_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "feedback_responses",
+    "column_name": "student_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "feedback_responses",
+    "column_name": "question_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "feedback_responses",
+    "column_name": "rating",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "feedback_responses",
+    "column_name": "yes_no",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "feedback_responses",
+    "column_name": "text_answer",
+    "data_type": "text"
+  },
+  {
+    "table_name": "feedback_responses",
+    "column_name": "submitted_at",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "notifications",
+    "column_name": "id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "notifications",
+    "column_name": "recipient_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "notifications",
+    "column_name": "type",
+    "data_type": "text"
+  },
+  {
+    "table_name": "notifications",
+    "column_name": "title",
+    "data_type": "text"
+  },
+  {
+    "table_name": "notifications",
+    "column_name": "message",
+    "data_type": "text"
+  },
+  {
+    "table_name": "notifications",
+    "column_name": "course_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "notifications",
+    "column_name": "session_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "notifications",
+    "column_name": "is_read",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "notifications",
+    "column_name": "sent_by",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "notifications",
+    "column_name": "created_at",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "session_materials",
+    "column_name": "id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "session_materials",
+    "column_name": "session_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "session_materials",
+    "column_name": "uploaded_by",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "session_materials",
+    "column_name": "title",
+    "data_type": "text"
+  },
+  {
+    "table_name": "session_materials",
+    "column_name": "file_url",
+    "data_type": "text"
+  },
+  {
+    "table_name": "session_materials",
+    "column_name": "created_at",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "session_materials",
+    "column_name": "content",
+    "data_type": "text"
+  },
+  {
+    "table_name": "session_materials",
+    "column_name": "file_type",
+    "data_type": "text"
+  },
+  {
+    "table_name": "session_materials",
+    "column_name": "course_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "session_materials",
+    "column_name": "faculty_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "sessions",
+    "column_name": "id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "sessions",
+    "column_name": "course_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "sessions",
+    "column_name": "faculty_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "sessions",
+    "column_name": "title",
+    "data_type": "text"
+  },
+  {
+    "table_name": "sessions",
+    "column_name": "venue_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "sessions",
+    "column_name": "session_date",
+    "data_type": "date"
+  },
+  {
+    "table_name": "sessions",
+    "column_name": "start_time",
+    "data_type": "time without time zone"
+  },
+  {
+    "table_name": "sessions",
+    "column_name": "end_time",
+    "data_type": "time without time zone"
+  },
+  {
+    "table_name": "sessions",
+    "column_name": "status",
+    "data_type": "USER-DEFINED"
+  },
+  {
+    "table_name": "sessions",
+    "column_name": "created_by",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "sessions",
+    "column_name": "created_at",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "student_attendance_summary",
+    "column_name": "student_id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "student_attendance_summary",
+    "column_name": "attendance_percentage",
+    "data_type": "numeric"
+  },
+  {
+    "table_name": "students",
+    "column_name": "id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "students",
+    "column_name": "enrollment_no",
+    "data_type": "text"
+  },
+  {
+    "table_name": "students",
+    "column_name": "program_name",
+    "data_type": "text"
+  },
+  {
+    "table_name": "students",
+    "column_name": "device_hash",
+    "data_type": "text"
+  },
+  {
+    "table_name": "students",
+    "column_name": "mac_address",
+    "data_type": "text"
+  },
+  {
+    "table_name": "students",
+    "column_name": "mac_verified",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "students",
+    "column_name": "created_at",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "system_settings",
+    "column_name": "id",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "system_settings",
+    "column_name": "ping_interval",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "system_settings",
+    "column_name": "pings_per_session",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "system_settings",
+    "column_name": "presence_threshold",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "system_settings",
+    "column_name": "attendance_window",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "system_settings",
+    "column_name": "updated_at",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "users",
+    "column_name": "id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "users",
+    "column_name": "email",
+    "data_type": "text"
+  },
+  {
+    "table_name": "users",
+    "column_name": "password_hash",
+    "data_type": "text"
+  },
+  {
+    "table_name": "users",
+    "column_name": "role",
+    "data_type": "USER-DEFINED"
+  },
+  {
+    "table_name": "users",
+    "column_name": "first_name",
+    "data_type": "text"
+  },
+  {
+    "table_name": "users",
+    "column_name": "last_name",
+    "data_type": "text"
+  },
+  {
+    "table_name": "users",
+    "column_name": "is_active",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "users",
+    "column_name": "created_at",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "users",
+    "column_name": "updated_at",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "venues",
+    "column_name": "id",
+    "data_type": "uuid"
+  },
+  {
+    "table_name": "venues",
+    "column_name": "name",
+    "data_type": "text"
+  },
+  {
+    "table_name": "venues",
+    "column_name": "building",
+    "data_type": "text"
+  },
+  {
+    "table_name": "venues",
+    "column_name": "router_bssid",
+    "data_type": "text"
+  },
+  {
+    "table_name": "venues",
+    "column_name": "created_at",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "venues",
+    "column_name": "is_active",
+    "data_type": "boolean"
+  },
+  {
+    "table_name": "wifi_clients",
+    "column_name": "mac_address",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "wifi_clients",
+    "column_name": "signal_level",
+    "data_type": "integer"
+  },
+  {
+    "table_name": "wifi_clients",
+    "column_name": "status",
+    "data_type": "character varying"
+  },
+  {
+    "table_name": "wifi_clients",
+    "column_name": "updated_at",
+    "data_type": "timestamp without time zone"
+  },
+  {
+    "table_name": "wifi_snapshots",
+    "column_name": "id",
+    "data_type": "bigint"
+  },
+  {
+    "table_name": "wifi_snapshots",
+    "column_name": "captured_at",
+    "data_type": "timestamp with time zone"
+  },
+  {
+    "table_name": "wifi_snapshots",
+    "column_name": "iw_dump",
+    "data_type": "jsonb"
+  },
+  {
+    "table_name": "wifi_snapshots",
+    "column_name": "error",
+    "data_type": "text"
+  }
+]
