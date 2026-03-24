@@ -58,10 +58,16 @@ async function handler(req) {
     const macTimeline = {};
 
     (snapshots || []).forEach(snap => {
-      const clients = Array.isArray(snap.iw_dump) ? snap.iw_dump : [];
+      let parsedClients = [];
+      try {
+        let dump = snap.iw_dump;
+        if (typeof dump === 'string') dump = JSON.parse(dump);
+        if (typeof dump === 'string') dump = JSON.parse(dump);
+        parsedClients = Array.isArray(dump) ? dump : [];
+      } catch (e) { parsedClients = []; }
       const snapTime = new Date(snap.captured_at);
 
-      clients.forEach(c => {
+      parsedClients.forEach(c => {
         const sig = parseInt(c.signal);
         if (!c.mac || c.mac.trim() === '') return;
 
