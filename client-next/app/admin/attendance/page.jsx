@@ -7,6 +7,7 @@ import {
     CheckCircle, AlertTriangle, Filter, Users, ChevronDown, ChevronUp, XCircle, Timer
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { api } from '@/lib/api';
 
 export default function AdminAttendancePage() {
     const router = useRouter();
@@ -24,10 +25,7 @@ export default function AdminAttendancePage() {
     const fetchSessions = useCallback(async () => {
         try {
             setLoading(true);
-            const res = await fetch(`/api/admin/attendance/sessions-by-date?date=${dateFilter}`, {
-                headers: { Authorization: `Bearer ${typeof window !== 'undefined' ? localStorage.getItem('token') : ''}` }
-            });
-            const json = await res.json();
+            const json = await api.get(`/api/admin/attendance/sessions-by-date?date=${dateFilter}`);
             setSessions(json.sessions || []);
         } catch (err) {
             console.error('Failed to fetch sessions:', err);
@@ -47,10 +45,7 @@ export default function AdminAttendancePage() {
         try {
             setStudentsLoading(true);
             setExpandedSession(sessionId);
-            const res = await fetch(`/api/admin/attendance/session-students?session_id=${sessionId}`, {
-                headers: { Authorization: `Bearer ${typeof window !== 'undefined' ? localStorage.getItem('token') : ''}` }
-            });
-            const json = await res.json();
+            const json = await api.get(`/api/admin/attendance/session-students?session_id=${sessionId}`);
             setSessionStudents(json);
         } catch (err) {
             console.error('Failed to fetch session students:', err);

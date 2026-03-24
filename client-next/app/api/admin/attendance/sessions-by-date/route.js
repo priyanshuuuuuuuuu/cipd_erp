@@ -58,8 +58,15 @@ async function handler(req) {
       const seenStudentMacs = new Set();
 
       (snapshots || []).forEach(snap => {
-        const clients = Array.isArray(snap.iw_dump) ? snap.iw_dump : [];
-        clients.forEach(c => {
+        let parsedClients = [];
+        try {
+          let dump = snap.iw_dump;
+          if (typeof dump === 'string') dump = JSON.parse(dump);
+          if (typeof dump === 'string') dump = JSON.parse(dump);
+          parsedClients = Array.isArray(dump) ? dump : [];
+        } catch (e) { parsedClients = []; }
+
+        parsedClients.forEach(c => {
           const sig = parseInt(c.signal);
           if (c.mac && !isNaN(sig) && sig >= 3) {
             const mac = normalizeMac(c.mac);
