@@ -106,4 +106,4 @@ async function handler(req) {
   }
 }
 
-export const GET = handler;
+export const GET = withRole(handler, ['admin']);

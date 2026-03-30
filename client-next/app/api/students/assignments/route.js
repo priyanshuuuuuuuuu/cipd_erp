@@ -21,7 +21,7 @@ async function handler(req) {
     const { data: assignments, error } = await supabaseAdmin
       .from('assignments')
       .select(`
-        id, title, description, due_date, created_at,
+        id, title, description, due_date, created_at, total_marks,
         courses ( id, name ),
         faculty ( id, users ( first_name, last_name ) )
       `)
