@@ -1,63 +1,85 @@
-import { createClient } from '@supabase/supabase-js';
+export const dynamic = 'force-dynamic';
+import { NextResponse } from 'next/server';
+import { supabaseAdmin } from '@/lib/supabase';
+import { withRole } from '@/lib/middleware';
 
-export async function GET(request) {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
+async function handler(request) {
     try {
-        // Fetch recent completed sessions for the reports view
-        const { data: sessions, error: sessErr } = await supabase
+        // 1. Fetch recent completed sessions with course + faculty info
+        const { data: sessions, error: sessErr } = await supabaseAdmin
             .from('sessions')
             .select(`
                 id,
                 session_date,
-                courses(name),
-                faculty:faculty_id(users!inner(first_name, last_name))
+                status,
+                course_id,
+                courses ( name ),
+                faculty:faculty_id ( users!inner ( first_name, last_name ) )
             `)
             .eq('status', 'completed')
             .order('session_date', { ascending: false })
             .limit(10);
-            
+
         if (sessErr) throw sessErr;
 
-        // Map data to the format expected by the reports UI
-        const recentReports = sessions.map((s, i) => {
-            const facultyName = `Prof. ${s.faculty?.users?.first_name} ${s.faculty?.users?.last_name}`;
+        // 2. Total completed sessions (all time)
+        const { count: totalCompleted } = await supabaseAdmin
+            .from('sessions')
+            .select('*', { count: 'exact', head: true })
+            .eq('status', 'completed');
+
+        // 3. Sessions completed this month
+        const startOfMonth = new Date();
+        startOfMonth.setDate(1);
+        startOfMonth.setHours(0, 0, 0, 0);
+        const { count: thisMonth } = await supabaseAdmin
+            .from('sessions')
+            .select('*', { count: 'exact', head: true })
+            .eq('status', 'completed')
+            .gte('session_date', startOfMonth.toISOString().split('T')[0]);
+
+        // 4. Average feedback rating across all sessions
+        const { data: ratings } = await supabaseAdmin
+            .from('feedback_responses')
+            .select('rating')
+            .not('rating', 'is', null);
+
+        const allRatings = (ratings || []).map(r => r.rating);
+        const avgRating = allRatings.length > 0
+            ? (allRatings.reduce((a, b) => a + b, 0) / allRatings.length).toFixed(1)
+            : '—';
+
+        // 5. Build report rows from sessions
+        const recentReports = (sessions || []).map((s, i) => {
+            const facultyName = s.faculty?.users
+                ? `Prof. ${s.faculty.users.first_name} ${s.faculty.users.last_name}`
+                : 'Unknown';
             const courseName = s.courses?.name || 'Unknown Course';
-            const dateStr = new Date(s.session_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-            
-            // Generate some mock report metrics based on the session ID just to have visual data
-            const avgScore = (85 + (s.id.charCodeAt(0) % 10)).toString() + '%';
-            
+            const dateStr = new Date(s.session_date).toLocaleDateString('en-GB', {
+                day: '2-digit', month: 'short', year: 'numeric'
+            });
+            const typeOptions = ['Attendance Summary', 'Course Feedback', 'Faculty Evaluation'];
             return {
-                id: i + 1,
+                id: s.id,
                 name: `${facultyName} — ${courseName}`,
-                type: i % 3 === 0 ? 'Faculty Evaluation' : i % 2 === 0 ? 'Course Feedback' : 'Attendance Summary',
+                type: typeOptions[i % typeOptions.length],
                 date: dateStr,
-                size: `${(1.2 + (i * 0.3)).toFixed(1)} MB`,
-                avgScore: avgScore,
-                status: 'Available'
+                status: 'Available',
             };
         });
 
-        // Add some mock high-level metrics for the cards
         const metrics = {
-            totalReports: 142,
-            generatedThisMonth: 18,
-            avgRating: '4.6/5'
+            totalReports: totalCompleted || 0,
+            generatedThisMonth: thisMonth || 0,
+            avgRating: avgRating !== '—' ? `${avgRating}/5` : '—',
         };
 
-        return new Response(JSON.stringify({ recentReports, metrics }), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' }
-        });
+        return NextResponse.json({ recentReports, metrics });
 
     } catch (error) {
-        console.error('API Error:', error);
-        return new Response(JSON.stringify({ error: error.message }), {
-            status: 500,
-            headers: { 'Content-Type': 'application/json' }
-        });
+        console.error('Reports API Error:', error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
+
+export const GET = withRole(handler, ['admin']);
