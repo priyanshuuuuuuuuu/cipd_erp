@@ -31,11 +31,7 @@ export default function GradesPage() {
             const graded = all.filter(a => a.submission && a.submission.grade != null);
             
             setGrades(graded.map(a => {
-                // Determine total marks (default to 100 if missing from schema/seed)
-                // Note: The assignments table schema DOES NOT have total_marks. Let's assume 20 or 100 based on standard grading.
-                // In our seed script they were graded out of 20.
-                const total = 20; 
-                
+                const total = a.total_marks || 100; // real DB value (default 100 from Phase 2 migration)
                 return {
                     id: a.id,
                     title: a.title,

@@ -9,7 +9,7 @@ async function handler(req) {
       // Admin sees all courses
       const { data: courses, error } = await supabaseAdmin
         .from('courses')
-        .select('id, name, description, created_at')
+        .select('id, name, description, created_at, code')
         .order('name', { ascending: true });
 
       if (error) throw error;
@@ -21,7 +21,7 @@ async function handler(req) {
       .from('course_enrollments')
       .select(`
         enrolled_at,
-        courses ( id, name, description, created_at )
+        courses ( id, name, description, created_at, code )
       `)
       .eq('student_id', req.user.id);
 
@@ -64,8 +64,8 @@ async function handler(req) {
       let venueName = null;
       let schedule = null;
       
-      // Simple code generator from name if no code exists (e.g. Data Structures -> DS)
-      const mockCode = course.name.split(' ').map(w => w[0]).join('').toUpperCase().substring(0, 5) + '101';
+      // Use real course code from DB; fall back to initials only if still null (pre-migration)
+      const mockCode = course.code || (course.name.split(' ').map(w => w[0]).join('').toUpperCase().substring(0, 5) + '101');
 
       if (sessionList.length > 0) {
         const first = sessionList[0];
@@ -83,7 +83,7 @@ async function handler(req) {
 
       return {
         ...course,
-        code: mockCode,
+        code: mockCode, // real DB code if set, otherwise generated fallback
         faculty_name: facultyName || 'Unknown Faculty',
         venue: venueName || 'TBA',
         schedule: schedule || 'TBA',

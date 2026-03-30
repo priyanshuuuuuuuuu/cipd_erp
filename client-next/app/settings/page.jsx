@@ -35,7 +35,7 @@ export default function SettingsPage() {
     const [macMsg, setMacMsg] = useState(null); // { type: 'success'|'error', text }
     const [showMac, setShowMac] = useState(false);
 
-    // Notification settings (local state, no backend yet)
+    // Notification settings
     const [notifSettings, setNotifSettings] = useState({
         scheduleReminders: true,
         attendanceAlerts: true,
@@ -49,17 +49,41 @@ export default function SettingsPage() {
     const [theme, setTheme] = useState('light');
     const [fontSize, setFontSize] = useState('medium');
 
+    // Preferences saving state
+    const [prefSaving, setPrefSaving] = useState(false);
+    const [prefMsg, setPrefMsg] = useState(null);
+
+    // Password change state
+    const [pwForm, setPwForm] = useState({ current: '', newPw: '', confirm: '' });
+    const [pwSaving, setPwSaving] = useState(false);
+    const [pwMsg, setPwMsg] = useState(null); // { type: 'success'|'error', text }
+
     const navTo = (p) => router.push(p);
     const displayName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Student' : 'Student';
 
     const fetchProfile = useCallback(async () => {
         try {
-            const res = await api.get('/api/students/profile');
-            const p = res.profile || res;
-            setProfile(p);
-            setMacInput(p.mac_address || '');
+            const [profileRes, prefsRes] = await Promise.allSettled([
+                api.get('/api/students/profile'),
+                api.get('/api/students/settings'),
+            ]);
+
+            if (profileRes.status === 'fulfilled') {
+                const p = profileRes.value.profile || profileRes.value;
+                setProfile(p);
+                setMacInput(p.mac_address || '');
+            }
+
+            if (prefsRes.status === 'fulfilled') {
+                const prefs = prefsRes.value.preferences || {};
+                if (prefs.notifications) setNotifSettings(prev => ({ ...prev, ...prefs.notifications }));
+                if (prefs.appearance) {
+                    if (prefs.appearance.theme) setTheme(prefs.appearance.theme);
+                    if (prefs.appearance.fontSize) setFontSize(prefs.appearance.fontSize);
+                }
+            }
         } catch (e) {
-            console.error('Profile fetch error', e);
+            console.error('Settings fetch error', e);
         } finally {
             setLoading(false);
         }
@@ -84,6 +108,68 @@ export default function SettingsPage() {
             setMacMsg({ type: 'error', text: e.message || 'Failed to update MAC address.' });
         } finally {
             setMacSaving(false);
+        }
+    };
+
+    // Persist a preference change to the backend
+    const savePreference = async (section, key, value) => {
+        setPrefSaving(true);
+        setPrefMsg(null);
+        try {
+            await api.patch('/api/students/settings', {
+                [section]: { [key]: value },
+            });
+            setPrefMsg({ type: 'success', text: 'Saved.' });
+            setTimeout(() => setPrefMsg(null), 2000);
+        } catch (e) {
+            setPrefMsg({ type: 'error', text: 'Could not save preference.' });
+        } finally {
+            setPrefSaving(false);
+        }
+    };
+
+    const handleNotifToggle = (key, value) => {
+        setNotifSettings(s => ({ ...s, [key]: value }));
+        savePreference('notifications', key, value);
+    };
+
+    const handleThemeChange = (value) => {
+        setTheme(value);
+        savePreference('appearance', 'theme', value);
+    };
+
+    const handleFontSizeChange = (value) => {
+        setFontSize(value);
+        savePreference('appearance', 'fontSize', value);
+    };
+
+    // Password change handler
+    const handlePasswordChange = async () => {
+        setPwMsg(null);
+        if (!pwForm.current || !pwForm.newPw || !pwForm.confirm) {
+            setPwMsg({ type: 'error', text: 'All fields are required.' });
+            return;
+        }
+        if (pwForm.newPw !== pwForm.confirm) {
+            setPwMsg({ type: 'error', text: 'New passwords do not match.' });
+            return;
+        }
+        if (pwForm.newPw.length < 8) {
+            setPwMsg({ type: 'error', text: 'New password must be at least 8 characters.' });
+            return;
+        }
+        setPwSaving(true);
+        try {
+            await api.post('/api/auth/update-password', {
+                currentPassword: pwForm.current,
+                newPassword: pwForm.newPw,
+            });
+            setPwMsg({ type: 'success', text: 'Password updated successfully.' });
+            setPwForm({ current: '', newPw: '', confirm: '' });
+        } catch (e) {
+            setPwMsg({ type: 'error', text: e.message || 'Failed to update password.' });
+        } finally {
+            setPwSaving(false);
         }
     };
 
@@ -320,14 +406,39 @@ export default function SettingsPage() {
                                 </SectionCard>
                                 <SectionCard title="Password" subtitle="Change your account password.">
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                                        {['Current Password', 'New Password', 'Confirm New Password'].map((label, i) => (
-                                            <div key={i}>
+                                        {[
+                                            { label: 'Current Password', key: 'current' },
+                                            { label: 'New Password', key: 'newPw' },
+                                            { label: 'Confirm New Password', key: 'confirm' },
+                                        ].map(({ label, key }) => (
+                                            <div key={key}>
                                                 <div style={{ fontSize: '0.75rem', color: '#888', marginBottom: '5px' }}>{label}</div>
-                                                <input type="password" placeholder="••••••••" style={{ width: '100%', padding: '9px 12px', borderRadius: '9px', border: '1px solid #e0e0e0', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }} />
+                                                <input
+                                                    type="password"
+                                                    placeholder="••••••••"
+                                                    value={pwForm[key]}
+                                                    onChange={e => setPwForm(f => ({ ...f, [key]: e.target.value }))}
+                                                    style={{ width: '100%', padding: '9px 12px', borderRadius: '9px', border: '1px solid #e0e0e0', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
+                                                />
                                             </div>
                                         ))}
-                                        <button style={{ marginTop: '4px', padding: '9px 20px', background: '#111', color: '#fff', border: 'none', borderRadius: '9px', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600, alignSelf: 'flex-start' }}>
-                                            Update Password
+                                        {pwMsg && (
+                                            <div style={{ padding: '8px 12px', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 500,
+                                                background: pwMsg.type === 'success' ? '#f0fdf4' : '#fef2f2',
+                                                color: pwMsg.type === 'success' ? '#16a34a' : '#dc2626',
+                                                display: 'flex', alignItems: 'center', gap: '6px',
+                                            }}>
+                                                {pwMsg.type === 'success' ? <CheckCircle size={13} /> : <AlertCircle size={13} />}
+                                                {pwMsg.text}
+                                            </div>
+                                        )}
+                                        <button
+                                            onClick={handlePasswordChange}
+                                            disabled={pwSaving}
+                                            style={{ marginTop: '4px', padding: '9px 20px', background: pwSaving ? '#ccc' : '#111', color: '#fff', border: 'none', borderRadius: '9px', cursor: pwSaving ? 'not-allowed' : 'pointer', fontSize: '0.82rem', fontWeight: 600, alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: '6px' }}
+                                        >
+                                            {pwSaving ? <RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Save size={14} />}
+                                            {pwSaving ? 'Updating...' : 'Update Password'}
                                         </button>
                                     </div>
                                 </SectionCard>
@@ -342,6 +453,14 @@ export default function SettingsPage() {
                                     <div style={{ fontSize: '0.8rem', color: '#aaa' }}>Choose which notifications you receive from the system.</div>
                                 </div>
                                 <SectionCard title="Academic Alerts">
+                                    {prefMsg && (
+                                        <div style={{ marginBottom: '0.75rem', padding: '6px 12px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 500,
+                                            background: prefMsg.type === 'success' ? '#f0fdf4' : '#fef2f2',
+                                            color: prefMsg.type === 'success' ? '#16a34a' : '#dc2626',
+                                        }}>
+                                            {prefMsg.text}
+                                        </div>
+                                    )}
                                     {[
                                         { key: 'scheduleReminders', label: 'Schedule Reminders', desc: 'Get reminded before class starts' },
                                         { key: 'attendanceAlerts', label: 'Attendance Alerts', desc: 'Alert when attendance drops below 75%' },
@@ -349,7 +468,7 @@ export default function SettingsPage() {
                                         { key: 'gradeUpdates', label: 'Grade Updates', desc: 'Notify when assignments are graded' },
                                     ].map(n => (
                                         <SettingRow key={n.key} label={n.label} description={n.desc}>
-                                            <Toggle checked={notifSettings[n.key]} onChange={v => setNotifSettings(s => ({ ...s, [n.key]: v }))} />
+                                            <Toggle checked={notifSettings[n.key]} onChange={v => handleNotifToggle(n.key, v)} />
                                         </SettingRow>
                                     ))}
                                 </SectionCard>
@@ -359,7 +478,7 @@ export default function SettingsPage() {
                                         { key: 'systemAnnouncements', label: 'System Announcements', desc: 'Important institutional announcements' },
                                     ].map(n => (
                                         <SettingRow key={n.key} label={n.label} description={n.desc}>
-                                            <Toggle checked={notifSettings[n.key]} onChange={v => setNotifSettings(s => ({ ...s, [n.key]: v }))} />
+                                            <Toggle checked={notifSettings[n.key]} onChange={v => handleNotifToggle(n.key, v)} />
                                         </SettingRow>
                                     ))}
                                 </SectionCard>
@@ -376,11 +495,11 @@ export default function SettingsPage() {
                                 <SectionCard title="Theme">
                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginTop: '4px' }}>
                                         {[
-                                            { id: 'light', label: 'Light', bg: '#fff', border: '#e0e0e0', preview: '#f5f5f5' },
-                                            { id: 'dark', label: 'Dark', bg: '#1a1a1a', border: '#333', preview: '#111' },
-                                            { id: 'system', label: 'System', bg: 'linear-gradient(135deg,#fff 50%,#1a1a1a 50%)', border: '#ccc', preview: '#888' },
+                                            { id: 'light', label: 'Light', bg: '#fff', border: '#e0e0e0' },
+                                            { id: 'dark', label: 'Dark', bg: '#1a1a1a', border: '#333' },
+                                            { id: 'system', label: 'System', bg: 'linear-gradient(135deg,#fff 50%,#1a1a1a 50%)', border: '#ccc' },
                                         ].map(t => (
-                                            <div key={t.id} onClick={() => setTheme(t.id)} style={{
+                                            <div key={t.id} onClick={() => handleThemeChange(t.id)} style={{
                                                 border: `2px solid ${theme === t.id ? '#111' : '#e8e8e8'}`,
                                                 borderRadius: '12px', padding: '1rem', cursor: 'pointer',
                                                 textAlign: 'center', transition: 'border-color 0.15s',
@@ -395,7 +514,7 @@ export default function SettingsPage() {
                                     <SettingRow label="Font Size" description="Adjust the default text size across pages">
                                         <div style={{ display: 'flex', gap: '6px' }}>
                                             {['small', 'medium', 'large'].map(s => (
-                                                <button key={s} onClick={() => setFontSize(s)} style={{
+                                                <button key={s} onClick={() => handleFontSizeChange(s)} style={{
                                                     padding: '5px 14px', borderRadius: '8px', border: `1px solid ${fontSize === s ? '#111' : '#e0e0e0'}`,
                                                     background: fontSize === s ? '#111' : '#fff', color: fontSize === s ? '#fff' : '#666',
                                                     cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600, textTransform: 'capitalize',
@@ -405,6 +524,14 @@ export default function SettingsPage() {
                                             ))}
                                         </div>
                                     </SettingRow>
+                                    {prefMsg && (
+                                        <div style={{ marginTop: '0.5rem', padding: '6px 12px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 500,
+                                            background: prefMsg.type === 'success' ? '#f0fdf4' : '#fef2f2',
+                                            color: prefMsg.type === 'success' ? '#16a34a' : '#dc2626',
+                                        }}>
+                                            {prefMsg.text}
+                                        </div>
+                                    )}
                                 </SectionCard>
                             </div>
                         )}
