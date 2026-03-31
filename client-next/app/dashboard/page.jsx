@@ -40,8 +40,12 @@ const StudentDashboard = () => {
     const registeredMac = profile?.mac_address || '';
 
     const fetchAll = useCallback(async () => {
+        // Build today's date in local timezone (avoids IST vs UTC mismatch)
+        const now = new Date();
+        const localDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
         const [todayRes, weekRes, attRes, assRes, fbRes, profRes] = await Promise.allSettled([
-            api.get('/api/students/schedule/today'),
+            api.get(`/api/students/schedule/today?date=${localDate}`),
             api.get('/api/students/schedule/week'),
             api.get('/api/students/attendance/summary'),
             api.get('/api/students/assignments'),
