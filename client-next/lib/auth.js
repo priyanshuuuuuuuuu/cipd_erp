@@ -25,26 +25,15 @@ export function verifyToken(token) {
 }
 
 /**
- * Extract user from request headers.
- * Supports: Authorization: Bearer <token> OR cookie: token=<token>
+ * Extract user from request Authorization: Bearer <token> header.
+ * Cookie-based auth has been removed to prevent session collision when
+ * multiple roles (student + admin) are open in the same browser.
  */
 export function getUserFromRequest(req) {
-  // Try Authorization header
   const authHeader = req.headers.get('authorization');
   if (authHeader?.startsWith('Bearer ')) {
     const token = authHeader.slice(7);
     return verifyToken(token);
   }
-
-  // Try cookie
-  const cookie = req.headers.get('cookie');
-  if (cookie) {
-    const match = cookie.match(/token=([^;]+)/);
-    if (match) {
-      return verifyToken(match[1]);
-    }
-  }
-  // test
-
   return null;
 }

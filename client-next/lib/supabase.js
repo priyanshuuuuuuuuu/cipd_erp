@@ -17,7 +17,13 @@ export const supabase = new Proxy({}, {
       if (!supabaseUrl || !supabaseAnonKey) {
         throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY');
       }
-      _supabase = createClient(supabaseUrl, supabaseAnonKey);
+      _supabase = createClient(supabaseUrl, supabaseAnonKey, {
+        global: {
+          fetch: (url, options) => {
+            return fetch(url, { ...options, cache: 'no-store' });
+          },
+        },
+      });
     }
     return _supabase[prop];
   },
@@ -36,6 +42,11 @@ export const supabaseAdmin = new Proxy({}, {
         auth: {
           autoRefreshToken: false,
           persistSession: false,
+        },
+        global: {
+          fetch: (url, options) => {
+            return fetch(url, { ...options, cache: 'no-store' });
+          },
         },
       });
     }

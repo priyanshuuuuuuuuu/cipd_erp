@@ -81,8 +81,9 @@ export default function SignupPage() {
       }
 
       // Store auth & show success with enrollment number
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user));
+      const role = data.user?.role || 'student';
+      localStorage.setItem(`${role}_token`, data.token);
+      localStorage.setItem(`${role}_user`, JSON.stringify(data.user));
       setSuccessData({ enrollmentNo: data.enrollmentNo });
 
       // Redirect after brief delay

@@ -47,21 +47,33 @@ async function handler(req) {
 
       let updatePayload;
       if (action === 'approve') {
-        // Mark the MAC as verified — student portal will immediately show "Verified & Active"
         updatePayload = { mac_verified: true };
       } else {
         // Reject: clear the MAC so the student must re-register
         updatePayload = { mac_address: null, mac_verified: false };
       }
 
-      const { error } = await supabaseAdmin
+      // IMPORTANT: .select() is required so Supabase v2 actually confirms the row was updated.
+      // Without .select(), Supabase returns no error even if no rows matched the .eq() filter.
+      const { data: updated, error } = await supabaseAdmin
         .from('students')
         .update(updatePayload)
-        .eq('id', studentId);
+        .eq('id', studentId)
+        .select('id, mac_address, mac_verified');
 
       if (error) throw error;
 
-      return NextResponse.json({ success: true, action });
+      if (!updated || updated.length === 0) {
+        console.error(`MAC approval: no student row matched id=${studentId}`);
+        return NextResponse.json(
+          { error: `No student found with id ${studentId}` },
+          { status: 404 }
+        );
+      }
+
+      console.log(`MAC ${action} applied to student ${studentId}:`, updated[0]);
+
+      return NextResponse.json({ success: true, action, student: updated[0] });
     }
 
     return NextResponse.json({ error: 'Method not allowed' }, { status: 405 });
