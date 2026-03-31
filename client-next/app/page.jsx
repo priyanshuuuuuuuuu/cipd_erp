@@ -186,29 +186,8 @@ const Login = () => {
               type="submit"
             />
 
-            <ForgotPasswordText />
 
-            <p
-              style={{
-                textAlign: 'center',
-                marginTop: '12px',
-                fontSize: '0.78rem',
-                color: '#777',
-              }}
-            >
-              Don&apos;t have an account?{' '}
-              <span
-                onClick={() => router.push('/signup')}
-                style={{
-                  color: '#00AEAE',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  textDecoration: 'underline',
-                }}
-              >
-                Sign up
-              </span>
-            </p>
+            <ForgotPasswordText />
           </form>
         </div>
       </CardContainer>
