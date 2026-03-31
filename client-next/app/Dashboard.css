@@ -391,9 +391,7 @@
     flex-direction: column;
 }
 
-.cal-col {
-    /* Day column - minimal styling as grid handles layout */
-}
+
 
 .cal-event {
     padding: 8px;
@@ -1193,3 +1191,184 @@
     transform: translateY(-4px);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08) !important;
 }
+
+/* =============================================
+   MOBILE OVERRIDE — does not affect desktop
+   All rules are inside @media (max-width: 768px)
+   ============================================= */
+@media (max-width: 768px) {
+
+    /* ── Root container & main layout ─────────────── */
+    .dashboard-container {
+        flex-direction: column;
+        height: auto;
+        min-height: 100vh;
+        overflow: visible;
+    }
+
+    /* main-content stacks vertically on mobile */
+    .main-content {
+        flex-direction: column;
+        height: auto;
+        overflow-y: visible;
+        overflow-x: hidden;
+    }
+
+    /* ── Content panels ────────────────────────────── */
+    .content-center {
+        padding: 12px 14px;
+        gap: 1rem;
+        height: auto;
+        overflow-y: visible;
+        width: 100%;
+    }
+
+    /* Right panel becomes full-width strip below center */
+    .content-right {
+        width: 100% !important;
+        padding: 14px;
+        border-left: none;
+        border-top: 1px solid #f0f0f0;
+        gap: 0.8rem;
+    }
+
+    /* ── Header ─────────────────────────────────────── */
+    .dashboard-header {
+        flex-wrap: nowrap;
+        gap: 8px;
+    }
+
+    .dashboard-header h1 {
+        font-size: 1.1rem;
+    }
+
+    /* Header icons: ensure 44px tap area */
+    .header-actions > * {
+        padding: 10px;
+        min-width: 44px;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* ── Weekly Calendar — 7 narrow cols → 3 cols + scroll */
+    /* The grid is rendered inline so we target the container */
+    .calendar-container {
+        padding: 8px;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Inner 7-col grids — use auto-fill so they scroll */
+    .calendar-container > div {
+        min-width: 420px; /* allow horizontal scroll */
+    }
+
+    /* Each event card: slightly larger text */
+    .cal-event {
+        font-size: 0.72rem;
+        padding: 6px;
+    }
+
+    /* ── Schedule cards: single column with readable height */
+    .schedule-cards {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .schedule-card {
+        width: 100%;
+        height: auto;
+        min-height: 120px;
+        flex-direction: row;
+        justify-content: flex-start;
+        align-items: center;
+        padding: 14px 16px;
+        text-align: left;
+        gap: 14px;
+    }
+
+    /* Icon container smaller in row layout */
+    .icon-container {
+        width: 64px;
+        height: 64px;
+        flex-shrink: 0;
+        margin-bottom: 0;
+    }
+
+    /* Next-class badge repositioned for row layout */
+    .next-class-badge {
+        top: 8px;
+        right: 8px;
+    }
+
+    /* ── Section titles ─────────────────────────────── */
+    .section-title {
+        font-size: 0.95rem;
+    }
+
+    /* ── Stat cards — full width ─────────────────────── */
+    .stat-card,
+    .stat-card-modern {
+        padding: 14px;
+    }
+
+    .stat-info h2 {
+        font-size: 1.6rem;
+    }
+
+    /* ── Assignment cards: ensure readable layout ─────── */
+    .assignment-card {
+        padding: 12px 14px;
+    }
+
+    /* ── Teacher grid: single col on mobile ─────────── */
+    .teachers-grid {
+        grid-template-columns: 1fr !important;
+        gap: 1rem;
+    }
+
+    /* ── Feedback box touch-friendly ─────────────────── */
+    .feedback-box {
+        padding: 14px;
+    }
+
+    /* ── Nav item min tap target ─────────────────────── */
+    .nav-item {
+        min-height: 48px;
+        padding: 0.7rem 1rem;
+    }
+
+    /* ── Admin-specific grids already collapse to 1fr,
+          but ensure the utility grid has enough spacing */
+    .bottom-utility-grid {
+        gap: 1rem;
+    }
+
+    .utility-card {
+        padding: 1rem;
+    }
+
+    /* Action buttons row: wrap on small screens */
+    .action-buttons-row {
+        gap: 8px;
+    }
+
+    .compact-action-btn {
+        min-height: 44px;
+        font-size: 0.82rem;
+        padding: 8px;
+    }
+
+    /* ── Charts layout full-width on mobile ─────────── */
+    .charts-layout {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .chart-card {
+        min-height: auto;
+        padding: 1rem;
+    }
+}
