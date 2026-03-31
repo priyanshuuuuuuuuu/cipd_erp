@@ -260,23 +260,28 @@ export default function SettingsPage() {
     // Password change handler
     const handlePasswordChange = async () => {
         setPwMsg(null);
-        if (!pwForm.current || !pwForm.newPw || !pwForm.confirm) {
+        
+        const currentTrimmed = pwForm.current.trim();
+        const newPwTrimmed = pwForm.newPw.trim();
+        const confirmTrimmed = pwForm.confirm.trim();
+
+        if (!currentTrimmed || !newPwTrimmed || !confirmTrimmed) {
             setPwMsg({ type: 'error', text: 'All fields are required.' });
             return;
         }
-        if (pwForm.newPw !== pwForm.confirm) {
+        if (newPwTrimmed !== confirmTrimmed) {
             setPwMsg({ type: 'error', text: 'New passwords do not match.' });
             return;
         }
-        if (pwForm.newPw.length < 8) {
+        if (newPwTrimmed.length < 8) {
             setPwMsg({ type: 'error', text: 'New password must be at least 8 characters.' });
             return;
         }
         setPwSaving(true);
         try {
             await api.post('/api/auth/update-password', {
-                currentPassword: pwForm.current,
-                newPassword: pwForm.newPw,
+                currentPassword: currentTrimmed,
+                newPassword: newPwTrimmed,
             });
             setPwMsg({ type: 'success', text: 'Password updated successfully.' });
             setPwForm({ current: '', newPw: '', confirm: '' });
