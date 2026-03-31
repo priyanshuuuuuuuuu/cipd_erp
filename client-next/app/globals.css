@@ -20,3 +20,14 @@ body {
   height: 100vh;
   overflow: hidden;
 }
+
+/* =============================================
+   MOBILE OVERRIDE — does not affect desktop
+   ============================================= */
+@media (max-width: 768px) {
+  body {
+    overflow: auto;
+    height: auto;
+    min-height: 100vh;
+  }
+}

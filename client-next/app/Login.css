@@ -179,3 +179,84 @@
     gap: 2px;
     margin-right: 8px;
 }
+
+/* =============================================
+   MOBILE OVERRIDE — does not affect desktop
+   ============================================= */
+@media (max-width: 768px) {
+
+    /* Full-screen background scrolls naturally */
+    .login-container {
+        align-items: flex-start;
+        padding: 20px 16px 100px;
+        /* bottom padding leaves room for the demo panel */
+        height: auto;
+        min-height: 100vh;
+        overflow-y: auto;
+    }
+
+    /* Card fills the mobile viewport width, reduced padding */
+    .login-card {
+        padding: 1.8rem 1.2rem;
+        border-radius: 16px;
+        max-width: 100%;
+        width: 100%;
+    }
+
+    /* Logo scales down */
+    .logo-image {
+        max-width: 140px;
+    }
+
+    /* Inputs: full-width, 48px touch target */
+    .styled-input {
+        width: 100% !important;
+        height: 48px !important;
+        left: auto !important;
+        top: auto !important;
+        font-size: 16px; /* prevent iOS zoom */
+    }
+
+    /* Button: 48px touch target */
+    .login-btn {
+        height: 48px;
+        font-size: 1rem;
+    }
+
+    /* Demo credentials panel: snap to bottom sheet on mobile */
+    .demo-credentials-panel {
+        top: auto !important;
+        bottom: 0 !important;
+        right: 0 !important;
+        left: 0 !important;
+        max-width: 100% !important;
+        border-radius: 16px 16px 0 0 !important;
+        padding: 12px 16px !important;
+        box-shadow: 0 -4px 20px rgba(0,0,0,0.12) !important;
+    }
+
+    /* Stack demo credential items as a horizontal scroll row */
+    .demo-credentials-panel > div:last-child > div {
+        flex-direction: row !important;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        gap: 8px !important;
+        padding-bottom: 4px;
+    }
+
+    /* Each demo credential card: fixed width for horizontal scroll */
+    .demo-credentials-panel > div:last-child > div > div {
+        flex-shrink: 0;
+        min-width: 160px;
+    }
+
+    /* Welcome / section headers */
+    .welcome-header {
+        font-size: 1.2rem;
+        margin-bottom: 1.2rem;
+    }
+
+    .form-group {
+        margin-bottom: 1rem;
+    }
+}
