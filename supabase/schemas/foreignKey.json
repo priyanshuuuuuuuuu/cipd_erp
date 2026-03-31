@@ -1,0 +1,77 @@
+[
+  {
+    "?column?": "ALTER TABLE students ADD CONSTRAINT students_id_fkey FOREIGN KEY (id) REFERENCES users(id);"
+  },
+  {
+    "?column?": "ALTER TABLE faculty ADD CONSTRAINT faculty_id_fkey FOREIGN KEY (id) REFERENCES users(id);"
+  },
+  {
+    "?column?": "ALTER TABLE course_enrollments ADD CONSTRAINT course_enrollments_course_id_fkey FOREIGN KEY (course_id) REFERENCES courses(id);"
+  },
+  {
+    "?column?": "ALTER TABLE course_enrollments ADD CONSTRAINT course_enrollments_student_id_fkey FOREIGN KEY (student_id) REFERENCES students(id);"
+  },
+  {
+    "?column?": "ALTER TABLE sessions ADD CONSTRAINT sessions_course_id_fkey FOREIGN KEY (course_id) REFERENCES courses(id);"
+  },
+  {
+    "?column?": "ALTER TABLE sessions ADD CONSTRAINT sessions_faculty_id_fkey FOREIGN KEY (faculty_id) REFERENCES faculty(id);"
+  },
+  {
+    "?column?": "ALTER TABLE sessions ADD CONSTRAINT sessions_venue_id_fkey FOREIGN KEY (venue_id) REFERENCES venues(id);"
+  },
+  {
+    "?column?": "ALTER TABLE sessions ADD CONSTRAINT sessions_created_by_fkey FOREIGN KEY (created_by) REFERENCES users(id);"
+  },
+  {
+    "?column?": "ALTER TABLE attendance_records ADD CONSTRAINT attendance_records_session_id_fkey FOREIGN KEY (session_id) REFERENCES sessions(id);"
+  },
+  {
+    "?column?": "ALTER TABLE attendance_records ADD CONSTRAINT attendance_records_student_id_fkey FOREIGN KEY (student_id) REFERENCES students(id);"
+  },
+  {
+    "?column?": "ALTER TABLE feedback_responses ADD CONSTRAINT feedback_responses_session_id_fkey FOREIGN KEY (session_id) REFERENCES sessions(id);"
+  },
+  {
+    "?column?": "ALTER TABLE feedback_responses ADD CONSTRAINT feedback_responses_student_id_fkey FOREIGN KEY (student_id) REFERENCES students(id);"
+  },
+  {
+    "?column?": "ALTER TABLE feedback_responses ADD CONSTRAINT feedback_responses_question_id_fkey FOREIGN KEY (question_id) REFERENCES feedback_questions(id);"
+  },
+  {
+    "?column?": "ALTER TABLE session_materials ADD CONSTRAINT session_materials_session_id_fkey FOREIGN KEY (session_id) REFERENCES sessions(id);"
+  },
+  {
+    "?column?": "ALTER TABLE session_materials ADD CONSTRAINT session_materials_uploaded_by_fkey FOREIGN KEY (uploaded_by) REFERENCES users(id);"
+  },
+  {
+    "?column?": "ALTER TABLE assignments ADD CONSTRAINT assignments_course_id_fkey FOREIGN KEY (course_id) REFERENCES courses(id);"
+  },
+  {
+    "?column?": "ALTER TABLE assignments ADD CONSTRAINT assignments_faculty_id_fkey FOREIGN KEY (faculty_id) REFERENCES faculty(id);"
+  },
+  {
+    "?column?": "ALTER TABLE assignment_submissions ADD CONSTRAINT assignment_submissions_assignment_id_fkey FOREIGN KEY (assignment_id) REFERENCES assignments(id);"
+  },
+  {
+    "?column?": "ALTER TABLE assignment_submissions ADD CONSTRAINT assignment_submissions_student_id_fkey FOREIGN KEY (student_id) REFERENCES students(id);"
+  },
+  {
+    "?column?": "ALTER TABLE session_materials ADD CONSTRAINT session_materials_course_id_fkey FOREIGN KEY (course_id) REFERENCES courses(id);"
+  },
+  {
+    "?column?": "ALTER TABLE session_materials ADD CONSTRAINT session_materials_faculty_id_fkey FOREIGN KEY (faculty_id) REFERENCES faculty(id);"
+  },
+  {
+    "?column?": "ALTER TABLE notifications ADD CONSTRAINT notifications_recipient_id_fkey FOREIGN KEY (recipient_id) REFERENCES users(id);"
+  },
+  {
+    "?column?": "ALTER TABLE notifications ADD CONSTRAINT notifications_course_id_fkey FOREIGN KEY (course_id) REFERENCES courses(id);"
+  },
+  {
+    "?column?": "ALTER TABLE notifications ADD CONSTRAINT notifications_session_id_fkey FOREIGN KEY (session_id) REFERENCES sessions(id);"
+  },
+  {
+    "?column?": "ALTER TABLE notifications ADD CONSTRAINT notifications_sent_by_fkey FOREIGN KEY (sent_by) REFERENCES users(id);"
+  }
+]
