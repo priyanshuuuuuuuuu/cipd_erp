@@ -17,9 +17,7 @@ async function handler(req) {
         id, ping_count, status, calculated_at,
         sessions (
           id, title, session_date, start_time, end_time,
-          courses ( id, name ),
-          faculty ( id, users ( first_name, last_name ) ),
-          venues ( id, name )
+          courses ( id, name )
         )
       `, { count: 'exact' })
       .eq('student_id', req.user.id)
@@ -29,8 +27,12 @@ async function handler(req) {
     const { data: records, error, count } = await query;
 
     if (error) {
-      console.error('Attendance sessions error:', error);
-      return NextResponse.json({ error: 'Failed to fetch sessions' }, { status: 500 });
+      console.error('Attendance sessions error:', JSON.stringify(error));
+      return NextResponse.json({ error: 'Failed to fetch sessions', detail: error.message }, { status: 500 });
+    }
+
+    if (!records || records.length === 0) {
+      console.log('No attendance records found for student:', req.user.id);
     }
 
     // Filter by course if specified (post-filter since nested)

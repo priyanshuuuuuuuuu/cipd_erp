@@ -4,7 +4,8 @@ import '../../Dashboard.css';
 import {
     LayoutGrid, Calendar, MessageSquare, Settings, LogOut, Bell, Search, Menu,
     ChevronLeft, ChevronRight, Wifi, Clock, FileBarChart, Download, RefreshCw, Activity,
-    CheckCircle, AlertTriangle, Filter, Users, ChevronDown, ChevronUp, XCircle, Timer
+    CheckCircle, AlertTriangle, Filter, Users, ChevronDown, ChevronUp, XCircle, Timer,
+    ShieldCheck, ShieldX, Smartphone
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
@@ -19,6 +20,11 @@ export default function AdminAttendancePage() {
     const [expandedSession, setExpandedSession] = useState(null);
     const [sessionStudents, setSessionStudents] = useState(null);
     const [studentsLoading, setStudentsLoading] = useState(false);
+
+    // MAC Approvals state
+    const [macPending, setMacPending] = useState([]);
+    const [macLoading, setMacLoading] = useState(true);
+    const [macActioning, setMacActioning] = useState(null); // studentId being actioned
 
     const navTo = p => router.push(p);
 
@@ -35,6 +41,36 @@ export default function AdminAttendancePage() {
     }, [dateFilter]);
 
     useEffect(() => { fetchSessions(); }, [fetchSessions]);
+
+    // Fetch pending MAC approvals on mount
+    const fetchMacApprovals = useCallback(async () => {
+        try {
+            setMacLoading(true);
+            const json = await api.get('/api/admin/settings/mac-approvals');
+            setMacPending(Array.isArray(json.pending) ? json.pending : []);
+        } catch (err) {
+            console.error('Failed to fetch MAC approvals:', err);
+            setMacPending([]);
+        } finally {
+            setMacLoading(false);
+        }
+    }, []);
+
+    useEffect(() => { fetchMacApprovals(); }, [fetchMacApprovals]);
+
+    const handleMacAction = async (studentId, action) => {
+        setMacActioning(studentId);
+        try {
+            await api.patch('/api/admin/settings/mac-approvals', { studentId, action });
+            // Optimistically remove from the list
+            setMacPending(prev => prev.filter(s => s.id !== studentId));
+        } catch (err) {
+            console.error('MAC action failed:', err);
+            alert(`Failed to ${action} MAC address. Please try again.`);
+        } finally {
+            setMacActioning(null);
+        }
+    };
 
     const fetchSessionStudents = async (sessionId) => {
         if (expandedSession === sessionId) {
@@ -334,6 +370,116 @@ export default function AdminAttendancePage() {
                             );
                         })}
                     </div>
+
+                    {/* ── MAC Address Approvals ── */}
+                    <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', borderTop: '3px solid #E91E87', overflow: 'hidden', marginBottom: '1.5rem' }}>
+                        <div style={{ padding: '0.8rem 1.5rem', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.95rem', fontWeight: 700 }}>
+                                <Smartphone size={16} />
+                                Pending MAC Address Approvals
+                                {macPending.length > 0 && (
+                                    <span style={{
+                                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                        minWidth: '20px', height: '20px', borderRadius: '10px',
+                                        background: '#E91E87', color: '#fff',
+                                        fontSize: '0.65rem', fontWeight: 700, padding: '0 5px'
+                                    }}>
+                                        {macPending.length}
+                                    </span>
+                                )}
+                            </div>
+                            <button
+                                onClick={fetchMacApprovals}
+                                style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 12px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', fontSize: '0.72rem', color: '#888' }}
+                            >
+                                <RefreshCw size={11} /> Refresh
+                            </button>
+                        </div>
+
+                        {macLoading ? (
+                            <div style={{ padding: '2.5rem', textAlign: 'center', color: '#aaa' }}>
+                                <Activity size={22} color="#ddd" />
+                                <div style={{ fontSize: '0.82rem', marginTop: '8px' }}>Loading pending requests...</div>
+                            </div>
+                        ) : macPending.length === 0 ? (
+                            <div style={{ padding: '2.5rem', textAlign: 'center', color: '#aaa' }}>
+                                <ShieldCheck size={28} color="#d1fae5" />
+                                <div style={{ fontSize: '0.85rem', fontWeight: 600, marginTop: '8px', color: '#16a34a' }}>All clear — no pending MAC approvals</div>
+                                <div style={{ fontSize: '0.72rem', color: '#bbb', marginTop: '4px' }}>Student device registrations are up to date.</div>
+                            </div>
+                        ) : (
+                            <div style={{ overflowX: 'auto' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                                    <thead>
+                                        <tr style={{ background: '#fafafa' }}>
+                                            {['Student', 'Enrollment No.', 'Email', 'Pending MAC Address', 'Actions'].map(h => (
+                                                <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: '0.68rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#aaa', borderBottom: '1px solid #f0f0f0' }}>{h}</th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {macPending.map(student => {
+                                            const isActioning = macActioning === student.id;
+                                            return (
+                                                <tr key={student.id} className="attendance-row" style={{ borderBottom: '1px solid #f5f5f5' }}>
+                                                    <td style={{ padding: '11px 16px', fontWeight: 600, color: '#111' }}>{student.name}</td>
+                                                    <td style={{ padding: '11px 16px', fontFamily: 'monospace', fontSize: '0.78rem', color: '#555' }}>{student.enrollment_no || '—'}</td>
+                                                    <td style={{ padding: '11px 16px', fontSize: '0.76rem', color: '#888' }}>{student.email}</td>
+                                                    <td style={{ padding: '11px 16px' }}>
+                                                        <code style={{
+                                                            padding: '4px 10px', background: '#fef9c3',
+                                                            border: '1px solid #fde047', borderRadius: '6px',
+                                                            fontFamily: 'monospace', fontSize: '0.82rem',
+                                                            fontWeight: 700, color: '#713f12', letterSpacing: '0.5px'
+                                                        }}>
+                                                            {student.mac_address}
+                                                        </code>
+                                                    </td>
+                                                    <td style={{ padding: '11px 16px' }}>
+                                                        <div style={{ display: 'flex', gap: '8px' }}>
+                                                            <button
+                                                                disabled={isActioning}
+                                                                onClick={() => handleMacAction(student.id, 'approve')}
+                                                                style={{
+                                                                    display: 'flex', alignItems: 'center', gap: '5px',
+                                                                    padding: '5px 14px', borderRadius: '7px', border: 'none',
+                                                                    background: isActioning ? '#e5e7eb' : '#ecfdf5',
+                                                                    color: isActioning ? '#aaa' : '#166534',
+                                                                    cursor: isActioning ? 'not-allowed' : 'pointer',
+                                                                    fontSize: '0.75rem', fontWeight: 700,
+                                                                    transition: 'all 0.15s',
+                                                                }}
+                                                            >
+                                                                <ShieldCheck size={13} />
+                                                                {isActioning ? 'Processing...' : 'Approve'}
+                                                            </button>
+                                                            <button
+                                                                disabled={isActioning}
+                                                                onClick={() => handleMacAction(student.id, 'reject')}
+                                                                style={{
+                                                                    display: 'flex', alignItems: 'center', gap: '5px',
+                                                                    padding: '5px 14px', borderRadius: '7px', border: 'none',
+                                                                    background: isActioning ? '#e5e7eb' : '#fef2f2',
+                                                                    color: isActioning ? '#aaa' : '#991b1b',
+                                                                    cursor: isActioning ? 'not-allowed' : 'pointer',
+                                                                    fontSize: '0.75rem', fontWeight: 700,
+                                                                    transition: 'all 0.15s',
+                                                                }}
+                                                            >
+                                                                <ShieldX size={13} />
+                                                                {isActioning ? 'Processing...' : 'Reject'}
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+
                 </div>
             </div>
         </div>
