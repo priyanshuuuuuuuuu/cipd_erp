@@ -111,7 +111,7 @@ const Login = () => {
         <div style={{ width: '100%', textAlign: 'left', marginTop: '30px' }}>
           <WelcomeText />
 
-          <form onSubmit={handleLogin} style={{ width: '100%' }}>
+          <form onSubmit={handleLogin} style={{ width: '100%' }} noValidate>
             {/* Identifier field — accepts email OR enrollment number */}
             <div className="form-group">
               <label style={{ fontSize: '14px', fontWeight: 600, color: '#333', display: 'block', marginBottom: '6px', fontFamily: 'DM Sans, sans-serif' }}>
