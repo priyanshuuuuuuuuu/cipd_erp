@@ -47,7 +47,7 @@ export default function AdminSettingsPage() {
                 }
                 const venRes = await fetch('/api/admin/settings/bssid');
                 const venues = await venRes.json();
-                setBssidList(venues || []);
+                setBssidList(Array.isArray(venues) ? venues : []);
             } catch (err) {
                 console.error("Error loading settings:", err);
             }

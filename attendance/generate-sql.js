@@ -1,21 +1,25 @@
 // ============================================================
-// CIPD ERP — SQL Generator Script
-// Generates a ready-to-run SQL file instead of calling Supabase directly.
-// This COMPLETELY bypasses all network/fetch issues.
+// CIPD ERP — SQL Generator Script (Attendance Only)
+// Generates sessions + attendance_records + course_enrollments.
+// Students, users are assumed to ALREADY BE SEEDED in Supabase.
+// Student IDs are looked up at SQL-time via enrollment_no.
 //
 // Usage:  node generate-sql.js
-// Then:   Copy the output seed.sql and paste it in Supabase SQL Editor
-// Requires: npm install bcryptjs csv-parse uuid
+// Then:   Paste output seed.sql in Supabase SQL Editor → RUN
+// Requires: npm install csv-parse uuid
 // ============================================================
 
-const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const path = require('path');
 const { parse } = require('csv-parse/sync');
 const { v4: uuidv4 } = require('uuid');
 
 // ─── CONFIG ──────────────────────────────────────────────────
-const COURSE_ID = uuidv4();
+// ⚠️  IMPORTANT: Set this to the course ID that already exists in your DB.
+//     Check your `courses` table in Supabase and paste the ID here.
+//     e.g. '3f4a1b2c-...'
+const COURSE_ID = process.env.COURSE_ID || 'YOUR_EXISTING_COURSE_ID_HERE';
+
 const OUTPUT_FILE = path.join(__dirname, 'seed.sql');
 
 const SESSION_TIMES = {
@@ -82,81 +86,63 @@ function buildColumnMap(rows) {
 }
 
 async function main() {
-  console.log('🚀 Generating seed.sql...');
+  if (COURSE_ID === 'YOUR_EXISTING_COURSE_ID_HERE') {
+    console.error('❌  Please set COURSE_ID at the top of this script (or via env var COURSE_ID).');
+    console.error('    Check your Supabase `courses` table for the existing course UUID.');
+    process.exit(1);
+  }
+
+  console.log('🚀 Generating seed.sql (attendance-only mode)...');
   const lines = [];
 
   lines.push('-- ============================================================');
-  lines.push('-- CIPD ERP Seed SQL');
+  lines.push('-- CIPD ERP Seed SQL — Attendance Only');
   lines.push(`-- Generated: ${new Date().toISOString()}`);
+  lines.push('-- Students/Users are assumed to already exist in DB.');
+  lines.push('-- Student IDs are resolved dynamically via enrollment_no.');
   lines.push('-- Run this in: Supabase Dashboard → SQL Editor → New Query');
   lines.push('-- ============================================================');
   lines.push('');
   lines.push('BEGIN;');
   lines.push('');
 
-  // ── Course ─────────────────────────────────────────────────
-  lines.push('-- ── Course ──────────────────────────────────────────────────');
-  lines.push(`INSERT INTO courses (id, name, description, created_at) VALUES`);
-  lines.push(`  ('${COURSE_ID}', 'iPD-CP (Intelligent Product Design — Core Programme)', 'Core programme for iPD-CP batch 2026', NOW())`);
-  lines.push(`ON CONFLICT (id) DO NOTHING;`);
-  lines.push('');
-
-  // ── Students ───────────────────────────────────────────────
-  lines.push('-- ── Users & Students ────────────────────────────────────────');
-  const passwordHash = await bcrypt.hash('12345678', 10);
+  // ── Build student map from the first CSV (enrollment_no → fullName) ──
   const firstRows = parseCsv(CSV_FILES[0]);
   const studentRows = firstRows.slice(4, 22);
-  const studentMap = {};
 
-  const userValues = [];
-  const studentValues = [];
-  const enrollmentValues = [];
+  // Maps fullName → enrollmentNo so we can look up at SQL time
+  // e.g. { 'Mayank Chauhan': 'iPDCP2026W10' }
+  const studentMap = {}; // fullName → { enrollmentNo }
 
   for (const row of studentRows) {
     const sno = (row[0] || '').trim();
     const fullName = (row[1] || '').trim();
     if (!sno || !fullName || isNaN(parseInt(sno))) continue;
-
-    const nameParts = fullName.split(' ');
-    const firstName = nameParts[0];
-    const lastName = nameParts.slice(1).join(' ') || '-';
-    const email = `${firstName.toLowerCase()}.${lastName.replace(/\s+/g, '').toLowerCase()}@dummy.com`;
     const enrollmentNo = `iPDCP2026W${sno}`;
-    const userId = uuidv4();
-
-    studentMap[fullName] = { userId };
-
-    userValues.push(
-      `  ('${userId}', '${sq(email)}', '${sq(passwordHash)}', '${sq(firstName)}', '${sq(lastName)}', 'student', true, NOW(), NOW())`
-    );
-    studentValues.push(
-      `  ('${userId}', '${sq(enrollmentNo)}', '00:00:00:00:00:00', false, 'iPD-CP', NOW())`
-    );
-    enrollmentValues.push(
-      `  ('${uuidv4()}', '${COURSE_ID}', '${userId}', '2026-01-01')`
-    );
-
-    console.log(`  ✅ Prepared student: ${fullName} (${enrollmentNo})`);
+    studentMap[fullName] = { enrollmentNo };
+    console.log(`  ✅ Mapped: ${fullName} → ${enrollmentNo}`);
   }
 
-  lines.push(`INSERT INTO users (id, email, password_hash, first_name, last_name, role, is_active, created_at, updated_at) VALUES`);
-  lines.push(userValues.join(',\n'));
-  lines.push(`ON CONFLICT (id) DO NOTHING;`);
+  // ── Course Enrollments ─────────────────────────────────────────────
+  lines.push('-- ── Course Enrollments ─────────────────────────────────────');
+  lines.push('-- Links each student to the course using enrollment_no subquery');
+  for (const [fullName, { enrollmentNo }] of Object.entries(studentMap)) {
+    const enrollId = uuidv4();
+    const studentSubquery = `(SELECT id FROM students WHERE enrollment_no='${sq(enrollmentNo)}')`;
+    lines.push(
+      `INSERT INTO course_enrollments (id, course_id, student_id, enrolled_at)`
+    );
+    lines.push(
+      `  VALUES ('${enrollId}', '${COURSE_ID}', ${studentSubquery}, '2026-01-01')`
+    );
+    lines.push(`  ON CONFLICT (course_id, student_id) DO NOTHING;`);
+  }
   lines.push('');
 
-  lines.push(`INSERT INTO students (id, enrollment_no, mac_address, mac_verified, program_name, created_at) VALUES`);
-  lines.push(studentValues.join(',\n'));
-  lines.push(`ON CONFLICT (id) DO NOTHING;`);
-  lines.push('');
-
-  lines.push(`INSERT INTO course_enrollments (id, course_id, student_id, enrolled_at) VALUES`);
-  lines.push(enrollmentValues.join(',\n'));
-  lines.push(`ON CONFLICT (course_id, student_id) DO NOTHING;`);
-  lines.push('');
-
-  // ── Sessions & Attendance ───────────────────────────────────
+  // ── Sessions & Attendance ───────────────────────────────────────────
   let sessionCount = 0;
   let attendanceCount = 0;
+  let skippedCount = 0;
   const sessionInserts = [];
   const attendanceInserts = [];
 
@@ -180,28 +166,35 @@ async function main() {
         const fullName = (row[1] || '').trim();
         if (!fullName) continue;
 
-        let userId = studentMap[fullName]?.userId;
-        if (!userId) {
+        // Lookup enrollment_no from our map (with fuzzy fallback)
+        let enrollmentNo = studentMap[fullName]?.enrollmentNo;
+        if (!enrollmentNo) {
           const matchedKey = Object.keys(studentMap).find(
             k => k.startsWith(fullName) || fullName.startsWith(k)
           );
-          userId = matchedKey ? studentMap[matchedKey].userId : null;
+          enrollmentNo = matchedKey ? studentMap[matchedKey].enrollmentNo : null;
         }
-        if (!userId) continue;
+        if (!enrollmentNo) {
+          skippedCount++;
+          continue;
+        }
 
         const rawCode = (row[col.colIndex] || '').trim();
         const status = mapStatus(rawCode);
         if (!status) continue;
 
+        // Use a SQL subquery to resolve the student UUID at DB execution time
+        const studentSubquery = `(SELECT id FROM students WHERE enrollment_no='${sq(enrollmentNo)}')`;
+
         attendanceInserts.push(
-          `  ('${uuidv4()}', '${sessionId}', '${userId}', '${status}', NOW())`
+          `  ('${uuidv4()}', '${sessionId}', ${studentSubquery}, '${status}', NOW())`
         );
         attendanceCount++;
       }
     }
   }
 
-  // Write sessions in batches of 100 to avoid SQL limits
+  // ── Write Sessions in batches of 100 ─────────────────────────────
   lines.push('-- ── Sessions ────────────────────────────────────────────────');
   const BATCH = 100;
   for (let i = 0; i < sessionInserts.length; i += BATCH) {
@@ -212,6 +205,7 @@ async function main() {
     lines.push('');
   }
 
+  // ── Write Attendance Records in batches of 100 ───────────────────
   lines.push('-- ── Attendance Records ──────────────────────────────────────');
   for (let i = 0; i < attendanceInserts.length; i += BATCH) {
     const batch = attendanceInserts.slice(i, i + BATCH);
@@ -223,16 +217,22 @@ async function main() {
 
   lines.push('COMMIT;');
   lines.push('');
-  lines.push(`-- Done! Course ID: ${COURSE_ID}`);
+  lines.push(`-- Done! Course ID used: ${COURSE_ID}`);
+  lines.push(`-- Sessions generated: ${sessionCount}`);
+  lines.push(`-- Attendance records generated: ${attendanceCount}`);
+  lines.push(`-- Students skipped (name mismatch): ${skippedCount}`);
 
   fs.writeFileSync(OUTPUT_FILE, lines.join('\n'), 'utf-8');
 
   console.log('\n=====================================');
   console.log('✅ seed.sql generated successfully!');
-  console.log(`📊 ${Object.keys(studentMap).length} students`);
+  console.log(`📊 ${Object.keys(studentMap).length} students mapped`);
   console.log(`📅 ${sessionCount} sessions`);
   console.log(`📋 ${attendanceCount} attendance records`);
-  console.log(`📌 Course ID: ${COURSE_ID}`);
+  if (skippedCount > 0) {
+    console.log(`⚠️  ${skippedCount} attendance rows skipped (name mismatch — check CSV names vs DB)`);
+  }
+  console.log(`📌 Course ID used: ${COURSE_ID}`);
   console.log('\n👉 Next step:');
   console.log('   1. Open Supabase Dashboard → SQL Editor → New Query');
   console.log('   2. Open the file: seed.sql');

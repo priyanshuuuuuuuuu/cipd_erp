@@ -61,7 +61,14 @@ async function handler(req) {
         total: (records || []).length,
         attended: totalAttended,
         missed: totalMissed,
-        pct: summary?.attendance_percentage || 0,
+        // Calculate directly from records — 'partial' counts as 0.5 for display purposes
+        pct: (records || []).length > 0
+          ? Math.round(
+              ((records || []).filter(r => r.status === 'present').length +
+               (records || []).filter(r => r.status === 'partial').length * 0.5) /
+              (records || []).length * 1000
+            ) / 10
+          : summary?.attendance_percentage || 0,
       },
       streak,
       courses,
