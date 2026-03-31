@@ -215,6 +215,7 @@ const Login = () => {
 
       {/* Demo Credentials — floating top-right */}
       <div
+        className="demo-credentials-panel"
         style={{
           position: 'fixed',
           top: '20px',
