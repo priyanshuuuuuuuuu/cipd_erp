@@ -1,0 +1,62 @@
+[
+  {
+    "create_table": "CREATE TABLE admin_dashboard_summary (\n  total_faculty bigint,\n  total_sessions bigint,\n  total_students bigint\n);"
+  },
+  {
+    "create_table": "CREATE TABLE assignment_submissions (\n  submitted_at timestamp without time zone,\n  feedback text,\n  file_url text,\n  grade numeric,\n  student_id uuid,\n  assignment_id uuid,\n  id uuid NOT NULL\n);"
+  },
+  {
+    "create_table": "CREATE TABLE assignments (\n  course_id uuid,\n  title text,\n  description text,\n  created_at timestamp without time zone,\n  due_date timestamp without time zone,\n  faculty_id uuid,\n  total_marks numeric DEFAULT 100,\n  id uuid NOT NULL\n);"
+  },
+  {
+    "create_table": "CREATE TABLE attendance_ping_logs (\n  id bigint NOT NULL,\n  session_id uuid,\n  student_id uuid,\n  device_hash text,\n  bssid text,\n  signal_strength integer,\n  ping_time timestamp with time zone DEFAULT now()\n);"
+  },
+  {
+    "create_table": "CREATE TABLE attendance_records (\n  session_id uuid,\n  avg_signal_strength numeric,\n  duration_minutes numeric,\n  last_seen_at timestamp without time zone,\n  first_seen_at timestamp without time zone,\n  calculated_at timestamp without time zone,\n  status USER-DEFINED,\n  ping_count integer,\n  student_id uuid,\n  id uuid NOT NULL\n);"
+  },
+  {
+    "create_table": "CREATE TABLE course_enrollments (\n  student_id uuid,\n  id uuid NOT NULL,\n  course_id uuid,\n  enrolled_at timestamp without time zone\n);"
+  },
+  {
+    "create_table": "CREATE TABLE courses (\n  id uuid NOT NULL,\n  created_at timestamp without time zone,\n  description text,\n  name text NOT NULL,\n  code text UNIQUE\n);"
+  },
+  {
+    "create_table": "CREATE TABLE faculty (\n  id uuid NOT NULL,\n  designation text,\n  honorarium_rate_per_hour numeric,\n  years_experience integer,\n  created_at timestamp without time zone,\n  department text,\n  photo_url text\n);"
+  },
+  {
+    "create_table": "CREATE TABLE faculty_monthly_hours (\n  month timestamp with time zone,\n  hours numeric,\n  sessions bigint,\n  faculty_id uuid\n);"
+  },
+  {
+    "create_table": "CREATE TABLE feedback_questions (\n  created_at timestamp without time zone,\n  question text NOT NULL,\n  category text,\n  id uuid NOT NULL,\n  type USER-DEFINED,\n  active boolean\n);"
+  },
+  {
+    "create_table": "CREATE TABLE feedback_responses (\n  text_answer text,\n  rating integer,\n  session_id uuid,\n  yes_no boolean,\n  student_id uuid,\n  submitted_at timestamp without time zone,\n  question_id uuid,\n  id uuid NOT NULL\n);"
+  },
+  {
+    "create_table": "CREATE TABLE notifications (\n  sent_by uuid,\n  is_read boolean,\n  session_id uuid,\n  title text NOT NULL,\n  type text NOT NULL,\n  id uuid NOT NULL,\n  recipient_id uuid,\n  message text NOT NULL,\n  course_id uuid,\n  created_at timestamp without time zone\n);"
+  },
+  {
+    "create_table": "CREATE TABLE session_materials (\n  content text,\n  uploaded_by uuid,\n  session_id uuid,\n  file_url text,\n  id uuid NOT NULL,\n  course_id uuid,\n  faculty_id uuid,\n  title text,\n  file_type text,\n  created_at timestamp without time zone\n);"
+  },
+  {
+    "create_table": "CREATE TABLE sessions (\n  start_time time without time zone NOT NULL,\n  id uuid NOT NULL,\n  course_id uuid,\n  faculty_id uuid,\n  venue_id uuid,\n  session_date date NOT NULL,\n  end_time time without time zone NOT NULL,\n  status USER-DEFINED,\n  created_by uuid,\n  created_at timestamp without time zone,\n  title text NOT NULL\n);"
+  },
+  {
+    "create_table": "CREATE TABLE student_attendance_summary (\n  attendance_percentage numeric,\n  student_id uuid\n);"
+  },
+  {
+    "create_table": "CREATE TABLE students (\n  program_name text,\n  mac_address text,\n  id uuid NOT NULL,\n  mac_verified boolean,\n  created_at timestamp without time zone,\n  enrollment_no text,\n  device_hash text,\n  photo_url text\n);"
+  },
+  {
+    "create_table": "CREATE TABLE system_settings (\n  attendance_window integer,\n  id integer NOT NULL,\n  ping_interval integer,\n  updated_at timestamp without time zone,\n  pings_per_session integer,\n  presence_threshold integer\n);"
+  },
+  {
+    "create_table": "CREATE TABLE users (\n  is_active boolean,\n  email text NOT NULL,\n  password_hash text NOT NULL,\n  first_name text,\n  last_name text,\n  id uuid NOT NULL,\n  role USER-DEFINED NOT NULL,\n  updated_at timestamp without time zone,\n  created_at timestamp without time zone,\n  preferences jsonb DEFAULT '{}'\n);"
+  },
+  {
+    "create_table": "CREATE TABLE venues (\n  name text NOT NULL,\n  created_at timestamp without time zone,\n  id uuid NOT NULL,\n  building text,\n  router_bssid text,\n  is_active boolean\n);"
+  },
+  {
+    "create_table": "CREATE TABLE wifi_snapshots (\n  captured_at timestamp with time zone NOT NULL,\n  id bigint NOT NULL,\n  error text,\n  iw_dump jsonb NOT NULL\n);"
+  }
+]
