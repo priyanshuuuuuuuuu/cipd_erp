@@ -2,6 +2,8 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { withRole } from '@/lib/middleware';
+import { sendWeeklyScheduleEmail } from '@/lib/emailer';
+
 
 // POST - Send notifications (supports feedback reminders, class reminders, general)
 async function postHandler(req) {
@@ -106,7 +108,7 @@ async function postHandler(req) {
       }
     }
 
-    // Batch insert notifications
+    // Batch insert notifications into DB
     if (notificationsToInsert.length > 0) {
       const { error: insertError } = await supabaseAdmin
         .from('notifications')
@@ -118,16 +120,109 @@ async function postHandler(req) {
       }
     }
 
-    return NextResponse.json({
+    // ── Respond immediately — email sending happens in background ─────────
+    // This makes "Notify All" respond instantly (< 1s) instead of waiting
+    // for all SMTP calls to complete.
+    const response = NextResponse.json({
       message: 'Notifications sent successfully',
       sentAt: new Date().toISOString(),
       type: type || 'general',
       recipientCount: notificationsToInsert.length,
+      emailsQueued: type === 'class_reminder' && session_id ? true : false,
     });
+
+    // Fire-and-forget: send emails in background without blocking the response
+    if (type === 'class_reminder' && session_id) {
+      (async () => {
+        try {
+          const { data: session } = await supabaseAdmin
+            .from('sessions')
+            .select('course_id')
+            .eq('id', session_id)
+            .single();
+
+          const courseId = session?.course_id;
+          if (!courseId) return;
+
+          const { data: enrollments } = await supabaseAdmin
+            .from('course_enrollments')
+            .select('student_id')
+            .eq('course_id', courseId);
+
+          const studentIds = (enrollments || []).map(e => e.student_id);
+          if (studentIds.length === 0) return;
+
+          const { data: studentUsers } = await supabaseAdmin
+            .from('users')
+            .select('id, first_name, last_name, email')
+            .in('id', studentIds)
+            .eq('is_active', true);
+
+          // Week date range
+          const now = new Date();
+          const weekStart = new Date(now);
+          weekStart.setDate(now.getDate() - (now.getDay() === 0 ? 6 : now.getDay() - 1));
+          const weekEnd = new Date(weekStart);
+          weekEnd.setDate(weekStart.getDate() + 6);
+          const startStr = weekStart.toISOString().split('T')[0];
+          const endStr = weekEnd.toISOString().split('T')[0];
+
+          // Get all enrollments for these students
+          const { data: allEnrollments } = await supabaseAdmin
+            .from('course_enrollments')
+            .select('student_id, course_id')
+            .in('student_id', studentIds);
+
+          const studentCourseMap = {};
+          for (const e of (allEnrollments || [])) {
+            if (!studentCourseMap[e.student_id]) studentCourseMap[e.student_id] = [];
+            studentCourseMap[e.student_id].push(e.course_id);
+          }
+
+          const allCourseIds = [...new Set((allEnrollments || []).map(e => e.course_id))];
+
+          const { data: weekSessions } = await supabaseAdmin
+            .from('sessions')
+            .select(`
+              id, title, session_date, start_time, end_time, course_id,
+              courses ( name ),
+              faculty ( id, users ( first_name, last_name ) ),
+              venues ( name, building )
+            `)
+            .in('course_id', allCourseIds)
+            .gte('session_date', startStr)
+            .lte('session_date', endStr)
+            .neq('status', 'cancelled')
+            .order('session_date')
+            .order('start_time');
+
+          // Send all emails in parallel (much faster than sequential)
+          await Promise.allSettled(
+            (studentUsers || []).map(async (student) => {
+              try {
+                const myCourseIds = studentCourseMap[student.id] || [];
+                const mySessions = (weekSessions || []).filter(s => myCourseIds.includes(s.course_id));
+                if (mySessions.length === 0) return;
+                const name = `${student.first_name || ''} ${student.last_name || ''}`.trim() || 'Student';
+                await sendWeeklyScheduleEmail(student.email, name, mySessions);
+                console.log(`✉ Weekly schedule email sent to ${student.email}`);
+              } catch (emailErr) {
+                console.error(`Email failed for ${student.email}:`, emailErr.message);
+              }
+            })
+          );
+        } catch (bgErr) {
+          console.error('Background email error:', bgErr.message);
+        }
+      })(); // immediately invoked — does NOT block the response above
+    }
+
+    return response;
   } catch (err) {
     console.error('Notification error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
+
 }
 
 // GET - Fetch notification history for admin

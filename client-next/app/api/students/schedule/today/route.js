@@ -5,7 +5,10 @@ import { withAuth } from '@/lib/middleware';
 
 async function handler(req) {
   try {
-    const today = new Date().toISOString().split('T')[0];
+    // Use client-supplied local date to avoid UTC vs local timezone mismatch.
+    // The frontend passes ?date=YYYY-MM-DD in the user's timezone.
+    const { searchParams } = new URL(req.url);
+    const today = searchParams.get('date') || new Date().toISOString().split('T')[0];
 
     // Get courses the student is enrolled in
     const { data: enrollments } = await supabaseAdmin

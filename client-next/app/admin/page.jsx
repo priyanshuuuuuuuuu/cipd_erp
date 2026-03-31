@@ -20,6 +20,8 @@ export default function AdminDashboard() {
     const [notifyStatus, setNotifyStatus] = useState(null);
     const [reminderStatus, setReminderStatus] = useState(null);
     const [newClass, setNewClass] = useState({ course_id: '', faculty_id: '', date: '', start_time: '', end_time: '', venue_id: '', title: '' });
+    const [scheduleLoading, setScheduleLoading] = useState(false);
+    const [scheduleError, setScheduleError] = useState('');
 
     // Lookup data for dropdowns
     const [lookupData, setLookupData] = useState({ courses: [], faculty: [], venues: [] });
@@ -146,23 +148,43 @@ export default function AdminDashboard() {
     };
 
     const handleScheduleSubmit = async () => {
-        if (!newClass.course_id || !newClass.date || !newClass.start_time || !newClass.title) return;
+        setScheduleError('');
+        // Client-side validation
+        if (!newClass.course_id) { setScheduleError('Please select a course.'); return; }
+        if (!newClass.title.trim()) { setScheduleError('Please enter a lecture title.'); return; }
+        if (!newClass.date) { setScheduleError('Please select a date.'); return; }
+        if (!newClass.start_time) { setScheduleError('Please select a start time.'); return; }
+        if (newClass.end_time && newClass.end_time <= newClass.start_time) {
+            setScheduleError('End time must be after start time.'); return;
+        }
+
+        // Auto-fill end_time to start_time + 1h if not provided
+        let endTime = newClass.end_time;
+        if (!endTime && newClass.start_time) {
+            const [h, m] = newClass.start_time.split(':').map(Number);
+            const endH = String((h + 1) % 24).padStart(2, '0');
+            endTime = `${endH}:${String(m).padStart(2, '0')}`;
+        }
+
+        setScheduleLoading(true);
         try {
-            const selectedCourse = lookupData.courses.find(c => c.id === newClass.course_id);
             await api.post('/api/admin/sessions', {
                 course_id: newClass.course_id,
                 faculty_id: newClass.faculty_id || null,
                 venue_id: newClass.venue_id || null,
-                title: newClass.title,
+                title: newClass.title.trim(),
                 session_date: newClass.date,
                 start_time: newClass.start_time,
-                end_time: newClass.end_time || newClass.start_time,
+                end_time: endTime,
             });
             setShowScheduleModal(false);
             setNewClass({ course_id: '', faculty_id: '', date: '', start_time: '', end_time: '', venue_id: '', title: '' });
+            setScheduleError('');
             fetchAll();
         } catch (e) {
-            alert('Failed to schedule: ' + e.message);
+            setScheduleError(e.message || 'Failed to schedule class. Please try again.');
+        } finally {
+            setScheduleLoading(false);
         }
     };
 
@@ -363,13 +385,18 @@ export default function AdminDashboard() {
 
             {/* Schedule Modal */}
             {showScheduleModal && (
-                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }} onClick={() => setShowScheduleModal(false)}>
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }} onClick={() => { setShowScheduleModal(false); setScheduleError(''); }}>
                     <div style={{ background: '#fff', borderRadius: '16px', width: '480px', maxWidth: '90vw', boxShadow: '0 20px 60px rgba(0,0,0,0.15)', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.5rem', borderBottom: '1px solid #f0f0f0' }}>
                             <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>Schedule New Class</h3>
-                            <button onClick={() => setShowScheduleModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888' }}><X size={18} /></button>
+                            <button onClick={() => { setShowScheduleModal(false); setScheduleError(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888' }}><X size={18} /></button>
                         </div>
                         <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                            {scheduleError && (
+                                <div style={{ padding: '10px 14px', borderRadius: '8px', background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', fontSize: '0.82rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <AlertCircle size={14} />{scheduleError}
+                                </div>
+                            )}
                             <div>
                                 <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>Course *</label>
                                 <select value={newClass.course_id} onChange={e => setNewClass({ ...newClass, course_id: e.target.value })}
@@ -422,9 +449,9 @@ export default function AdminDashboard() {
                             </div>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', padding: '1rem 1.5rem', borderTop: '1px solid #f0f0f0' }}>
-                            <button onClick={() => setShowScheduleModal(false)} style={{ padding: '8px 20px', borderRadius: '8px', border: '1px solid #eee', background: '#fff', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 500, color: '#555' }}>Cancel</button>
-                            <button onClick={handleScheduleSubmit} style={{ padding: '8px 20px', borderRadius: '8px', border: 'none', background: '#111', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, color: '#fff', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                <Plus size={14} /> Schedule & Notify
+                            <button onClick={() => { setShowScheduleModal(false); setScheduleError(''); }} disabled={scheduleLoading} style={{ padding: '8px 20px', borderRadius: '8px', border: '1px solid #eee', background: '#fff', cursor: scheduleLoading ? 'not-allowed' : 'pointer', fontSize: '0.85rem', fontWeight: 500, color: '#555' }}>Cancel</button>
+                            <button onClick={handleScheduleSubmit} disabled={scheduleLoading} style={{ padding: '8px 20px', borderRadius: '8px', border: 'none', background: scheduleLoading ? '#555' : '#111', cursor: scheduleLoading ? 'not-allowed' : 'pointer', fontSize: '0.85rem', fontWeight: 600, color: '#fff', display: 'flex', alignItems: 'center', gap: '5px', transition: 'background 0.2s', minWidth: '150px', justifyContent: 'center' }}>
+                                {scheduleLoading ? <><RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} /> Scheduling...</> : <><Plus size={14} /> Schedule & Notify</>}
                             </button>
                         </div>
                     </div>
