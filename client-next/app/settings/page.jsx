@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import '../Dashboard.css';
 import {
     LayoutGrid, Calendar, BookOpen, Users, MessageSquare, Settings,
@@ -28,12 +28,17 @@ export default function SettingsPage() {
     // Profile state
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [statusRefreshing, setStatusRefreshing] = useState(false);
 
     // MAC address state
     const [macInput, setMacInput] = useState('');
     const [macSaving, setMacSaving] = useState(false);
     const [macMsg, setMacMsg] = useState(null); // { type: 'success'|'error', text }
     const [showMac, setShowMac] = useState(false);
+
+    // Ref to hold latest profile for use inside the polling interval
+    const profileRef = useRef(profile);
+    useEffect(() => { profileRef.current = profile; }, [profile]);
 
     // Notification settings
     const [notifSettings, setNotifSettings] = useState({
@@ -90,6 +95,58 @@ export default function SettingsPage() {
     }, []);
 
     useEffect(() => { if (authReady) fetchProfile(); }, [fetchProfile, authReady]);
+
+    // ── Lightweight status-only refresh (for polling / manual check) ────────
+    // Only updates mac_address + mac_verified to avoid clobbering input fields.
+    const refreshMacStatus = useCallback(async (opts = {}) => {
+        if (opts.showSpinner) setStatusRefreshing(true);
+        try {
+            const res = await api.get('/api/students/profile');
+            const p = res.profile || res;
+            setProfile(prev => ({
+                ...prev,
+                mac_address: p.mac_address,
+                mac_verified: p.mac_verified,
+            }));
+            // If MAC was just approved, sync the input field too
+            if (p.mac_address && p.mac_verified) {
+                setMacInput(p.mac_address);
+            }
+        } catch (e) {
+            console.error('Status refresh error', e);
+        } finally {
+            if (opts.showSpinner) setStatusRefreshing(false);
+        }
+    }, []);
+
+    // ── Poll every 20s while a MAC is pending ─────────────────────────────
+    useEffect(() => {
+        if (!profile) return;
+        // Only poll when the student has submitted a MAC that hasn't been verified yet
+        const isPending = profile.mac_address && !profile.mac_verified;
+        if (!isPending) return;
+
+        const interval = setInterval(() => {
+            // Re-check profile ref so we stop if it got approved between ticks
+            const current = profileRef.current;
+            if (current?.mac_address && !current?.mac_verified) {
+                refreshMacStatus();
+            }
+        }, 20000); // every 20 seconds
+
+        return () => clearInterval(interval);
+    }, [profile?.mac_address, profile?.mac_verified, refreshMacStatus]);
+
+    // ── Refresh on tab/window focus ───────────────────────────────────────
+    useEffect(() => {
+        const onVisibility = () => {
+            if (document.visibilityState === 'visible') {
+                refreshMacStatus();
+            }
+        };
+        document.addEventListener('visibilitychange', onVisibility);
+        return () => document.removeEventListener('visibilitychange', onVisibility);
+    }, [refreshMacStatus]);
 
     const macValid = (mac) => /^([A-Fa-f0-9]{2}:){5}[A-Fa-f0-9]{2}$/.test(mac);
 
@@ -288,16 +345,35 @@ export default function SettingsPage() {
                                         {profile?.mac_verified
                                             ? <CheckCircle size={18} color="#16a34a" />
                                             : <AlertCircle size={18} color="#b45309" />}
-                                        <div>
+                                        <div style={{ flex: 1 }}>
                                             <div style={{ fontSize: '0.85rem', fontWeight: 600, color: profile?.mac_verified ? '#16a34a' : '#b45309' }}>
                                                 {profile?.mac_verified ? 'Verified & Active' : 'Pending Verification'}
                                             </div>
                                             <div style={{ fontSize: '0.72rem', color: '#888', marginTop: '1px' }}>
                                                 {profile?.mac_verified
                                                     ? 'Your device is registered and will be detected during attendance sessions.'
-                                                    : 'Your MAC address has been submitted and is awaiting admin verification.'}
+                                                    : 'Your MAC address has been submitted and is awaiting admin verification. Status updates automatically.'}
                                             </div>
                                         </div>
+                                        {/* Manual refresh button — only shown when pending */}
+                                        {!profile?.mac_verified && profile?.mac_address && (
+                                            <button
+                                                onClick={() => refreshMacStatus({ showSpinner: true })}
+                                                disabled={statusRefreshing}
+                                                title="Check approval status"
+                                                style={{
+                                                    display: 'flex', alignItems: 'center', gap: '5px',
+                                                    padding: '5px 12px', borderRadius: '8px',
+                                                    border: '1px solid #fde047', background: '#fff',
+                                                    cursor: statusRefreshing ? 'not-allowed' : 'pointer',
+                                                    fontSize: '0.72rem', fontWeight: 600, color: '#713f12',
+                                                    flexShrink: 0,
+                                                }}
+                                            >
+                                                <RefreshCw size={12} style={{ animation: statusRefreshing ? 'spin 1s linear infinite' : 'none' }} />
+                                                {statusRefreshing ? 'Checking...' : 'Check Status'}
+                                            </button>
+                                        )}
                                     </div>
 
                                     {/* Current MAC display */}
@@ -359,11 +435,40 @@ export default function SettingsPage() {
                                         )}
                                     </div>
 
-                                    <div style={{ padding: '12px 16px', background: '#f8f8f8', borderRadius: '10px', fontSize: '0.75rem', color: '#888', lineHeight: 1.6 }}>
-                                        <strong style={{ color: '#555' }}>How to find your MAC address:</strong><br />
-                                        <strong>Windows:</strong> Run <code style={{ background: '#eee', padding: '1px 4px', borderRadius: '4px' }}>ipconfig /all</code> in Command Prompt → look for "Physical Address"<br />
-                                        <strong>macOS:</strong> System Preferences → Network → Advanced → Hardware<br />
-                                        <strong>Linux:</strong> Run <code style={{ background: '#eee', padding: '1px 4px', borderRadius: '4px' }}>ip link show</code> in terminal
+                                    <div style={{ borderRadius: '10px', overflow: 'hidden', border: '1px solid #e8e8e8', fontSize: '0.75rem' }}>
+                                        {/* Warning banner */}
+                                        <div style={{ padding: '10px 14px', background: '#fff7ed', borderBottom: '1px solid #fed7aa', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                                            <AlertCircle size={14} color="#c2410c" style={{ flexShrink: 0, marginTop: '1px' }} />
+                                            <div style={{ color: '#7c2d12', lineHeight: 1.5 }}>
+                                                <strong>Important:</strong> You must <strong>disable MAC randomisation</strong> before registering. The attendance system uses your fixed (factory) MAC address. A randomised MAC changes every time you connect and will not be recognised.
+                                            </div>
+                                        </div>
+
+                                        {/* Android */}
+                                        <div style={{ padding: '12px 14px', background: '#f8f8f8', borderBottom: '1px solid #eee' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                                                <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#333' }}>Android</span>
+                                            </div>
+                                            <div style={{ color: '#666', lineHeight: 1.7 }}>
+                                                <strong style={{ color: '#444' }}>Step 1 – Disable randomised MAC:</strong><br />
+                                                Settings → Wi-Fi → long-press your network → <em>Modify network</em> → Advanced → <strong>MAC address type → Use device MAC</strong><br /><br />
+                                                <strong style={{ color: '#444' }}>Step 2 – Find your MAC address:</strong><br />
+                                                Settings → About phone → Status → <strong>Wi-Fi MAC address</strong>
+                                            </div>
+                                        </div>
+
+                                        {/* iOS */}
+                                        <div style={{ padding: '12px 14px', background: '#f8f8f8' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                                                <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#333' }}>iPhone / iPad (iOS)</span>
+                                            </div>
+                                            <div style={{ color: '#666', lineHeight: 1.7 }}>
+                                                <strong style={{ color: '#444' }}>Step 1 – Disable Private Wi-Fi Address:</strong><br />
+                                                Settings → Wi-Fi → tap the <strong>(i)</strong> next to your network → toggle <strong>Private Wi-Fi Address → Off</strong> → tap <em>Continue</em><br /><br />
+                                                <strong style={{ color: '#444' }}>Step 2 – Find your MAC address:</strong><br />
+                                                Settings → General → About → <strong>Wi-Fi Address</strong>
+                                            </div>
+                                        </div>
                                     </div>
                                 </SectionCard>
 
