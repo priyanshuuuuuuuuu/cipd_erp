@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { withAuth } from '@/lib/middleware';
-import { hashPassword, comparePassword } from '@/lib/auth';
+import { hashPassword, verifyPassword } from '@/lib/auth';
 
 async function handler(req) {
   try {
@@ -34,7 +34,7 @@ async function handler(req) {
     }
 
     // Verify current password
-    const isValid = await comparePassword(currentPassword, user.password_hash);
+    const isValid = await verifyPassword(currentPassword, user.password_hash);
     if (!isValid) {
       return NextResponse.json(
         { error: 'Current password is incorrect' },
@@ -43,7 +43,7 @@ async function handler(req) {
     }
 
     // Prevent reusing the same password
-    const isSame = await comparePassword(newPassword, user.password_hash);
+    const isSame = await verifyPassword(newPassword, user.password_hash);
     if (isSame) {
       return NextResponse.json(
         { error: 'New password must be different from current password' },
