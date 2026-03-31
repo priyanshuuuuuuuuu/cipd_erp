@@ -70,7 +70,7 @@ export default function AdminReportsPage() {
 
     // ── CSV download helper ────────────────────────────────────────────────────
     const downloadCSV = (url, filename) => {
-        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        const token = typeof window !== 'undefined' ? (localStorage.getItem('admin_token') || localStorage.getItem('token')) : null;
         const link = document.createElement('a');
         link.href = url + (token ? `${url.includes('?') ? '&' : '?'}_t=${encodeURIComponent(token)}` : '');
         link.download = filename;
@@ -79,7 +79,7 @@ export default function AdminReportsPage() {
 
     // We use fetch with auth header to get the blob, then trigger a download
     const fetchAndDownload = async (params, filename) => {
-        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        const token = typeof window !== 'undefined' ? (localStorage.getItem('admin_token') || localStorage.getItem('token')) : null;
         const qs = new URLSearchParams(params).toString();
         const res = await fetch(`/api/admin/reports/export?${qs}`, {
             headers: token ? { Authorization: `Bearer ${token}` } : {},

@@ -61,12 +61,16 @@ export default function AdminAttendancePage() {
     const handleMacAction = async (studentId, action) => {
         setMacActioning(studentId);
         try {
-            await api.patch('/api/admin/settings/mac-approvals', { studentId, action });
-            // Optimistically remove from the list
+            const res = await api.patch('/api/admin/settings/mac-approvals', { studentId, action });
+            if (!res.success) {
+                throw new Error(res.error || 'Approval failed');
+            }
+            console.log(`MAC ${action} confirmed for student ${studentId}:`, res.student);
+            // Only remove from list once the server confirms the update
             setMacPending(prev => prev.filter(s => s.id !== studentId));
         } catch (err) {
             console.error('MAC action failed:', err);
-            alert(`Failed to ${action} MAC address. Please try again.`);
+            alert(`Failed to ${action} MAC address: ${err.message}. Please try again.`);
         } finally {
             setMacActioning(null);
         }

@@ -43,21 +43,11 @@ export async function POST(req) {
 
     const token = signToken(payload);
 
-    // Build response with cookie
-    const response = NextResponse.json({
-      token,
-      user: payload,
-    });
-
-    response.cookies.set('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60, // 7 days
-      path: '/',
-    });
-
-    return response;
+    // Return token in JSON body only — client stores it in role-scoped localStorage.
+    // We intentionally do NOT set a shared 'token' cookie because multiple roles
+    // (student + admin) may be open in the same browser, and a shared cookie would
+    // cause the server to identify API calls as the wrong user.
+    return NextResponse.json({ token, user: payload });
   } catch (err) {
     console.error('Login error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

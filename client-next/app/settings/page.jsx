@@ -18,6 +18,42 @@ const SETTING_SECTIONS = [
     { id: 'appearance', label: 'Appearance', icon: Palette },
     { id: 'privacy', label: 'Privacy & Security', icon: Shield },
 ];
+const SectionCard = ({ title, subtitle, children }) => (
+    <div style={{ background: '#fff', border: '1px solid #e8e8e8', borderRadius: '16px', overflow: 'hidden', marginBottom: '1rem' }}>
+        <div style={{ padding: '1.2rem 1.5rem', borderBottom: '1px solid #f5f5f5' }}>
+            <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#111' }}>{title}</div>
+            {subtitle && <div style={{ fontSize: '0.75rem', color: '#aaa', marginTop: '2px' }}>{subtitle}</div>}
+        </div>
+        <div style={{ padding: '1.5rem' }}>{children}</div>
+    </div>
+);
+
+const SettingRow = ({ label, description, children }) => (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.9rem 0', borderBottom: '1px solid #fafafa' }}>
+        <div>
+            <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#222' }}>{label}</div>
+            {description && <div style={{ fontSize: '0.72rem', color: '#aaa', marginTop: '2px' }}>{description}</div>}
+        </div>
+        <div style={{ flexShrink: 0, marginLeft: '1rem' }}>{children}</div>
+    </div>
+);
+
+const Toggle = ({ checked, onChange }) => (
+    <div onClick={() => onChange(!checked)} style={{
+        width: '44px', height: '24px', borderRadius: '12px',
+        background: checked ? '#111' : '#e0e0e0',
+        position: 'relative', cursor: 'pointer', transition: 'background 0.2s',
+        flexShrink: 0,
+    }}>
+        <div style={{
+            position: 'absolute', top: '3px',
+            left: checked ? '22px' : '3px',
+            width: '18px', height: '18px', borderRadius: '50%',
+            background: '#fff', transition: 'left 0.2s',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
+        }} />
+    </div>
+);
 
 export default function SettingsPage() {
     const router = useRouter();
@@ -68,9 +104,10 @@ export default function SettingsPage() {
 
     const fetchProfile = useCallback(async () => {
         try {
+            const ts = Date.now();
             const [profileRes, prefsRes] = await Promise.allSettled([
-                api.get('/api/students/profile'),
-                api.get('/api/students/settings'),
+                api.get(`/api/students/profile?_t=${ts}`),
+                api.get(`/api/students/settings?_t=${ts}`),
             ]);
 
             if (profileRes.status === 'fulfilled') {
@@ -101,19 +138,39 @@ export default function SettingsPage() {
     const refreshMacStatus = useCallback(async (opts = {}) => {
         if (opts.showSpinner) setStatusRefreshing(true);
         try {
-            const res = await api.get('/api/students/profile');
+            // Bypass all caches: unique timestamp + no-store pragma header
+            const res = await api.get(`/api/students/profile?_t=${Date.now()}`);
             const p = res.profile || res;
+
+            if (!p || (!p.mac_address && p.mac_address !== null && !p.mac_verified)) {
+                // Unexpected shape — do nothing
+                return;
+            }
+
+            const wasApproved = p.mac_address && p.mac_verified;
+
             setProfile(prev => ({
                 ...prev,
                 mac_address: p.mac_address,
                 mac_verified: p.mac_verified,
             }));
-            // If MAC was just approved, sync the input field too
-            if (p.mac_address && p.mac_verified) {
+
+            if (wasApproved) {
+                // Sync the input field to the approved MAC
                 setMacInput(p.mac_address);
+                // Reveal it so the student can see the real value
+                setShowMac(true);
+                if (opts.showSpinner) {
+                    setMacMsg({ type: 'success', text: `✓ Verified! Your MAC address is now active: ${p.mac_address}` });
+                }
+            } else if (opts.showSpinner) {
+                setMacMsg({ type: 'error', text: 'Still pending — admin has not approved yet.' });
             }
         } catch (e) {
             console.error('Status refresh error', e);
+            if (opts.showSpinner) {
+                setMacMsg({ type: 'error', text: `Check failed: ${e.message || 'Network error'}` });
+            }
         } finally {
             if (opts.showSpinner) setStatusRefreshing(false);
         }
@@ -229,43 +286,7 @@ export default function SettingsPage() {
             setPwSaving(false);
         }
     };
-
-    const SectionCard = ({ title, subtitle, children }) => (
-        <div style={{ background: '#fff', border: '1px solid #e8e8e8', borderRadius: '16px', overflow: 'hidden', marginBottom: '1rem' }}>
-            <div style={{ padding: '1.2rem 1.5rem', borderBottom: '1px solid #f5f5f5' }}>
-                <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#111' }}>{title}</div>
-                {subtitle && <div style={{ fontSize: '0.75rem', color: '#aaa', marginTop: '2px' }}>{subtitle}</div>}
-            </div>
-            <div style={{ padding: '1.5rem' }}>{children}</div>
-        </div>
-    );
-
-    const SettingRow = ({ label, description, children }) => (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.9rem 0', borderBottom: '1px solid #fafafa' }}>
-            <div>
-                <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#222' }}>{label}</div>
-                {description && <div style={{ fontSize: '0.72rem', color: '#aaa', marginTop: '2px' }}>{description}</div>}
-            </div>
-            <div style={{ flexShrink: 0, marginLeft: '1rem' }}>{children}</div>
-        </div>
-    );
-
-    const Toggle = ({ checked, onChange }) => (
-        <div onClick={() => onChange(!checked)} style={{
-            width: '44px', height: '24px', borderRadius: '12px',
-            background: checked ? '#111' : '#e0e0e0',
-            position: 'relative', cursor: 'pointer', transition: 'background 0.2s',
-            flexShrink: 0,
-        }}>
-            <div style={{
-                position: 'absolute', top: '3px',
-                left: checked ? '22px' : '3px',
-                width: '18px', height: '18px', borderRadius: '50%',
-                background: '#fff', transition: 'left 0.2s',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
-            }} />
-        </div>
-    );
+    // Components were moved outside of SettingsPage to prevent re-mounting
 
     return (
         <div className="dashboard-container">
@@ -399,8 +420,18 @@ export default function SettingsPage() {
                                         <div style={{ display: 'flex', gap: '10px' }}>
                                             <input
                                                 value={macInput}
-                                                onChange={e => { setMacInput(e.target.value.toUpperCase()); setMacMsg(null); }}
+                                                onChange={e => {
+                                                    // Strip non-hex, uppercase it
+                                                    let val = e.target.value.replace(/[^A-Fa-f0-9]/g, '').toUpperCase();
+                                                    // Group by 2 and join with colon
+                                                    if (val.length > 0) {
+                                                        val = val.match(/.{1,2}/g).join(':');
+                                                    }
+                                                    setMacInput(val.slice(0, 17)); // Max 17 chars (XX:XX:XX:XX:XX:XX)
+                                                    setMacMsg(null);
+                                                }}
                                                 placeholder="A4:83:E7:2B:9F:01"
+                                                maxLength={17}
                                                 style={{
                                                     flex: 1, padding: '10px 14px', borderRadius: '10px',
                                                     border: `1px solid ${macMsg?.type === 'error' ? '#fca5a5' : '#e0e0e0'}`,
@@ -450,10 +481,10 @@ export default function SettingsPage() {
                                                 <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#333' }}>Android</span>
                                             </div>
                                             <div style={{ color: '#666', lineHeight: 1.7 }}>
-                                                <strong style={{ color: '#444' }}>Step 1 – Disable randomised MAC:</strong><br />
-                                                Settings → Wi-Fi → long-press your network → <em>Modify network</em> → Advanced → <strong>MAC address type → Use device MAC</strong><br /><br />
-                                                <strong style={{ color: '#444' }}>Step 2 – Find your MAC address:</strong><br />
-                                                Settings → About phone → Status → <strong>Wi-Fi MAC address</strong>
+                                                <strong style={{ color: '#444' }}>Step 1 – Find your MAC address:</strong><br />
+                                                Settings → About phone → Status → <strong>Phone Wi-Fi MAC address</strong><br /><br />
+                                                <strong style={{ color: '#444' }}>Step 2 – Disable randomised MAC:</strong><br />
+                                                Settings → Wi-Fi → long-press your network → <em>Modify network</em> → Advanced → <strong>MAC address type → Use device MAC</strong>
                                             </div>
                                         </div>
 
@@ -463,10 +494,10 @@ export default function SettingsPage() {
                                                 <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#333' }}>iPhone / iPad (iOS)</span>
                                             </div>
                                             <div style={{ color: '#666', lineHeight: 1.7 }}>
-                                                <strong style={{ color: '#444' }}>Step 1 – Disable Private Wi-Fi Address:</strong><br />
-                                                Settings → Wi-Fi → tap the <strong>(i)</strong> next to your network → toggle <strong>Private Wi-Fi Address → Off</strong> → tap <em>Continue</em><br /><br />
-                                                <strong style={{ color: '#444' }}>Step 2 – Find your MAC address:</strong><br />
-                                                Settings → General → About → <strong>Wi-Fi Address</strong>
+                                                <strong style={{ color: '#444' }}>Step 1 – Find your MAC address:</strong><br />
+                                                Settings → General → About → <strong>Wi-Fi Address</strong><br /><br />
+                                                <strong style={{ color: '#444' }}>Step 2 – Disable Private Wi-Fi Address:</strong><br />
+                                                Settings → Wi-Fi → tap the <strong>(i)</strong> next to your network → toggle <strong>Private Wi-Fi Address → Off</strong> → tap <em>Continue</em>
                                             </div>
                                         </div>
                                     </div>

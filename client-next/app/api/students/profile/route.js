@@ -3,6 +3,12 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { withAuth } from '@/lib/middleware';
 
+// Never cache this route — mac_verified can change at any time via admin approval
+const NO_CACHE_HEADERS = {
+  'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+  'Pragma': 'no-cache',
+};
+
 async function handler(req) {
   try {
     const { data: user, error: userErr } = await supabaseAdmin
@@ -12,7 +18,7 @@ async function handler(req) {
       .single();
 
     if (userErr || !user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      return NextResponse.json({ error: 'User not found' }, { status: 404, headers: NO_CACHE_HEADERS });
     }
 
     const { data: student, error: studentErr } = await supabaseAdmin
@@ -22,18 +28,16 @@ async function handler(req) {
       .single();
 
     if (studentErr || !student) {
-      return NextResponse.json({ error: 'Student profile not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Student profile not found' }, { status: 404, headers: NO_CACHE_HEADERS });
     }
 
-    return NextResponse.json({
-      profile: {
-        ...user,
-        ...student,
-      },
-    });
+    return NextResponse.json(
+      { profile: { ...user, ...student } },
+      { headers: NO_CACHE_HEADERS }
+    );
   } catch (err) {
     console.error('Student profile error:', err);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500, headers: NO_CACHE_HEADERS });
   }
 }
 
