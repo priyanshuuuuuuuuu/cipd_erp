@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { withRole } from '@/lib/middleware';
-import { sendWeeklyScheduleEmail } from '@/lib/emailer';
+import { sendWeeklyScheduleEmail, sendGeneralNotificationEmail } from '@/lib/emailer';
 
 
 // POST - Send notifications (supports feedback reminders, class reminders, general)
@@ -128,7 +128,7 @@ async function postHandler(req) {
       sentAt: new Date().toISOString(),
       type: type || 'general',
       recipientCount: notificationsToInsert.length,
-      emailsQueued: type === 'class_reminder' && session_id ? true : false,
+      emailsQueued: true,
     });
 
     // Fire-and-forget: send emails in background without blocking the response
@@ -215,6 +215,54 @@ async function postHandler(req) {
           console.error('Background email error:', bgErr.message);
         }
       })(); // immediately invoked — does NOT block the response above
+    }
+
+    // ── General email for all other types sent from compose panel ────────────
+    if (!session_id) {
+      (async () => {
+        try {
+          // Collect target student list
+          let targetStudents = [];
+
+          if (notificationsToInsert.length > 0) {
+            // Get distinct recipient IDs from what we already inserted
+            const recipientIds = [...new Set(notificationsToInsert.map(n => n.recipient_id).filter(Boolean))];
+
+            if (recipientIds.length > 0) {
+              const { data } = await supabaseAdmin
+                .from('users')
+                .select('id, first_name, last_name, email')
+                .in('id', recipientIds)
+                .eq('is_active', true);
+              targetStudents = data || [];
+            } else {
+              // No specific recipients — sent to all active students
+              const { data } = await supabaseAdmin
+                .from('users')
+                .select('id, first_name, last_name, email')
+                .eq('role', 'student')
+                .eq('is_active', true);
+              targetStudents = data || [];
+            }
+          }
+
+          const notifTitle = body?.title || (type || 'general').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
+          await Promise.allSettled(
+            targetStudents.map(async (student) => {
+              try {
+                const name = `${student.first_name || ''} ${student.last_name || ''}`.trim() || 'Student';
+                await sendGeneralNotificationEmail(student.email, name, notifTitle, message, type || 'general');
+                console.log(`✉ General notification email sent to ${student.email}`);
+              } catch (emailErr) {
+                console.error(`Email failed for ${student.email}:`, emailErr.message);
+              }
+            })
+          );
+        } catch (bgErr) {
+          console.error('Background general email error:', bgErr.message);
+        }
+      })();
     }
 
     return response;
