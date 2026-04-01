@@ -379,6 +379,70 @@ export async function sendDayBeforeReminderEmail(studentEmail, studentName, sess
   });
 }
 
+// ── 3. General / Custom Notification Email ───────────────────────────────────
+export async function sendGeneralNotificationEmail(studentEmail, studentName, title, message, type) {
+  const firstName = (studentName || '').split(' ')[0] || 'Student';
+
+  // Pick icon + accent colour based on type
+  const typeConfig = {
+    class_reminder:     { emoji: '🔔', accent: PRIMARY,   label: 'Class Reminder' },
+    feedback_reminder:  { emoji: '📝', accent: '#e11d48', label: 'Feedback Reminder' },
+    schedule_change:    { emoji: '📅', accent: '#d97706', label: 'Schedule Update' },
+    attendance_warning: { emoji: '⚠️', accent: '#dc2626', label: 'Attendance Warning' },
+    general:            { emoji: '📢', accent: TERTIARY,  label: 'Announcement' },
+  };
+  const cfg = typeConfig[type] || typeConfig.general;
+
+  const content = `
+    <!-- Coloured type banner -->
+    <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
+      style="background:${cfg.accent};border-radius:10px;margin-bottom:24px;">
+      <tr>
+        <td style="padding:20px 24px;">
+          <p style="margin:0;font-size:13px;font-weight:700;color:rgba(255,255,255,0.75);text-transform:uppercase;letter-spacing:1.5px;">
+            ${cfg.emoji}&nbsp; ${cfg.label}
+          </p>
+        </td>
+      </tr>
+    </table>
+
+    <!-- Greeting -->
+    <p style="margin:0 0 6px;font-size:22px;font-weight:800;color:${TEXT};">Hi ${firstName},</p>
+    <p style="margin:0 0 20px;font-size:13px;color:${MUTED};line-height:1.7;">
+      You have a new notification from CiPD 360.
+    </p>
+
+    <!-- Message card -->
+    <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
+      style="background:${BG};border:1px solid ${BORDER};border-left:4px solid ${cfg.accent};border-radius:8px;margin-bottom:28px;">
+      <tr>
+        <td style="padding:18px 20px;">
+          <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:${TEXT};">${title || cfg.label}</p>
+          <p style="margin:0;font-size:13px;color:${MUTED};line-height:1.7;">${message}</p>
+        </td>
+      </tr>
+    </table>
+
+    <!-- CTA -->
+    <table cellpadding="0" cellspacing="0" role="presentation" style="margin:0 auto;">
+      <tr>
+        <td style="border-radius:50px;background:linear-gradient(135deg,${PRIMARY} 0%,${SECONDARY} 100%);">
+          <a href="${APP_URL}/dashboard"
+             style="display:inline-block;padding:13px 36px;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:50px;">
+            View Dashboard &nbsp;&rarr;
+          </a>
+        </td>
+      </tr>
+    </table>`;
+
+  await transporter.sendMail({
+    from: `"CiPD 360" <${process.env.EMAIL_FROM}>`,
+    to: studentEmail,
+    subject: `${cfg.emoji} ${title || cfg.label} — CiPD 360`,
+    html: shell(content),
+  });
+}
+
 // ── Connection test ───────────────────────────────────────────────────────────
 export async function verifyEmailConnection() {
   try {
