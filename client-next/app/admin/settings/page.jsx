@@ -4,12 +4,14 @@ import '../../Dashboard.css';
 import {
     LayoutGrid, Calendar, MessageSquare, Settings as SettingsIcon, LogOut, Bell, Search, Menu,
     ChevronLeft, ChevronRight, Wifi, Clock, FileBarChart, CheckCircle, Save,
-    Plus, Trash2, Edit3, Shield, X, Eye, EyeOff, AlertCircle
+    Plus, Trash2, Edit3, Shield, X, Eye, EyeOff, AlertCircle, ExternalLink
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { api } from '@/lib/api';
 
 export default function AdminSettingsPage() {
     const router = useRouter();
+    const [gcStatus, setGcStatus] = useState(null); // 'success', 'db_error', etc.
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [showBssidModal, setShowBssidModal] = useState(false);
@@ -33,6 +35,19 @@ export default function AdminSettingsPage() {
     const navTo = p => router.push(p);
 
     React.useEffect(() => {
+        // Read GC connection status from URL, safely handling SSR
+        if (typeof window !== 'undefined') {
+            const searchParams = new URLSearchParams(window.location.search);
+            if (searchParams.get('gc_connected') === '1') {
+                setGcStatus('success');
+                // Clean up URL
+                window.history.replaceState({}, '', '/admin/settings');
+            } else if (searchParams.get('gc_error')) {
+                setGcStatus(searchParams.get('gc_error'));
+                window.history.replaceState({}, '', '/admin/settings');
+            }
+        }
+
         const loadData = async () => {
             try {
                 const confRes = await fetch('/api/admin/settings/config');
@@ -330,6 +345,60 @@ export default function AdminSettingsPage() {
                                     <input type="password" value={accountSettings.newPassword} onChange={e => setAccountSettings({ ...accountSettings, newPassword: e.target.value })} placeholder="••••••••"
                                         style={inputStyle} onFocus={e => e.target.style.borderColor = '#111'} onBlur={e => e.target.style.borderColor = '#e5e7eb'} />
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                    {/* Google Classroom Integration */}
+                    <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', borderTop: '3px solid #1a73e8', overflow: 'hidden', marginBottom: '1.5rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.8rem 1.5rem', borderBottom: '1px solid #f0f0f0' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.95rem', fontWeight: 700 }}>
+                                <img src="https://ssl.gstatic.com/classroom/favicon.png" alt="GC" width={18} height={18} />
+                                Google Classroom Integration
+                            </div>
+                        </div>
+                        <div style={{ padding: '1.2rem 1.5rem' }}>
+                            <div style={{ fontSize: '0.82rem', color: '#555', marginBottom: '12px', lineHeight: 1.6 }}>
+                                Connect your Google Classroom teacher account (<strong>priyanshupandeynov18@gmail.com</strong>).
+                                Once connected, assignments you create in Google Classroom will automatically appear
+                                in every student's dashboard under "Pending Assignments".
+                            </div>
+                            <div style={{ padding: '10px 14px', background: '#f0f7ff', borderRadius: '8px', border: '1px solid #c7d9f8', marginBottom: '14px', fontSize: '0.75rem', color: '#1a56db', lineHeight: 1.5 }}>
+                                ℹ️ Students do <strong>not</strong> need to connect their own Google accounts.
+                                Only the admin needs to connect once using the teacher account.
+                            </div>
+
+                            {gcStatus === 'success' && (
+                                <div style={{ padding: '10px 14px', background: '#e6f4ea', borderRadius: '8px', border: '1px solid #ceead6', marginBottom: '14px', fontSize: '0.8rem', color: '#137333', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <CheckCircle size={16} /> Successfully connected to Google Classroom!
+                                </div>
+                            )}
+                            {gcStatus === 'db_error' && (
+                                <div style={{ padding: '10px 14px', background: '#fce8e6', borderRadius: '8px', border: '1px solid #fad2cf', marginBottom: '14px', fontSize: '0.8rem', color: '#c5221f', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <AlertCircle size={16} /> Database Error: Supabase schema cache issue. Please run `NOTIFY pgrst, 'reload schema'` in your Supabase SQL editor.
+                                </div>
+                            )}
+                            {gcStatus && gcStatus !== 'success' && gcStatus !== 'db_error' && (
+                                <div style={{ padding: '10px 14px', background: '#fce8e6', borderRadius: '8px', border: '1px solid #fad2cf', marginBottom: '14px', fontSize: '0.8rem', color: '#c5221f', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <AlertCircle size={16} /> Failed to connect: {gcStatus}
+                                </div>
+                            )}
+
+                            <button
+                                onClick={async () => {
+                                    try {
+                                        const { url } = await api.get('/api/auth/google/connect');
+                                        window.location.href = url;
+                                    } catch (e) {
+                                        alert('Failed to get Google auth URL: ' + e.message);
+                                    }
+                                }}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '8px 18px', background: '#1a73e8', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '0.80rem', fontWeight: 700, cursor: 'pointer' }}
+                            >
+                                <ExternalLink size={14} />
+                                Connect Google Classroom
+                            </button>
+                            <div style={{ marginTop: '8px', fontSize: '0.68rem', color: '#aaa' }}>
+                                You will be redirected to Google to authorize access. Make sure to log in with your teacher Google account.
                             </div>
                         </div>
                     </div>
