@@ -365,7 +365,7 @@ export default function SettingsPage() {
                                     <div style={{ fontSize: '0.8rem', color: '#aaa' }}>Manage your device registration used for Wi-Fi based attendance detection.</div>
                                 </div>
 
-                                <SectionCard title="MAC Address Registration" subtitle="Your device's MAC address is used by the attendance system to detect your presence in class.">
+                                <SectionCard title={`MAC Address Registration — ${profile?.first_name || user?.firstName || 'Student'}`} subtitle="Your device's MAC address is used by the attendance system to detect your presence in class.">
                                     {/* Current status */}
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', background: profile?.mac_verified ? '#f0fdf4' : '#fef9c3', borderRadius: '10px', marginBottom: '1.5rem' }}>
                                         {profile?.mac_verified
