@@ -44,6 +44,7 @@ export default function AttendancePage() {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [selectedCourse, setSelectedCourse] = useState('all');
+    const [currentCalendarMonth, setCurrentCalendarMonth] = useState(new Date());
 
     // Live data
     const [summaryData, setSummaryData] = useState(null);
@@ -66,6 +67,20 @@ export default function AttendancePage() {
     }, []);
 
     useEffect(() => { if (authReady) fetchData(); }, [fetchData, authReady]);
+
+    // Auto-navigate calendar to the most recent month that has session data
+    useEffect(() => {
+        if (sessionHistory.length === 0) return;
+        const latestDate = sessionHistory
+            .filter(r => r.sessions?.session_date)
+            .map(r => r.sessions.session_date)
+            .sort()
+            .pop(); // most recent YYYY-MM-DD
+        if (latestDate) {
+            const [y, m] = latestDate.split('-').map(Number);
+            setCurrentCalendarMonth(new Date(y, m - 1, 1));
+        }
+    }, [sessionHistory]);
 
     // Build from API data — API returns { overall: { attended, missed, total, pct }, streak, courses }
     const overall = {
@@ -107,24 +122,34 @@ export default function AttendancePage() {
     const statusBg = (p) => p >= 85 ? '#ecfccb' : p >= 75 ? '#fef9c3' : '#fce7f3';
     const statusLabel = (p) => p >= 85 ? 'On Track' : p >= 75 ? 'Needs Attention' : 'At Risk';
 
-    // Build a simple attendance calendar for current month
-    const now = new Date();
-    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).getDay();
-    const calendarDays = Array(firstDay).fill(-1).concat(
-        sessions.map(s => {
-            const d = new Date(sessionHistory.find(r => {
-                const dd = new Date(r.session_date);
-                return `${dd.getDate()} ${dd.toLocaleString('en', { month: 'short' })}` === s.date;
-            })?.session_date);
-            return d.getDate();
-        })
-    );
-    // Build a simpler approach: mark each day
-    const presentDays = new Set(sessionHistory.filter(s => s.status === 'present' && s.sessions?.session_date).map(s => new Date(s.sessions.session_date + 'T00:00:00').getDate()));
-    const absentDays = new Set(sessionHistory.filter(s => s.status !== 'present' && s.sessions?.session_date).map(s => new Date(s.sessions.session_date + 'T00:00:00').getDate()));
-    const dayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-    const calDays = Array(firstDay).fill(null).concat(Array.from({ length: daysInMonth }, (_, i) => i + 1));
+    // ── Calendar: group all sessions by exact YYYY-MM-DD date ──────────────
+    const sessionsByDate = {};
+    for (const r of sessionHistory) {
+        const date = r.sessions?.session_date;
+        if (!date) continue;
+        if (!sessionsByDate[date]) sessionsByDate[date] = [];
+        sessionsByDate[date].push(r.status);
+    }
+
+    // Determine colour category for a given day's statuses
+    const getDayStatus = (statuses) => {
+        if (!statuses || statuses.length === 0) return 'none'; // no class
+        const presentCount = statuses.filter(s => ['present', 'present_online', 'half'].includes(s)).length;
+        if (presentCount === statuses.length) return 'full';    // all attended → green
+        if (presentCount > 0)                 return 'partial'; // mixed        → orange
+        return 'absent';                                         // all absent   → red
+    };
+
+    // Calendar grid for currentCalendarMonth
+    const calYear   = currentCalendarMonth.getFullYear();
+    const calMonth  = currentCalendarMonth.getMonth();      // 0-indexed
+    const daysInMonth  = new Date(calYear, calMonth + 1, 0).getDate();
+    const firstDay     = new Date(calYear, calMonth, 1).getDay();
+    const calDays      = Array(firstDay).fill(null).concat(Array.from({ length: daysInMonth }, (_, i) => i + 1));
+    const dayLabels    = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+    const prevCalMonth = () => setCurrentCalendarMonth(d => new Date(d.getFullYear(), d.getMonth() - 1, 1));
+    const nextCalMonth = () => setCurrentCalendarMonth(d => new Date(d.getFullYear(), d.getMonth() + 1, 1));
 
     const Sidebar = () => (
         <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobileMenuOpen ? 'open' : ''}`}>
@@ -194,24 +219,45 @@ export default function AttendancePage() {
                         </div>
 
                         <div className="stat-card" style={{ padding: '1.5rem 2rem', borderRadius: '20px' }}>
+                            {/* ── Header: month label + chevrons + legend ── */}
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                                <span style={{ fontSize: '1rem', fontWeight: 700, color: '#000' }}>{now.toLocaleString('en', { month: 'long' })} {now.getFullYear()}</span>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.65rem', color: '#aaa' }}>
-                                    {[['#86efac','Present'],['#fda4af','Absent'],['#f5f5f5','No Class']].map(([c,l])=>(
-                                        <span key={l} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}><span style={{ width: '10px', height: '10px', borderRadius: '4px', background: c, display: 'inline-block', border: c==='#f5f5f5'?'1px solid #eee':'none' }}></span>{l}</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <button onClick={prevCalMonth} style={{ background: 'none', border: '1px solid #eee', borderRadius: '8px', width: '26px', height: '26px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888', fontSize: '0.8rem' }}>
+                                        <ChevronLeft size={14} />
+                                    </button>
+                                    <span style={{ fontSize: '1rem', fontWeight: 700, color: '#000', minWidth: '130px', textAlign: 'center' }}>
+                                        {currentCalendarMonth.toLocaleString('en', { month: 'long' })} {currentCalendarMonth.getFullYear()}
+                                    </span>
+                                    <button onClick={nextCalMonth} style={{ background: 'none', border: '1px solid #eee', borderRadius: '8px', width: '26px', height: '26px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888', fontSize: '0.8rem' }}>
+                                        <ChevronRight size={14} />
+                                    </button>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.65rem', color: '#aaa' }}>
+                                    {[['#86efac','100%'],['#fdba74','Partial'],['#fca5a5','Absent'],['#f5f5f5','No Class']].map(([c,l])=>(
+                                        <span key={l} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                            <span style={{ width: '10px', height: '10px', borderRadius: '4px', background: c, display: 'inline-block', border: c==='#f5f5f5'?'1px solid #eee':'none' }}></span>{l}
+                                        </span>
                                     ))}
                                 </div>
                             </div>
+                            {/* ── Day-of-week labels ── */}
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px', marginBottom: '6px' }}>
                                 {dayLabels.map((d,i)=><div key={i} style={{ textAlign: 'center', fontSize: '0.68rem', fontWeight: 600, color: '#ccc' }}>{d}</div>)}
                             </div>
+                            {/* ── Day cells ── */}
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px' }}>
                                 {calDays.map((day, i) => {
-                                    let bg='#fafafa', textCol='#ddd', border='1px dashed #e8e8e8';
+                                    let bg='transparent', textCol='#ddd', border='1px dashed #e8e8e8';
                                     if (day !== null) {
-                                        if (presentDays.has(day)) { bg='#86efac'; textCol='#166534'; border='1px solid #a7f3d0'; }
-                                        else if (absentDays.has(day)) { bg='#fda4af'; textCol='#9f1239'; border='1px solid #fecdd3'; }
-                                        else { bg='#f5f5f5'; textCol='#ccc'; border='1px solid #eee'; }
+                                        // Build the exact YYYY-MM-DD for this cell
+                                        const mm = String(calMonth + 1).padStart(2, '0');
+                                        const dd = String(day).padStart(2, '0');
+                                        const dateKey = `${calYear}-${mm}-${dd}`;
+                                        const dayStatus = getDayStatus(sessionsByDate[dateKey]);
+                                        if      (dayStatus === 'full')    { bg='#86efac'; textCol='#166534'; border='1px solid #a7f3d0'; }
+                                        else if (dayStatus === 'partial') { bg='#fdba74'; textCol='#92400e'; border='1px solid #fcd34d'; }
+                                        else if (dayStatus === 'absent')  { bg='#fca5a5'; textCol='#9f1239'; border='1px solid #fecdd3'; }
+                                        else                               { bg='#f8f8f8'; textCol='#ccc';    border='1px solid #eee'; }
                                     }
                                     return <div key={i} style={{ aspectRatio:'1', borderRadius:'8px', background:bg, border, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.7rem', fontWeight:600, color:textCol }}>{day || ''}</div>;
                                 })}
