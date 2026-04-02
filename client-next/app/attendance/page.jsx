@@ -122,23 +122,8 @@ export default function AttendancePage() {
     const statusBg = (p) => p >= 85 ? '#ecfccb' : p >= 75 ? '#fef9c3' : '#fce7f3';
     const statusLabel = (p) => p >= 85 ? 'On Track' : p >= 75 ? 'Needs Attention' : 'At Risk';
 
-    // ── Calendar: group all sessions by exact YYYY-MM-DD date ──────────────
-    const sessionsByDate = {};
-    for (const r of sessionHistory) {
-        const date = r.sessions?.session_date;
-        if (!date) continue;
-        if (!sessionsByDate[date]) sessionsByDate[date] = [];
-        sessionsByDate[date].push(r.status);
-    }
-
-    // Determine colour category for a given day's statuses
-    const getDayStatus = (statuses) => {
-        if (!statuses || statuses.length === 0) return 'none'; // no class
-        const presentCount = statuses.filter(s => ['present', 'present_online', 'half'].includes(s)).length;
-        if (presentCount === statuses.length) return 'full';    // all attended → green
-        if (presentCount > 0)                 return 'partial'; // mixed        → orange
-        return 'absent';                                         // all absent   → red
-    };
+    // Calendar status comes from summaryData.calendarData (computed server-side
+    // from ALL attendance records — no pagination limit applies).
 
     // Calendar grid for currentCalendarMonth
     const calYear   = currentCalendarMonth.getFullYear();
@@ -253,7 +238,7 @@ export default function AttendancePage() {
                                         const mm = String(calMonth + 1).padStart(2, '0');
                                         const dd = String(day).padStart(2, '0');
                                         const dateKey = `${calYear}-${mm}-${dd}`;
-                                        const dayStatus = getDayStatus(sessionsByDate[dateKey]);
+                                        const dayStatus = summaryData?.calendarData?.[dateKey] || 'none';
                                         if      (dayStatus === 'full')    { bg='#86efac'; textCol='#166534'; border='1px solid #a7f3d0'; }
                                         else if (dayStatus === 'partial') { bg='#fdba74'; textCol='#92400e'; border='1px solid #fcd34d'; }
                                         else if (dayStatus === 'absent')  { bg='#fca5a5'; textCol='#9f1239'; border='1px solid #fecdd3'; }

@@ -118,6 +118,27 @@ async function handler(req) {
       else break;
     }
 
+    // ── 7. Calendar data ─────────────────────────────────────────────────
+    // Built server-side from ALL records (no pagination limit) so the full
+    // Jan–Mar history is available regardless of the sessions API page size.
+    const calByDate = {};
+    for (const r of allRecords) {
+      const date = r.sessions?.session_date;
+      if (!date) continue;
+      const s = r.status;
+      if (s === 'leave' || s === 'other') continue; // excluded from calendar colouring
+      if (!calByDate[date]) calByDate[date] = { present: 0, absent: 0 };
+      if (['present', 'present_online', 'half'].includes(s)) calByDate[date].present++;
+      else if (s === 'absent')                               calByDate[date].absent++;
+    }
+    // Collapse counts → status string
+    const calendarData = {};
+    for (const [date, { present, absent }] of Object.entries(calByDate)) {
+      if (present > 0 && absent === 0) calendarData[date] = 'full';
+      else if (present > 0)            calendarData[date] = 'partial';
+      else                             calendarData[date] = 'absent';
+    }
+
     return NextResponse.json({
       overall: {
         total:    overallDen,
@@ -127,7 +148,9 @@ async function handler(req) {
       },
       streak,
       courses,
+      calendarData,   // { "YYYY-MM-DD": "full" | "partial" | "absent" }
     });
+
 
   } catch (err) {
     console.error('Attendance summary error:', err);
