@@ -28,6 +28,29 @@ export default function AdminAttendancePage() {
     const [macPending, setMacPending] = useState([]);
     const [macLoading, setMacLoading] = useState(true);
     const [macActioning, setMacActioning] = useState(null); // studentId being actioned
+    const [overrideLoading, setOverrideLoading] = useState(null); // studentId being overridden
+    const [confirmOverride, setConfirmOverride] = useState(null); // { studentId, studentName, action, sessionId }
+
+    const handleOverride = async (sessionId, studentId, action) => {
+        setOverrideLoading(studentId);
+        try {
+            const res = await api.post('/api/admin/attendance/override', {
+                session_id: sessionId,
+                student_id: studentId,
+                action,
+            });
+            // Refresh the student data
+            const json = await api.get(`/api/admin/attendance/session-students?session_id=${sessionId}`);
+            setSessionStudents(json);
+            fetchSessions();
+            setConfirmOverride(null);
+        } catch (err) {
+            console.error('Override failed:', err);
+            alert('Override failed: ' + (err.message || 'Unknown error'));
+        } finally {
+            setOverrideLoading(null);
+        }
+    };
 
     const navTo = p => router.push(p);
 
@@ -425,9 +448,9 @@ export default function AdminAttendancePage() {
                                                             </span>
                                                         ))}
                                                         <span style={{ color: '#ddd' }}>·</span>
-                                                        <span style={{ color: '#888' }}>Snapshots Analyzed: <span style={{ fontWeight: 700, color: '#555', fontFamily: 'monospace' }}>{sessionStudents.summary?.snapshotsAnalyzed || 0}</span></span>
+                                                        <span style={{ color: '#888' }}>Snapshots: <span style={{ fontWeight: 700, color: '#555', fontFamily: 'monospace' }}>{sessionStudents.summary?.snapshotsAnalyzed || 0}</span></span>
                                                         <span style={{ color: '#ddd' }}>·</span>
-                                                        <span style={{ color: '#888' }}>Total Detected: <span style={{ fontWeight: 700, color: '#555', fontFamily: 'monospace' }}>{sessionStudents.summary?.total || 0}</span></span>
+                                                        <span style={{ color: '#888' }}>Enrolled: <span style={{ fontWeight: 700, color: '#555', fontFamily: 'monospace' }}>{sessionStudents.summary?.enrolled || sessionStudents.summary?.total || 0}</span></span>
                                                     </div>
 
                                                     {/* Student table */}
@@ -435,7 +458,7 @@ export default function AdminAttendancePage() {
                                                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
                                                             <thead>
                                                                 <tr style={{ background: '#f0f0f0' }}>
-                                                                    {['Student', 'Enrollment', 'Signal', 'First Seen', 'Last Seen', 'Duration', 'Pings', 'Points', 'Status'].map(h => (
+                                                                    {['Student', 'Enrollment', 'Signal', 'First Seen', 'Last Seen', 'Duration', 'Pings', 'Points', 'Status', 'Actions'].map(h => (
                                                                         <th key={h} style={{ padding: '8px 14px', textAlign: 'left', fontSize: '0.68rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#888', borderBottom: '1px solid #e0e0e0' }}>{h}</th>
                                                                     ))}
                                                                 </tr>
@@ -444,8 +467,18 @@ export default function AdminAttendancePage() {
                                                                 {(sessionStudents.students || []).map((s, i) => {
                                                                     const st = getStatusStyle(s.status);
                                                                     return (
-                                                                        <tr key={i} style={{ borderBottom: '1px solid #f0f0f0', background: s.status === 'absent' ? '#fefefe' : '#fff' }}>
-                                                                            <td style={{ padding: '9px 14px', fontWeight: 600, color: s.status === 'absent' ? '#aaa' : '#111' }}>{s.name}</td>
+                                                                        <tr key={i} style={{ borderBottom: '1px solid #f0f0f0', background: s.penalty ? '#fef2f2' : s.adminOverride ? '#fffbeb' : s.status === 'absent' ? '#fefefe' : '#fff' }}>
+                                                                            <td style={{ padding: '9px 14px' }}>
+                                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                                    <span style={{ fontWeight: 600, color: s.status === 'absent' ? '#aaa' : '#111' }}>{s.name}</span>
+                                                                                    {s.penalty && (
+                                                                                        <span style={{ padding: '1px 6px', borderRadius: '4px', fontSize: '0.58rem', fontWeight: 700, background: '#fecaca', color: '#991b1b' }}>PENALTY</span>
+                                                                                    )}
+                                                                                    {s.adminOverride && !s.penalty && (
+                                                                                        <span style={{ padding: '1px 6px', borderRadius: '4px', fontSize: '0.58rem', fontWeight: 700, background: '#fef3c7', color: '#92400e' }}>ADMIN</span>
+                                                                                    )}
+                                                                                </div>
+                                                                            </td>
                                                                             <td style={{ padding: '9px 14px', fontFamily: 'monospace', fontSize: '0.76rem', color: '#555' }}>{s.enrollmentNo}</td>
                                                                             <td style={{ padding: '9px 14px' }}>
                                                                                 {s.signal > 0 ? (
@@ -496,6 +529,35 @@ export default function AdminAttendancePage() {
                                                                                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 10px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600, background: st.bg, color: st.color }}>
                                                                                     {st.icon} {st.label}
                                                                                 </span>
+                                                                            </td>
+                                                                            <td style={{ padding: '9px 14px' }}>
+                                                                                {overrideLoading === s.studentId ? (
+                                                                                    <span style={{ fontSize: '0.7rem', color: '#aaa' }}>Saving...</span>
+                                                                                ) : s.penalty ? (
+                                                                                    <span style={{ fontSize: '0.65rem', color: '#991b1b', fontWeight: 600 }} title={s.penaltyReason}>⛔ Penalized</span>
+                                                                                ) : (
+                                                                                    <div style={{ display: 'flex', gap: '4px' }}>
+                                                                                        <button
+                                                                                            onClick={(e) => { e.stopPropagation(); handleOverride(expandedSession, s.studentId, 'present'); }}
+                                                                                            disabled={s.adminOverride && s.status === 'present'}
+                                                                                            style={{
+                                                                                                padding: '3px 8px', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 600, cursor: 'pointer',
+                                                                                                border: '1px solid #bbf7d0', background: s.adminOverride && s.status === 'present' ? '#dcfce7' : '#fff',
+                                                                                                color: '#166534', opacity: s.adminOverride && s.status === 'present' ? 0.6 : 1,
+                                                                                            }}
+                                                                                        >✓ Present</button>
+                                                                                        <button
+                                                                                            onClick={(e) => {
+                                                                                                e.stopPropagation();
+                                                                                                setConfirmOverride({ studentId: s.studentId, studentName: s.name, action: 'absent', sessionId: expandedSession });
+                                                                                            }}
+                                                                                            style={{
+                                                                                                padding: '3px 8px', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 600, cursor: 'pointer',
+                                                                                                border: '1px solid #fecaca', background: '#fff', color: '#991b1b',
+                                                                                            }}
+                                                                                        >✗ Absent</button>
+                                                                                    </div>
+                                                                                )}
                                                                             </td>
                                                                         </tr>
                                                                     );
@@ -623,6 +685,56 @@ export default function AdminAttendancePage() {
 
                 </div>
             </div>
+                {/* ── Absent Override Confirmation Modal ── */}
+                {confirmOverride && (
+                    <div style={{
+                        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex',
+                        alignItems: 'center', justifyContent: 'center', zIndex: 9999,
+                    }} onClick={() => setConfirmOverride(null)}>
+                        <div style={{
+                            background: '#fff', borderRadius: '12px', padding: '1.5rem', maxWidth: '440px', width: '90%',
+                            boxShadow: '0 20px 60px rgba(0,0,0,0.2)', border: '2px solid #fecaca',
+                        }} onClick={e => e.stopPropagation()}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1rem' }}>
+                                <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <AlertTriangle size={20} color="#dc2626" />
+                                </div>
+                                <div>
+                                    <div style={{ fontWeight: 700, fontSize: '1rem', color: '#111' }}>Mark Absent — Faking Penalty</div>
+                                    <div style={{ fontSize: '0.75rem', color: '#888' }}>This action has severe consequences</div>
+                                </div>
+                            </div>
+
+                            <div style={{ padding: '12px', borderRadius: '8px', background: '#fef2f2', marginBottom: '1rem', fontSize: '0.8rem', color: '#991b1b', lineHeight: '1.5' }}>
+                                <strong>{confirmOverride.studentName}</strong> will be:
+                                <ul style={{ margin: '6px 0 0 16px', padding: 0 }}>
+                                    <li>Marked <strong>absent with 0 points</strong> for this session</li>
+                                    <li>Penalized with <strong>0 points and absent status</strong> on ALL sessions from <strong>1 week before to 1 week after</strong> this date</li>
+                                </ul>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                <button
+                                    onClick={() => setConfirmOverride(null)}
+                                    style={{
+                                        padding: '8px 16px', borderRadius: '6px', border: '1px solid #e5e7eb',
+                                        background: '#fff', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, color: '#555',
+                                    }}
+                                >Cancel</button>
+                                <button
+                                    onClick={() => handleOverride(confirmOverride.sessionId, confirmOverride.studentId, 'absent')}
+                                    disabled={overrideLoading === confirmOverride.studentId}
+                                    style={{
+                                        padding: '8px 16px', borderRadius: '6px', border: 'none',
+                                        background: '#dc2626', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700, color: '#fff',
+                                        opacity: overrideLoading === confirmOverride.studentId ? 0.6 : 1,
+                                    }}
+                                >{overrideLoading === confirmOverride.studentId ? 'Applying Penalty...' : 'Confirm — Mark Absent'}</button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
             <style jsx>{`
                 @keyframes spin {
                     from { transform: rotate(0deg); }
