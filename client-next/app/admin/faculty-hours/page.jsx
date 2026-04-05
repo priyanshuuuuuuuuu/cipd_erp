@@ -132,7 +132,15 @@ export default function AdminFacultyHoursPage() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {facultyData.map(f => (
+                                    {loading && facultyData.length === 0 ? (
+                                        <>{[1,2,3,4].map(i => (
+                                            <tr key={`skel-${i}`} style={{ borderBottom: '1px solid #f5f5f5' }}>
+                                                {[120,80,40,50,60,70,65,80].map((w,j) => (
+                                                    <td key={j} style={{ padding: '12px 16px' }}><div style={{ width: `${w}px`, height: j===0?'12px':'10px', borderRadius: '4px', background: j%2===0?'#f0f0f0':'#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${(i*8+j)*0.05}s` }} /></td>
+                                                ))}
+                                            </tr>
+                                        ))}</>
+                                    ) : facultyData.map(f => (
                                         <tr key={f.id} className="attendance-row" style={{ borderBottom: '1px solid #f5f5f5' }}>
                                             <td style={{ padding: '12px 16px', fontWeight: 600, color: '#111' }}>{f.name}</td>
                                             <td style={{ padding: '12px 16px' }}>
@@ -201,6 +209,7 @@ export default function AdminFacultyHoursPage() {
                     </div>
                 </div>
             </div>
+            <style>{`@keyframes shimmer { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }`}</style>
         </div>
     );
 }

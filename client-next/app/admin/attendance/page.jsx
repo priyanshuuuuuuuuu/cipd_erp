@@ -337,9 +337,18 @@ export default function AdminAttendancePage() {
                         </div>
 
                         {loading ? (
-                            <div style={{ padding: '3rem', textAlign: 'center', color: '#aaa' }}>
-                                <Activity size={24} color="#ddd" />
-                                <div style={{ fontSize: '0.85rem', fontWeight: 600, marginTop: '8px' }}>Loading sessions...</div>
+                            <div style={{ padding: '0' }}>
+                                {[1, 2, 3].map(i => (
+                                    <div key={i} style={{ padding: '14px 1.5rem', borderBottom: '1px solid #f0f0f0', display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                        <div style={{ width: '60px', height: '12px', borderRadius: '4px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite' }} />
+                                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                            <div style={{ width: `${50 + i * 15}%`, height: '12px', borderRadius: '4px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.15}s` }} />
+                                            <div style={{ width: `${30 + i * 10}%`, height: '9px', borderRadius: '3px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.2}s` }} />
+                                        </div>
+                                        <div style={{ width: '70px', height: '22px', borderRadius: '6px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.1}s` }} />
+                                        <div style={{ width: '16px', height: '16px', borderRadius: '3px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite' }} />
+                                    </div>
+                                ))}
                             </div>
                         ) : sessions.length === 0 ? (
                             <div style={{ padding: '3rem', textAlign: 'center', color: '#aaa' }}>
@@ -429,7 +438,41 @@ export default function AdminAttendancePage() {
                                                 </div>
                                             )}
                                             {studentsLoading ? (
-                                                <div style={{ padding: '2rem', textAlign: 'center', color: '#aaa', fontSize: '0.82rem' }}>Loading student data...</div>
+                                                <div style={{ padding: '0' }}>
+                                                    {/* Skeleton summary strip */}
+                                                    <div style={{ display: 'flex', gap: '20px', padding: '10px 1.5rem', borderBottom: '1px solid #e8e8e8' }}>
+                                                        {[1, 2, 3, 4].map(i => (
+                                                            <div key={i} style={{ width: '80px', height: '12px', borderRadius: '4px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.1}s` }} />
+                                                        ))}
+                                                    </div>
+                                                    {/* Skeleton table header */}
+                                                    <div style={{ padding: '8px 1.5rem', background: '#f0f0f0', display: 'flex', gap: '14px' }}>
+                                                        {[100, 70, 50, 60, 60, 50, 40, 50, 60, 60].map((w, i) => (
+                                                            <div key={i} style={{ width: `${w}px`, height: '9px', borderRadius: '3px', background: '#e8e8e8', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.05}s` }} />
+                                                        ))}
+                                                    </div>
+                                                    {/* Skeleton rows */}
+                                                    {[1, 2, 3, 4, 5, 6].map(i => (
+                                                        <div key={i} style={{ padding: '12px 1.5rem', borderBottom: '1px solid #f0f0f0', display: 'flex', alignItems: 'center', gap: '14px' }}>
+                                                            <div style={{ width: '100px', height: '12px', borderRadius: '4px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.08}s` }} />
+                                                            <div style={{ width: '70px', height: '10px', borderRadius: '3px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.1}s` }} />
+                                                            <div style={{ width: '40px', height: '16px', borderRadius: '3px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.12}s` }} />
+                                                            <div style={{ width: '45px', height: '10px', borderRadius: '3px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.14}s` }} />
+                                                            <div style={{ width: '45px', height: '10px', borderRadius: '3px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.16}s` }} />
+                                                            <div style={{ width: '50px', height: '10px', borderRadius: '3px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.18}s` }} />
+                                                            <div style={{ width: '25px', height: '10px', borderRadius: '3px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.2}s` }} />
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                                <div style={{ width: '36px', height: '6px', borderRadius: '3px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.22}s` }} />
+                                                                <div style={{ width: '20px', height: '10px', borderRadius: '3px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.24}s` }} />
+                                                            </div>
+                                                            <div style={{ width: '60px', height: '22px', borderRadius: '6px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.26}s` }} />
+                                                            <div style={{ display: 'flex', gap: '4px' }}>
+                                                                <div style={{ width: '50px', height: '20px', borderRadius: '4px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.28}s` }} />
+                                                                <div style={{ width: '50px', height: '20px', borderRadius: '4px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.3}s` }} />
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             ) : !sessionStudents ? (
                                                 <div style={{ padding: '2rem', textAlign: 'center', color: '#aaa', fontSize: '0.82rem' }}>No data available</div>
                                             ) : (
@@ -743,6 +786,11 @@ export default function AdminAttendancePage() {
                 @keyframes pulse {
                     0%, 100% { opacity: 1; }
                     50% { opacity: 0.4; }
+                }
+                @keyframes shimmer {
+                    0% { opacity: 0.4; }
+                    50% { opacity: 1; }
+                    100% { opacity: 0.4; }
                 }
             `}</style>
         </div>

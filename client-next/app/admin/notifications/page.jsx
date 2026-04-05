@@ -310,7 +310,19 @@ export default function AdminNotificationsPage() {
                         </div>
                         <div style={{ overflowX: 'auto' }}>
                             {loading ? (
-                                <div style={{ padding: '2rem', textAlign: 'center', color: '#aaa', fontSize: '0.85rem' }}>Loading...</div>
+                                <div>
+                                    {[1,2,3,4].map(i => (
+                                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '12px 1.5rem', borderBottom: '1px solid #f5f5f5' }}>
+                                            <div style={{ width: '90px', height: '20px', borderRadius: '6px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.1}s` }} />
+                                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                                <div style={{ width: `${50 + i * 10}%`, height: '11px', borderRadius: '4px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.15}s` }} />
+                                                <div style={{ width: `${30 + i * 8}%`, height: '9px', borderRadius: '3px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.2}s` }} />
+                                            </div>
+                                            <div style={{ width: '80px', height: '10px', borderRadius: '3px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.12}s` }} />
+                                            <div style={{ width: '70px', height: '10px', borderRadius: '3px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.18}s` }} />
+                                        </div>
+                                    ))}
+                                </div>
                             ) : history.length === 0 ? (
                                 <div style={{ padding: '2rem', textAlign: 'center', color: '#aaa', fontSize: '0.85rem' }}>No notifications sent yet.</div>
                             ) : (
@@ -356,7 +368,7 @@ export default function AdminNotificationsPage() {
                     </div>
                 </div>
             </div>
-            <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+            <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } } @keyframes shimmer { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }`}</style>
         </div>
     );
 }

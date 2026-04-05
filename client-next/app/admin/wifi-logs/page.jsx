@@ -257,10 +257,13 @@ export default function AdminWifiLogsPage() {
                                 </div>
                             )}
                             {loading && (
-                                <div style={{ padding: '3rem', textAlign: 'center', color: '#aaa' }}>
-                                    <Activity size={32} color="#ddd" className="spin-animation" />
-                                    <div style={{ fontSize: '0.9rem', fontWeight: 600, marginTop: '8px' }}>Tracking probe events...</div>
-                                </div>
+                                <>{[1,2,3,4,5].map(i => (
+                                    <tr key={`skel-${i}`} style={{ borderBottom: '1px solid #f5f5f5' }}>
+                                        {[110,100,90,90,80,80,60].map((w,j) => (
+                                            <td key={j} style={{ padding: '10px 16px' }}><div style={{ width: `${w}px`, height: j===0||j===1?'12px':'10px', borderRadius: '4px', background: j%2===0?'#f0f0f0':'#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${(i*7+j)*0.05}s` }} /></td>
+                                        ))}
+                                    </tr>
+                                ))}</>
                             )}
                         </div>
                     </div>
@@ -279,6 +282,7 @@ export default function AdminWifiLogsPage() {
                     </div>
                 </div>
             </div>
+            <style>{`@keyframes shimmer { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }`}</style>
         </div>
     );
 }
