@@ -160,11 +160,22 @@ export async function GET(req) {
         });
       });
 
-      // Upsert attendance records
-      if (attendanceRecords.length > 0) {
+      // Fetch existing overridden/penalized records to skip them
+      const { data: existingOverrides } = await supabaseAdmin
+        .from('attendance_records')
+        .select('student_id')
+        .eq('session_id', session.id)
+        .or('admin_override.eq.true,penalty.eq.true');
+
+      const overriddenIds = new Set((existingOverrides || []).map(r => r.student_id));
+
+      // Upsert only non-overridden records
+      const safeRecords = attendanceRecords.filter(r => !overriddenIds.has(r.student_id));
+
+      if (safeRecords.length > 0) {
         const { error: upsertErr } = await supabaseAdmin
           .from('attendance_records')
-          .upsert(attendanceRecords, {
+          .upsert(safeRecords, {
             onConflict: 'session_id,student_id',
             ignoreDuplicates: false,
           });
