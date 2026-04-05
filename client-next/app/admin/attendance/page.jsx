@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import '../../Dashboard.css';
 import {
     LayoutGrid, Calendar, MessageSquare, Settings, LogOut, Bell, Search, Menu,
@@ -20,6 +20,9 @@ export default function AdminAttendancePage() {
     const [expandedSession, setExpandedSession] = useState(null);
     const [sessionStudents, setSessionStudents] = useState(null);
     const [studentsLoading, setStudentsLoading] = useState(false);
+    const [nextRefreshIn, setNextRefreshIn] = useState(null);
+    const refreshTimerRef = useRef(null);
+    const SNAPSHOT_INTERVAL_MS = 6 * 60 * 1000; // 6 min scanner cadence
 
     // MAC Approvals state
     const [macPending, setMacPending] = useState([]);
@@ -76,23 +79,85 @@ export default function AdminAttendancePage() {
         }
     };
 
+    // Clear auto-refresh timer
+    const clearRefreshTimer = () => {
+        if (refreshTimerRef.current) { clearTimeout(refreshTimerRef.current); refreshTimerRef.current = null; }
+        setNextRefreshIn(null);
+    };
+
+    // Schedule next refresh synced to server snapshot time (same as live students page)
+    const scheduleRefresh = (sessionId, lastSnapshotTime) => {
+        clearRefreshTimer();
+        if (!lastSnapshotTime) return;
+
+        // next refresh = lastSnapshot + 6 min + 15s buffer
+        const nextSnapshotTime = new Date(lastSnapshotTime).getTime() + SNAPSHOT_INTERVAL_MS + 15000;
+        const delay = Math.max(30000, nextSnapshotTime - Date.now()); // at least 30s
+
+        setNextRefreshIn(Math.round(delay / 1000));
+        refreshTimerRef.current = setTimeout(() => {
+            refreshSessionStudents(sessionId);
+        }, delay);
+    };
+
+    // Silent refresh (no loading spinner) for ongoing session auto-updates
+    const refreshSessionStudents = async (sessionId) => {
+        try {
+            const json = await api.get(`/api/admin/attendance/session-students?session_id=${sessionId}`);
+            setSessionStudents(json);
+            // Also refresh session list to keep status/counts current
+            fetchSessions();
+            // Re-schedule if still ongoing
+            if (json.isOngoing && json.lastSnapshot) {
+                scheduleRefresh(sessionId, json.lastSnapshot);
+            } else {
+                clearRefreshTimer();
+            }
+        } catch (err) {
+            console.error('Auto-refresh failed:', err);
+            // Retry in 30s
+            refreshTimerRef.current = setTimeout(() => refreshSessionStudents(sessionId), 30000);
+            setNextRefreshIn(30);
+        }
+    };
+
     const fetchSessionStudents = async (sessionId) => {
         if (expandedSession === sessionId) {
             setExpandedSession(null);
             setSessionStudents(null);
+            clearRefreshTimer();
             return;
         }
         try {
             setStudentsLoading(true);
             setExpandedSession(sessionId);
+            clearRefreshTimer();
             const json = await api.get(`/api/admin/attendance/session-students?session_id=${sessionId}`);
             setSessionStudents(json);
+            // Set up auto-refresh if ongoing (sync to last snapshot time)
+            if (json.isOngoing && json.lastSnapshot) {
+                scheduleRefresh(sessionId, json.lastSnapshot);
+            }
         } catch (err) {
             console.error('Failed to fetch session students:', err);
         } finally {
             setStudentsLoading(false);
         }
     };
+
+    // Cleanup timer on unmount
+    useEffect(() => {
+        return () => clearRefreshTimer();
+    }, []);
+
+    // Countdown ticker for next refresh
+    useEffect(() => {
+        if (nextRefreshIn === null || nextRefreshIn <= 0) return;
+        const tick = setInterval(() => {
+            setNextRefreshIn(prev => (prev !== null && prev > 0) ? prev - 1 : null);
+        }, 1000);
+        return () => clearInterval(tick);
+    }, [nextRefreshIn]);
 
     const formatTime = (t) => {
         if (!t) return '';
@@ -211,12 +276,31 @@ export default function AdminAttendancePage() {
                             </span>
                             <button onClick={fetchSessions} style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 12px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', fontSize: '0.72rem', color: '#888' }}><RefreshCw size={11} /> Refresh</button>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', padding: '7px 1.5rem', gap: '16px', fontSize: '0.7rem', color: '#aaa', background: '#fafafa' }}>
-                            <span>Rules: <span style={{ color: '#888', fontWeight: 500 }}>Signal ≥ 3 bars</span></span>
+                        <div style={{ display: 'flex', alignItems: 'center', padding: '7px 1.5rem', gap: '16px', fontSize: '0.7rem', color: '#aaa', background: '#fafafa', flexWrap: 'wrap' }}>
+                            <span>Signal: <span style={{ color: '#888', fontWeight: 500 }}>{'>'} 2</span></span>
                             <span style={{ color: '#ddd' }}>·</span>
-                            <span>Min Duration: <span style={{ color: '#888', fontWeight: 500 }}>15 minutes</span></span>
+                            <span>Window: <span style={{ color: '#888', fontWeight: 500 }}>Start → End + 2 min</span></span>
                             <span style={{ color: '#ddd' }}>·</span>
-                            <span>Data Source: <span style={{ color: '#888', fontWeight: 500 }}>WiFi Snapshots (every ~5 min)</span></span>
+                            <span>Points: <span style={{ color: '#888', fontWeight: 500 }}>1.0 max</span></span>
+                            <span style={{ color: '#ddd' }}>·</span>
+                            <span>Late: <span style={{ color: '#b45309', fontWeight: 500 }}>−0.5</span></span>
+                            <span style={{ color: '#ddd' }}>·</span>
+                            <span>{'<'}75%: <span style={{ color: '#b45309', fontWeight: 500 }}>−0.2</span></span>
+                            <span style={{ color: '#ddd' }}>·</span>
+                            <span>{'<'}50%: <span style={{ color: '#dc2626', fontWeight: 500 }}>−0.3</span></span>
+                            <span style={{ color: '#ddd' }}>·</span>
+                            <span>{'<'}30%: <span style={{ color: '#dc2626', fontWeight: 500 }}>Absent</span></span>
+                            {nextRefreshIn !== null && nextRefreshIn > 0 && (
+                                <>
+                                    <span style={{ color: '#ddd' }}>·</span>
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#16a34a' }}>
+                                        <RefreshCw size={10} style={{ animation: 'spin 2s linear infinite' }} />
+                                        Live — next refresh: <span style={{ fontWeight: 700, fontFamily: 'monospace' }}>
+                                            {Math.floor(nextRefreshIn / 60)}m {String(nextRefreshIn % 60).padStart(2, '0')}s
+                                        </span>
+                                    </span>
+                                </>
+                            )}
                         </div>
                     </div>
 
@@ -282,6 +366,45 @@ export default function AdminAttendancePage() {
                                     {/* Expanded: Student Detail Table */}
                                     {isExpanded && (
                                         <div style={{ background: '#fafafa', borderBottom: '2px solid #e8e8e8' }}>
+                                            {/* Live indicator for ongoing sessions */}
+                                            {session.status === 'ongoing' && !studentsLoading && sessionStudents && (
+                                                <div style={{
+                                                    display: 'flex', alignItems: 'center', padding: '8px 1.5rem', gap: '14px',
+                                                    fontSize: '0.72rem', background: '#ecfdf5', borderBottom: '1px solid #bbf7d0',
+                                                }}>
+                                                    <span style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#166534', fontWeight: 700 }}>
+                                                        <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#16a34a', display: 'inline-block', animation: 'pulse 2s infinite' }} />
+                                                        Live Attendance
+                                                    </span>
+                                                    <span style={{ color: '#86efac' }}>·</span>
+                                                    <span style={{ color: '#166534', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                        <RefreshCw size={10} style={{ animation: nextRefreshIn > 0 ? 'none' : 'spin 1s linear infinite' }} />
+                                                        Next update: <span style={{ fontWeight: 700, fontFamily: 'monospace' }}>
+                                                            {nextRefreshIn !== null && nextRefreshIn > 0
+                                                                ? `${Math.floor(nextRefreshIn / 60)}m ${String(nextRefreshIn % 60).padStart(2, '0')}s`
+                                                                : 'now'}
+                                                        </span>
+                                                    </span>
+                                                    {sessionStudents.lastSnapshot && (
+                                                        <>
+                                                            <span style={{ color: '#86efac' }}>·</span>
+                                                            <span style={{ color: '#15803d' }}>
+                                                                Last snapshot: <span style={{ fontWeight: 600 }}>
+                                                                    {new Date(sessionStudents.lastSnapshot).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' })}
+                                                                </span>
+                                                            </span>
+                                                        </>
+                                                    )}
+                                                    <button onClick={(e) => { e.stopPropagation(); refreshSessionStudents(session.id); }}
+                                                        style={{
+                                                            marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '4px',
+                                                            padding: '4px 10px', borderRadius: '6px', border: '1px solid #bbf7d0',
+                                                            background: '#fff', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 600, color: '#166534',
+                                                        }}>
+                                                        <RefreshCw size={10} /> Refresh Now
+                                                    </button>
+                                                </div>
+                                            )}
                                             {studentsLoading ? (
                                                 <div style={{ padding: '2rem', textAlign: 'center', color: '#aaa', fontSize: '0.82rem' }}>Loading student data...</div>
                                             ) : !sessionStudents ? (
@@ -289,7 +412,7 @@ export default function AdminAttendancePage() {
                                             ) : (
                                                 <>
                                                     {/* Summary strip */}
-                                                    <div style={{ display: 'flex', gap: '20px', padding: '10px 1.5rem', borderBottom: '1px solid #e8e8e8', fontSize: '0.72rem' }}>
+                                                    <div style={{ display: 'flex', gap: '20px', padding: '10px 1.5rem', borderBottom: '1px solid #e8e8e8', fontSize: '0.72rem', flexWrap: 'wrap' }}>
                                                         {[
                                                             ['Present', sessionStudents.summary?.present || 0, '#16a34a'],
                                                             ['Partial', sessionStudents.summary?.partial || 0, '#b45309'],
@@ -301,6 +424,10 @@ export default function AdminAttendancePage() {
                                                                 <span style={{ fontWeight: 700, color, fontFamily: 'monospace' }}>{val}</span>
                                                             </span>
                                                         ))}
+                                                        <span style={{ color: '#ddd' }}>·</span>
+                                                        <span style={{ color: '#888' }}>Snapshots Analyzed: <span style={{ fontWeight: 700, color: '#555', fontFamily: 'monospace' }}>{sessionStudents.summary?.snapshotsAnalyzed || 0}</span></span>
+                                                        <span style={{ color: '#ddd' }}>·</span>
+                                                        <span style={{ color: '#888' }}>Total Detected: <span style={{ fontWeight: 700, color: '#555', fontFamily: 'monospace' }}>{sessionStudents.summary?.total || 0}</span></span>
                                                     </div>
 
                                                     {/* Student table */}
@@ -308,7 +435,7 @@ export default function AdminAttendancePage() {
                                                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
                                                             <thead>
                                                                 <tr style={{ background: '#f0f0f0' }}>
-                                                                    {['Student', 'Enrollment', 'Signal', 'First Seen', 'Last Seen', 'Duration', session.status === 'ongoing' ? 'Remaining' : '', 'Pings', 'Status'].filter(Boolean).map(h => (
+                                                                    {['Student', 'Enrollment', 'Signal', 'First Seen', 'Last Seen', 'Duration', 'Pings', 'Points', 'Status'].map(h => (
                                                                         <th key={h} style={{ padding: '8px 14px', textAlign: 'left', fontSize: '0.68rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#888', borderBottom: '1px solid #e0e0e0' }}>{h}</th>
                                                                     ))}
                                                                 </tr>
@@ -324,37 +451,47 @@ export default function AdminAttendancePage() {
                                                                                 {s.signal > 0 ? (
                                                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                                                         <SignalBars level={s.signal} />
-                                                                                        <span style={{ fontFamily: 'monospace', fontSize: '0.75rem', fontWeight: 600, color: s.signal >= 4 ? '#16a34a' : s.signal >= 3 ? '#b45309' : '#dc2626' }}>{s.signal}/5</span>
+                                                                                        <span style={{ fontFamily: 'monospace', fontSize: '0.75rem', fontWeight: 600, color: s.signal >= 4 ? '#16a34a' : s.signal >= 3 ? '#b45309' : '#dc2626' }}>{s.signal}</span>
+                                                                                        {s.avgSignal > 0 && (
+                                                                                            <span style={{ fontSize: '0.62rem', color: '#bbb' }}>avg {s.avgSignal}</span>
+                                                                                        )}
                                                                                     </div>
                                                                                 ) : (
                                                                                     <span style={{ color: '#ccc', fontSize: '0.75rem' }}>—</span>
                                                                                 )}
                                                                             </td>
                                                                             <td style={{ padding: '9px 14px', fontFamily: 'monospace', fontSize: '0.76rem', color: '#888' }}>
-                                                                                {s.firstSeen ? new Date(s.firstSeen).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                                                                                {s.firstSeen ? new Date(s.firstSeen).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' }) : '—'}
                                                                             </td>
                                                                             <td style={{ padding: '9px 14px', fontFamily: 'monospace', fontSize: '0.76rem', color: '#888' }}>
-                                                                                {s.lastSeen ? new Date(s.lastSeen).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                                                                                {s.lastSeen ? new Date(s.lastSeen).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' }) : '—'}
                                                                             </td>
                                                                             <td style={{ padding: '9px 14px' }}>
-                                                                                <span style={{ fontWeight: 600, fontFamily: 'monospace', fontSize: '0.78rem', color: s.durationMinutes >= 15 ? '#16a34a' : s.durationMinutes > 0 ? '#b45309' : '#ccc' }}>
+                                                                                <span style={{ fontWeight: 600, fontFamily: 'monospace', fontSize: '0.78rem', color: s.durationMinutes > 0 ? '#555' : '#ccc' }}>
                                                                                     {s.durationMinutes > 0 ? `${s.durationMinutes} min` : '—'}
                                                                                 </span>
                                                                             </td>
-                                                                            {session.status === 'ongoing' && (
-                                                                                <td style={{ padding: '9px 14px' }}>
-                                                                                    {s.status === 'partial' && s.remainingMinutes > 0 ? (
-                                                                                        <span style={{ fontWeight: 600, fontFamily: 'monospace', fontSize: '0.78rem', color: '#b45309', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                                                            <Timer size={12} /> {s.remainingMinutes} min
-                                                                                        </span>
-                                                                                    ) : s.status === 'present' ? (
-                                                                                        <span style={{ color: '#16a34a', fontSize: '0.72rem', fontWeight: 600 }}>✓ Done</span>
-                                                                                    ) : (
-                                                                                        <span style={{ color: '#ccc', fontSize: '0.72rem' }}>—</span>
-                                                                                    )}
-                                                                                </td>
-                                                                            )}
                                                                             <td style={{ padding: '9px 14px', fontFamily: 'monospace', fontSize: '0.78rem', color: '#888' }}>{s.pingCount || 0}</td>
+                                                                            <td style={{ padding: '9px 14px' }} title={s.pointsBreakdown?.reason || ''}>
+                                                                                {s.points !== undefined ? (
+                                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                                        <div style={{
+                                                                                            width: '36px', height: '6px', borderRadius: '3px', background: '#f0f0f0', overflow: 'hidden',
+                                                                                        }}>
+                                                                                            <div style={{
+                                                                                                width: `${(s.points || 0) * 100}%`, height: '100%', borderRadius: '3px',
+                                                                                                background: s.points >= 0.8 ? '#16a34a' : s.points >= 0.5 ? '#b45309' : s.points > 0 ? '#dc2626' : '#e5e5e5',
+                                                                                            }} />
+                                                                                        </div>
+                                                                                        <span style={{
+                                                                                            fontWeight: 700, fontFamily: 'monospace', fontSize: '0.78rem',
+                                                                                            color: s.points >= 0.8 ? '#16a34a' : s.points >= 0.5 ? '#b45309' : s.points > 0 ? '#dc2626' : '#ccc',
+                                                                                        }}>{s.points.toFixed(1)}</span>
+                                                                                    </div>
+                                                                                ) : (
+                                                                                    <span style={{ color: '#ccc', fontSize: '0.75rem' }}>—</span>
+                                                                                )}
+                                                                            </td>
                                                                             <td style={{ padding: '9px 14px' }}>
                                                                                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 10px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600, background: st.bg, color: st.color }}>
                                                                                     {st.icon} {st.label}
@@ -486,6 +623,16 @@ export default function AdminAttendancePage() {
 
                 </div>
             </div>
+            <style jsx>{`
+                @keyframes spin {
+                    from { transform: rotate(0deg); }
+                    to { transform: rotate(360deg); }
+                }
+                @keyframes pulse {
+                    0%, 100% { opacity: 1; }
+                    50% { opacity: 0.4; }
+                }
+            `}</style>
         </div>
     );
 }
