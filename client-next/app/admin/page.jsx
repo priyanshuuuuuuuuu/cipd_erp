@@ -301,7 +301,16 @@ export default function AdminDashboard() {
                             </div>
                             <div>
                                 {loadingData ? (
-                                    <div style={{ padding: '1.5rem', color: '#aaa', fontSize: '0.82rem', textAlign: 'center' }}>Loading...</div>
+                                    <div>{[1,2,3].map(i => (
+                                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '14px 1.5rem', borderBottom: '1px solid #f5f5f5' }}>
+                                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                <div style={{ width: `${55 + i * 12}%`, height: '12px', borderRadius: '4px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.15}s` }} />
+                                                <div style={{ width: `${35 + i * 10}%`, height: '9px', borderRadius: '3px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.2}s` }} />
+                                            </div>
+                                            <div style={{ width: '65px', height: '22px', borderRadius: '8px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.1}s` }} />
+                                            <div style={{ width: '80px', height: '26px', borderRadius: '8px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.12}s` }} />
+                                        </div>
+                                    ))}</div>
                                 ) : upcomingClasses.length === 0 ? (
                                     <div style={{ padding: '1.5rem', color: '#888', fontSize: '0.82rem', textAlign: 'center' }}>No upcoming classes scheduled.</div>
                                 ) : upcomingClasses.map((cls, i) => (
@@ -333,7 +342,16 @@ export default function AdminDashboard() {
                             </div>
                             <div>
                                 {loadingData ? (
-                                    <div style={{ padding: '1.5rem', color: '#aaa', fontSize: '0.82rem', textAlign: 'center' }}>Loading...</div>
+                                    <div>{[1,2,3].map(i => (
+                                        <div key={i} style={{ padding: '12px 1.5rem', borderBottom: '1px solid #f5f5f5' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                                <div style={{ width: `${40 + i * 15}%`, height: '12px', borderRadius: '4px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.15}s` }} />
+                                                <div style={{ width: '60px', height: '10px', borderRadius: '3px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.2}s` }} />
+                                            </div>
+                                            <div style={{ height: '6px', borderRadius: '3px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.1}s` }} />
+                                            <div style={{ width: '100px', height: '8px', borderRadius: '3px', background: '#f5f5f5', marginTop: '5px', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.25}s` }} />
+                                        </div>
+                                    ))}</div>
                                 ) : feedbackPending.length === 0 ? (
                                     <div style={{ padding: '1.5rem', color: '#888', fontSize: '0.82rem', textAlign: 'center' }}>No feedback data yet.</div>
                                 ) : feedbackPending.map((item, i) => {
@@ -457,7 +475,7 @@ export default function AdminDashboard() {
                     </div>
                 </div>
             )}
-            <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+            <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } } @keyframes shimmer { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }`}</style>
         </div>
     );
 }

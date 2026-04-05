@@ -234,7 +234,13 @@ export default function AdminSchedulePage() {
                                     </thead>
                                     <tbody>
                                         {loading ? (
-                                            <tr><td colSpan={8} style={{ padding: '3rem', textAlign: 'center', color: '#aaa', fontSize: '0.85rem' }}>Loading sessions...</td></tr>
+                                            <>{[1,2,3,4].map(i => (
+                                                <tr key={i} style={{ borderBottom: '1px solid #f5f5f5' }}>
+                                                    {[120,90,80,80,90,50,65,50].map((w,j) => (
+                                                        <td key={j} style={{ padding: '12px 16px' }}><div style={{ width: `${w}px`, height: j===0?'12px':'10px', borderRadius: '4px', background: j%2===0?'#f0f0f0':'#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${(i*8+j)*0.05}s` }} /></td>
+                                                    ))}
+                                                </tr>
+                                            ))}</>
                                         ) : sessions.length === 0 ? (
                                             <tr><td colSpan={8}>
                                                 <div style={{ padding: '3rem', textAlign: 'center', color: '#aaa' }}>
@@ -382,7 +388,7 @@ export default function AdminSchedulePage() {
                     </div>
                 </div>
             )}
-            <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+            <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } } @keyframes shimmer { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }`}</style>
         </div>
     );
 }

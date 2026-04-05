@@ -255,8 +255,49 @@ export default function AdminFeedbackPage() {
                     </div>
 
                     {loading && (
-                        <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem', color: '#aaa', gap: '8px', alignItems: 'center' }}>
-                            <RefreshCw size={16} style={{ animation: 'spin 1s linear infinite' }} /> Loading feedback analytics...
+                        <div>
+                            {/* Skeleton summary strip */}
+                            <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e8e8e8', marginBottom: '1.2rem', overflow: 'hidden' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', padding: '14px 1.2rem', gap: '14px' }}>
+                                    {[1,2,3,4,5].map(i => (
+                                        <React.Fragment key={i}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0 14px' }}>
+                                                <div style={{ width: '60px', height: '9px', borderRadius: '3px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.1}s` }} />
+                                                <div style={{ width: '40px', height: '12px', borderRadius: '4px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.15}s` }} />
+                                            </div>
+                                            {i < 5 && <div style={{ width: '1px', height: '20px', background: '#e8e8e8' }} />}
+                                        </React.Fragment>
+                                    ))}
+                                </div>
+                            </div>
+                            {/* Skeleton chart area */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '1.2rem', marginBottom: '1.2rem' }}>
+                                <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e8e8e8', padding: '1.2rem' }}>
+                                    {[1,2,3,4,5].map(i => (
+                                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                                            <div style={{ width: '20px', height: '10px', borderRadius: '3px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.1}s` }} />
+                                            <div style={{ flex: 1, height: '4px', borderRadius: '2px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.15}s` }} />
+                                            <div style={{ width: '30px', height: '10px', borderRadius: '3px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.2}s` }} />
+                                        </div>
+                                    ))}
+                                </div>
+                                <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e8e8e8', padding: '1.2rem' }}>
+                                    <div style={{ width: '100%', height: '140px', borderRadius: '6px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite' }} />
+                                </div>
+                            </div>
+                            {/* Skeleton table */}
+                            <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e8e8e8', overflow: 'hidden' }}>
+                                <div style={{ padding: '10px 1.2rem', borderBottom: '1px solid #f0f0f0' }}>
+                                    <div style={{ width: '160px', height: '12px', borderRadius: '4px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite' }} />
+                                </div>
+                                {[1,2,3,4].map(i => (
+                                    <div key={i} style={{ display: 'flex', gap: '16px', padding: '12px 1.2rem', borderBottom: '1px solid #f5f5f5' }}>
+                                        {[120,60,80,40,60,40,70].map((w,j) => (
+                                            <div key={j} style={{ width: `${w}px`, height: '10px', borderRadius: '3px', background: j%2===0?'#f0f0f0':'#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${(i*7+j)*0.05}s` }} />
+                                        ))}
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     )}
 
@@ -364,8 +405,26 @@ export default function AdminFeedbackPage() {
                                 </button>
                             </div>
                             {detailLoading ? (
-                                <div style={{ display: 'flex', justifyContent: 'center', padding: '3rem', color: '#aaa', gap: '8px', alignItems: 'center' }}>
-                                    <RefreshCw size={16} style={{ animation: 'spin 1s linear infinite' }} /> Loading details...
+                                <div>
+                                    <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e8e8e8', marginBottom: '1.2rem', overflow: 'hidden' }}>
+                                        <div style={{ display: 'flex', padding: '14px 1.2rem', gap: '14px' }}>
+                                            {[1,2,3,4,5].map(i => (
+                                                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0 14px' }}>
+                                                    <div style={{ width: '50px', height: '9px', borderRadius: '3px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.1}s` }} />
+                                                    <div style={{ width: '35px', height: '12px', borderRadius: '4px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.15}s` }} />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    {[1,2,3].map(i => (
+                                        <div key={i} style={{ padding: '12px 1.2rem', borderBottom: '1px solid #f5f5f5', display: 'flex', gap: '14px' }}>
+                                            <div style={{ width: '44px', height: '10px', borderRadius: '3px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.1}s` }} />
+                                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                <div style={{ width: `${50 + i * 15}%`, height: '10px', borderRadius: '3px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.15}s` }} />
+                                                <div style={{ width: '80px', height: '8px', borderRadius: '3px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.2}s` }} />
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
                             ) : detailData ? (
                                 <>
@@ -513,6 +572,7 @@ export default function AdminFeedbackPage() {
                     </div>
                 </div>
             )}
+            <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } } @keyframes shimmer { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }`}</style>
         </div>
     );
 }
