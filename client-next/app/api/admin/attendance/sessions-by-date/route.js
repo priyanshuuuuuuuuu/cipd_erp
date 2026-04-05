@@ -3,6 +3,14 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { withRole } from '@/lib/middleware';
 
+// Robust MAC normalizer
+const normalizeMac = (mac) => {
+  if (!mac) return '';
+  return mac.trim().toUpperCase().replace(/[-.\s]/g, ':').replace(/:+/g, ':').replace(/^:|:$/g, '');
+};
+const isValidMac = (mac) => /^([A-F0-9]{2}:){5}[A-F0-9]{2}$/.test(mac);
+const MIN_SIGNAL = 2;
+
 async function handler(req) {
   try {
     const { searchParams } = new URL(req.url);
@@ -31,8 +39,11 @@ async function handler(req) {
       .select('id, mac_address')
       .not('mac_address', 'is', null);
 
-    const normalizeMac = (mac) => mac ? mac.toUpperCase().replace(/-/g, ':') : '';
-    const studentMacs = new Set((allStudents || []).map(s => normalizeMac(s.mac_address)).filter(Boolean));
+    const studentMacs = new Set(
+      (allStudents || [])
+        .map(s => normalizeMac(s.mac_address))
+        .filter(mac => mac && isValidMac(mac))
+    );
 
     const now = new Date();
     const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:00`;
@@ -43,18 +54,20 @@ async function handler(req) {
       const isOngoing = isToday && session.start_time <= currentTime && session.end_time > currentTime;
       const isCompleted = session.status === 'completed' || (!isOngoing && (date < today || (isToday && session.end_time <= currentTime)));
 
-      const sessionStart = `${date}T${session.start_time}`;
-      const sessionEnd = `${date}T${session.end_time}`;
+      // Build time window: start_time → end_time + 2 minutes
+      const sessionStartDate = new Date(`${date}T${session.start_time}+05:30`);
+      const sessionEndDate = new Date(`${date}T${session.end_time}+05:30`);
+      sessionEndDate.setMinutes(sessionEndDate.getMinutes() + 2); // +2 min buffer
 
       // Get wifi_snapshots within the session time window
       const { data: snapshots } = await supabaseAdmin
         .from('wifi_snapshots')
         .select('iw_dump, captured_at')
-        .gte('captured_at', sessionStart)
-        .lte('captured_at', sessionEnd)
+        .gte('captured_at', sessionStartDate.toISOString())
+        .lte('captured_at', sessionEndDate.toISOString())
         .order('captured_at', { ascending: true });
 
-      // Count unique students detected with signal >= 3
+      // Count unique students detected with signal > 2
       const seenStudentMacs = new Set();
 
       (snapshots || []).forEach(snap => {
@@ -67,12 +80,15 @@ async function handler(req) {
         } catch (e) { parsedClients = []; }
 
         parsedClients.forEach(c => {
-          const sig = parseInt(c.signal);
-          if (c.mac && !isNaN(sig) && sig >= 3) {
-            const mac = normalizeMac(c.mac);
-            if (studentMacs.has(mac)) {
-              seenStudentMacs.add(mac);
-            }
+          if (!c.mac || c.mac.trim() === '') return;
+          const sig = parseInt(c.signal) || 0;
+          if (sig <= MIN_SIGNAL) return; // reject weak signal
+
+          const mac = normalizeMac(c.mac);
+          if (!isValidMac(mac)) return;
+
+          if (studentMacs.has(mac)) {
+            seenStudentMacs.add(mac);
           }
         });
       });
