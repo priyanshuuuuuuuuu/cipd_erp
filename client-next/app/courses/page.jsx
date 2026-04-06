@@ -95,7 +95,16 @@ export default function CoursesPage() {
                 </header>
 
                 {loading ? (
-                    <div style={{ color: '#aaa', textAlign: 'center', padding: '4rem' }}>Loading courses...</div>
+                    <div style={{ padding: '1.5rem 2rem' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: '1rem' }}>{[1,2,3,4].map(i => (
+                            <div key={i} style={{ background: '#fff', border: '1px solid #e8e8e8', borderRadius: '16px', padding: '1.5rem' }}>
+                                <div style={{ width: '60px', height: '20px', borderRadius: '6px', background: '#f0f0f0', marginBottom: '12px', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.15}s` }} />
+                                <div style={{ width: `${60 + i * 8}%`, height: '14px', borderRadius: '4px', background: '#f0f0f0', marginBottom: '16px', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.2}s` }} />
+                                <div style={{ width: '50%', height: '10px', borderRadius: '3px', background: '#f5f5f5', marginBottom: '8px', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.25}s` }} />
+                                <div style={{ width: '40%', height: '10px', borderRadius: '3px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.3}s` }} />
+                            </div>
+                        ))}</div>
+                    </div>
                 ) : (
                     <div style={{ padding: '1.5rem 2rem', flex: 1 }}>
                         <div style={{ fontSize: '0.85rem', color: '#888', marginBottom: '1rem' }}>{filtered.length} course{filtered.length !== 1 ? 's' : ''} enrolled</div>
@@ -162,6 +171,7 @@ export default function CoursesPage() {
                     </div>
                 )}
             </div>
+            <style>{`@keyframes shimmer { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }`}</style>
         </div>
     );
 }

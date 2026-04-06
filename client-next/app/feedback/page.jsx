@@ -211,6 +211,14 @@ export default function FeedbackPage() {
                     {activeTab === 'feedback' && !selectedForm && (
                         <>
                             {/* Stats bar */}
+                            {loading ? (
+                                <div style={{ display: 'flex', gap: '12px', marginBottom: '1.2rem' }}>{[1,2,3,4].map(i => (
+                                    <div key={i} style={{ flex: 1, borderRadius: '10px', border: '1px solid #f0f0f0', padding: '14px 18px' }}>
+                                        <div style={{ width: '50px', height: '9px', borderRadius: '3px', background: '#f5f5f5', marginBottom: '8px', animation: 'shimmer 1.5s infinite', animationDelay: `${i*0.1}s` }} />
+                                        <div style={{ width: '40px', height: '18px', borderRadius: '4px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i*0.2}s` }} />
+                                    </div>
+                                ))}</div>
+                            ) : (
                             <div style={{ display: 'flex', gap: '12px', marginBottom: '1.2rem' }}>
                                 {[
                                     { label: 'Pending', value: stats.totalPending || 0, color: '#b45309', bg: '#fffbeb' },
@@ -224,6 +232,7 @@ export default function FeedbackPage() {
                                     </div>
                                 ))}
                             </div>
+                            )}
 
                             {/* Pending forms */}
                             {pendingForms.length > 0 && (
@@ -477,7 +486,8 @@ export default function FeedbackPage() {
                         </>
                     )}
                 </div>
-            </div>
+        </div>
+            <style>{`@keyframes shimmer { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }`}</style>
         </div>
     );
 }

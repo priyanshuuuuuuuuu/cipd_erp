@@ -183,8 +183,14 @@ const StudentDashboard = () => {
                     <section>
                         <div className="section-title">Today's Schedule</div>
                         <div className="schedule-cards">
-                            {todaySessions.length === 0 ? (
-                                <div style={{ padding: '1.5rem', color: '#aaa', fontSize: '0.82rem' }}>No classes scheduled for today.</div>
+                            {todaySessions.length === 0 && !attendance ? (
+                                <div style={{ display: 'flex', gap: '1rem' }}>{[1,2,3].map(i => (
+                                    <div key={i} style={{ background: '#fff', border: '1px solid #e8e8e8', borderRadius: '16px', padding: '1.2rem', flex: 1, minWidth: '180px' }}>
+                                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#f0f0f0', marginBottom: '10px', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.15}s` }} />
+                                        <div style={{ width: '80%', height: '12px', borderRadius: '4px', background: '#f0f0f0', marginBottom: '8px', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.2}s` }} />
+                                        <div style={{ width: '50%', height: '9px', borderRadius: '3px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.25}s` }} />
+                                    </div>
+                                ))}</div>
                             ) : todaySessions.map((s, i) => (
                                 <div key={s.id} className={`schedule-card${i === 1 ? ' active' : ''}`}>
                                     {i === 1 && <div className="next-class-badge">Next Class</div>}
@@ -303,7 +309,15 @@ const StudentDashboard = () => {
 
                     {/* Loading state */}
                     {gcConnected === null && (
-                        <div style={{ padding: '0.5rem', color: '#bbb', fontSize: '0.78rem' }}>Loading…</div>
+                        <div>{[1,2].map(i => (
+                            <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'center', padding: '10px 0' }}>
+                                <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.15}s` }} />
+                                <div style={{ flex: 1 }}>
+                                    <div style={{ width: `${60 + i * 15}%`, height: '10px', borderRadius: '4px', background: '#f0f0f0', marginBottom: '5px', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.2}s` }} />
+                                    <div style={{ width: '40%', height: '8px', borderRadius: '3px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.25}s` }} />
+                                </div>
+                            </div>
+                        ))}</div>
                     )}
 
                     {/* Merged assignment list: ERP + Google Classroom */}
@@ -505,6 +519,7 @@ const StudentDashboard = () => {
                     </div>
                 </div>
             )}
+            <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } } @keyframes shimmer { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }`}</style>
         </div>
     );
 };
