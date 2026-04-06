@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { calculatePoints } from '@/lib/attendance-points';
+import { sendFeedbackAvailableEmail } from '@/lib/emailer';
 
 /**
  * Server-side cron endpoint: processes attendance for all ongoing/recent sessions.
@@ -199,6 +200,80 @@ export async function GET(req) {
       });
 
       console.log(`Cron: Processed session "${session.title}" — ${present} present, ${partial} partial, ${(snapshots || []).length} snapshots`);
+
+      // ── AUTO-ROLLOUT: when session just ended, notify attended students ──
+      if (!isOngoing && session.status !== 'completed') {
+        // Mark session as completed
+        await supabaseAdmin
+          .from('sessions')
+          .update({ status: 'completed' })
+          .eq('id', session.id);
+
+        // Fire-and-forget: send feedback notifications
+        (async () => {
+          try {
+            const presentStudentIds = attendanceRecords
+              .filter(r => r.status === 'present' || r.status === 'partial')
+              .map(r => r.student_id);
+
+            if (presentStudentIds.length === 0) return;
+
+            // Get session details for the email
+            const { data: sessionDetail } = await supabaseAdmin
+              .from('sessions')
+              .select(`
+                id, title, session_date, start_time, end_time, course_id,
+                courses ( id, name ),
+                faculty ( id, users ( first_name, last_name ) )
+              `)
+              .eq('id', session.id)
+              .single();
+
+            // Compute deadline (24h from end)
+            const deadline = new Date(`${session.session_date}T${session.end_time}+05:30`);
+            deadline.setHours(deadline.getHours() + 24);
+
+            // Get student details
+            const { data: students } = await supabaseAdmin
+              .from('users')
+              .select('id, first_name, last_name, email')
+              .in('id', presentStudentIds)
+              .eq('is_active', true);
+
+            // Insert notifications + send emails
+            const notifications = (students || []).map(s => ({
+              recipient_id: s.id,
+              type: 'feedback_available',
+              title: `📝 Feedback: ${sessionDetail?.courses?.name || session.title}`,
+              message: `Your feedback form for "${session.title}" is ready. Deadline: ${deadline.toLocaleString('en-IN')}. Submit now!`,
+              course_id: sessionDetail?.course_id,
+              session_id: session.id,
+              is_read: false,
+            }));
+
+            if (notifications.length > 0) {
+              await supabaseAdmin.from('notifications').insert(notifications);
+            }
+
+            // Send emails in parallel
+            await Promise.allSettled(
+              (students || []).map(async (student) => {
+                try {
+                  const name = `${student.first_name || ''} ${student.last_name || ''}`.trim() || 'Student';
+                  await sendFeedbackAvailableEmail(student.email, name, sessionDetail || session, deadline.toISOString());
+                  console.log(`✉ Feedback email sent to ${student.email}`);
+                } catch (emailErr) {
+                  console.error(`Feedback email failed for ${student.email}:`, emailErr.message);
+                }
+              })
+            );
+
+            console.log(`Cron: Feedback rollout for "${session.title}" — ${notifications.length} students notified`);
+          } catch (bgErr) {
+            console.error('Feedback auto-rollout error:', bgErr.message);
+          }
+        })();
+      }
     }
 
     return NextResponse.json({
