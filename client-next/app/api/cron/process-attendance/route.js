@@ -55,11 +55,20 @@ export async function GET(req) {
     });
 
     if (activeSessions.length === 0) {
+      // Still fetch latest snapshot for staleness detection
+      const { data: latestSnap } = await supabaseAdmin
+        .from('wifi_snapshots')
+        .select('captured_at')
+        .order('captured_at', { ascending: false })
+        .limit(1)
+        .single();
+
       return NextResponse.json({
         message: 'No active sessions to process',
         date: today,
         time: currentTime,
         sessionsProcessed: 0,
+        latestSnapshotAt: latestSnap?.captured_at || null,
       });
     }
 
@@ -276,11 +285,20 @@ export async function GET(req) {
       }
     }
 
+    // Fetch latest snapshot timestamp for staleness detection
+    const { data: latestSnap } = await supabaseAdmin
+      .from('wifi_snapshots')
+      .select('captured_at')
+      .order('captured_at', { ascending: false })
+      .limit(1)
+      .single();
+
     return NextResponse.json({
       message: `Processed ${results.length} session(s)`,
       date: today,
       time: currentTime,
       sessionsProcessed: results.length,
+      latestSnapshotAt: latestSnap?.captured_at || null,
       results,
     });
   } catch (err) {
