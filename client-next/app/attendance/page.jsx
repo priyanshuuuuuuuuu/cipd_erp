@@ -44,7 +44,7 @@ export default function AttendancePage() {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [selectedCourse, setSelectedCourse] = useState('all');
-    const [currentCalendarMonth, setCurrentCalendarMonth] = useState(new Date());
+    const [currentCalendarMonth, setCurrentCalendarMonth] = useState(null);
 
     // Live data
     const [summaryData, setSummaryData] = useState(null);
@@ -54,8 +54,8 @@ export default function AttendancePage() {
     // Presence indicator
     const [presence, setPresence] = useState({ present: false, signal: 0, lastUpdated: null });
 
-    // Date filter for session history
-    const [sessionDate, setSessionDate] = useState(new Date().toISOString().split('T')[0]);
+    // Date filter for session history — defer to useEffect to avoid hydration mismatch
+    const [sessionDate, setSessionDate] = useState('');
 
     const displayName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Student' : 'Student';
 
@@ -74,10 +74,13 @@ export default function AttendancePage() {
         }
     }, [sessionDate]);
 
-    useEffect(() => { if (authReady) fetchData(); }, [fetchData, authReady]);
+    useEffect(() => { if (authReady && sessionDate) fetchData(); }, [fetchData, authReady, sessionDate]);
 
-    // Calendar defaults to today's month
+    // Set today's date on mount (avoids SSR hydration mismatch)
     useEffect(() => {
+        const now = new Date();
+        const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+        setSessionDate(today);
         setCurrentCalendarMonth(new Date());
     }, []);
 
@@ -125,15 +128,15 @@ export default function AttendancePage() {
     const statusLabel = (p) => p >= 85 ? 'On Track' : p >= 75 ? 'Needs Attention' : 'At Risk';
 
     // Calendar
-    const calYear = currentCalendarMonth.getFullYear();
-    const calMonth = currentCalendarMonth.getMonth();
+    const calYear = currentCalendarMonth ? currentCalendarMonth.getFullYear() : 2026;
+    const calMonth = currentCalendarMonth ? currentCalendarMonth.getMonth() : 0;
     const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
     const firstDay = new Date(calYear, calMonth, 1).getDay();
     const calDays = Array(firstDay).fill(null).concat(Array.from({ length: daysInMonth }, (_, i) => i + 1));
     const dayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
-    const prevCalMonth = () => setCurrentCalendarMonth(d => new Date(d.getFullYear(), d.getMonth() - 1, 1));
-    const nextCalMonth = () => setCurrentCalendarMonth(d => new Date(d.getFullYear(), d.getMonth() + 1, 1));
+    const prevCalMonth = () => setCurrentCalendarMonth(d => d ? new Date(d.getFullYear(), d.getMonth() - 1, 1) : new Date());
+    const nextCalMonth = () => setCurrentCalendarMonth(d => d ? new Date(d.getFullYear(), d.getMonth() + 1, 1) : new Date());
 
     // Format last updated time
     const formatLastUpdated = (ts) => {
@@ -184,11 +187,11 @@ export default function AttendancePage() {
                             <div className="mobile-menu-btn" onClick={() => setIsMobileMenuOpen(true)} style={{ cursor: 'pointer' }}><Menu size={24} /></div>
                             <h1>My Attendance</h1>
                             {/* Live Presence Indicator */}
-                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 12px', borderRadius: '8px', fontSize: '0.72rem', fontWeight: 600, background: presence.present ? '#ecfdf5' : '#fef2f2', color: presence.present ? '#166534' : '#991b1b', border: `1px solid ${presence.present ? '#a7f3d0' : '#fecaca'}` }}>
+                            <div className="att-presence-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 12px', borderRadius: '8px', fontSize: '0.72rem', fontWeight: 600, background: presence.present ? '#ecfdf5' : '#fef2f2', color: presence.present ? '#166534' : '#991b1b', border: `1px solid ${presence.present ? '#a7f3d0' : '#fecaca'}` }}>
                                 {presence.present ? <Wifi size={13} /> : <WifiOff size={13} />}
                                 {presence.present ? 'In Class' : 'Not Detected'}
-                                {presence.present && <span style={{ fontSize: '0.6rem', color: '#059669' }}>Signal {presence.signal}/5</span>}
-                                <span style={{ fontSize: '0.58rem', color: '#aaa', marginLeft: '4px' }}>
+                                {presence.present && <span className="att-presence-signal" style={{ fontSize: '0.6rem', color: '#059669' }}>Signal {presence.signal}/5</span>}
+                                <span className="att-presence-time" style={{ fontSize: '0.58rem', color: '#aaa', marginLeft: '4px' }}>
                                     {formatLastUpdated(presence.lastUpdated)}
                                 </span>
                             </div>
@@ -200,9 +203,9 @@ export default function AttendancePage() {
                         </div>
                     </header>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
-                        <div className="stat-card" style={{ padding: '2rem', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '2.5rem' }}>
-                            <div style={{ position: 'relative', flexShrink: 0 }}>
+                    <div className="att-top-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
+                        <div className="stat-card att-donut-section" style={{ padding: '2rem', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '2.5rem' }}>
+                            <div className="att-donut-wrap" style={{ position: 'relative', flexShrink: 0 }}>
                                 <Donut pct={overall.pct} size={140} stroke={12} color="#66d9e8" bg="#e8f9fb" />
                                 <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
                                     <div style={{ fontSize: '1.7rem', fontWeight: 800, color: '#003366', letterSpacing: '-1px', lineHeight: 1 }}>{Math.round(overall.pct)}%</div>
@@ -211,7 +214,7 @@ export default function AttendancePage() {
                             </div>
                             <div style={{ flex: 1 }}>
                                 <div style={{ fontSize: '1rem', fontWeight: 700, color: '#000', marginBottom: '14px' }}>Semester Overview</div>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                                <div className="att-stats-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                                     {[['#ecfccb','#365314','#4d7c0f',overall.attended,'Attended'],['#ffe4e6','#9f1239','#be123c',overall.missed,'Missed'],['#e0e7ff','#3730a3','#4338ca',overall.total,'Total Classes'],['#fef9c3','#854d0e','#a16207',streak,'Day Streak']].map(([bg,tc,sc,val,label],i)=>(
                                         <div key={i} style={{ background: bg, borderRadius: '14px', padding: '12px 14px' }}>
                                             <div style={{ fontSize: '1.35rem', fontWeight: 700, color: tc }}>{val}</div>
@@ -222,20 +225,20 @@ export default function AttendancePage() {
                             </div>
                         </div>
 
-                        <div className="stat-card" style={{ padding: '1.5rem 2rem', borderRadius: '20px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                        <div className="stat-card att-calendar-card" style={{ padding: '1.5rem 2rem', borderRadius: '20px' }}>
+                            <div className="att-cal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <button onClick={prevCalMonth} style={{ background: 'none', border: '1px solid #eee', borderRadius: '8px', width: '26px', height: '26px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888', fontSize: '0.8rem' }}>
                                         <ChevronLeft size={14} />
                                     </button>
                                     <span style={{ fontSize: '1rem', fontWeight: 700, color: '#000', minWidth: '130px', textAlign: 'center' }}>
-                                        {currentCalendarMonth.toLocaleString('en', { month: 'long' })} {currentCalendarMonth.getFullYear()}
+                                        {currentCalendarMonth ? `${currentCalendarMonth.toLocaleString('en', { month: 'long' })} ${currentCalendarMonth.getFullYear()}` : ''}
                                     </span>
                                     <button onClick={nextCalMonth} style={{ background: 'none', border: '1px solid #eee', borderRadius: '8px', width: '26px', height: '26px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888', fontSize: '0.8rem' }}>
                                         <ChevronRight size={14} />
                                     </button>
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.65rem', color: '#aaa' }}>
+                                <div className="att-cal-legend" style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.65rem', color: '#aaa' }}>
                                     {[['#86efac','100%'],['#fdba74','Partial'],['#fca5a5','Absent'],['#f5f5f5','No Class']].map(([c,l])=>(
                                         <span key={l} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                             <span style={{ width: '10px', height: '10px', borderRadius: '4px', background: c, display: 'inline-block', border: c==='#f5f5f5'?'1px solid #eee':'none' }}></span>{l}
@@ -271,11 +274,17 @@ export default function AttendancePage() {
                     <div style={{ marginBottom: '1.5rem' }}>
                         <div style={{ fontSize: '1rem', fontWeight: 700, color: '#000', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}><BookOpen size={16} /> Course-wise Attendance</div>
                         {loading ? (
-                            <div style={{ color: '#aaa', fontSize: '0.82rem' }}>Loading...</div>
+                            <div className="att-course-shimmer-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px' }}>{[1,2,3,4,5].map(i => (
+                                <div key={i} style={{ background: '#fff', border: '1px solid #eee', borderRadius: '20px', padding: '1.2rem 1rem', textAlign: 'center' }}>
+                                    <div style={{ width: '52px', height: '52px', borderRadius: '50%', background: '#f0f0f0', margin: '0 auto 10px', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.15}s` }} />
+                                    <div style={{ width: '60%', height: '12px', borderRadius: '4px', background: '#f0f0f0', margin: '0 auto 6px', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.2}s` }} />
+                                    <div style={{ width: '80%', height: '9px', borderRadius: '3px', background: '#f5f5f5', margin: '0 auto', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.25}s` }} />
+                                </div>
+                            ))}</div>
                         ) : courses.length === 0 ? (
                             <div style={{ color: '#aaa', fontSize: '0.82rem' }}>No courses found.</div>
                         ) : (
-                            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(courses.length, 5)}, 1fr)`, gap: '12px' }}>
+                            <div className="att-course-grid" style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(courses.length, 5)}, 1fr)`, gap: '12px' }}>
                                 {courses.map((c,i)=>(
                                     <div key={i} className="stat-card" style={{ padding: '1.2rem 1rem', borderRadius: '20px', textAlign: 'center', cursor: 'pointer', border: selectedCourse===c.code?`2px solid ${c.color}`:'1px solid #eee' }}
                                         onClick={()=>setSelectedCourse(c.code===selectedCourse?'all':c.code)}>
@@ -297,9 +306,9 @@ export default function AttendancePage() {
 
                     {/* Session History with Date Filter */}
                     <div className="stat-card" style={{ padding: '0', borderRadius: '20px', overflow: 'hidden' }}>
-                        <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div className="att-session-header" style={{ padding: '1rem 1.5rem', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <span style={{ fontSize: '1rem', fontWeight: 700, color: '#000', display: 'flex', alignItems: 'center', gap: '8px' }}><Calendar size={15} /> Session History</span>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <div className="att-session-controls" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                 <input type="date" value={sessionDate} onChange={e => setSessionDate(e.target.value)}
                                     style={{ padding: '5px 10px', borderRadius: '10px', border: '1px solid #eee', fontSize: '0.78rem', color: '#555', fontFamily: 'inherit', cursor: 'pointer' }} />
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -313,7 +322,17 @@ export default function AttendancePage() {
                         </div>
                         <div style={{ padding: '6px 0' }}>
                             {loading ? (
-                                <div style={{ padding: '1.5rem', color: '#aaa', fontSize: '0.82rem', textAlign: 'center' }}>Loading sessions...</div>
+                                <div>{[1,2,3].map(i => (
+                                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '12px 1.5rem', borderBottom: '1px solid #f5f5f5' }}>
+                                        <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.1}s` }} />
+                                        <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.15}s` }} />
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ width: `${50 + i * 10}%`, height: '12px', borderRadius: '4px', background: '#f0f0f0', marginBottom: '6px', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.2}s` }} />
+                                            <div style={{ width: `${30 + i * 8}%`, height: '9px', borderRadius: '3px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.25}s` }} />
+                                        </div>
+                                        <div style={{ width: '70px', height: '24px', borderRadius: '12px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.12}s` }} />
+                                    </div>
+                                ))}</div>
                             ) : filtered.length === 0 ? (
                                 <div style={{ padding: '1.5rem', color: '#aaa', fontSize: '0.82rem', textAlign: 'center' }}>No sessions found for this date.</div>
                             ) : filtered.map((s,i)=>{
@@ -324,15 +343,15 @@ export default function AttendancePage() {
                                             <div style={{ width:'10px', height:'10px', borderRadius:'50%', background:s.status==='Present'?'#86efac':'#fda4af', border:`2.5px solid ${s.status==='Present'?'#dcfce7':'#ffe4e6'}`, marginTop:'18px', zIndex:1 }} />
                                             {i<filtered.length-1&&<div style={{ width:'1.5px', flex:1, background:'#f0f0f0' }} />}
                                         </div>
-                                        <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 0 12px 14px', borderBottom:i<filtered.length-1?'1px solid #fafafa':'none' }}>
-                                            <div style={{ display:'flex', alignItems:'center', gap:'14px', flex:1 }}>
-                                                <div style={{ width:'40px', height:'40px', borderRadius:'12px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.55rem', fontWeight:700, background:cd?`${cd.color}20`:'#f5f5f5', color:'#555', border:'1px solid #eee' }}>{s.course}</div>
+                                        <div className="att-session-row-inner" style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 0 12px 14px', borderBottom:i<filtered.length-1?'1px solid #fafafa':'none' }}>
+                                            <div className="att-session-row-left" style={{ display:'flex', alignItems:'center', gap:'14px', flex:1 }}>
+                                                <div className="att-course-badge" style={{ width:'40px', height:'40px', borderRadius:'12px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.55rem', fontWeight:700, background:cd?`${cd.color}20`:'#f5f5f5', color:'#555', border:'1px solid #eee' }}>{s.course}</div>
                                                 <div>
                                                     <div style={{ fontSize:'0.84rem', fontWeight:600, color:'#111' }}>{s.topic}</div>
                                                     <div style={{ fontSize:'0.7rem', color:'#bbb' }}>{s.startTime} – {s.endTime} · {s.courseName}</div>
                                                 </div>
                                             </div>
-                                            <div style={{ display:'flex', alignItems:'center', gap:'12px' }}>
+                                            <div className="att-session-row-right" style={{ display:'flex', alignItems:'center', gap:'12px' }}>
                                                 <span style={{ fontFamily:'monospace', fontSize:'0.75rem', color: s.pings >= 3 ? '#4d7c0f' : '#be123c' }}>{s.pings} pings</span>
                                                 <span style={{ display:'inline-flex', alignItems:'center', gap:'4px', padding:'4px 12px', borderRadius:'12px', fontSize:'0.72rem', fontWeight:600, background:s.status==='Present'?'#ecfccb':'#ffe4e6', color:s.status==='Present'?'#365314':'#9f1239' }}>
                                                     {s.status==='Present'?<CheckCircle size={12}/>:<XCircle size={12}/>}{s.status}
@@ -346,6 +365,103 @@ export default function AttendancePage() {
                     </div>
                 </div>
             </div>
+            <style>{`
+                @keyframes shimmer { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }
+
+                /* ── Attendance Page Mobile Responsive ── */
+                @media (max-width: 768px) {
+                    /* Top grid: stack donut & calendar */
+                    .att-top-grid {
+                        grid-template-columns: 1fr !important;
+                        gap: 1rem !important;
+                    }
+                    /* Donut section: stack vertically */
+                    .att-donut-section {
+                        flex-direction: column !important;
+                        gap: 1.2rem !important;
+                        padding: 1.2rem !important;
+                        align-items: center !important;
+                    }
+                    .att-donut-section .att-donut-wrap {
+                        margin: 0 auto;
+                    }
+                    .att-stats-grid {
+                        grid-template-columns: 1fr 1fr !important;
+                        gap: 8px !important;
+                    }
+                    /* Calendar card */
+                    .att-calendar-card {
+                        padding: 1rem !important;
+                    }
+                    .att-cal-header {
+                        flex-direction: column !important;
+                        gap: 8px !important;
+                        align-items: flex-start !important;
+                    }
+                    .att-cal-legend {
+                        flex-wrap: wrap !important;
+                        gap: 6px !important;
+                    }
+                    /* Course-wise grid */
+                    .att-course-grid {
+                        grid-template-columns: repeat(2, 1fr) !important;
+                        gap: 8px !important;
+                    }
+                    .att-course-shimmer-grid {
+                        grid-template-columns: repeat(2, 1fr) !important;
+                        gap: 8px !important;
+                    }
+                    /* Session history header */
+                    .att-session-header {
+                        flex-direction: column !important;
+                        gap: 8px !important;
+                        align-items: flex-start !important;
+                    }
+                    .att-session-controls {
+                        flex-direction: column !important;
+                        gap: 6px !important;
+                        width: 100%;
+                    }
+                    .att-session-controls input[type="date"],
+                    .att-session-controls select {
+                        width: 100% !important;
+                        box-sizing: border-box;
+                    }
+                    /* Session rows compact */
+                    .att-session-row-inner {
+                        flex-direction: column !important;
+                        align-items: flex-start !important;
+                        gap: 6px !important;
+                    }
+                    .att-session-row-left {
+                        gap: 10px !important;
+                    }
+                    .att-session-row-right {
+                        align-self: flex-end;
+                    }
+                    /* Header presence badge */
+                    .att-presence-badge {
+                        padding: 3px 8px !important;
+                        font-size: 0.65rem !important;
+                    }
+                    .att-presence-signal,
+                    .att-presence-time {
+                        display: none !important;
+                    }
+                }
+
+                @media (max-width: 480px) {
+                    .att-course-grid {
+                        grid-template-columns: 1fr 1fr !important;
+                    }
+                    .att-stats-grid {
+                        grid-template-columns: 1fr 1fr !important;
+                    }
+                    .att-session-row-left .att-course-badge {
+                        display: none !important;
+                    }
+                }
+            `}</style>
         </div>
     );
 }

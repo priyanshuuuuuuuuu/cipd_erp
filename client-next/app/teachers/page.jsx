@@ -94,7 +94,13 @@ export default function TeachersPage() {
 
                     <div className="teachers-grid">
                         {loading ? (
-                            <div style={{ color: '#aaa', fontSize: '0.85rem' }}>Loading teachers...</div>
+                            <>{[1,2,3,4].map(i => (
+                                <div key={i} style={{ background: '#fff', border: '1px solid #e8e8e8', borderRadius: '16px', padding: '1.5rem', textAlign: 'center' }}>
+                                    <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: '#f0f0f0', margin: '0 auto 12px', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.15}s` }} />
+                                    <div style={{ width: '60%', height: '14px', borderRadius: '4px', background: '#f0f0f0', margin: '0 auto 8px', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.2}s` }} />
+                                    <div style={{ width: '80%', height: '10px', borderRadius: '3px', background: '#f5f5f5', margin: '0 auto', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.25}s` }} />
+                                </div>
+                            ))}</>
                         ) : filtered.length === 0 ? (
                             <div style={{ color: '#aaa', fontSize: '0.85rem' }}>No teachers found.</div>
                         ) : filtered.map((teacher, index) => (
@@ -120,6 +126,7 @@ export default function TeachersPage() {
                     </div>
                 </div>
             </div>
+            <style>{`@keyframes shimmer { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }`}</style>
         </div>
     );
 }
