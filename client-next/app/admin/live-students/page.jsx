@@ -194,7 +194,7 @@ export default function AdminLiveStudentsPage() {
                     )}
 
                     {(data.isStale || data.isUnchanged || unchangedCount >= 2) && !error && (
-                        <div style={{
+                        <div className="ls-banner" style={{
                             display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 18px',
                             background: data.isStale ? '#fef2f2' : '#fffbeb',
                             border: `1px solid ${data.isStale ? '#fecaca' : '#fde68a'}`,
@@ -221,15 +221,15 @@ export default function AdminLiveStudentsPage() {
                     )}
 
                     {/* Stats Cards */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
+                    <div className="ls-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
                         {[
                             { label: 'Total Devices', value: data.stats.totalDevices, icon: Wifi, color: '#2563eb', bg: '#eff6ff' },
                             { label: 'Identified Students', value: data.stats.identifiedStudents, icon: Users, color: '#16a34a', bg: '#ecfdf5' },
                             { label: 'Unidentified Devices', value: data.stats.unidentifiedDevices, icon: Monitor, color: '#b45309', bg: '#fffbeb' },
                             { label: 'Avg Signal', value: `${data.stats.avgSignal}/5`, icon: Signal, color: '#7c3aed', bg: '#faf5ff' },
                         ].map((stat, i) => (
-                            <div key={i} style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', padding: '1rem 1.2rem', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <div style={{ width: '40px', height: '40px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: stat.bg, color: stat.color, flexShrink: 0 }}><stat.icon size={18} /></div>
+                            <div key={i} className="ls-stat-card" style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', padding: '1rem 1.2rem', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <div className="ls-stat-icon" style={{ width: '40px', height: '40px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: stat.bg, color: stat.color, flexShrink: 0 }}><stat.icon size={18} /></div>
                                 <div>
                                     <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#111' }}>{stat.value}</div>
                                     <div style={{ fontSize: '0.7rem', color: '#888', fontWeight: 500 }}>{stat.label}</div>
@@ -240,7 +240,7 @@ export default function AdminLiveStudentsPage() {
 
                     {/* Info Strip — Last Updated */}
                     <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e8e8e8', marginBottom: '1.2rem', overflow: 'hidden' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', padding: '10px 1.5rem', gap: '16px', fontSize: '0.75rem', color: '#888', background: '#fafafa', flexWrap: 'wrap' }}>
+                        <div className="ls-info-strip" style={{ display: 'flex', alignItems: 'center', padding: '10px 1.5rem', gap: '16px', fontSize: '0.75rem', color: '#888', background: '#fafafa', flexWrap: 'wrap' }}>
                             <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                                 <Clock size={13} color="#888" />
                                 Last Snapshot: <span style={{ fontWeight: 700, color: data.isStale ? '#dc2626' : '#111' }}>
@@ -262,7 +262,7 @@ export default function AdminLiveStudentsPage() {
                                         : 'now'}
                                 </span>
                             </span>
-                            <button onClick={fetchData} disabled={loading} style={{
+                            <button className="ls-refresh-btn" onClick={fetchData} disabled={loading} style={{
                                 marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '4px',
                                 padding: '5px 12px', borderRadius: '6px', border: '1px solid #e8e8e8',
                                 background: '#fff', cursor: loading ? 'not-allowed' : 'pointer',
@@ -276,23 +276,23 @@ export default function AdminLiveStudentsPage() {
 
                     {/* Connected Students Table */}
                     <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', borderTop: '3px solid #00A5A0', overflow: 'hidden', marginBottom: '1.5rem' }}>
-                        <div style={{ padding: '0.8rem 1.5rem', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div className="ls-table-header" style={{ padding: '0.8rem 1.5rem', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.95rem', fontWeight: 700 }}>
                                 <Activity size={16} /> Connected Students
                                 <span style={{ fontSize: '0.7rem', color: '#888', fontWeight: 500 }}>({filtered.length} students)</span>
                             </div>
-                            <div style={{ position: 'relative', minWidth: '220px' }}>
+                            <div className="ls-search-wrap" style={{ position: 'relative', minWidth: '220px' }}>
                                 <Search size={14} color="#aaa" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
                                 <input type="text" placeholder="Search name, enrollment, MAC..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
                                     style={{ width: '100%', padding: '7px 10px 7px 32px', borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '0.8rem', outline: 'none', background: '#fafafa', fontFamily: 'inherit', boxSizing: 'border-box' }} />
                             </div>
                         </div>
                         <div style={{ overflowX: 'auto' }}>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                            <table className="ls-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
                                 <thead>
                                     <tr style={{ background: '#fafafa' }}>
-                                        {['Student', 'Enrollment', 'Program', 'MAC Address', 'Signal', 'IP Address', 'Duration', 'Status'].map(h => (
-                                            <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#888', borderBottom: '1px solid #f0f0f0' }}>{h}</th>
+                                        {[{l:'Student'},{l:'Enrollment'},{l:'Program',c:'ls-col-program'},{l:'MAC Address',c:'ls-col-mac'},{l:'Signal'},{l:'IP Address',c:'ls-col-ip'},{l:'Duration',c:'ls-col-duration'},{l:'Status',c:'ls-col-status'}].map(h => (
+                                            <th key={h.l} className={h.c||''} style={{ padding: '10px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#888', borderBottom: '1px solid #f0f0f0' }}>{h.l}</th>
                                         ))}
                                     </tr>
                                 </thead>
@@ -328,8 +328,8 @@ export default function AdminLiveStudentsPage() {
                                                     </div>
                                                 </td>
                                                 <td style={{ padding: '10px 16px', fontFamily: 'monospace', fontSize: '0.78rem', color: '#555' }}>{s.enrollmentNo || '—'}</td>
-                                                <td style={{ padding: '10px 16px', fontSize: '0.78rem', color: '#666' }}>{s.program || '—'}</td>
-                                                <td style={{ padding: '10px 16px' }}>
+                                                <td className="ls-col-program" style={{ padding: '10px 16px', fontSize: '0.78rem', color: '#666' }}>{s.program || '—'}</td>
+                                                <td className="ls-col-mac" style={{ padding: '10px 16px' }}>
                                                     <code style={{ padding: '3px 8px', background: '#f5f5f5', borderRadius: '5px', fontSize: '0.72rem', fontFamily: 'monospace', color: '#555', letterSpacing: '0.5px' }}>
                                                         {s.macAddress}
                                                     </code>
@@ -344,9 +344,9 @@ export default function AdminLiveStudentsPage() {
                                                         <span style={{ fontSize: '0.6rem', fontWeight: 600, color: sig.color, background: sig.bg, padding: '2px 6px', borderRadius: '4px' }}>{sig.label}</span>
                                                     </div>
                                                 </td>
-                                                <td style={{ padding: '10px 16px', fontFamily: 'monospace', fontSize: '0.75rem', color: '#888' }}>{s.ip || '—'}</td>
-                                                <td style={{ padding: '10px 16px', fontSize: '0.78rem', color: '#555' }}>{s.duration || '—'}</td>
-                                                <td style={{ padding: '10px 16px' }}>
+                                                <td className="ls-col-ip" style={{ padding: '10px 16px', fontFamily: 'monospace', fontSize: '0.75rem', color: '#888' }}>{s.ip || '—'}</td>
+                                                <td className="ls-col-duration" style={{ padding: '10px 16px', fontSize: '0.78rem', color: '#555' }}>{s.duration || '—'}</td>
+                                                <td className="ls-col-status" style={{ padding: '10px 16px' }}>
                                                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 10px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600, background: '#ecfdf5', color: '#166534' }}>
                                                         <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#16a34a' }} /> Connected
                                                     </span>
@@ -370,8 +370,8 @@ export default function AdminLiveStudentsPage() {
                                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
                                     <thead>
                                         <tr style={{ background: '#fafafa' }}>
-                                            {['MAC Address', 'Device Name', 'Signal', 'IP Address', 'Duration'].map(h => (
-                                                <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#888', borderBottom: '1px solid #f0f0f0' }}>{h}</th>
+                                            {[{l:'MAC Address'},{l:'Device Name',c:'ls-uid-col-device'},{l:'Signal'},{l:'IP Address',c:'ls-uid-col-ip'},{l:'Duration'}].map(h => (
+                                                <th key={h.l} className={h.c||''} style={{ padding: '10px 16px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#888', borderBottom: '1px solid #f0f0f0' }}>{h.l}</th>
                                             ))}
                                         </tr>
                                     </thead>
@@ -385,14 +385,14 @@ export default function AdminLiveStudentsPage() {
                                                             {d.macAddress}
                                                         </code>
                                                     </td>
-                                                    <td style={{ padding: '10px 16px', fontSize: '0.78rem', color: '#666' }}>{d.deviceName || '—'}</td>
+                                                    <td className="ls-uid-col-device" style={{ padding: '10px 16px', fontSize: '0.78rem', color: '#666' }}>{d.deviceName || '—'}</td>
                                                     <td style={{ padding: '10px 16px' }}>
                                                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                             <SignalBars level={d.signal} />
                                                             <span style={{ fontSize: '0.75rem', fontWeight: 600, color: sig.color }}>{d.signal}/5</span>
                                                         </div>
                                                     </td>
-                                                    <td style={{ padding: '10px 16px', fontFamily: 'monospace', fontSize: '0.75rem', color: '#888' }}>{d.ip || '—'}</td>
+                                                    <td className="ls-uid-col-ip" style={{ padding: '10px 16px', fontFamily: 'monospace', fontSize: '0.75rem', color: '#888' }}>{d.ip || '—'}</td>
                                                     <td style={{ padding: '10px 16px', fontSize: '0.78rem', color: '#555' }}>{d.duration || '—'}</td>
                                                 </tr>
                                             );
@@ -418,6 +418,69 @@ export default function AdminLiveStudentsPage() {
                     0% { opacity: 0.4; }
                     50% { opacity: 1; }
                     100% { opacity: 0.4; }
+                }
+
+                /* ── Live Students Mobile Responsive ── */
+                @media (max-width: 768px) {
+                    .ls-stats-grid {
+                        grid-template-columns: 1fr 1fr !important;
+                        gap: 8px !important;
+                    }
+                    .ls-info-strip {
+                        flex-direction: column !important;
+                        align-items: flex-start !important;
+                        gap: 8px !important;
+                        padding: 10px 1rem !important;
+                    }
+                    .ls-info-strip .ls-refresh-btn {
+                        width: 100%;
+                        justify-content: center;
+                        margin-left: 0 !important;
+                    }
+                    .ls-table-header {
+                        flex-direction: column !important;
+                        gap: 8px !important;
+                        align-items: flex-start !important;
+                    }
+                    .ls-search-wrap {
+                        min-width: unset !important;
+                        width: 100% !important;
+                    }
+                    /* Hide low-priority columns */
+                    .ls-col-program,
+                    .ls-col-mac,
+                    .ls-col-ip,
+                    .ls-col-duration,
+                    .ls-col-status {
+                        display: none !important;
+                    }
+                    .ls-table th,
+                    .ls-table td {
+                        padding: 8px 10px !important;
+                    }
+                    /* Unidentified table columns */
+                    .ls-uid-col-ip,
+                    .ls-uid-col-device {
+                        display: none !important;
+                    }
+                    /* Banner stacking */
+                    .ls-banner {
+                        flex-wrap: wrap !important;
+                    }
+                }
+
+                @media (max-width: 480px) {
+                    .ls-stats-grid {
+                        grid-template-columns: 1fr 1fr !important;
+                    }
+                    .ls-stat-card {
+                        padding: 0.8rem !important;
+                        gap: 8px !important;
+                    }
+                    .ls-stat-icon {
+                        width: 32px !important;
+                        height: 32px !important;
+                    }
                 }
             `}</style>
         </div>

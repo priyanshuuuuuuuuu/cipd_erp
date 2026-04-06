@@ -1371,4 +1371,38 @@
         min-height: auto;
         padding: 1rem;
     }
-}
+
+    /* ── Admin full-width content — tighten padding ── */
+    .content-center.admin-full {
+        padding: 12px 14px;
+        padding-bottom: 2rem;
+    }
+
+    /* ── Dashboard header on admin pages ────────────── */
+    .dashboard-header {
+        position: relative;
+        flex-wrap: nowrap;
+        justify-content: space-between;
+        padding-bottom: 54px; /* Space for search bar */
+        gap: 8px;
+        margin-bottom: 0.5rem;
+    }
+
+    .header-actions {
+        gap: 0.5rem;
+    }
+
+    .header-actions img {
+        height: 24px !important;
+    }
+
+    .dashboard-header .search-bar {
+        display: flex !important;
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        margin-top: 10px;
+    }
+}
