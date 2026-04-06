@@ -7,14 +7,15 @@ async function handler(req) {
   try {
     const { searchParams } = new URL(req.url);
     const courseFilter = searchParams.get('course');
+    const dateFilter = searchParams.get('date'); // YYYY-MM-DD
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
+    const limit = parseInt(searchParams.get('limit') || '50');
     const offset = (page - 1) * limit;
 
     let query = supabaseAdmin
       .from('attendance_records')
       .select(`
-        id, ping_count, status, calculated_at,
+        id, ping_count, status, points, calculated_at,
         sessions (
           id, title, session_date, start_time, end_time,
           courses ( id, name )
@@ -31,12 +32,11 @@ async function handler(req) {
       return NextResponse.json({ error: 'Failed to fetch sessions', detail: error.message }, { status: 500 });
     }
 
-    if (!records || records.length === 0) {
-      console.log('No attendance records found for student:', req.user.id);
-    }
-
-    // Filter by course if specified (post-filter since nested)
+    // Post-filter by date and course
     let filtered = records || [];
+    if (dateFilter) {
+      filtered = filtered.filter(r => r.sessions?.session_date === dateFilter);
+    }
     if (courseFilter && courseFilter !== 'all') {
       filtered = filtered.filter(r => r.sessions?.courses?.id === courseFilter || r.sessions?.courses?.name === courseFilter);
     }

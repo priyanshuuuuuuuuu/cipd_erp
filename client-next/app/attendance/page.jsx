@@ -5,7 +5,7 @@ import '../Dashboard.css';
 import {
     LayoutGrid, Calendar, BookOpen, Users, MessageSquare, Settings,
     LogOut, Bell, Search, Menu, ChevronLeft, ChevronRight,
-    CheckCircle, XCircle, Clock, AlertCircle, Filter, Flame
+    CheckCircle, XCircle, Clock, AlertCircle, Filter, Flame, Wifi, WifiOff
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
@@ -51,38 +51,37 @@ export default function AttendancePage() {
     const [sessionHistory, setSessionHistory] = useState([]);
     const [loading, setLoading] = useState(true);
 
+    // Presence indicator
+    const [presence, setPresence] = useState({ present: false, signal: 0, lastUpdated: null });
+
+    // Date filter for session history
+    const [sessionDate, setSessionDate] = useState(new Date().toISOString().split('T')[0]);
+
     const displayName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Student' : 'Student';
 
     const fetchData = useCallback(async () => {
         try {
-            const [sumRes, sesRes] = await Promise.allSettled([
+            const [sumRes, sesRes, presRes] = await Promise.allSettled([
                 api.get('/api/students/attendance/summary'),
-                api.get('/api/students/attendance/sessions'),
+                api.get(`/api/students/attendance/sessions?date=${sessionDate}`),
+                api.get('/api/students/attendance/presence'),
             ]);
             if (sumRes.status === 'fulfilled') setSummaryData(sumRes.value);
             if (sesRes.status === 'fulfilled') setSessionHistory(sesRes.value.sessions || []);
+            if (presRes.status === 'fulfilled') setPresence(presRes.value);
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [sessionDate]);
 
     useEffect(() => { if (authReady) fetchData(); }, [fetchData, authReady]);
 
-    // Auto-navigate calendar to the most recent month that has session data
+    // Calendar defaults to today's month
     useEffect(() => {
-        if (sessionHistory.length === 0) return;
-        const latestDate = sessionHistory
-            .filter(r => r.sessions?.session_date)
-            .map(r => r.sessions.session_date)
-            .sort()
-            .pop(); // most recent YYYY-MM-DD
-        if (latestDate) {
-            const [y, m] = latestDate.split('-').map(Number);
-            setCurrentCalendarMonth(new Date(y, m - 1, 1));
-        }
-    }, [sessionHistory]);
+        setCurrentCalendarMonth(new Date());
+    }, []);
 
-    // Build from API data — API returns { overall: { attended, missed, total, pct }, streak, courses }
+    // Build from API data
     const overall = {
         total: summaryData?.overall?.total || 0,
         attended: summaryData?.overall?.attended || 0,
@@ -100,7 +99,7 @@ export default function AttendancePage() {
         color: ['#66d9e8', '#a78bfa', '#93c5fd', '#f9a8d4', '#fdba74'][i % 5],
     }));
 
-    // Sessions API returns attendance_records with nested sessions object
+    // Sessions for selected date
     const sessions = sessionHistory.map((s, i) => {
         const sess = s.sessions || {};
         const sessionDate = sess.session_date ? new Date(sess.session_date + 'T00:00:00') : null;
@@ -109,11 +108,14 @@ export default function AttendancePage() {
         return {
             date: sessionDate ? sessionDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : 'N/A',
             day: sessionDate ? sessionDate.toLocaleDateString('en-GB', { weekday: 'short' }) : '',
-            time: sess.start_time ? sess.start_time.slice(0, 5) : '',
+            startTime: sess.start_time ? sess.start_time.slice(0, 5) : '',
+            endTime: sess.end_time ? sess.end_time.slice(0, 5) : '',
             course: courseCode,
+            courseName: courseName,
             topic: sess.title || courseName || 'Session',
-            status: s.status === 'present' ? 'Present' : 'Absent',
-            pings: s.ping_count != null ? `${s.ping_count}/5` : '0/5',
+            status: s.status === 'present' || s.status === 'present_online' || s.status === 'half' ? 'Present' : 'Absent',
+            pings: s.ping_count != null ? s.ping_count : 0,
+            points: s.points != null ? s.points : null,
         };
     });
 
@@ -122,19 +124,27 @@ export default function AttendancePage() {
     const statusBg = (p) => p >= 85 ? '#ecfccb' : p >= 75 ? '#fef9c3' : '#fce7f3';
     const statusLabel = (p) => p >= 85 ? 'On Track' : p >= 75 ? 'Needs Attention' : 'At Risk';
 
-    // Calendar status comes from summaryData.calendarData (computed server-side
-    // from ALL attendance records — no pagination limit applies).
-
-    // Calendar grid for currentCalendarMonth
-    const calYear   = currentCalendarMonth.getFullYear();
-    const calMonth  = currentCalendarMonth.getMonth();      // 0-indexed
-    const daysInMonth  = new Date(calYear, calMonth + 1, 0).getDate();
-    const firstDay     = new Date(calYear, calMonth, 1).getDay();
-    const calDays      = Array(firstDay).fill(null).concat(Array.from({ length: daysInMonth }, (_, i) => i + 1));
-    const dayLabels    = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+    // Calendar
+    const calYear = currentCalendarMonth.getFullYear();
+    const calMonth = currentCalendarMonth.getMonth();
+    const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+    const firstDay = new Date(calYear, calMonth, 1).getDay();
+    const calDays = Array(firstDay).fill(null).concat(Array.from({ length: daysInMonth }, (_, i) => i + 1));
+    const dayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
     const prevCalMonth = () => setCurrentCalendarMonth(d => new Date(d.getFullYear(), d.getMonth() - 1, 1));
     const nextCalMonth = () => setCurrentCalendarMonth(d => new Date(d.getFullYear(), d.getMonth() + 1, 1));
+
+    // Format last updated time
+    const formatLastUpdated = (ts) => {
+        if (!ts) return '—';
+        const d = new Date(ts);
+        const now = new Date();
+        const diffMin = Math.round((now - d) / 60000);
+        if (diffMin < 1) return 'Just now';
+        if (diffMin < 60) return `${diffMin}m ago`;
+        return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    };
 
     const Sidebar = () => (
         <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobileMenuOpen ? 'open' : ''}`}>
@@ -173,6 +183,15 @@ export default function AttendancePage() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <div className="mobile-menu-btn" onClick={() => setIsMobileMenuOpen(true)} style={{ cursor: 'pointer' }}><Menu size={24} /></div>
                             <h1>My Attendance</h1>
+                            {/* Live Presence Indicator */}
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 12px', borderRadius: '8px', fontSize: '0.72rem', fontWeight: 600, background: presence.present ? '#ecfdf5' : '#fef2f2', color: presence.present ? '#166534' : '#991b1b', border: `1px solid ${presence.present ? '#a7f3d0' : '#fecaca'}` }}>
+                                {presence.present ? <Wifi size={13} /> : <WifiOff size={13} />}
+                                {presence.present ? 'In Class' : 'Not Detected'}
+                                {presence.present && <span style={{ fontSize: '0.6rem', color: '#059669' }}>Signal {presence.signal}/5</span>}
+                                <span style={{ fontSize: '0.58rem', color: '#aaa', marginLeft: '4px' }}>
+                                    {formatLastUpdated(presence.lastUpdated)}
+                                </span>
+                            </div>
                         </div>
                         <div className="header-actions">
                             <div className="search-bar"><Search size={16} color="#aaa" /><input type="text" placeholder="Search" className="search-input" /></div>
@@ -204,7 +223,6 @@ export default function AttendancePage() {
                         </div>
 
                         <div className="stat-card" style={{ padding: '1.5rem 2rem', borderRadius: '20px' }}>
-                            {/* ── Header: month label + chevrons + legend ── */}
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <button onClick={prevCalMonth} style={{ background: 'none', border: '1px solid #eee', borderRadius: '8px', width: '26px', height: '26px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888', fontSize: '0.8rem' }}>
@@ -225,16 +243,15 @@ export default function AttendancePage() {
                                     ))}
                                 </div>
                             </div>
-                            {/* ── Day-of-week labels ── */}
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px', marginBottom: '6px' }}>
                                 {dayLabels.map((d,i)=><div key={i} style={{ textAlign: 'center', fontSize: '0.68rem', fontWeight: 600, color: '#ccc' }}>{d}</div>)}
                             </div>
-                            {/* ── Day cells ── */}
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px' }}>
                                 {calDays.map((day, i) => {
                                     let bg='transparent', textCol='#ddd', border='1px dashed #e8e8e8';
+                                    const today = new Date();
+                                    const isToday = day && calYear === today.getFullYear() && calMonth === today.getMonth() && day === today.getDate();
                                     if (day !== null) {
-                                        // Build the exact YYYY-MM-DD for this cell
                                         const mm = String(calMonth + 1).padStart(2, '0');
                                         const dd = String(day).padStart(2, '0');
                                         const dateKey = `${calYear}-${mm}-${dd}`;
@@ -244,12 +261,13 @@ export default function AttendancePage() {
                                         else if (dayStatus === 'absent')  { bg='#fca5a5'; textCol='#9f1239'; border='1px solid #fecdd3'; }
                                         else                               { bg='#f8f8f8'; textCol='#ccc';    border='1px solid #eee'; }
                                     }
-                                    return <div key={i} style={{ aspectRatio:'1', borderRadius:'8px', background:bg, border, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.7rem', fontWeight:600, color:textCol }}>{day || ''}</div>;
+                                    return <div key={i} style={{ aspectRatio:'1', borderRadius:'8px', background:bg, border: isToday ? '2px solid #111' : border, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.7rem', fontWeight: isToday ? 800 : 600, color: isToday ? '#111' : textCol }}>{day || ''}</div>;
                                 })}
                             </div>
                         </div>
                     </div>
 
+                    {/* Course-wise Attendance as Donut Circles */}
                     <div style={{ marginBottom: '1.5rem' }}>
                         <div style={{ fontSize: '1rem', fontWeight: 700, color: '#000', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}><BookOpen size={16} /> Course-wise Attendance</div>
                         {loading ? (
@@ -271,27 +289,33 @@ export default function AttendancePage() {
                                             <span style={{ padding: '2px 8px', borderRadius: '8px', background: '#ecfccb', color: '#365314', fontWeight: 600 }}>{c.attended}</span>
                                             <span style={{ padding: '2px 8px', borderRadius: '8px', background: '#ffe4e6', color: '#9f1239', fontWeight: 600 }}>{c.total-c.attended}</span>
                                         </div>
-                                        <div style={{ marginTop: '8px', fontSize: '0.6rem', fontWeight: 600, padding: '3px 8px', borderRadius: '10px', display: 'inline-block', background: statusBg(c.pct), color: statusTextColor(c.pct) }}>{statusLabel(c.pct)}</div>
                                     </div>
                                 ))}
                             </div>
                         )}
                     </div>
 
+                    {/* Session History with Date Filter */}
                     <div className="stat-card" style={{ padding: '0', borderRadius: '20px', overflow: 'hidden' }}>
                         <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: '1rem', fontWeight: 700, color: '#000', display: 'flex', alignItems: 'center', gap: '8px' }}><Clock size={15} /> Recent Sessions</span>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <Filter size={13} color="#aaa" />
-                                <select value={selectedCourse} onChange={e=>setSelectedCourse(e.target.value)} style={{ padding: '5px 12px', borderRadius: '12px', border: '1px solid #eee', fontSize: '0.78rem', color: '#555', background: '#fff', fontFamily: 'inherit', cursor: 'pointer' }}>
-                                    <option value="all">All Courses</option>
-                                    {courses.map(c=><option key={c.code} value={c.code}>{c.code} — {c.name}</option>)}
-                                </select>
+                            <span style={{ fontSize: '1rem', fontWeight: 700, color: '#000', display: 'flex', alignItems: 'center', gap: '8px' }}><Calendar size={15} /> Session History</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <input type="date" value={sessionDate} onChange={e => setSessionDate(e.target.value)}
+                                    style={{ padding: '5px 10px', borderRadius: '10px', border: '1px solid #eee', fontSize: '0.78rem', color: '#555', fontFamily: 'inherit', cursor: 'pointer' }} />
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <Filter size={13} color="#aaa" />
+                                    <select value={selectedCourse} onChange={e=>setSelectedCourse(e.target.value)} style={{ padding: '5px 12px', borderRadius: '12px', border: '1px solid #eee', fontSize: '0.78rem', color: '#555', background: '#fff', fontFamily: 'inherit', cursor: 'pointer' }}>
+                                        <option value="all">All Courses</option>
+                                        {courses.map(c=><option key={c.code} value={c.code}>{c.code} — {c.name}</option>)}
+                                    </select>
+                                </div>
                             </div>
                         </div>
                         <div style={{ padding: '6px 0' }}>
-                            {filtered.length === 0 ? (
-                                <div style={{ padding: '1.5rem', color: '#aaa', fontSize: '0.82rem', textAlign: 'center' }}>No sessions found.</div>
+                            {loading ? (
+                                <div style={{ padding: '1.5rem', color: '#aaa', fontSize: '0.82rem', textAlign: 'center' }}>Loading sessions...</div>
+                            ) : filtered.length === 0 ? (
+                                <div style={{ padding: '1.5rem', color: '#aaa', fontSize: '0.82rem', textAlign: 'center' }}>No sessions found for this date.</div>
                             ) : filtered.map((s,i)=>{
                                 const cd=courses.find(c=>c.code===s.course);
                                 return(
@@ -305,11 +329,11 @@ export default function AttendancePage() {
                                                 <div style={{ width:'40px', height:'40px', borderRadius:'12px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.55rem', fontWeight:700, background:cd?`${cd.color}20`:'#f5f5f5', color:'#555', border:'1px solid #eee' }}>{s.course}</div>
                                                 <div>
                                                     <div style={{ fontSize:'0.84rem', fontWeight:600, color:'#111' }}>{s.topic}</div>
-                                                    <div style={{ fontSize:'0.7rem', color:'#bbb' }}>{s.date} · {s.day} · {s.time}</div>
+                                                    <div style={{ fontSize:'0.7rem', color:'#bbb' }}>{s.startTime} – {s.endTime} · {s.courseName}</div>
                                                 </div>
                                             </div>
                                             <div style={{ display:'flex', alignItems:'center', gap:'12px' }}>
-                                                <span style={{ fontFamily:'monospace', fontSize:'0.75rem', color:parseInt(s.pings)>=3?'#4d7c0f':'#be123c' }}>{s.pings}</span>
+                                                <span style={{ fontFamily:'monospace', fontSize:'0.75rem', color: s.pings >= 3 ? '#4d7c0f' : '#be123c' }}>{s.pings} pings</span>
                                                 <span style={{ display:'inline-flex', alignItems:'center', gap:'4px', padding:'4px 12px', borderRadius:'12px', fontSize:'0.72rem', fontWeight:600, background:s.status==='Present'?'#ecfccb':'#ffe4e6', color:s.status==='Present'?'#365314':'#9f1239' }}>
                                                     {s.status==='Present'?<CheckCircle size={12}/>:<XCircle size={12}/>}{s.status}
                                                 </span>
