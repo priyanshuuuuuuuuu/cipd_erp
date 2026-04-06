@@ -443,6 +443,106 @@ export async function sendGeneralNotificationEmail(studentEmail, studentName, ti
   });
 }
 
+// ── 4. Feedback Available Email ──────────────────────────────────────────────
+export async function sendFeedbackAvailableEmail(studentEmail, studentName, session, deadline) {
+  const firstName = (studentName || '').split(' ')[0] || 'Student';
+  const course = session.courses?.name || session.title || '—';
+  const date = session.session_date
+    ? new Date(session.session_date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })
+    : '—';
+  const deadlineStr = deadline
+    ? new Date(deadline).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+    : '24 hours';
+
+  const content = `
+    <div style="background:linear-gradient(135deg,${PRIMARY} 0%,${SECONDARY} 100%);padding:32px 28px 28px;border-radius:20px 20px 0 0;">
+      <span style="display:inline-block;background:rgba(255,255,255,0.18);color:#fff;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:4px 12px;border-radius:20px;margin-bottom:14px;">📝&nbsp; Feedback Form</span>
+      <p style="margin:0 0 6px;font-size:26px;font-weight:800;color:#ffffff;">Hi ${firstName}</p>
+      <p style="margin:0;font-size:14px;color:rgba(255,255,255,0.78);">Your feedback form is ready!</p>
+    </div>
+
+    <div style="padding:20px 20px 0;">
+      <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
+        style="border:1px solid ${BORDER};border-radius:14px;overflow:hidden;background:#fff;margin-bottom:16px;">
+        <tr>
+          <td style="width:4px;background:${TERTIARY};"></td>
+          <td style="padding:18px 18px;">
+            <p style="margin:0 0 2px;font-size:11px;font-weight:600;color:${MUTED};text-transform:uppercase;letter-spacing:0.5px;">${course}</p>
+            <p style="margin:0 0 14px;font-size:19px;font-weight:800;color:${TEXT};">${session.title || course}</p>
+            <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+              <tr>
+                <td style="width:50%;vertical-align:top;">
+                  <p style="margin:0;font-size:12px;color:${MUTED};">📅&nbsp; <span style="color:${TEXT};font-weight:600;">${date}</span></p>
+                </td>
+                <td style="width:50%;vertical-align:top;">
+                  <p style="margin:0;font-size:12px;color:${MUTED};">⏰&nbsp; <span style="color:#e11d48;font-weight:700;">Deadline: ${deadlineStr}</span></p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+
+      <p style="margin:0 0 20px;font-size:13px;color:${MUTED};line-height:1.7;text-align:center;">
+        Your feedback helps improve future sessions. It takes less than 30 seconds — most answers are pre-filled!
+      </p>
+
+      <div style="padding:4px 0 28px;text-align:center;">
+        ${ctaButton('Submit Feedback', `${APP_URL}/feedback`)}
+      </div>
+    </div>
+
+    <div style="background:${BG};border-top:1px solid ${BORDER};padding:16px 24px;border-radius:0 0 20px 20px;">
+      <p style="margin:0;font-size:11px;color:${MUTED};text-align:center;font-style:italic;">
+        📋&nbsp; Responses are anonymous and contribute to your feedback credits.
+      </p>
+    </div>`;
+
+  await transporter.sendMail({
+    from: `"CiPD 360" <${process.env.EMAIL_FROM}>`,
+    to: studentEmail,
+    subject: `📝 Feedback form ready: ${course} — CiPD 360`,
+    html: shell(content),
+  });
+}
+
+// ── 5. Feedback Reminder Email (4 hours before deadline) ─────────────────────
+export async function sendFeedbackReminderEmail(studentEmail, studentName, session, hoursLeft) {
+  const firstName = (studentName || '').split(' ')[0] || 'Student';
+  const course = session.courses?.name || session.title || '—';
+  const hrs = Math.round(hoursLeft);
+
+  const content = `
+    <div style="background:linear-gradient(135deg,#e11d48 0%,#be123c 100%);padding:32px 28px 28px;border-radius:20px 20px 0 0;">
+      <span style="display:inline-block;background:rgba(255,255,255,0.18);color:#fff;font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:4px 12px;border-radius:20px;margin-bottom:14px;">⏰&nbsp; Deadline Approaching</span>
+      <p style="margin:0 0 6px;font-size:26px;font-weight:800;color:#ffffff;">Hi ${firstName}</p>
+      <p style="margin:0;font-size:14px;color:rgba(255,255,255,0.78);">Your feedback for <strong>${course}</strong> is due in ~${hrs} hour${hrs !== 1 ? 's' : ''}!</p>
+    </div>
+
+    <div style="padding:20px 20px 0;">
+      <p style="margin:0 0 20px;font-size:13px;color:${MUTED};line-height:1.7;text-align:center;">
+        It only takes 30 seconds — answers are pre-filled with positive defaults. Just review and submit!
+      </p>
+
+      <div style="padding:4px 0 28px;text-align:center;">
+        ${ctaButton('Submit Now', `${APP_URL}/feedback`)}
+      </div>
+    </div>
+
+    <div style="background:${BG};border-top:1px solid ${BORDER};padding:16px 24px;border-radius:0 0 20px 20px;">
+      <p style="margin:0;font-size:11px;color:${MUTED};text-align:center;font-style:italic;">
+        After the deadline, you won't be able to submit feedback for this session.
+      </p>
+    </div>`;
+
+  await transporter.sendMail({
+    from: `"CiPD 360" <${process.env.EMAIL_FROM}>`,
+    to: studentEmail,
+    subject: `⏰ Feedback deadline in ${hrs}h: ${course} — CiPD 360`,
+    html: shell(content),
+  });
+}
+
 // ── Connection test ───────────────────────────────────────────────────────────
 export async function verifyEmailConnection() {
   try {
