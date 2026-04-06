@@ -30,46 +30,123 @@ async function getHandler(req) {
         .select('*', { count: 'exact', head: true })
         .eq('course_id', session.course_id);
 
-      // Get all feedback responses for this session
+      // Get all feedback responses for this session (plain, no joins)
       const { data: responses } = await supabaseAdmin
         .from('feedback_responses')
-        .select(`
-          student_id, rating, yes_no, text_answer, submitted_at,
-          feedback_questions:question_id ( question, type ),
-          students:student_id ( enrollment_no )
-        `)
+        .select('student_id, question_id, rating, yes_no, text_answer, submitted_at')
         .eq('session_id', sessionId);
 
-      // Rating distribution from rating column
-      const ratings = (responses || []).filter(r => r.rating != null).map(r => r.rating);
+      // Get all questions for lookup
+      const questionIds = [...new Set((responses || []).map(r => r.question_id))];
+      const { data: questions } = questionIds.length > 0
+        ? await supabaseAdmin.from('feedback_questions').select('id, question, type, category').in('id', questionIds)
+        : { data: [] };
+      const qMap = {};
+      (questions || []).forEach(q => { qMap[q.id] = q; });
+
+      // Get student details for lookup
+      const studentIds = [...new Set((responses || []).map(r => r.student_id))];
+      const { data: students } = studentIds.length > 0
+        ? await supabaseAdmin.from('students').select('user_id, enrollment_no, users:user_id ( first_name, last_name )').in('user_id', studentIds)
+        : { data: [] };
+      const sMap = {};
+      (students || []).forEach(s => { sMap[s.user_id] = s; });
+
+      // ===== Per-question analytics =====
+      const questionMap = {};
+      (responses || []).forEach(r => {
+        const q = qMap[r.question_id];
+        if (!q) return;
+        if (!questionMap[q.id]) {
+          questionMap[q.id] = {
+            id: q.id,
+            question: q.question,
+            type: q.type,
+            category: q.category,
+            responses: [],
+          };
+        }
+        questionMap[q.id].responses.push(r);
+      });
+
+      const questionAnalytics = Object.values(questionMap).map(q => {
+        const total = q.responses.length;
+        if (q.type === 'yes_no') {
+          const yesCount = q.responses.filter(r => r.yes_no === true).length;
+          const noCount = q.responses.filter(r => r.yes_no === false).length;
+          return {
+            ...q, responses: undefined, total,
+            yesCount, noCount,
+            yesPct: total > 0 ? Math.round((yesCount / total) * 100) : 0,
+            noPct: total > 0 ? Math.round((noCount / total) * 100) : 0,
+          };
+        } else if (q.type === 'rating') {
+          const ratings = q.responses.filter(r => r.rating != null).map(r => r.rating);
+          const avg = ratings.length > 0 ? Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 10) / 10 : 0;
+          const dist = [5,4,3,2,1].map(v => ({
+            value: v,
+            count: ratings.filter(r => r === v).length,
+            pct: ratings.length > 0 ? Math.round((ratings.filter(r => r === v).length / ratings.length) * 100) : 0,
+          }));
+          return { ...q, responses: undefined, total, avgRating: avg, distribution: dist };
+        } else if (q.type === 'mcq') {
+          const answers = q.responses.map(r => r.text_answer).filter(Boolean);
+          const counts = {};
+          answers.forEach(a => { counts[a] = (counts[a] || 0) + 1; });
+          const dist = Object.entries(counts).map(([value, count]) => ({
+            value, count, pct: total > 0 ? Math.round((count / total) * 100) : 0,
+          })).sort((a, b) => b.count - a.count);
+          return { ...q, responses: undefined, total, distribution: dist };
+        } else {
+          // text
+          const texts = q.responses.filter(r => r.text_answer).map(r => ({
+            text: r.text_answer,
+            student: sMap[r.student_id]?.enrollment_no || r.student_id?.slice(0, 8),
+          }));
+          return { ...q, responses: undefined, total, textResponses: texts };
+        }
+      });
+
+      // ===== Overall rating distribution (from rating columns) =====
+      const allRatings = (responses || []).filter(r => r.rating != null).map(r => r.rating);
       const ratingDist = [5, 4, 3, 2, 1].map(r => ({
         rating: r,
-        count: ratings.filter(rating => rating === r).length,
+        count: allRatings.filter(rating => rating === r).length,
       }));
-      const totalRatings = ratings.length;
+      const totalRatings = allRatings.length;
       const ratingDistWithPct = ratingDist.map(r => ({
         ...r,
         pct: totalRatings > 0 ? Math.round((r.count / totalRatings) * 100) : 0,
       }));
 
-      // Average rating
-      const avgRating = ratings.length > 0
-        ? Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 10) / 10
+      const avgRating = allRatings.length > 0
+        ? Math.round((allRatings.reduce((a, b) => a + b, 0) / allRatings.length) * 10) / 10
         : 0;
 
-      // Descriptive responses (text_answer column)
       const descriptive = (responses || [])
-        .filter(r => r.text_answer)
+        .filter(r => r.text_answer && qMap[r.question_id]?.type === 'text')
         .map(r => ({
-          student: r.students?.enrollment_no || r.student_id?.slice(0, 8),
-          rating: (responses || []).find(
-            rr => rr.student_id === r.student_id && rr.rating != null
-          )?.rating || null,
+          student: sMap[r.student_id]?.enrollment_no || r.student_id?.slice(0, 8),
+          rating: (responses || []).find(rr => rr.student_id === r.student_id && rr.rating != null)?.rating || null,
           text: r.text_answer,
         }));
 
-      // Unique students who submitted
-      const uniqueStudents = new Set((responses || []).map(r => r.student_id)).size;
+      // Unique students who submitted (for student-wise dropdown)
+      const studentMap2 = {};
+      (responses || []).forEach(r => {
+        if (!studentMap2[r.student_id]) {
+          const s = sMap[r.student_id];
+          const name = s?.users
+            ? `${s.users.first_name} ${s.users.last_name}`
+            : s?.enrollment_no || 'Unknown';
+          studentMap2[r.student_id] = {
+            id: r.student_id,
+            name,
+            enrollmentNo: s?.enrollment_no || '',
+          };
+        }
+      });
+      const submittedStudents = Object.values(studentMap2);
 
       return NextResponse.json({
         session: {
@@ -80,8 +157,10 @@ async function getHandler(req) {
         },
         avgRating,
         ratingDistribution: ratingDistWithPct,
+        questionAnalytics,
         descriptive,
-        totalResponses: uniqueStudents,
+        submittedStudents,
+        totalResponses: submittedStudents.length,
         totalEnrolled: enrolled || 0,
       });
     }
