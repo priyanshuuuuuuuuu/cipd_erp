@@ -35,7 +35,25 @@ export default function AdminFeedbackPage() {
     const [showQuestionModal, setShowQuestionModal] = useState(false);
     const [editingQuestion, setEditingQuestion] = useState(null);
     const [questionForm, setQuestionForm] = useState({ question: '', type: 'rating' });
+
+    // Forms tab state
+    const [feedbackForms, setFeedbackForms] = useState([]);
+    const [formsStats, setFormsStats] = useState({ total: 0, active: 0, expired: 0 });
+    const [formsFilter, setFormsFilter] = useState('all');
+    const [formsLoading, setFormsLoading] = useState(false);
+    const [showDeadlineModal, setShowDeadlineModal] = useState(false);
+    const [editingDeadlineForm, setEditingDeadlineForm] = useState(null);
+    const [newDeadline, setNewDeadline] = useState('');
+    const [savingDeadline, setSavingDeadline] = useState(false);
     const [savingQuestion, setSavingQuestion] = useState(false);
+
+    // Student-wise response state
+    const [detailSubTab, setDetailSubTab] = useState('questions');
+    const [privacyConfirmed, setPrivacyConfirmed] = useState(false);
+    const [confirmText, setConfirmText] = useState('');
+    const [selectedStudentId, setSelectedStudentId] = useState('');
+    const [studentResponse, setStudentResponse] = useState(null);
+    const [loadingStudentResponse, setLoadingStudentResponse] = useState(false);
 
     // Fetch overview data
     const fetchOverview = useCallback(async () => {
@@ -58,7 +76,7 @@ export default function AdminFeedbackPage() {
                 setQuestions((questionsRes.value.questions || []).map(q => ({
                     id: q.id,
                     text: q.question,
-                    type: q.type === 'rating' ? 'Rating (1-5)' : q.type === 'yes_no' ? 'Yes / No' : 'Descriptive',
+                    type: q.type === 'rating' ? 'Rating (1-5)' : q.type === 'yes_no' ? 'Yes / No' : q.type === 'mcq' ? 'MCQ' : 'Descriptive',
                     mandatory: true,
                     active: q.active !== false,
                     category: q.category,
@@ -84,18 +102,81 @@ export default function AdminFeedbackPage() {
         }
     };
 
+    // Fetch forms data
+    const fetchForms = useCallback(async () => {
+        setFormsLoading(true);
+        try {
+            const res = await api.get(`/api/admin/feedback/forms?status=${formsFilter}`);
+            setFeedbackForms(res.forms || []);
+            setFormsStats(res.stats || {});
+        } catch (e) {
+            console.error('Failed to load forms:', e);
+        } finally {
+            setFormsLoading(false);
+        }
+    }, [formsFilter]);
+
     useEffect(() => { if (authReady) fetchOverview(); }, [fetchOverview, authReady]);
+    useEffect(() => { if (authReady && activeTab === 'forms') fetchForms(); }, [fetchForms, authReady, activeTab]);
 
     // Auto-refresh every 30 seconds for live updates
     useEffect(() => {
         if (!authReady) return;
-        const interval = setInterval(fetchOverview, 30000);
+        const interval = setInterval(() => {
+            fetchOverview();
+            if (activeTab === 'forms') fetchForms();
+        }, 30000);
         return () => clearInterval(interval);
-    }, [fetchOverview, authReady]);
+    }, [fetchOverview, fetchForms, authReady, activeTab]);
+
+    // Deadline edit handler
+    const handleEditDeadline = (form) => {
+        setEditingDeadlineForm(form);
+        setNewDeadline(form.deadline ? new Date(form.deadline).toISOString().slice(0, 16) : '');
+        setShowDeadlineModal(true);
+    };
+
+    const handleSaveDeadline = async () => {
+        if (!editingDeadlineForm) return;
+        setSavingDeadline(true);
+        try {
+            await api.patch('/api/admin/feedback/forms', {
+                session_id: editingDeadlineForm.session_id,
+                feedback_deadline: newDeadline ? new Date(newDeadline).toISOString() : null,
+            });
+            setShowDeadlineModal(false);
+            fetchForms();
+        } catch (e) {
+            alert('Failed to update deadline: ' + e.message);
+        } finally {
+            setSavingDeadline(false);
+        }
+    };
 
     const handleViewDetail = (lf) => {
-        setViewingLecture(lf);
-        fetchDetail(lf.id);
+        const sessionId = lf.session_id || lf.id;
+        setViewingLecture({ ...lf, id: sessionId });
+        setActiveTab('overview');
+        setDetailSubTab('questions');
+        setPrivacyConfirmed(false);
+        setConfirmText('');
+        setSelectedStudentId('');
+        setStudentResponse(null);
+        fetchDetail(sessionId);
+    };
+
+    const handleFetchStudentResponse = async (studentId) => {
+        if (!viewingLecture || !studentId) return;
+        setSelectedStudentId(studentId);
+        setLoadingStudentResponse(true);
+        try {
+            const res = await api.get(`/api/admin/feedback/student-response?session_id=${viewingLecture.id}&student_id=${studentId}`);
+            setStudentResponse(res);
+        } catch (e) {
+            console.error('Failed to load student response:', e);
+        } finally {
+            setLoadingStudentResponse(false);
+        }
     };
 
     // Question CRUD handlers
@@ -251,6 +332,7 @@ export default function AdminFeedbackPage() {
                     {/* Tabs */}
                     <div style={{ display: 'flex', gap: '8px', marginBottom: '1.2rem' }}>
                         <button style={tabStyle(activeTab === 'overview')} onClick={() => { setActiveTab('overview'); setViewingLecture(null); }}>Overview &amp; Analytics</button>
+                        <button style={tabStyle(activeTab === 'forms')} onClick={() => { setActiveTab('forms'); setViewingLecture(null); }}>Feedback Forms</button>
                         <button style={tabStyle(activeTab === 'config')} onClick={() => { setActiveTab('config'); setViewingLecture(null); }}>Question Configuration</button>
                     </div>
 
@@ -400,98 +482,192 @@ export default function AdminFeedbackPage() {
                     {activeTab === 'overview' && viewingLecture && (
                         <>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1rem' }}>
-                                <button onClick={() => { setViewingLecture(null); setDetailData(null); setFilterRating('all'); }} style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 12px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', fontSize: '0.78rem', color: '#555' }}>
+                                <button onClick={() => { setViewingLecture(null); setDetailData(null); setFilterRating('all'); setDetailSubTab('questions'); setPrivacyConfirmed(false); }} style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 12px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', fontSize: '0.78rem', color: '#555' }}>
                                     <ArrowLeft size={13} /> Back
                                 </button>
                             </div>
                             {detailLoading ? (
-                                <div>
-                                    <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e8e8e8', marginBottom: '1.2rem', overflow: 'hidden' }}>
-                                        <div style={{ display: 'flex', padding: '14px 1.2rem', gap: '14px' }}>
-                                            {[1,2,3,4,5].map(i => (
-                                                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0 14px' }}>
-                                                    <div style={{ width: '50px', height: '9px', borderRadius: '3px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.1}s` }} />
-                                                    <div style={{ width: '35px', height: '12px', borderRadius: '4px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.15}s` }} />
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                    {[1,2,3].map(i => (
-                                        <div key={i} style={{ padding: '12px 1.2rem', borderBottom: '1px solid #f5f5f5', display: 'flex', gap: '14px' }}>
-                                            <div style={{ width: '44px', height: '10px', borderRadius: '3px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.1}s` }} />
-                                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                                <div style={{ width: `${50 + i * 15}%`, height: '10px', borderRadius: '3px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.15}s` }} />
-                                                <div style={{ width: '80px', height: '8px', borderRadius: '3px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.2}s` }} />
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
+                                <div style={{ padding: '2rem', textAlign: 'center', color: '#ccc' }}>Loading analytics...</div>
                             ) : detailData ? (
                                 <>
+                                    {/* Session header strip */}
                                     <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e8e8e8', marginBottom: '1.2rem', overflow: 'hidden' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', padding: '10px 1.2rem', overflowX: 'auto', whiteSpace: 'nowrap', gap: 0 }}>
                                             {[
-                                                ['Lecture', viewingLecture.lecture],
-                                                ['Topic', viewingLecture.topic || ''],
-                                                ['Faculty', detailData.session?.faculty_name || viewingLecture.faculty],
+                                                ['Lecture', viewingLecture.lecture || viewingLecture.title || ''],
+                                                ['Faculty', detailData.session?.faculty_name || viewingLecture.faculty || ''],
                                                 ['Avg Rating', String(detailData.avgRating || 0)],
                                                 ['Submissions', `${detailData.totalResponses || 0}/${detailData.totalEnrolled || 0}`],
-                                                ['Date', formatDate(viewingLecture.date)],
+                                                ['Date', formatDate(viewingLecture.date || viewingLecture.session_date)],
                                             ].map(([label, val], i) => (
                                                 <React.Fragment key={label}>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0 14px', flexShrink: 0 }}>
                                                         <span style={labelStyle}>{label}</span>
                                                         <span style={valueStyle}>{val}</span>
                                                     </div>
-                                                    {i < 5 && <div style={{ width: '1px', height: '20px', background: '#e8e8e8', flexShrink: 0 }} />}
+                                                    {i < 4 && <div style={{ width: '1px', height: '20px', background: '#e8e8e8', flexShrink: 0 }} />}
                                                 </React.Fragment>
                                             ))}
                                         </div>
                                     </div>
 
-                                    {/* Rating distribution for this session */}
-                                    {detailData.ratingDistribution && detailData.ratingDistribution.some(r => r.count > 0) && (
-                                        <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e8e8e8', marginBottom: '1.2rem', overflow: 'hidden' }}>
-                                            <div style={{ padding: '10px 1.2rem', borderBottom: '1px solid #f0f0f0' }}>
-                                                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#111' }}>Rating Breakdown</span>
-                                            </div>
-                                            <div style={{ display: 'flex', gap: '1rem', padding: '12px 1.2rem', flexWrap: 'wrap' }}>
-                                                {detailData.ratingDistribution.map(r => r.count > 0 && (
-                                                    <div key={r.rating} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                        <span style={{ fontSize: '0.82rem', fontWeight: 700, fontFamily: 'monospace' }}>{r.rating}★</span>
-                                                        <div style={{ width: `${Math.max(r.pct * 1.2, 10)}px`, height: '6px', background: '#333', borderRadius: '3px' }} />
-                                                        <span style={{ fontSize: '0.72rem', color: '#888' }}>{r.count} ({r.pct}%)</span>
+                                    {/* Sub-tabs: Question Analytics | Student Responses */}
+                                    <div style={{ display: 'flex', gap: '8px', marginBottom: '1rem' }}>
+                                        <button onClick={() => setDetailSubTab('questions')} style={{ padding: '6px 16px', borderRadius: '6px', border: '1px solid ' + (detailSubTab === 'questions' ? '#111' : '#e8e8e8'), background: detailSubTab === 'questions' ? '#111' : '#fff', color: detailSubTab === 'questions' ? '#fff' : '#555', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer' }}>Question Analytics</button>
+                                        <button onClick={() => setDetailSubTab('students')} style={{ padding: '6px 16px', borderRadius: '6px', border: '1px solid ' + (detailSubTab === 'students' ? '#111' : '#e8e8e8'), background: detailSubTab === 'students' ? '#111' : '#fff', color: detailSubTab === 'students' ? '#fff' : '#555', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer' }}>Student-wise Responses</button>
+                                    </div>
+
+                                    {/* ===== Question Analytics Sub-tab ===== */}
+                                    {detailSubTab === 'questions' && (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                            {(detailData.questionAnalytics || []).length === 0 && <div style={{ padding: '2rem', textAlign: 'center', color: '#ccc', fontSize: '0.82rem' }}>No per-question data available.</div>}
+                                            {(() => {
+                                                const categories = [...new Set((detailData.questionAnalytics || []).map(q => q.category))];
+                                                return categories.map(cat => (
+                                                    <div key={cat} style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e8e8e8', overflow: 'hidden' }}>
+                                                        <div style={{ padding: '10px 1.2rem', borderBottom: '1px solid #f0f0f0', background: '#fafafa' }}>
+                                                            <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#111' }}>{cat}</span>
+                                                        </div>
+                                                        {(detailData.questionAnalytics || []).filter(q => q.category === cat).map(q => (
+                                                            <div key={q.id} style={{ padding: '12px 1.2rem', borderBottom: '1px solid #f5f5f5' }}>
+                                                                <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#333', marginBottom: '8px' }}>{q.question}</div>
+                                                                <div style={{ fontSize: '0.72rem', color: '#aaa', marginBottom: '6px' }}>{q.total} response{q.total !== 1 ? 's' : ''}</div>
+
+                                                                {/* Yes/No type */}
+                                                                {q.type === 'yes_no' && (
+                                                                    <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                                                        <div style={{ display: 'flex', borderRadius: '6px', overflow: 'hidden', flex: 1, height: '24px' }}>
+                                                                            <div style={{ width: `${q.yesPct}%`, background: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.68rem', fontWeight: 700, color: '#fff', minWidth: q.yesPct > 10 ? 'auto' : '0' }}>{q.yesPct > 10 ? `Yes ${q.yesPct}%` : ''}</div>
+                                                                            <div style={{ width: `${q.noPct}%`, background: '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.68rem', fontWeight: 700, color: '#fff', minWidth: q.noPct > 10 ? 'auto' : '0' }}>{q.noPct > 10 ? `No ${q.noPct}%` : ''}</div>
+                                                                        </div>
+                                                                        <span style={{ fontSize: '0.72rem', fontFamily: 'monospace', color: '#888', flexShrink: 0, width: '80px', textAlign: 'right' }}>{q.yesCount}Y / {q.noCount}N</span>
+                                                                    </div>
+                                                                )}
+
+                                                                {/* Rating type */}
+                                                                {q.type === 'rating' && (
+                                                                    <div>
+                                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                                                                            <span style={{ fontSize: '1.1rem', fontWeight: 800, fontFamily: 'monospace', color: q.avgRating >= 4 ? '#16a34a' : q.avgRating >= 3 ? '#b45309' : '#dc2626' }}>{q.avgRating}</span>
+                                                                            <span style={{ fontSize: '0.72rem', color: '#aaa' }}>/ 5 avg</span>
+                                                                        </div>
+                                                                        <div style={{ display: 'flex', gap: '3px' }}>
+                                                                            {(q.distribution || []).map(d => (
+                                                                                <div key={d.value} style={{ flex: 1, textAlign: 'center' }}>
+                                                                                    <div style={{ height: `${Math.max(d.pct * 0.5, 2)}px`, background: d.value >= 4 ? '#16a34a' : d.value >= 3 ? '#b45309' : '#dc2626', borderRadius: '2px', transition: 'height 0.3s' }} />
+                                                                                    <div style={{ fontSize: '0.62rem', fontWeight: 600, color: '#888', marginTop: '2px' }}>{d.value}★ ({d.count})</div>
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+
+                                                                {/* MCQ type */}
+                                                                {q.type === 'mcq' && (
+                                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                                        {(q.distribution || []).map(d => (
+                                                                            <div key={d.value} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#333', minWidth: '140px' }}>{d.value}</span>
+                                                                                <div style={{ flex: 1, height: '16px', background: '#f5f5f5', borderRadius: '4px', overflow: 'hidden' }}>
+                                                                                    <div style={{ width: `${d.pct}%`, height: '100%', background: '#6355F1', borderRadius: '4px', transition: 'width 0.3s' }} />
+                                                                                </div>
+                                                                                <span style={{ fontSize: '0.72rem', fontFamily: 'monospace', color: '#888', minWidth: '60px', textAlign: 'right' }}>{d.count} ({d.pct}%)</span>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+
+                                                                {/* Text type */}
+                                                                {q.type === 'text' && (q.textResponses || []).length > 0 && (
+                                                                    <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid #f0f0f0', borderRadius: '6px', padding: '8px' }}>
+                                                                        {(q.textResponses || []).map((t, i) => (
+                                                                            <div key={i} style={{ padding: '6px 0', borderBottom: i < q.textResponses.length - 1 ? '1px solid #f5f5f5' : 'none', fontSize: '0.8rem', color: '#555' }}>
+                                                                                <span style={{ color: '#333' }}>{t.text}</span>
+                                                                                <span style={{ fontSize: '0.68rem', color: '#ccc', marginLeft: '8px' }}>— {t.student}</span>
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        ))}
                                                     </div>
-                                                ))}
-                                            </div>
+                                                ));
+                                            })()}
                                         </div>
                                     )}
 
-                                    {/* Descriptive Responses */}
-                                    <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e8e8e8', overflow: 'hidden' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 1.2rem', borderBottom: '1px solid #f0f0f0' }}>
-                                            <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#111' }}>Descriptive Responses ({filteredResponses.length})</span>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                <Filter size={12} color="#888" />
-                                                <select value={filterRating} onChange={e => setFilterRating(e.target.value)} style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #e8e8e8', fontSize: '0.75rem', color: '#555', background: '#fff', cursor: 'pointer' }}>
-                                                    <option value="all">All Ratings</option>
-                                                    {[5, 4, 3, 2, 1].map(r => <option key={r} value={String(r)}>Rating {r}</option>)}
-                                                </select>
-                                            </div>
-                                        </div>
-                                        <div style={{ maxHeight: '480px', overflowY: 'auto' }}>
-                                            {filteredResponses.map((resp, i) => (
-                                                <div key={i} style={{ padding: '12px 1.2rem', borderBottom: '1px solid #f5f5f5', display: 'flex', gap: '14px', alignItems: 'flex-start' }}>
-                                                    <div style={{ flexShrink: 0, minWidth: '44px', fontSize: '0.72rem', fontWeight: 600, fontFamily: 'monospace', color: '#aaa', paddingTop: '2px' }}>{resp.rating != null ? `${resp.rating}/5` : '—'}</div>
-                                                    <div style={{ flex: 1 }}>
-                                                        <div style={{ fontSize: '0.82rem', color: '#333', lineHeight: '1.55', marginBottom: '4px' }}>{resp.text}</div>
-                                                        <div style={{ fontSize: '0.68rem', color: '#bbb', fontFamily: 'monospace' }}>{resp.student}</div>
+                                    {/* ===== Student-wise Responses Sub-tab ===== */}
+                                    {detailSubTab === 'students' && (
+                                        <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e8e8e8', overflow: 'hidden' }}>
+                                            {!privacyConfirmed ? (
+                                                <div style={{ padding: '2rem', textAlign: 'center' }}>
+                                                    <div style={{ fontSize: '2rem', marginBottom: '12px' }}>🔒</div>
+                                                    <h3 style={{ margin: '0 0 8px', fontSize: '1rem', fontWeight: 700, color: '#dc2626' }}>Privacy Notice</h3>
+                                                    <p style={{ margin: '0 0 6px', fontSize: '0.82rem', color: '#555', maxWidth: '500px', marginInline: 'auto', lineHeight: '1.6' }}>
+                                                        Viewing individual student responses is a <strong>breach of anonymity</strong>. This feature should <strong>only</strong> be used in serious cases such as:
+                                                    </p>
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center', margin: '12px 0 16px', fontSize: '0.78rem', color: '#b45309' }}>
+                                                        <span>⚠️ False or fabricated data</span>
+                                                        <span>⚠️ Foul or abusive language</span>
+                                                        <span>⚠️ Serious misconduct evidence</span>
+                                                    </div>
+                                                    <p style={{ margin: '0 0 12px', fontSize: '0.78rem', color: '#888' }}>Type <strong>confirm</strong> below to proceed:</p>
+                                                    <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', maxWidth: '300px', marginInline: 'auto' }}>
+                                                        <input value={confirmText} onChange={e => setConfirmText(e.target.value)} placeholder='Type "confirm"' style={{ flex: 1, padding: '8px 12px', borderRadius: '6px', border: '1px solid #e8e8e8', fontSize: '0.82rem', textAlign: 'center' }} />
+                                                        <button disabled={confirmText.toLowerCase() !== 'confirm'} onClick={() => { setPrivacyConfirmed(true); setConfirmText(''); }} style={{ padding: '8px 20px', borderRadius: '6px', border: 'none', background: confirmText.toLowerCase() === 'confirm' ? '#dc2626' : '#f0f0f0', color: confirmText.toLowerCase() === 'confirm' ? '#fff' : '#ccc', fontSize: '0.82rem', fontWeight: 600, cursor: confirmText.toLowerCase() === 'confirm' ? 'pointer' : 'not-allowed' }}>Proceed</button>
                                                     </div>
                                                 </div>
-                                            ))}
-                                            {filteredResponses.length === 0 && <div style={{ padding: '2rem', textAlign: 'center', color: '#ccc', fontSize: '0.82rem' }}>No descriptive responses for this session.</div>}
+                                            ) : (
+                                                <div style={{ padding: '1.2rem' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1rem' }}>
+                                                        <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#555' }}>Select Student:</label>
+                                                        <select value={selectedStudentId} onChange={e => handleFetchStudentResponse(e.target.value)} style={{ flex: 1, maxWidth: '400px', padding: '8px 12px', borderRadius: '6px', border: '1px solid #e8e8e8', fontSize: '0.82rem' }}>
+                                                            <option value=''>— Choose a student —</option>
+                                                            {(detailData.submittedStudents || []).map(s => (
+                                                                <option key={s.id} value={s.id}>{s.name} ({s.enrollmentNo})</option>
+                                                            ))}
+                                                        </select>
+                                                        <button onClick={() => { setPrivacyConfirmed(false); setSelectedStudentId(''); setStudentResponse(null); }} style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer' }}>🔒 Re-lock</button>
+                                                    </div>
+
+                                                    {loadingStudentResponse && <div style={{ padding: '2rem', textAlign: 'center', color: '#ccc' }}>Loading response...</div>}
+
+                                                    {studentResponse && !loadingStudentResponse && (
+                                                        <div>
+                                                            <div style={{ padding: '10px 14px', background: '#f5f3ff', borderRadius: '8px', marginBottom: '12px', display: 'flex', gap: '16px', fontSize: '0.78rem' }}>
+                                                                <span><strong>Student:</strong> {studentResponse.student?.name}</span>
+                                                                <span><strong>Roll No:</strong> {studentResponse.student?.enrollmentNo}</span>
+                                                            </div>
+                                                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                                                                <thead>
+                                                                    <tr style={{ background: '#fafafa' }}>
+                                                                        {['Category', 'Question', 'Type', 'Answer'].map(h => (
+                                                                            <th key={h} style={{ padding: '8px 14px', textAlign: 'left', fontSize: '0.68rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', color: '#aaa', borderBottom: '1px solid #f0f0f0' }}>{h}</th>
+                                                                        ))}
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {(studentResponse.responses || []).map((r, i) => (
+                                                                        <tr key={i} style={{ borderBottom: '1px solid #f5f5f5' }}>
+                                                                            <td style={{ padding: '8px 14px', fontSize: '0.72rem', fontWeight: 600, color: '#6355F1' }}>{r.category}</td>
+                                                                            <td style={{ padding: '8px 14px', color: '#333' }}>{r.question}</td>
+                                                                            <td style={{ padding: '8px 14px' }}>
+                                                                                <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '0.68rem', fontWeight: 600, background: r.type === 'yes_no' ? '#f0fdf4' : r.type === 'rating' ? '#fffbeb' : r.type === 'mcq' ? '#f5f3ff' : '#f0f9ff', color: r.type === 'yes_no' ? '#16a34a' : r.type === 'rating' ? '#b45309' : r.type === 'mcq' ? '#6355F1' : '#0369a1' }}>{r.type === 'yes_no' ? 'Yes/No' : r.type === 'rating' ? 'Rating' : r.type === 'mcq' ? 'MCQ' : 'Text'}</span>
+                                                                            </td>
+                                                                            <td style={{ padding: '8px 14px', fontWeight: 600, fontFamily: r.type === 'text' ? 'inherit' : 'monospace', color: r.type === 'yes_no' ? (r.answer === 'Yes' ? '#16a34a' : '#dc2626') : r.type === 'rating' ? '#b45309' : '#333' }}>{r.answer}</td>
+                                                                        </tr>
+                                                                    ))}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                    )}
+                                                    {!studentResponse && !loadingStudentResponse && selectedStudentId === '' && (
+                                                        <div style={{ padding: '2rem', textAlign: 'center', color: '#ccc', fontSize: '0.82rem' }}>Select a student from the dropdown above to view their responses.</div>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
-                                    </div>
+                                    )}
                                 </>
                             ) : null}
                         </>
@@ -545,6 +721,78 @@ export default function AdminFeedbackPage() {
                             </div>
                         </div>
                     )}
+
+                    {/* Forms tab */}
+                    {activeTab === 'forms' && !loading && (
+                        <>
+                            {/* Stats strip */}
+                            <div style={{ display: 'flex', gap: '12px', marginBottom: '1.2rem' }}>
+                                {[
+                                    { label: 'Total Forms', value: formsStats.total, color: '#6355F1' },
+                                    { label: 'Active', value: formsStats.active, color: '#16a34a' },
+                                    { label: 'Expired', value: formsStats.expired, color: '#dc2626' },
+                                    { label: 'Total Submissions', value: formsStats.totalSubmissions || 0, color: '#0369a1' },
+                                ].map(s => (
+                                    <div key={s.label} style={{ flex: 1, background: '#fff', borderRadius: '10px', border: '1px solid #e8e8e8', padding: '14px 18px' }}>
+                                        <div style={{ fontSize: '0.68rem', fontWeight: 600, color: '#999', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>{s.label}</div>
+                                        <div style={{ fontSize: '1.3rem', fontWeight: 800, color: s.color, fontFamily: 'monospace' }}>{s.value}</div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Filter */}
+                            <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                                {['all', 'active', 'expired'].map(f => (
+                                    <button key={f} onClick={() => setFormsFilter(f)} style={{ padding: '5px 14px', borderRadius: '6px', border: '1px solid ' + (formsFilter === f ? '#111' : '#e8e8e8'), background: formsFilter === f ? '#111' : '#fff', color: formsFilter === f ? '#fff' : '#888', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', textTransform: 'capitalize' }}>{f}</button>
+                                ))}
+                            </div>
+
+                            {/* Forms table */}
+                            <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e8e8e8', overflow: 'hidden' }}>
+                                <div style={{ overflowX: 'auto' }}>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                                        <thead>
+                                            <tr style={{ background: '#fafafa' }}>
+                                                {['Course', 'Session', 'Date', 'Status', 'Deadline', 'Submissions', 'Avg Rating', 'Actions'].map(h => (
+                                                    <th key={h} style={{ padding: '8px 14px', textAlign: 'left', fontSize: '0.68rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', color: '#aaa', borderBottom: '1px solid #f0f0f0' }}>{h}</th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {formsLoading ? (
+                                                <tr><td colSpan={8} style={{ padding: '2rem', textAlign: 'center', color: '#ccc' }}>Loading...</td></tr>
+                                            ) : feedbackForms.length === 0 ? (
+                                                <tr><td colSpan={8} style={{ padding: '2rem', textAlign: 'center', color: '#ccc' }}>No feedback forms found.</td></tr>
+                                            ) : feedbackForms.map(form => (
+                                                <tr key={form.session_id} className="attendance-row" style={{ borderBottom: '1px solid #f5f5f5' }}>
+                                                    <td style={{ padding: '10px 14px', fontWeight: 600, color: '#6355F1', fontSize: '0.78rem' }}>{form.course?.name || '—'}</td>
+                                                    <td style={{ padding: '10px 14px', fontWeight: 500, color: '#333' }}>{form.title}</td>
+                                                    <td style={{ padding: '10px 14px', fontFamily: 'monospace', fontSize: '0.78rem', color: '#888' }}>{form.session_date ? new Date(form.session_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '—'}</td>
+                                                    <td style={{ padding: '10px 14px' }}>
+                                                        <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '0.72rem', fontWeight: 600, background: form.expired ? '#fef2f2' : '#f0fdf4', color: form.expired ? '#dc2626' : '#16a34a', border: `1px solid ${form.expired ? '#fecaca' : '#bbf7d0'}` }}>{form.expired ? 'Expired' : 'Active'}</span>
+                                                    </td>
+                                                    <td style={{ padding: '10px 14px', fontSize: '0.78rem', color: form.expired ? '#dc2626' : '#b45309', fontWeight: 600 }}>
+                                                        {form.expired ? 'Ended' : `${Math.round(form.hoursLeft)}h left`}
+                                                    </td>
+                                                    <td style={{ padding: '10px 14px', fontFamily: 'monospace', fontWeight: 700, color: '#111' }}>
+                                                        {form.submissions}/{form.enrolled}
+                                                        <span style={{ fontSize: '0.68rem', color: '#bbb', fontWeight: 400, marginLeft: '4px' }}>({form.enrolled > 0 ? Math.round((form.submissions / form.enrolled) * 100) : 0}%)</span>
+                                                    </td>
+                                                    <td style={{ padding: '10px 14px', fontFamily: 'monospace', fontWeight: 700, color: form.avgRating ? '#111' : '#ccc' }}>{form.avgRating || '—'}</td>
+                                                    <td style={{ padding: '10px 14px' }}>
+                                                        <div style={{ display: 'flex', gap: '6px' }}>
+                                                            <button onClick={() => handleViewDetail(form)} style={{ padding: '3px 10px', borderRadius: '4px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600, color: '#555' }}>View</button>
+                                                            <button onClick={() => handleEditDeadline(form)} style={{ padding: '3px 10px', borderRadius: '4px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600, color: '#6355F1' }}>Edit Deadline</button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
 
@@ -559,15 +807,32 @@ export default function AdminFeedbackPage() {
                         </div>
                         <div style={{ marginBottom: '1.5rem' }}>
                             <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#555', marginBottom: '6px' }}>Response Type</label>
-                            <div style={{ display: 'flex', gap: '0' }}>
-                                {[['rating', 'Rating (1-5)'], ['yes_no', 'Yes / No'], ['text', 'Descriptive']].map(([val, label]) => (
-                                    <button key={val} onClick={() => setQuestionForm(prev => ({ ...prev, type: val }))} style={{ padding: '8px 16px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, border: '1px solid #e8e8e8', borderLeft: val !== 'rating' ? 'none' : '1px solid #e8e8e8', borderRadius: val === 'rating' ? '6px 0 0 6px' : val === 'text' ? '0 6px 6px 0' : '0', background: questionForm.type === val ? '#111' : '#fff', color: questionForm.type === val ? '#fff' : '#555', transition: 'all 0.15s' }}>{label}</button>
+                            <div style={{ display: 'flex', gap: '0', flexWrap: 'wrap' }}>
+                                {[['rating', 'Rating (1-5)'], ['yes_no', 'Yes / No'], ['mcq', 'MCQ'], ['text', 'Descriptive']].map(([val, label], i) => (
+                                    <button key={val} onClick={() => setQuestionForm(prev => ({ ...prev, type: val }))} style={{ padding: '8px 16px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, border: '1px solid #e8e8e8', borderLeft: i !== 0 ? 'none' : '1px solid #e8e8e8', borderRadius: i === 0 ? '6px 0 0 6px' : i === 3 ? '0 6px 6px 0' : '0', background: questionForm.type === val ? '#111' : '#fff', color: questionForm.type === val ? '#fff' : '#555', transition: 'all 0.15s' }}>{label}</button>
                                 ))}
                             </div>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
                             <button onClick={() => setShowQuestionModal(false)} style={{ padding: '8px 16px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', fontSize: '0.8rem', color: '#555' }}>Cancel</button>
                             <button onClick={handleSaveQuestion} disabled={!questionForm.question.trim() || savingQuestion} style={{ padding: '8px 20px', borderRadius: '6px', border: 'none', background: questionForm.question.trim() ? '#111' : '#e5e7eb', cursor: questionForm.question.trim() ? 'pointer' : 'not-allowed', fontSize: '0.8rem', fontWeight: 600, color: questionForm.question.trim() ? '#fff' : '#aaa' }}>{savingQuestion ? 'Saving...' : editingQuestion ? 'Save Changes' : 'Add Question'}</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Deadline Edit Modal */}
+            {showDeadlineModal && (
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }} onClick={() => setShowDeadlineModal(false)}>
+                    <div style={{ background: '#fff', borderRadius: '12px', padding: '1.5rem', width: '420px', maxWidth: '90vw', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }} onClick={e => e.stopPropagation()}>
+                        <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem', fontWeight: 700 }}>Edit Feedback Deadline</h3>
+                        <p style={{ margin: '0 0 1rem', fontSize: '0.78rem', color: '#888' }}>Session: {editingDeadlineForm?.title}</p>
+                        <div style={{ marginBottom: '1.2rem' }}>
+                            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#555', marginBottom: '6px' }}>New Deadline</label>
+                            <input type="datetime-local" value={newDeadline} onChange={e => setNewDeadline(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e8e8e8', fontSize: '0.85rem', boxSizing: 'border-box' }} />
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                            <button onClick={() => setShowDeadlineModal(false)} style={{ padding: '8px 16px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', fontSize: '0.8rem', color: '#555' }}>Cancel</button>
+                            <button onClick={handleSaveDeadline} disabled={savingDeadline} style={{ padding: '8px 20px', borderRadius: '6px', border: 'none', background: '#6355F1', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, color: '#fff' }}>{savingDeadline ? 'Saving...' : 'Save Deadline'}</button>
                         </div>
                     </div>
                 </div>
