@@ -271,15 +271,15 @@ export default function AdminAttendancePage() {
                     </header>
 
                     {/* Stats Row */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
+                    <div className="am-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
                         {[
                             { label: 'Total Sessions', value: sessions.length, icon: Calendar, color: '#2563eb', bg: '#eff6ff' },
                             { label: 'Ongoing', value: ongoingCount, icon: Activity, color: '#16a34a', bg: '#ecfdf5' },
                             { label: 'Students Detected', value: totalDetected, icon: Users, color: '#7c3aed', bg: '#faf5ff' },
                             { label: 'Completed', value: sessions.filter(s => s.status === 'completed').length, icon: CheckCircle, color: '#b45309', bg: '#fffbeb' },
                         ].map((stat, i) => (
-                            <div key={i} style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', padding: '1rem 1.2rem', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <div style={{ width: '40px', height: '40px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: stat.bg, color: stat.color, flexShrink: 0 }}><stat.icon size={18} /></div>
+                            <div key={i} className="am-stat-card" style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', padding: '1rem 1.2rem', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <div className="am-stat-icon" style={{ width: '40px', height: '40px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: stat.bg, color: stat.color, flexShrink: 0 }}><stat.icon size={18} /></div>
                                 <div>
                                     <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#111' }}>{stat.value}</div>
                                     <div style={{ fontSize: '0.7rem', color: '#888', fontWeight: 500 }}>{stat.label}</div>
@@ -290,14 +290,14 @@ export default function AdminAttendancePage() {
 
                     {/* Date Picker + Info Strip */}
                     <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e8e8e8', marginBottom: '1.2rem', overflow: 'hidden' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', padding: '10px 1.5rem', gap: '16px', fontSize: '0.78rem' }}>
+                        <div className="am-date-strip" style={{ display: 'flex', alignItems: 'center', padding: '10px 1.5rem', gap: '16px', fontSize: '0.78rem', flexWrap: 'wrap' }}>
                             <span style={{ fontWeight: 700, color: '#111', display: 'flex', alignItems: 'center', gap: '6px' }}><Calendar size={14} /> Select Date</span>
                             <input type="date" value={dateFilter} onChange={e => setDateFilter(e.target.value)}
                                 style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #eee', fontSize: '0.82rem', color: '#555', fontFamily: 'inherit' }} />
                             <span style={{ color: '#bbb', fontSize: '0.72rem' }}>
                                 {new Date(dateFilter + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                             </span>
-                            <button onClick={fetchSessions} style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 12px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', fontSize: '0.72rem', color: '#888' }}><RefreshCw size={11} /> Refresh</button>
+                            <button className="am-refresh-btn" onClick={fetchSessions} style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 12px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', fontSize: '0.72rem', color: '#888' }}><RefreshCw size={11} /> Refresh</button>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', padding: '7px 1.5rem', gap: '16px', fontSize: '0.7rem', color: '#aaa', background: '#fafafa', flexWrap: 'wrap' }}>
                             <span>Signal: <span style={{ color: '#888', fontWeight: 500 }}>{'>'} 2</span></span>
@@ -329,7 +329,7 @@ export default function AdminAttendancePage() {
 
                     {/* Sessions List */}
                     <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', borderTop: '3px solid #3B2D82', overflow: 'hidden', marginBottom: '1.5rem' }}>
-                        <div style={{ padding: '0.8rem 1.5rem', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div className="am-section-header" style={{ padding: '0.8rem 1.5rem', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.95rem', fontWeight: 700 }}>
                                 <Clock size={16} /> Classes on {new Date(dateFilter + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                                 <span style={{ fontSize: '0.7rem', color: '#888', fontWeight: 500 }}>({sessions.length} sessions)</span>
@@ -362,9 +362,9 @@ export default function AdminAttendancePage() {
                                 <div key={session.id}>
                                     <div onClick={() => fetchSessionStudents(session.id)}
                                         style={{ display: 'flex', alignItems: 'center', padding: '12px 1.5rem', gap: '16px', borderBottom: '1px solid #f5f5f5', cursor: 'pointer', background: isExpanded ? '#fafafa' : 'transparent', transition: 'background 0.2s' }}
-                                        className="attendance-row">
+                                        className="attendance-row am-session-row">
                                         {/* Time */}
-                                        <div style={{ minWidth: '120px', flexShrink: 0 }}>
+                                        <div className="am-session-time" style={{ minWidth: '120px', flexShrink: 0 }}>
                                             <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#111', fontFamily: 'monospace' }}>{formatTime(session.startTime)} – {formatTime(session.endTime)}</div>
                                             <div style={{ fontSize: '0.68rem', color: '#bbb' }}>{session.venueName}{session.venueBuilding ? `, ${session.venueBuilding}` : ''}</div>
                                         </div>
@@ -376,14 +376,14 @@ export default function AdminAttendancePage() {
                                         </div>
 
                                         {/* Detected students */}
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: '90px' }}>
+                                        <div className="am-session-detected" style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: '90px' }}>
                                             <Users size={13} color="#888" />
                                             <span style={{ fontWeight: 600, fontFamily: 'monospace', fontSize: '0.82rem', color: '#111' }}>{session.detectedStudents || 0} detected</span>
                                         </div>
 
 
                                         {/* Status */}
-                                        <div style={{ minWidth: '90px' }}>
+                                        <div className="am-session-status" style={{ minWidth: '90px' }}>
                                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '3px 10px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600, background: ss.bg, color: ss.color }}>
                                                 <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: ss.dot }} /> {session.status.charAt(0).toUpperCase() + session.status.slice(1)}
                                             </span>
@@ -400,9 +400,9 @@ export default function AdminAttendancePage() {
                                         <div style={{ background: '#fafafa', borderBottom: '2px solid #e8e8e8' }}>
                                             {/* Live indicator for ongoing sessions */}
                                             {session.status === 'ongoing' && !studentsLoading && sessionStudents && (
-                                                <div style={{
+                                                <div className="am-live-strip" style={{
                                                     display: 'flex', alignItems: 'center', padding: '8px 1.5rem', gap: '14px',
-                                                    fontSize: '0.72rem', background: '#ecfdf5', borderBottom: '1px solid #bbf7d0',
+                                                    fontSize: '0.72rem', background: '#ecfdf5', borderBottom: '1px solid #bbf7d0', flexWrap: 'wrap',
                                                 }}>
                                                     <span style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#166534', fontWeight: 700 }}>
                                                         <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#16a34a', display: 'inline-block', animation: 'pulse 2s infinite' }} />
@@ -498,11 +498,11 @@ export default function AdminAttendancePage() {
 
                                                     {/* Student table */}
                                                     <div style={{ overflowX: 'auto' }}>
-                                                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+                                                        <table className="am-student-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
                                                             <thead>
                                                                 <tr style={{ background: '#f0f0f0' }}>
-                                                                    {['Student', 'Enrollment', 'Signal', 'First Seen', 'Last Seen', 'Duration', 'Pings', 'Points', 'Status', 'Actions'].map(h => (
-                                                                        <th key={h} style={{ padding: '8px 14px', textAlign: 'left', fontSize: '0.68rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#888', borderBottom: '1px solid #e0e0e0' }}>{h}</th>
+                                                                    {[{l:'Student'},{l:'Enrollment',c:'am-col-enrollment'},{l:'Signal',c:'am-col-signal'},{l:'First Seen',c:'am-col-first'},{l:'Last Seen',c:'am-col-last'},{l:'Duration',c:'am-col-duration'},{l:'Pings',c:'am-col-pings'},{l:'Points'},{l:'Status'},{l:'Actions'}].map(h => (
+                                                                        <th key={h.l} className={h.c||''} style={{ padding: '8px 14px', textAlign: 'left', fontSize: '0.68rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#888', borderBottom: '1px solid #e0e0e0' }}>{h.l}</th>
                                                                     ))}
                                                                 </tr>
                                                             </thead>
@@ -522,8 +522,8 @@ export default function AdminAttendancePage() {
                                                                                     )}
                                                                                 </div>
                                                                             </td>
-                                                                            <td style={{ padding: '9px 14px', fontFamily: 'monospace', fontSize: '0.76rem', color: '#555' }}>{s.enrollmentNo}</td>
-                                                                            <td style={{ padding: '9px 14px' }}>
+                                                                            <td className="am-col-enrollment" style={{ padding: '9px 14px', fontFamily: 'monospace', fontSize: '0.76rem', color: '#555' }}>{s.enrollmentNo}</td>
+                                                                            <td className="am-col-signal" style={{ padding: '9px 14px' }}>
                                                                                 {s.signal > 0 ? (
                                                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                                                         <SignalBars level={s.signal} />
@@ -536,18 +536,18 @@ export default function AdminAttendancePage() {
                                                                                     <span style={{ color: '#ccc', fontSize: '0.75rem' }}>—</span>
                                                                                 )}
                                                                             </td>
-                                                                            <td style={{ padding: '9px 14px', fontFamily: 'monospace', fontSize: '0.76rem', color: '#888' }}>
+                                                                            <td className="am-col-first" style={{ padding: '9px 14px', fontFamily: 'monospace', fontSize: '0.76rem', color: '#888' }}>
                                                                                 {s.firstSeen ? new Date(s.firstSeen).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' }) : '—'}
                                                                             </td>
-                                                                            <td style={{ padding: '9px 14px', fontFamily: 'monospace', fontSize: '0.76rem', color: '#888' }}>
+                                                                            <td className="am-col-last" style={{ padding: '9px 14px', fontFamily: 'monospace', fontSize: '0.76rem', color: '#888' }}>
                                                                                 {s.lastSeen ? new Date(s.lastSeen).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' }) : '—'}
                                                                             </td>
-                                                                            <td style={{ padding: '9px 14px' }}>
+                                                                            <td className="am-col-duration" style={{ padding: '9px 14px' }}>
                                                                                 <span style={{ fontWeight: 600, fontFamily: 'monospace', fontSize: '0.78rem', color: s.durationMinutes > 0 ? '#555' : '#ccc' }}>
                                                                                     {s.durationMinutes > 0 ? `${s.durationMinutes} min` : '—'}
                                                                                 </span>
                                                                             </td>
-                                                                            <td style={{ padding: '9px 14px', fontFamily: 'monospace', fontSize: '0.78rem', color: '#888' }}>{s.pingCount || 0}</td>
+                                                                            <td className="am-col-pings" style={{ padding: '9px 14px', fontFamily: 'monospace', fontSize: '0.78rem', color: '#888' }}>{s.pingCount || 0}</td>
                                                                             <td style={{ padding: '9px 14px' }} title={s.pointsBreakdown?.reason || ''}>
                                                                                 {s.points !== undefined ? (
                                                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -619,7 +619,7 @@ export default function AdminAttendancePage() {
 
                     {/* ── MAC Address Approvals ── */}
                     <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', borderTop: '3px solid #E91E87', overflow: 'hidden', marginBottom: '1.5rem' }}>
-                        <div style={{ padding: '0.8rem 1.5rem', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div className="am-mac-header" style={{ padding: '0.8rem 1.5rem', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.95rem', fontWeight: 700 }}>
                                 <Smartphone size={16} />
                                 Pending MAC Address Approvals
@@ -655,11 +655,11 @@ export default function AdminAttendancePage() {
                             </div>
                         ) : (
                             <div style={{ overflowX: 'auto' }}>
-                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                                <table className="am-mac-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
                                     <thead>
                                         <tr style={{ background: '#fafafa' }}>
-                                            {['Student', 'Enrollment No.', 'Email', 'Pending MAC Address', 'Actions'].map(h => (
-                                                <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: '0.68rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#aaa', borderBottom: '1px solid #f0f0f0' }}>{h}</th>
+                                            {[{l:'Student'},{l:'Enrollment No.',c:'am-mac-col-enroll'},{l:'Email',c:'am-mac-col-email'},{l:'Pending MAC Address'},{l:'Actions'}].map(h => (
+                                                <th key={h.l} className={h.c||''} style={{ padding: '10px 16px', textAlign: 'left', fontSize: '0.68rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#aaa', borderBottom: '1px solid #f0f0f0' }}>{h.l}</th>
                                             ))}
                                         </tr>
                                     </thead>
@@ -669,8 +669,8 @@ export default function AdminAttendancePage() {
                                             return (
                                                 <tr key={student.id} className="attendance-row" style={{ borderBottom: '1px solid #f5f5f5' }}>
                                                     <td style={{ padding: '11px 16px', fontWeight: 600, color: '#111' }}>{student.name}</td>
-                                                    <td style={{ padding: '11px 16px', fontFamily: 'monospace', fontSize: '0.78rem', color: '#555' }}>{student.enrollment_no || '—'}</td>
-                                                    <td style={{ padding: '11px 16px', fontSize: '0.76rem', color: '#888' }}>{student.email}</td>
+                                                    <td className="am-mac-col-enroll" style={{ padding: '11px 16px', fontFamily: 'monospace', fontSize: '0.78rem', color: '#555' }}>{student.enrollment_no || '—'}</td>
+                                                    <td className="am-mac-col-email" style={{ padding: '11px 16px', fontSize: '0.76rem', color: '#888' }}>{student.email}</td>
                                                     <td style={{ padding: '11px 16px' }}>
                                                         <code style={{
                                                             padding: '4px 10px', background: '#fef9c3',
@@ -791,6 +791,100 @@ export default function AdminAttendancePage() {
                     0% { opacity: 0.4; }
                     50% { opacity: 1; }
                     100% { opacity: 0.4; }
+                }
+
+                /* ── Attendance Monitoring Mobile ── */
+                @media (max-width: 768px) {
+                    /* Stats grid: 2 columns */
+                    .am-stats-grid {
+                        grid-template-columns: 1fr 1fr !important;
+                        gap: 8px !important;
+                    }
+                    .am-stat-card {
+                        padding: 0.8rem !important;
+                        gap: 8px !important;
+                    }
+                    .am-stat-icon {
+                        width: 32px !important;
+                        height: 32px !important;
+                    }
+
+                    /* Date strip: stack vertically */
+                    .am-date-strip {
+                        flex-direction: column !important;
+                        align-items: flex-start !important;
+                        gap: 8px !important;
+                        padding: 10px 1rem !important;
+                    }
+                    .am-refresh-btn {
+                        width: 100%;
+                        justify-content: center;
+                        margin-left: 0 !important;
+                    }
+
+                    /* Section headers */
+                    .am-section-header {
+                        flex-direction: column !important;
+                        align-items: flex-start !important;
+                        gap: 6px !important;
+                        padding: 0.8rem 1rem !important;
+                    }
+
+                    /* Session rows: wrap for mobile */
+                    .am-session-row {
+                        flex-wrap: wrap !important;
+                        padding: 12px 1rem !important;
+                        gap: 8px !important;
+                    }
+                    .am-session-time {
+                        min-width: unset !important;
+                        width: 100% !important;
+                    }
+                    .am-session-detected {
+                        min-width: unset !important;
+                    }
+                    .am-session-status {
+                        min-width: unset !important;
+                    }
+
+                    /* Live strip: wrap */
+                    .am-live-strip {
+                        padding: 8px 1rem !important;
+                        gap: 8px !important;
+                    }
+                    .am-live-strip button {
+                        margin-left: 0 !important;
+                        width: 100%;
+                        justify-content: center;
+                    }
+
+                    /* Student detail table: hide low-priority columns */
+                    .am-col-enrollment,
+                    .am-col-signal,
+                    .am-col-first,
+                    .am-col-last,
+                    .am-col-duration,
+                    .am-col-pings {
+                        display: none !important;
+                    }
+                    .am-student-table th,
+                    .am-student-table td {
+                        padding: 6px 8px !important;
+                        font-size: 0.72rem !important;
+                    }
+
+                    /* MAC approvals table: hide email & enrollment */
+                    .am-mac-col-enroll,
+                    .am-mac-col-email {
+                        display: none !important;
+                    }
+                    .am-mac-table th,
+                    .am-mac-table td {
+                        padding: 8px 10px !important;
+                    }
+                    .am-mac-header {
+                        padding: 0.8rem 1rem !important;
+                    }
                 }
             `}</style>
         </div>
