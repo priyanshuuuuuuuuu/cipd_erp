@@ -12,14 +12,19 @@ async function handler(request) {
             .from('sessions')
             .select(`
                 id,
+                title,
                 session_date,
                 start_time,
                 end_time,
                 status,
                 course_id,
-                courses ( name ),
-                faculty:faculty_id ( users!inner ( first_name, last_name ) ),
-                venues ( name )
+                faculty_id,
+                venue_id,
+                session_type_id,
+                courses ( id, name ),
+                faculty:faculty_id ( id, users!inner ( first_name, last_name ) ),
+                venues ( id, name ),
+                session_types ( id, name )
             `);
 
         // Filter processing
@@ -65,7 +70,9 @@ async function handler(request) {
 
         const sessions = (data || []).map(s => ({
             id: s.id,
+            // Display values
             course: s.courses?.name || 'Unknown',
+            sessionType: s.session_types?.name || null,
             faculty: s.faculty?.users
                 ? `Prof. ${s.faculty.users.first_name} ${s.faculty.users.last_name}`
                 : 'Unknown',
@@ -77,6 +84,12 @@ async function handler(request) {
             status: s.status === 'scheduled'
                 ? 'Confirmed'
                 : s.status.charAt(0).toUpperCase() + s.status.slice(1),
+            // Raw IDs / values for edit form pre-fill
+            title: s.title || '',
+            course_id: s.course_id || '',
+            faculty_id: s.faculty_id || '',
+            venue_id: s.venue_id || '',
+            session_type_id: s.session_type_id || '',
         }));
 
         return NextResponse.json({ sessions });
