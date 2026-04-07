@@ -43,10 +43,10 @@ async function handler(request) {
             let totalHours = 0;
 
             const detailedSessions = facSessions.map(s => {
-                // Calculate duration in hours
+                // Calculate duration in hours — use abs() to guard against bad data where end < start
                 const start = new Date(`1970-01-01T${s.start_time}Z`);
                 const end = new Date(`1970-01-01T${s.end_time}Z`);
-                const durationHrs = (end - start) / (1000 * 60 * 60);
+                const durationHrs = Math.abs((end - start) / (1000 * 60 * 60));
                 totalHours += durationHrs;
 
                 // Format date for display (safe parsing to avoid timezone issues)

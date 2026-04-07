@@ -293,11 +293,11 @@ export default function AdminSchedulePage() {
             <select
                 value={formKey}
                 onChange={e => setForm(f => ({ ...f, session_type_id: e.target.value }))}
-                style={{ ...inp, cursor: 'pointer', background: '#fff', color: formKey ? '#333' : '#aaa' }}
+                style={{ ...inp, cursor: 'pointer', background: '#fff', color: '#333' }}
             >
-                <option value=''>Select class type...</option>
+                <option value='' disabled style={{ color: '#aaa' }}>Select class type...</option>
                 {lookupData.sessionTypes.map(t => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
+                    <option key={t.id} value={t.id} style={{ color: '#333' }}>{t.name}</option>
                 ))}
             </select>
 
