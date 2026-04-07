@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { withRole } from '@/lib/middleware';
+import { hashPassword } from '@/lib/auth';
 
 async function handler(request) {
     try {
@@ -12,6 +13,8 @@ async function handler(request) {
                 id,
                 designation,
                 honorarium_rate_per_hour,
+                years_experience,
+                department,
                 users!inner ( first_name, last_name, is_active )
             `);
 
@@ -61,9 +64,14 @@ async function handler(request) {
 
             return {
                 id: fac.id,
+                firstName: fac.users?.first_name || '',
+                lastName: fac.users?.last_name || '',
                 name: `Prof. ${fac.users?.first_name} ${fac.users?.last_name}`,
                 // Use designation as dept label until a real `department` column exists
-                dept: fac.designation || 'Faculty',
+                dept: fac.department || fac.designation || 'Faculty',
+                designation: fac.designation || '',
+                department: fac.department || '',
+                yearsExperience: fac.years_experience ?? '',
                 sessions: facSessions.length,
                 hours: totalHours,
                 rate: fac.honorarium_rate_per_hour || 1500,
@@ -81,3 +89,122 @@ async function handler(request) {
 }
 
 export const GET = withRole(handler, ['admin']);
+
+async function createFacultyHandler(request) {
+    try {
+        const body = await request.json();
+        const { firstName, lastName, email, yearsExperience, designation } = body;
+
+        // Basic validation
+        if (!firstName || !lastName || !email) {
+            return NextResponse.json({ error: 'First name, last name, and email are required.' }, { status: 400 });
+        }
+
+        // Check if email already exists
+        const { data: existing } = await supabaseAdmin
+            .from('users')
+            .select('id')
+            .eq('email', email.toLowerCase().trim())
+            .maybeSingle();
+
+        if (existing) {
+            return NextResponse.json({ error: 'A user with this email already exists.' }, { status: 409 });
+        }
+
+        // Hash default password
+        const password_hash = await hashPassword('cipd@123');
+
+        // Insert into users table
+        const { data: newUser, error: userErr } = await supabaseAdmin
+            .from('users')
+            .insert({
+                first_name: firstName.trim(),
+                last_name: lastName.trim(),
+                email: email.toLowerCase().trim(),
+                password_hash,
+                role: 'faculty',
+                is_active: true,
+            })
+            .select('id')
+            .single();
+
+        if (userErr) throw userErr;
+
+        // Insert into faculty table
+        const { error: facErr } = await supabaseAdmin
+            .from('faculty')
+            .insert({
+                id: newUser.id,
+                designation: designation?.trim() || null,
+                years_experience: yearsExperience ? parseInt(yearsExperience, 10) : null,
+            });
+
+        if (facErr) {
+            // Rollback user insertion if faculty insert fails
+            await supabaseAdmin.from('users').delete().eq('id', newUser.id);
+            throw facErr;
+        }
+
+        return NextResponse.json({
+            success: true,
+            faculty: {
+                id: newUser.id,
+                name: `Prof. ${firstName.trim()} ${lastName.trim()}`,
+                email: email.toLowerCase().trim(),
+                designation: designation || null,
+                yearsExperience: yearsExperience || null,
+            },
+        });
+    } catch (error) {
+        console.error('Create Faculty API Error:', error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+}
+
+export const POST = withRole(createFacultyHandler, ['admin']);
+
+async function updateFacultyHandler(request) {
+    try {
+        const body = await request.json();
+        const { facultyId, firstName, lastName, designation, yearsExperience, honorariumRate, department } = body;
+
+        if (!facultyId) {
+            return NextResponse.json({ error: 'facultyId is required.' }, { status: 400 });
+        }
+
+        // Update users table (name fields)
+        const userUpdates = {};
+        if (firstName !== undefined) userUpdates.first_name = firstName.trim();
+        if (lastName !== undefined) userUpdates.last_name = lastName.trim();
+
+        if (Object.keys(userUpdates).length > 0) {
+            const { error: userErr } = await supabaseAdmin
+                .from('users')
+                .update(userUpdates)
+                .eq('id', facultyId);
+            if (userErr) throw userErr;
+        }
+
+        // Update faculty table (profile fields)
+        const facUpdates = {};
+        if (designation !== undefined) facUpdates.designation = designation?.trim() || null;
+        if (yearsExperience !== undefined) facUpdates.years_experience = yearsExperience !== '' ? parseInt(yearsExperience, 10) : null;
+        if (honorariumRate !== undefined) facUpdates.honorarium_rate_per_hour = honorariumRate !== '' ? parseFloat(honorariumRate) : null;
+        if (department !== undefined) facUpdates.department = department?.trim() || null;
+
+        if (Object.keys(facUpdates).length > 0) {
+            const { error: facErr } = await supabaseAdmin
+                .from('faculty')
+                .update(facUpdates)
+                .eq('id', facultyId);
+            if (facErr) throw facErr;
+        }
+
+        return NextResponse.json({ success: true });
+    } catch (error) {
+        console.error('Update Faculty API Error:', error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+}
+
+export const PATCH = withRole(updateFacultyHandler, ['admin']);
