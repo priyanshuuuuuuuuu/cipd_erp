@@ -29,7 +29,8 @@ async function handler(req) {
         id, title, session_date, start_time, end_time, status,
         courses ( id, name ),
         faculty ( id, users ( first_name, last_name ) ),
-        venues ( id, name, building )
+        venues ( id, name, building ),
+        session_types ( id, name )
       `)
       .in('course_id', courseIds)
       .eq('session_date', today)

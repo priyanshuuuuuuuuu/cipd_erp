@@ -60,7 +60,7 @@ async function getHandler(req) {
 
 async function postHandler(req) {
   try {
-    const { course_id, faculty_id, title, venue_id, session_date, start_time, end_time } = await req.json();
+    const { course_id, faculty_id, title, venue_id, session_date, start_time, end_time, session_type_id } = await req.json();
 
     if (!title || !session_date || !start_time || !end_time) {
       return NextResponse.json({ error: 'title, session_date, start_time, and end_time are required' }, { status: 400 });
@@ -73,6 +73,7 @@ async function postHandler(req) {
         faculty_id: faculty_id || null,
         title,
         venue_id: venue_id || null,
+        session_type_id: session_type_id || null,
         session_date,
         start_time,
         end_time,
