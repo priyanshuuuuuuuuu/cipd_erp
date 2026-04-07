@@ -4,9 +4,10 @@ import '../../Dashboard.css';
 import {
     LayoutGrid, Calendar, MessageSquare, Settings, LogOut, Bell, Search, Menu,
     ChevronLeft, ChevronRight, Wifi, Clock, FileBarChart, CheckCircle, Download,
-    Eye, IndianRupee, Users, Filter
+    Eye, IndianRupee, Users, Filter, UserPlus, ChevronDown, ChevronUp, X, Loader2, Pencil
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { api } from '@/lib/api';
 
 export default function AdminFacultyHoursPage() {
     const router = useRouter();
@@ -17,28 +18,99 @@ export default function AdminFacultyHoursPage() {
     const [facultyData, setFacultyData] = useState([]);
     const [loading, setLoading] = useState(true);
 
+    // ── Add Faculty panel ──────────────────────────────────────────────────────
+    const [showManagePanel, setShowManagePanel] = useState(false);
+    const [addForm, setAddForm] = useState({ firstName: '', lastName: '', email: '', yearsExperience: '', designation: '' });
+    const [addLoading, setAddLoading] = useState(false);
+    const [addError, setAddError] = useState('');
+    const [addSuccess, setAddSuccess] = useState('');
+
+    // ── Edit Faculty modal ─────────────────────────────────────────────────────
+    const [editFaculty, setEditFaculty] = useState(null); // faculty object being edited
+    const [editForm, setEditForm] = useState({});
+    const [editLoading, setEditLoading] = useState(false);
+    const [editError, setEditError] = useState('');
+    const [editSuccess, setEditSuccess] = useState('');
+
     const navTo = p => router.push(p);
 
-    React.useEffect(() => {
+    const fetchFaculty = React.useCallback(() => {
         setLoading(true);
-        fetch('/api/admin/faculty-hours')
-            .then(res => res.json())
+        api.get('/api/admin/faculty-hours')
             .then(data => {
-                if (data.facultyData) {
-                    setFacultyData(data.facultyData);
-                }
+                if (data.facultyData) setFacultyData(data.facultyData);
                 setLoading(false);
             })
             .catch(err => {
-                console.error("Failed to fetch faculty hours:", err);
+                console.error('Failed to fetch faculty hours:', err);
                 setLoading(false);
             });
     }, []);
 
-    const totalSessions = facultyData.reduce((a, f) => a + (f.sessions || 0), 0);
-    const totalHours = facultyData.reduce((a, f) => a + (f.hours || 0), 0);
+    React.useEffect(() => { fetchFaculty(); }, [fetchFaculty]);
+
+    // ── Add Faculty ────────────────────────────────────────────────────────────
+    const handleAddFaculty = async (e) => {
+        e.preventDefault();
+        setAddError(''); setAddSuccess(''); setAddLoading(true);
+        try {
+            await api.post('/api/admin/faculty-hours', addForm);
+            setAddSuccess(`Faculty "${addForm.firstName} ${addForm.lastName}" added successfully! Default password: cipd@123`);
+            setAddForm({ firstName: '', lastName: '', email: '', yearsExperience: '', designation: '' });
+            fetchFaculty();
+        } catch (err) {
+            setAddError(err.message || 'Failed to add faculty.');
+        } finally {
+            setAddLoading(false);
+        }
+    };
+
+    // ── Open Edit Modal ────────────────────────────────────────────────────────
+    const openEdit = (f) => {
+        setEditFaculty(f);
+        setEditForm({
+            firstName: f.firstName,
+            lastName: f.lastName,
+            designation: f.designation,
+            department: f.department,
+            yearsExperience: f.yearsExperience !== '' ? String(f.yearsExperience) : '',
+            honorariumRate: f.rate !== 1500 ? String(f.rate) : String(f.rate),
+        });
+        setEditError('');
+        setEditSuccess('');
+    };
+
+    const closeEdit = () => { setEditFaculty(null); setEditError(''); setEditSuccess(''); };
+
+    // ── Save Edit ──────────────────────────────────────────────────────────────
+    const handleEditSave = async (e) => {
+        e.preventDefault();
+        if (!editFaculty) return;
+        setEditError(''); setEditSuccess(''); setEditLoading(true);
+        try {
+            await api.patch('/api/admin/faculty-hours', {
+                facultyId: editFaculty.id,
+                ...editForm,
+            });
+            setEditSuccess('Details updated successfully.');
+            fetchFaculty();
+            // keep modal open briefly so user sees success, then auto-close
+            setTimeout(() => closeEdit(), 1400);
+        } catch (err) {
+            setEditError(err.message || 'Failed to update faculty.');
+        } finally {
+            setEditLoading(false);
+        }
+    };
+
+    // ── Stats ──────────────────────────────────────────────────────────────────
+    const totalSessions   = facultyData.reduce((a, f) => a + (f.sessions || 0), 0);
+    const totalHours      = facultyData.reduce((a, f) => a + (f.hours || 0), 0);
     const totalHonorarium = facultyData.reduce((a, f) => a + (f.hours || 0) * (f.rate || 0), 0);
     const pendingPayments = facultyData.filter(f => f.status === 'Pending').length;
+
+    // ── Input style helper ─────────────────────────────────────────────────────
+    const inp = { width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '0.82rem', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' };
 
     const sidebarNav = (
         <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobileMenuOpen ? 'open' : ''}`}>
@@ -58,7 +130,7 @@ export default function AdminFacultyHoursPage() {
                     <div className="nav-item" onClick={() => navTo('/admin/wifi-logs')} style={{ cursor: 'pointer' }}><Wifi size={18} /> <span>Wi-Fi Logs</span></div>
                     <div style={{ fontSize: '0.6rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', color: '#555', padding: '10px 1rem 4px' }}><span>Analytics</span></div>
                     <div className="nav-item" onClick={() => navTo('/admin/feedback')} style={{ cursor: 'pointer' }}><MessageSquare size={18} /> <span>Feedback Analytics</span></div>
-                    <div className="nav-item active"><Clock size={18} /> <span>Faculty Hours & Honorarium</span></div>
+                    <div className="nav-item active"><Clock size={18} /> <span>Faculty Management</span></div>
                     <div className="nav-item" onClick={() => navTo('/admin/reports')} style={{ cursor: 'pointer' }}><FileBarChart size={18} /> <span>Reports</span></div>
                     <div style={{ fontSize: '0.6rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', color: '#555', padding: '10px 1rem 4px' }}><span>System</span></div>
                     <div className="nav-item" onClick={() => navTo('/admin/notifications')} style={{ cursor: 'pointer' }}><Bell size={18} /> <span>Notifications</span></div>
@@ -80,7 +152,7 @@ export default function AdminFacultyHoursPage() {
                     <header className="dashboard-header">
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <div className="mobile-menu-btn" onClick={() => setIsMobileMenuOpen(true)} style={{ cursor: 'pointer' }}><Menu size={24} /></div>
-                            <h1>Faculty Hours & Honorarium</h1>
+                            <h1>Faculty Management</h1>
                         </div>
                         <div className="header-actions">
                             <div className="search-bar"><Search size={16} color="#aaa" /><input type="text" placeholder="Search faculty..." className="search-input" /></div>
@@ -92,10 +164,10 @@ export default function AdminFacultyHoursPage() {
                     {/* Stats */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
                         {[
-                            { label: 'Total Sessions', value: totalSessions, icon: Calendar, color: '#2563eb', bg: '#eff6ff' },
-                            { label: 'Total Hours', value: `${totalHours}h`, icon: Clock, color: '#7c3aed', bg: '#faf5ff' },
-                            { label: 'Total Honorarium', value: `₹${(totalHonorarium / 1000).toFixed(1)}K`, icon: IndianRupee, color: '#16a34a', bg: '#ecfdf5' },
-                            { label: 'Pending Payments', value: pendingPayments, icon: Users, color: '#b45309', bg: '#fffbeb' },
+                            { label: 'Total Sessions',    value: totalSessions,                                     icon: Calendar,     color: '#2563eb', bg: '#eff6ff' },
+                            { label: 'Total Hours',       value: `${totalHours.toFixed(1)}h`,                       icon: Clock,        color: '#7c3aed', bg: '#faf5ff' },
+                            { label: 'Total Honorarium',  value: `₹${(totalHonorarium / 1000).toFixed(1)}K`,        icon: IndianRupee,  color: '#16a34a', bg: '#ecfdf5' },
+                            { label: 'Pending Payments',  value: pendingPayments,                                   icon: Users,        color: '#b45309', bg: '#fffbeb' },
                         ].map((stat, i) => (
                             <div key={i} style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', padding: '1rem 1.2rem', display: 'flex', alignItems: 'center', gap: '12px' }}>
                                 <div style={{ width: '40px', height: '40px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: stat.bg, color: stat.color, flexShrink: 0 }}><stat.icon size={18} /></div>
@@ -107,7 +179,67 @@ export default function AdminFacultyHoursPage() {
                         ))}
                     </div>
 
-                    {/* Month filter + export */}
+                    {/* ── Manage Faculty Panel (Add) ────────────────────────── */}
+                    <div style={{ marginBottom: '1rem' }}>
+                        <button
+                            onClick={() => { setShowManagePanel(v => !v); setAddError(''); setAddSuccess(''); }}
+                            style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', borderRadius: '10px', border: '1.5px solid #3B2D82', background: showManagePanel ? '#3B2D82' : '#fff', color: showManagePanel ? '#fff' : '#3B2D82', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, transition: 'all 0.2s' }}
+                        >
+                            <UserPlus size={15} />
+                            Manage Faculty
+                            {showManagePanel ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                        </button>
+
+                        {showManagePanel && (
+                            <div style={{ marginTop: '10px', background: '#fff', border: '1.5px solid #e8e8e8', borderRadius: '14px', padding: '1.4rem 1.6rem', boxShadow: '0 4px 24px rgba(59,45,130,0.07)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                                    <div>
+                                        <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#111' }}>Add New Faculty</div>
+                                        <div style={{ fontSize: '0.72rem', color: '#888', marginTop: '2px' }}>A default login password <code style={{ background: '#f3f4f6', padding: '1px 6px', borderRadius: '4px', fontFamily: 'monospace' }}>cipd@123</code> will be assigned.</div>
+                                    </div>
+                                    <button onClick={() => setShowManagePanel(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#aaa', padding: '4px' }}><X size={16} /></button>
+                                </div>
+
+                                {addError   && <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', padding: '8px 14px', fontSize: '0.78rem', color: '#dc2626', marginBottom: '12px' }}>⚠ {addError}</div>}
+                                {addSuccess && <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '8px', padding: '8px 14px', fontSize: '0.78rem', color: '#16a34a', marginBottom: '12px' }}>✓ {addSuccess}</div>}
+
+                                <form onSubmit={handleAddFaculty}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: '#555', marginBottom: '5px' }}>First Name <span style={{ color: '#dc2626' }}>*</span></label>
+                                            <input type="text" placeholder="e.g. Rajesh" value={addForm.firstName} onChange={e => setAddForm(f => ({ ...f, firstName: e.target.value }))} required style={inp} />
+                                        </div>
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: '#555', marginBottom: '5px' }}>Last Name <span style={{ color: '#dc2626' }}>*</span></label>
+                                            <input type="text" placeholder="e.g. Sharma" value={addForm.lastName} onChange={e => setAddForm(f => ({ ...f, lastName: e.target.value }))} required style={inp} />
+                                        </div>
+                                    </div>
+                                    <div style={{ marginBottom: '12px' }}>
+                                        <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: '#555', marginBottom: '5px' }}>Email Address <span style={{ color: '#dc2626' }}>*</span></label>
+                                        <input type="email" placeholder="e.g. rajesh.sharma@cipd.edu" value={addForm.email} onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))} required style={inp} />
+                                    </div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: '#555', marginBottom: '5px' }}>Instructor Experience (years)</label>
+                                            <input type="number" min="0" max="60" placeholder="e.g. 10" value={addForm.yearsExperience} onChange={e => setAddForm(f => ({ ...f, yearsExperience: e.target.value }))} style={inp} />
+                                        </div>
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: '#555', marginBottom: '5px' }}>Designation / Dept.</label>
+                                            <input type="text" placeholder="e.g. Senior Lecturer" value={addForm.designation} onChange={e => setAddForm(f => ({ ...f, designation: e.target.value }))} style={inp} />
+                                        </div>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                        <button type="submit" disabled={addLoading} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 22px', borderRadius: '10px', border: 'none', background: addLoading ? '#9ca3af' : '#3B2D82', color: '#fff', cursor: addLoading ? 'not-allowed' : 'pointer', fontSize: '0.82rem', fontWeight: 600, transition: 'background 0.2s' }}>
+                                            {addLoading ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <UserPlus size={14} />}
+                                            {addLoading ? 'Adding...' : 'Add Faculty'}
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Month picker + Export */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#555' }}>Month:</span>
@@ -126,7 +258,7 @@ export default function AdminFacultyHoursPage() {
                             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
                                 <thead>
                                     <tr style={{ background: '#fafafa' }}>
-                                        {['Faculty', 'Department', 'Sessions', 'Total Hours', 'Rate/Hr', 'Honorarium', 'Status', ''].map(h => (
+                                        {['Faculty', 'Department', 'Exp.', 'Sessions', 'Total Hours', 'Rate/Hr', 'Honorarium', 'Status', ''].map(h => (
                                             <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: '0.68rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#aaa', borderBottom: '1px solid #f0f0f0' }}>{h}</th>
                                         ))}
                                     </tr>
@@ -135,8 +267,8 @@ export default function AdminFacultyHoursPage() {
                                     {loading && facultyData.length === 0 ? (
                                         <>{[1,2,3,4].map(i => (
                                             <tr key={`skel-${i}`} style={{ borderBottom: '1px solid #f5f5f5' }}>
-                                                {[120,80,40,50,60,70,65,80].map((w,j) => (
-                                                    <td key={j} style={{ padding: '12px 16px' }}><div style={{ width: `${w}px`, height: j===0?'12px':'10px', borderRadius: '4px', background: j%2===0?'#f0f0f0':'#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${(i*8+j)*0.05}s` }} /></td>
+                                                {[120,80,40,40,50,60,70,65,80].map((w,j) => (
+                                                    <td key={j} style={{ padding: '12px 16px' }}><div style={{ width: `${w}px`, height: j===0?'12px':'10px', borderRadius: '4px', background: j%2===0?'#f0f0f0':'#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${(i*9+j)*0.05}s` }} /></td>
                                                 ))}
                                             </tr>
                                         ))}</>
@@ -145,6 +277,9 @@ export default function AdminFacultyHoursPage() {
                                             <td style={{ padding: '12px 16px', fontWeight: 600, color: '#111' }}>{f.name}</td>
                                             <td style={{ padding: '12px 16px' }}>
                                                 <span style={{ padding: '2px 10px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 500, background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe' }}>{f.dept}</span>
+                                            </td>
+                                            <td style={{ padding: '12px 16px', fontFamily: 'monospace', fontSize: '0.78rem', color: '#888' }}>
+                                                {f.yearsExperience !== '' ? `${f.yearsExperience}y` : '—'}
                                             </td>
                                             <td style={{ padding: '12px 16px', fontFamily: 'monospace', fontWeight: 600, color: '#333' }}>{f.sessions}</td>
                                             <td style={{ padding: '12px 16px', fontFamily: 'monospace', fontWeight: 600, color: '#333' }}>{f.hours.toFixed(1)}h</td>
@@ -155,7 +290,19 @@ export default function AdminFacultyHoursPage() {
                                             </td>
                                             <td style={{ padding: '12px 16px' }}>
                                                 <div style={{ display: 'flex', gap: '6px' }}>
-                                                    <button onClick={() => setViewingSessions(viewingSessions === f.id ? null : f.id)} className="change-status-btn" style={{ padding: '4px 10px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', fontSize: '0.72rem', color: '#555', display: 'flex', alignItems: 'center', gap: '4px' }}><Eye size={12} /> Sessions</button>
+                                                    <button
+                                                        onClick={() => setViewingSessions(viewingSessions === f.id ? null : f.id)}
+                                                        className="change-status-btn"
+                                                        style={{ padding: '4px 10px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', fontSize: '0.72rem', color: '#555', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                                    ><Eye size={12} /> Sessions</button>
+
+                                                    {/* ── Edit button ── */}
+                                                    <button
+                                                        onClick={() => openEdit(f)}
+                                                        className="change-status-btn"
+                                                        style={{ padding: '4px 10px', borderRadius: '6px', border: '1px solid #3B2D82', background: '#f5f3ff', cursor: 'pointer', fontSize: '0.72rem', color: '#3B2D82', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}
+                                                    ><Pencil size={12} /> Edit</button>
+
                                                     {f.status === 'Pending' && (
                                                         <button className="change-status-btn" style={{ padding: '4px 10px', borderRadius: '6px', border: '1px solid #16a34a', background: '#ecfdf5', cursor: 'pointer', fontSize: '0.72rem', color: '#166534', fontWeight: 600 }}>Mark Paid</button>
                                                     )}
@@ -181,7 +328,7 @@ export default function AdminFacultyHoursPage() {
                                     </thead>
                                     <tbody>
                                         {(facultyData.find(f => f.id === viewingSessions)?.sessionDetails || []).length > 0 ? (
-                                            (facultyData.find(f => f.id === viewingSessions)?.sessionDetails).map((s, i) => (
+                                            facultyData.find(f => f.id === viewingSessions).sessionDetails.map((s, i) => (
                                                 <tr key={i} style={{ borderBottom: '1px solid #f0f0f0' }}>
                                                     <td style={{ padding: '6px 12px', fontFamily: 'monospace', color: '#555' }}>{s.date}</td>
                                                     <td style={{ padding: '6px 12px', fontWeight: 500, color: '#333' }}>{s.course}</td>
@@ -209,7 +356,85 @@ export default function AdminFacultyHoursPage() {
                     </div>
                 </div>
             </div>
-            <style>{`@keyframes shimmer { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }`}</style>
+
+            {/* ══ Edit Faculty Modal ══════════════════════════════════════════════ */}
+            {editFaculty && (
+                <div
+                    style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, backdropFilter: 'blur(2px)' }}
+                    onClick={closeEdit}
+                >
+                    <div
+                        style={{ background: '#fff', borderRadius: '16px', padding: '1.8rem 2rem', width: '100%', maxWidth: '500px', boxShadow: '0 24px 64px rgba(0,0,0,0.18)', border: '1.5px solid #e8e8e8', position: 'relative' }}
+                        onClick={e => e.stopPropagation()}
+                    >
+                        {/* Header */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.2rem' }}>
+                            <div>
+                                <div style={{ fontSize: '1rem', fontWeight: 700, color: '#111' }}>Edit Faculty Details</div>
+                                <div style={{ fontSize: '0.72rem', color: '#888', marginTop: '3px' }}>{editFaculty.name}</div>
+                            </div>
+                            <button onClick={closeEdit} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#aaa', padding: '4px', marginTop: '-4px' }}><X size={18} /></button>
+                        </div>
+
+                        {/* Feedback banners */}
+                        {editError   && <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', padding: '8px 14px', fontSize: '0.78rem', color: '#dc2626', marginBottom: '12px' }}>⚠ {editError}</div>}
+                        {editSuccess && <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '8px', padding: '8px 14px', fontSize: '0.78rem', color: '#16a34a', marginBottom: '12px' }}>✓ {editSuccess}</div>}
+
+                        <form onSubmit={handleEditSave}>
+                            {/* Row 1: First + Last name */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: '#555', marginBottom: '5px' }}>First Name <span style={{ color: '#dc2626' }}>*</span></label>
+                                    <input type="text" value={editForm.firstName || ''} onChange={e => setEditForm(f => ({ ...f, firstName: e.target.value }))} required style={inp} />
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: '#555', marginBottom: '5px' }}>Last Name <span style={{ color: '#dc2626' }}>*</span></label>
+                                    <input type="text" value={editForm.lastName || ''} onChange={e => setEditForm(f => ({ ...f, lastName: e.target.value }))} required style={inp} />
+                                </div>
+                            </div>
+
+                            {/* Row 2: Designation + Department */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: '#555', marginBottom: '5px' }}>Designation</label>
+                                    <input type="text" placeholder="e.g. Senior Lecturer" value={editForm.designation || ''} onChange={e => setEditForm(f => ({ ...f, designation: e.target.value }))} style={inp} />
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: '#555', marginBottom: '5px' }}>Department</label>
+                                    <input type="text" placeholder="e.g. Computer Science" value={editForm.department || ''} onChange={e => setEditForm(f => ({ ...f, department: e.target.value }))} style={inp} />
+                                </div>
+                            </div>
+
+                            {/* Row 3: Experience + Honorarium Rate */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: '#555', marginBottom: '5px' }}>Experience (years)</label>
+                                    <input type="number" min="0" max="60" placeholder="e.g. 10" value={editForm.yearsExperience ?? ''} onChange={e => setEditForm(f => ({ ...f, yearsExperience: e.target.value }))} style={inp} />
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: '#555', marginBottom: '5px' }}>Honorarium Rate (₹/hr)</label>
+                                    <input type="number" min="0" step="100" placeholder="e.g. 1500" value={editForm.honorariumRate ?? ''} onChange={e => setEditForm(f => ({ ...f, honorariumRate: e.target.value }))} style={inp} />
+                                </div>
+                            </div>
+
+                            {/* Actions */}
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                                <button type="button" onClick={closeEdit} style={{ padding: '9px 20px', borderRadius: '10px', border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600, color: '#555' }}>Cancel</button>
+                                <button
+                                    type="submit"
+                                    disabled={editLoading}
+                                    style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 22px', borderRadius: '10px', border: 'none', background: editLoading ? '#9ca3af' : '#3B2D82', color: '#fff', cursor: editLoading ? 'not-allowed' : 'pointer', fontSize: '0.82rem', fontWeight: 600, transition: 'background 0.2s' }}
+                                >
+                                    {editLoading ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Pencil size={14} />}
+                                    {editLoading ? 'Saving...' : 'Save Changes'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            <style>{`@keyframes shimmer { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } } @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
         </div>
     );
 }
