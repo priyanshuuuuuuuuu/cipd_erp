@@ -107,6 +107,7 @@ async function postHandler(req) {
         });
       }
     }
+    // commit
 
     // Batch insert notifications into DB
     if (notificationsToInsert.length > 0) {
