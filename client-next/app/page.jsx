@@ -65,7 +65,7 @@ const Login = () => {
 
   // Demo credentials (hint only — actual auth goes through the API)
   const demoCredentials = [
-    { role: 'Student', email: 'student@cipd.edu', password: 'student123', hint: 'Use email or enrollment no.', color: '#16a34a', bg: '#ecfdf5' },
+    { role: 'Student', email: 'mayank.chauhan@cipd.com', password: '23456789', hint: 'Use email or enrollment no.', color: '#16a34a', bg: '#ecfdf5' },
     { role: 'Faculty', email: 'anuj.grover@cipd.edu', password: 'faculty123', hint: '', color: '#b45309', bg: '#fef9c3' },
     { role: 'Admin', email: 'admin@cipd.edu', password: 'admin123', hint: '', color: '#2563eb', bg: '#eff6ff' },
   ];
