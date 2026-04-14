@@ -53,11 +53,12 @@ async function handler(req, { params }) {
       faculty_id,
       venue_id,
       session_type_id,
+      category_id,       // ← NEW: which category does this session fall under
       session_date,
       start_time,
       end_time,
       status,
-      skill_ids, // optional array of skill UUIDs (max 4)
+      skill_ids,         // optional array of skill UUIDs
     } = body;
 
     // Build update payload — only include fields that were sent
@@ -67,6 +68,7 @@ async function handler(req, { params }) {
     if (faculty_id !== undefined)      updates.faculty_id      = faculty_id || null;
     if (venue_id !== undefined)        updates.venue_id        = venue_id || null;
     if (session_type_id !== undefined) updates.session_type_id = session_type_id || null;
+    if (category_id !== undefined)     updates.category_id     = category_id || null;   // ← NEW
     if (session_date !== undefined)    updates.session_date    = session_date || null;
     if (start_time !== undefined)      updates.start_time      = start_time || null;
     if (end_time !== undefined)        updates.end_time        = end_time || null;
