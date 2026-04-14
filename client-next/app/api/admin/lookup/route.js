@@ -5,10 +5,12 @@ import { withRole } from '@/lib/middleware';
 
 async function handler(req) {
   try {
-    const [coursesRes, facultyRes, venuesRes] = await Promise.all([
+    const [coursesRes, facultyRes, venuesRes, typesRes, skillsRes] = await Promise.all([
       supabaseAdmin.from('courses').select('id, name').order('name'),
       supabaseAdmin.from('faculty').select('id, users ( first_name, last_name )').order('id'),
       supabaseAdmin.from('venues').select('id, name, building').order('name'),
+      supabaseAdmin.from('session_types').select('id, name').order('name'),
+      supabaseAdmin.from('skills').select('id, name').order('name'),
     ]);
 
     return NextResponse.json({
@@ -21,6 +23,8 @@ async function handler(req) {
         id: v.id,
         name: `${v.name}${v.building ? ', ' + v.building : ''}`,
       })),
+      sessionTypes: (typesRes.data || []).map(t => ({ id: t.id, name: t.name })),
+      skills: (skillsRes.data || []).map(s => ({ id: s.id, name: s.name })),
     });
   } catch (err) {
     console.error('Lookup error:', err);

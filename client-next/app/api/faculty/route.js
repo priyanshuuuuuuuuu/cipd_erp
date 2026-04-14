@@ -11,7 +11,7 @@ async function handler(req) {
     let query = supabaseAdmin
       .from('faculty')
       .select(`
-        id, designation, years_experience, honorarium_rate_per_hour,
+        id, designation, department, photo_url, years_experience, honorarium_rate_per_hour,
         users ( id, email, first_name, last_name, is_active )
       `);
 
@@ -30,6 +30,8 @@ async function handler(req) {
       email: f.users?.email,
       is_active: f.users?.is_active,
       designation: f.designation,
+      department: f.department || null,
+      photo_url: f.photo_url || null,
       years_experience: f.years_experience,
       honorarium_rate_per_hour: f.honorarium_rate_per_hour,
     }));

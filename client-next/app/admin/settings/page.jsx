@@ -3,60 +3,145 @@ import React, { useState } from 'react';
 import '../../Dashboard.css';
 import {
     LayoutGrid, Calendar, MessageSquare, Settings as SettingsIcon, LogOut, Bell, Search, Menu,
-    ChevronLeft, ChevronRight, Wifi, Clock, FileBarChart, CheckCircle, Save,
-    Plus, Trash2, Edit3, Shield, X, Eye, EyeOff, AlertCircle
+    ChevronLeft, ChevronRight, Wifi, Clock, FileBarChart, CheckCircle, Save, Users,
+    Plus, Trash2, Edit3, Shield, X, Eye, EyeOff, AlertCircle, ExternalLink
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { api } from '@/lib/api';
 
 export default function AdminSettingsPage() {
     const router = useRouter();
+    const [gcStatus, setGcStatus] = useState(null); // 'success', 'db_error', etc.
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [showBssidModal, setShowBssidModal] = useState(false);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [editingBssid, setEditingBssid] = useState(null);
     const [showPassword, setShowPassword] = useState(false);
     const [saveStatus, setSaveStatus] = useState({});
+    const [errorMsg, setErrorMsg] = useState('');
 
     const [detectionConfig, setDetectionConfig] = useState({
-        pingInterval: 10,
-        pingsPerSession: 6,
-        presenceThreshold: 3,
-        attendanceWindow: 60,
+        scannerInterval: 6,
+        minSignal: 2,
     });
 
-    const [bssidList, setBssidList] = useState([
-        { id: 1, bssid: 'C4:E9:84:A2:3F:01', venue: 'Room 204, Block A', active: true },
-        { id: 2, bssid: 'C4:E9:84:A2:3F:02', venue: 'Room 305, Block C', active: true },
-        { id: 3, bssid: 'C4:E9:84:A2:3F:03', venue: 'LHC 3, Block B', active: true },
-        { id: 4, bssid: 'C4:E9:84:A2:3F:04', venue: 'Lab 2, Block D', active: false },
-        { id: 5, bssid: 'C4:E9:84:A2:3F:05', venue: 'Room 102, Block A', active: true },
-    ]);
-
+    const [bssidList, setBssidList] = useState([]);
     const [newBssid, setNewBssid] = useState({ bssid: '', venue: '' });
-    const [accountSettings, setAccountSettings] = useState({ email: 'admin@cipd.edu', currentPassword: '', newPassword: '', confirmPassword: '' });
+    const [accountSettings, setAccountSettings] = useState({ email: 'admin@cipd.edu', currentPassword: '', newPassword: '' });
 
     const navTo = p => router.push(p);
 
-    const handleSave = (section) => {
+    React.useEffect(() => {
+        // Read GC connection status from URL, safely handling SSR
+        if (typeof window !== 'undefined') {
+            const searchParams = new URLSearchParams(window.location.search);
+            if (searchParams.get('gc_connected') === '1') {
+                setGcStatus('success');
+                // Clean up URL
+                window.history.replaceState({}, '', '/admin/settings');
+            } else if (searchParams.get('gc_error')) {
+                setGcStatus(searchParams.get('gc_error'));
+                window.history.replaceState({}, '', '/admin/settings');
+            }
+        }
+
+        const loadData = async () => {
+            try {
+                const conf = await api.get('/api/admin/settings/config');
+                if (conf) {
+                    setDetectionConfig({
+                        scannerInterval: conf.scanner_interval_minutes || conf.ping_interval || 6,
+                        minSignal: conf.min_signal ?? conf.presence_threshold ?? 2,
+                    });
+                }
+                const venues = await api.get('/api/admin/settings/bssid');
+                setBssidList(Array.isArray(venues) ? venues : []);
+            } catch (err) {
+                console.error("Error loading settings:", err);
+            }
+        };
+        loadData();
+    }, []);
+
+    const handleSave = async (section) => {
         setSaveStatus({ ...saveStatus, [section]: 'saving' });
-        setTimeout(() => {
+        setErrorMsg('');
+        try {
+            if (section === 'detection') {
+                await api.put('/api/admin/settings/config', detectionConfig);
+            } else if (section === 'account') {
+                if (!accountSettings.currentPassword || !accountSettings.newPassword) {
+                    throw new Error("Both current and new passwords are required");
+                }
+                await api.post('/api/admin/settings/password', {
+                    currentPassword: accountSettings.currentPassword,
+                    newPassword: accountSettings.newPassword,
+                });
+                setAccountSettings({ ...accountSettings, currentPassword: '', newPassword: '' });
+                alert("Password successfully updated!");
+            }
             setSaveStatus({ ...saveStatus, [section]: 'saved' });
             setTimeout(() => setSaveStatus(prev => ({ ...prev, [section]: null })), 2000);
-        }, 800);
+        } catch (err) {
+            console.error("Save error:", err);
+            setErrorMsg(err.message);
+            setSaveStatus({ ...saveStatus, [section]: null });
+            alert(err.message);
+        }
     };
 
-    const handleAddBssid = () => {
+    const handleAddBssid = async () => {
         if (!newBssid.bssid || !newBssid.venue) return;
-        setBssidList(prev => [...prev, { id: Date.now(), bssid: newBssid.bssid, venue: newBssid.venue, active: true }]);
-        setNewBssid({ bssid: '', venue: '' });
-        setShowBssidModal(false);
+        try {
+            const result = await api.post('/api/admin/settings/bssid', { bssid: newBssid.bssid, venue: newBssid.venue });
+            if (result?.data) {
+                setBssidList(prev => [...prev, result.data]);
+                setNewBssid({ bssid: '', venue: '' });
+                setShowBssidModal(false);
+            }
+        } catch (err) {
+            console.error("Error adding BSSID:", err);
+            alert("Failed to add BSSID");
+        }
     };
 
-    const toggleBssid = (id) => {
-        setBssidList(prev => prev.map(b => b.id === id ? { ...b, active: !b.active } : b));
+    const toggleBssid = async (id) => {
+        const item = bssidList.find(b => b.id === id);
+        if(!item) return;
+        try {
+            await api.patch('/api/admin/settings/bssid', { id, is_active: !item.is_active });
+            setBssidList(prev => prev.map(b => b.id === id ? { ...b, is_active: !b.is_active } : b));
+        } catch (err) {
+            console.error("Error toggling BSSID:", err);
+        }
     };
 
-    const removeBssid = (id) => {
-        setBssidList(prev => prev.filter(b => b.id !== id));
+    const handleEditBssid = async () => {
+        if (!editingBssid || !editingBssid.router_bssid || !editingBssid.name) return;
+        try {
+            await api.patch('/api/admin/settings/bssid', { 
+                id: editingBssid.id, 
+                router_bssid: editingBssid.router_bssid, 
+                name: editingBssid.name 
+            });
+            setBssidList(prev => prev.map(b => b.id === editingBssid.id ? editingBssid : b));
+            setShowEditModal(false);
+            setEditingBssid(null);
+        } catch (err) {
+            console.error("Error editing BSSID:", err);
+            alert("Failed to update BSSID");
+        }
+    };
+
+    const removeBssid = async (id) => {
+        if(!confirm("Are you sure you want to delete this venue?")) return;
+        try {
+            await api.delete(`/api/admin/settings/bssid?id=${id}`);
+            setBssidList(prev => prev.filter(b => b.id !== id));
+        } catch (err) {
+            console.error("Error removing BSSID:", err);
+        }
     };
 
     const SaveButton = ({ section }) => (
@@ -80,10 +165,11 @@ export default function AdminSettingsPage() {
                     <div className="nav-item" onClick={() => navTo('/admin')} style={{ cursor: 'pointer' }}><LayoutGrid size={18} /> <span>Dashboard</span></div>
                     <div className="nav-item" onClick={() => navTo('/admin/schedule')} style={{ cursor: 'pointer' }}><Calendar size={18} /> <span>Schedule Management</span></div>
                     <div className="nav-item" onClick={() => navTo('/admin/attendance')} style={{ cursor: 'pointer' }}><CheckCircle size={18} /> <span>Attendance Monitoring</span></div>
+                    <div className="nav-item" onClick={() => navTo('/admin/live-students')} style={{ cursor: 'pointer' }}><Users size={18} /> <span>Live Students</span></div>
                     <div className="nav-item" onClick={() => navTo('/admin/wifi-logs')} style={{ cursor: 'pointer' }}><Wifi size={18} /> <span>Wi-Fi Logs</span></div>
                     <div style={{ fontSize: '0.6rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', color: '#555', padding: '10px 1rem 4px' }}><span>Analytics</span></div>
                     <div className="nav-item" onClick={() => navTo('/admin/feedback')} style={{ cursor: 'pointer' }}><MessageSquare size={18} /> <span>Feedback Analytics</span></div>
-                    <div className="nav-item" onClick={() => navTo('/admin/faculty-hours')} style={{ cursor: 'pointer' }}><Clock size={18} /> <span>Faculty Hours & Honorarium</span></div>
+                    <div className="nav-item" onClick={() => navTo('/admin/faculty-hours')} style={{ cursor: 'pointer' }}><Clock size={18} /> <span>Faculty Management</span></div>
                     <div className="nav-item" onClick={() => navTo('/admin/reports')} style={{ cursor: 'pointer' }}><FileBarChart size={18} /> <span>Reports</span></div>
                     <div style={{ fontSize: '0.6rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', color: '#555', padding: '10px 1rem 4px' }}><span>System</span></div>
                     <div className="nav-item" onClick={() => navTo('/admin/notifications')} style={{ cursor: 'pointer' }}><Bell size={18} /> <span>Notifications</span></div>
@@ -121,12 +207,10 @@ export default function AdminSettingsPage() {
                             <SaveButton section="detection" />
                         </div>
                         <div style={{ padding: '1.2rem 1.5rem' }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px', maxWidth: '500px' }}>
                                 {[
-                                    { label: 'Ping Interval (minutes)', key: 'pingInterval', min: 1, max: 30 },
-                                    { label: 'Pings per Session', key: 'pingsPerSession', min: 1, max: 20 },
-                                    { label: 'Presence Threshold (≥ pings)', key: 'presenceThreshold', min: 1, max: 10 },
-                                    { label: 'Attendance Window (minutes)', key: 'attendanceWindow', min: 15, max: 180 },
+                                    { label: 'Rescan Time (minutes)', key: 'scannerInterval', min: 1, max: 30, desc: 'How often the Wi-Fi scanner captures a snapshot' },
+                                    { label: 'Min Signal Threshold', key: 'minSignal', min: 0, max: 10, desc: 'Minimum signal level to count a detection' },
                                 ].map(field => (
                                     <div key={field.key}>
                                         <label style={{ fontSize: '0.72rem', fontWeight: 600, color: '#888', display: 'block', marginBottom: '5px' }}>{field.label}</label>
@@ -134,13 +218,14 @@ export default function AdminSettingsPage() {
                                             onChange={e => setDetectionConfig({ ...detectionConfig, [field.key]: parseInt(e.target.value) || 0 })}
                                             style={{ ...inputStyle, fontFamily: 'monospace', fontWeight: 600 }}
                                             onFocus={e => e.target.style.borderColor = '#111'} onBlur={e => e.target.style.borderColor = '#e5e7eb'} />
+                                        <div style={{ fontSize: '0.65rem', color: '#bbb', marginTop: '4px' }}>{field.desc}</div>
                                     </div>
                                 ))}
                             </div>
                             <div style={{ marginTop: '14px', padding: '10px 14px', borderRadius: '8px', background: '#f9fafb', border: '1px solid #f0f0f0', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
                                 <AlertCircle size={14} color="#888" style={{ flexShrink: 0, marginTop: '2px' }} />
                                 <div style={{ fontSize: '0.72rem', color: '#888', lineHeight: 1.6 }}>
-                                    Current rule: A student is marked <strong style={{ color: '#333' }}>Present</strong> if detected by ≥ <strong style={{ color: '#111' }}>{detectionConfig.presenceThreshold}</strong> pings out of <strong style={{ color: '#111' }}>{detectionConfig.pingsPerSession}</strong> total pings within <strong style={{ color: '#111' }}>{detectionConfig.attendanceWindow} min</strong> (every <strong style={{ color: '#111' }}>{detectionConfig.pingInterval} min</strong>).
+                                    Scanner captures every <strong style={{ color: '#111' }}>{detectionConfig.scannerInterval} min</strong>. A 90-min session expects <strong style={{ color: '#111' }}>{Math.floor(90 / (detectionConfig.scannerInterval || 6))}</strong> snapshots. Only signals <strong style={{ color: '#111' }}>{'>'} {detectionConfig.minSignal}</strong> are counted.
                                 </div>
                             </div>
                         </div>
@@ -163,17 +248,26 @@ export default function AdminSettingsPage() {
                                 </thead>
                                 <tbody>
                                     {bssidList.map(b => (
-                                        <tr key={b.id} className="attendance-row" style={{ borderBottom: '1px solid #f5f5f5', opacity: b.active ? 1 : 0.5 }}>
-                                            <td style={{ padding: '10px 16px', fontFamily: 'monospace', fontWeight: 600, fontSize: '0.82rem', color: '#333' }}>{b.bssid}</td>
-                                            <td style={{ padding: '10px 16px', color: '#555' }}>{b.venue}</td>
+                                        <tr key={b.id} className="attendance-row" style={{ borderBottom: '1px solid #f5f5f5', opacity: b.is_active !== false ? 1 : 0.5 }}>
+                                            <td style={{ padding: '10px 16px', fontFamily: 'monospace', fontWeight: 600, fontSize: '0.82rem', color: '#333' }}>{b.router_bssid || b.bssid}</td>
+                                            <td style={{ padding: '10px 16px', color: '#555' }}>{b.name || b.venue}</td>
                                             <td style={{ padding: '10px 16px' }}>
-                                                <button onClick={() => toggleBssid(b.id)} className="change-status-btn" style={{ padding: '3px 10px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600, border: 'none', cursor: 'pointer', background: b.active ? '#ecfdf5' : '#fef2f2', color: b.active ? '#166534' : '#991b1b' }}>
-                                                    {b.active ? 'Active' : 'Inactive'}
+                                                <button onClick={() => toggleBssid(b.id)} className="change-status-btn" style={{ padding: '3px 10px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600, border: 'none', cursor: 'pointer', background: b.is_active !== false ? '#ecfdf5' : '#fef2f2', color: b.is_active !== false ? '#166534' : '#991b1b' }}>
+                                                    {b.is_active !== false ? 'Active' : 'Inactive'}
                                                 </button>
                                             </td>
                                             <td style={{ padding: '10px 16px' }}>
                                                 <div style={{ display: 'flex', gap: '6px' }}>
-                                                    <button className="change-status-btn" style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', color: '#888' }}><Edit3 size={13} /></button>
+                                                    <button 
+                                                        onClick={() => {
+                                                            setEditingBssid({ ...b });
+                                                            setShowEditModal(true);
+                                                        }}
+                                                        className="change-status-btn" 
+                                                        style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', color: '#888' }}
+                                                    >
+                                                        <Edit3 size={13} />
+                                                    </button>
                                                     <button onClick={() => removeBssid(b.id)} className="change-status-btn" style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', color: '#ccc' }}><Trash2 size={13} /></button>
                                                 </div>
                                             </td>
@@ -188,7 +282,10 @@ export default function AdminSettingsPage() {
                     <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', borderTop: '3px solid #E91E87', overflow: 'hidden', marginBottom: '1.5rem' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.8rem 1.5rem', borderBottom: '1px solid #f0f0f0' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.95rem', fontWeight: 700 }}><SettingsIcon size={16} /> Account Settings</div>
-                            <SaveButton section="account" />
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                                {errorMsg && <div style={{ fontSize: '0.75rem', color: '#e11d48', fontWeight: 600 }}>{errorMsg}</div>}
+                                <SaveButton section="account" />
+                            </div>
                         </div>
                         <div style={{ padding: '1.2rem 1.5rem' }}>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', maxWidth: '600px' }}>
@@ -212,6 +309,60 @@ export default function AdminSettingsPage() {
                                     <input type="password" value={accountSettings.newPassword} onChange={e => setAccountSettings({ ...accountSettings, newPassword: e.target.value })} placeholder="••••••••"
                                         style={inputStyle} onFocus={e => e.target.style.borderColor = '#111'} onBlur={e => e.target.style.borderColor = '#e5e7eb'} />
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                    {/* Google Classroom Integration */}
+                    <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', borderTop: '3px solid #1a73e8', overflow: 'hidden', marginBottom: '1.5rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.8rem 1.5rem', borderBottom: '1px solid #f0f0f0' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.95rem', fontWeight: 700 }}>
+                                <img src="https://ssl.gstatic.com/classroom/favicon.png" alt="GC" width={18} height={18} />
+                                Google Classroom Integration
+                            </div>
+                        </div>
+                        <div style={{ padding: '1.2rem 1.5rem' }}>
+                            <div style={{ fontSize: '0.82rem', color: '#555', marginBottom: '12px', lineHeight: 1.6 }}>
+                                Connect your Google Classroom teacher account (<strong>priyanshupandeynov18@gmail.com</strong>).
+                                Once connected, assignments you create in Google Classroom will automatically appear
+                                in every student's dashboard under "Pending Assignments".
+                            </div>
+                            <div style={{ padding: '10px 14px', background: '#f0f7ff', borderRadius: '8px', border: '1px solid #c7d9f8', marginBottom: '14px', fontSize: '0.75rem', color: '#1a56db', lineHeight: 1.5 }}>
+                                ℹ️ Students do <strong>not</strong> need to connect their own Google accounts.
+                                Only the admin needs to connect once using the teacher account.
+                            </div>
+
+                            {gcStatus === 'success' && (
+                                <div style={{ padding: '10px 14px', background: '#e6f4ea', borderRadius: '8px', border: '1px solid #ceead6', marginBottom: '14px', fontSize: '0.8rem', color: '#137333', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <CheckCircle size={16} /> Successfully connected to Google Classroom!
+                                </div>
+                            )}
+                            {gcStatus === 'db_error' && (
+                                <div style={{ padding: '10px 14px', background: '#fce8e6', borderRadius: '8px', border: '1px solid #fad2cf', marginBottom: '14px', fontSize: '0.8rem', color: '#c5221f', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <AlertCircle size={16} /> Database Error: Supabase schema cache issue. Please run `NOTIFY pgrst, 'reload schema'` in your Supabase SQL editor.
+                                </div>
+                            )}
+                            {gcStatus && gcStatus !== 'success' && gcStatus !== 'db_error' && (
+                                <div style={{ padding: '10px 14px', background: '#fce8e6', borderRadius: '8px', border: '1px solid #fad2cf', marginBottom: '14px', fontSize: '0.8rem', color: '#c5221f', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <AlertCircle size={16} /> Failed to connect: {gcStatus}
+                                </div>
+                            )}
+
+                            <button
+                                onClick={async () => {
+                                    try {
+                                        const { url } = await api.get('/api/auth/google/connect');
+                                        window.location.href = url;
+                                    } catch (e) {
+                                        alert('Failed to get Google auth URL: ' + e.message);
+                                    }
+                                }}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', padding: '8px 18px', background: '#1a73e8', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '0.80rem', fontWeight: 700, cursor: 'pointer' }}
+                            >
+                                <ExternalLink size={14} />
+                                Connect Google Classroom
+                            </button>
+                            <div style={{ marginTop: '8px', fontSize: '0.68rem', color: '#aaa' }}>
+                                You will be redirected to Google to authorize access. Make sure to log in with your teacher Google account.
                             </div>
                         </div>
                     </div>
@@ -242,6 +393,35 @@ export default function AdminSettingsPage() {
                             <button onClick={() => setShowBssidModal(false)} style={{ padding: '8px 20px', borderRadius: '8px', border: '1px solid #eee', background: '#fff', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 500, color: '#555' }}>Cancel</button>
                             <button onClick={handleAddBssid} style={{ padding: '8px 20px', borderRadius: '8px', border: 'none', background: '#111', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, color: '#fff', display: 'flex', alignItems: 'center', gap: '5px' }}>
                                 <Plus size={14} /> Add BSSID
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Edit BSSID Modal */}
+            {showEditModal && editingBssid && (
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }} onClick={() => { setShowEditModal(false); setEditingBssid(null); }}>
+                    <div style={{ background: '#fff', borderRadius: '16px', width: '420px', maxWidth: '90vw', boxShadow: '0 20px 60px rgba(0,0,0,0.15)', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.5rem', borderBottom: '1px solid #f0f0f0' }}>
+                            <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>Edit BSSID</h3>
+                            <button onClick={() => { setShowEditModal(false); setEditingBssid(null); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888' }}><X size={18} /></button>
+                        </div>
+                        <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                            <div>
+                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>BSSID (MAC Address)</label>
+                                <input type="text" value={editingBssid.router_bssid || ''} onChange={e => setEditingBssid({ ...editingBssid, router_bssid: e.target.value })}
+                                    style={{ ...inputStyle, fontFamily: 'monospace' }} onFocus={e => e.target.style.borderColor = '#111'} onBlur={e => e.target.style.borderColor = '#e5e7eb'} />
+                            </div>
+                            <div>
+                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>Venue Name</label>
+                                <input type="text" value={editingBssid.name || ''} onChange={e => setEditingBssid({ ...editingBssid, name: e.target.value })}
+                                    style={inputStyle} onFocus={e => e.target.style.borderColor = '#111'} onBlur={e => e.target.style.borderColor = '#e5e7eb'} />
+                            </div>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', padding: '1rem 1.5rem', borderTop: '1px solid #f0f0f0' }}>
+                            <button onClick={() => { setShowEditModal(false); setEditingBssid(null); }} style={{ padding: '8px 20px', borderRadius: '8px', border: '1px solid #eee', background: '#fff', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 500, color: '#555' }}>Cancel</button>
+                            <button onClick={handleEditBssid} style={{ padding: '8px 20px', borderRadius: '8px', border: 'none', background: '#111', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, color: '#fff', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                <Save size={14} /> Update BSSID
                             </button>
                         </div>
                     </div>

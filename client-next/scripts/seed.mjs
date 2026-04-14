@@ -85,6 +85,7 @@ async function seed() {
   // ── 0. CLEANUP — delete in FK-safe order (children first) ──
   log('Cleaning existing data...');
   const tables = [
+    'notifications',
     'feedback_responses',
     'feedback_questions',
     'assignment_submissions',
@@ -128,35 +129,42 @@ async function seed() {
     { id: IDS.faculty5, email: 'sujay.deb@cipd.edu', password_hash: facultyPwd, role: 'faculty', first_name: 'Sujay', last_name: 'Deb', is_active: true },
     { id: IDS.admin1, email: 'admin@cipd.edu', password_hash: adminPwd, role: 'admin', first_name: 'Admin', last_name: 'User', is_active: true },
   ];
-  const { error: usersErr } = await supabase.from('users').insert(users);
+  const { error: usersErr } = await supabase.from('users').upsert(users, { onConflict: 'email' });
   if (usersErr) { err('Users', usersErr); return; }
 
   // ── 2. Students ──
   log('Creating student profile...');
-  const { error: studErr } = await supabase.from('students').insert([
-    { id: IDS.student1, enrollment_no: 'EN21CS1042', program_name: 'B.Tech CSE' },
-  ]);
+  const { error: studErr } = await supabase.from('students').upsert([
+    { 
+      id: IDS.student1, 
+      enrollment_no: 'EN21CS1042', 
+      program_name: 'B.Tech CSE',
+      device_hash: 'stu1_dev_hash_99x',
+      mac_address: 'A4:83:E7:2B:9F:01',
+      mac_verified: true
+    },
+  ], { onConflict: 'id' });
   if (studErr) err('Students', studErr);
 
   // ── 3. Faculty ──
   log('Creating faculty profiles...');
-  const { error: facErr } = await supabase.from('faculty').insert([
+  const { error: facErr } = await supabase.from('faculty').upsert([
     { id: IDS.faculty1, designation: 'Professor', years_experience: 15, honorarium_rate_per_hour: 2500 },
     { id: IDS.faculty2, designation: 'Associate Professor', years_experience: 10, honorarium_rate_per_hour: 2000 },
     { id: IDS.faculty3, designation: 'Professor', years_experience: 20, honorarium_rate_per_hour: 3000 },
     { id: IDS.faculty4, designation: 'Assistant Professor', years_experience: 6, honorarium_rate_per_hour: 1500 },
     { id: IDS.faculty5, designation: 'Associate Professor', years_experience: 12, honorarium_rate_per_hour: 2200 },
-  ]);
+  ], { onConflict: 'id' });
   if (facErr) err('Faculty', facErr);
 
   // ── 4. Venues ──
   log('Creating venues...');
   const { error: venErr } = await supabase.from('venues').insert([
-    { id: IDS.lhc101, name: 'LHC-101', building: 'Lecture Hall Complex' },
-    { id: IDS.c102, name: 'C-102', building: 'Science Block' },
-    { id: IDS.lhc201, name: 'LHC-201', building: 'Lecture Hall Complex' },
-    { id: IDS.lab3, name: 'Lab 3', building: 'Computer Centre' },
-    { id: IDS.lhB, name: 'Lecture Hall B', building: 'Main Building' },
+    { id: IDS.lhc101, name: 'LHC-101', building: 'Lecture Hall Complex', router_bssid: 'C4:E9:84:A2:3F:01' },
+    { id: IDS.c102, name: 'C-102', building: 'Science Block', router_bssid: 'C4:E9:84:A2:3F:02' },
+    { id: IDS.lhc201, name: 'LHC-201', building: 'Lecture Hall Complex', router_bssid: 'C4:E9:84:A2:3F:03' },
+    { id: IDS.lab3, name: 'Lab 3', building: 'Computer Centre', router_bssid: 'C4:E9:84:A2:3F:04' },
+    { id: IDS.lhB, name: 'Lecture Hall B', building: 'Main Building', router_bssid: 'C4:E9:84:A2:3F:05' },
   ]);
   if (venErr) err('Venues', venErr);
 
@@ -256,6 +264,52 @@ async function seed() {
     if (attErr) err(`Attendance batch ${i}`, attErr);
   }
   log(`Created ${attendanceRecords.length} attendance records`);
+
+  // ── 8.5 Attendance Ping Logs ──
+  log('Creating attendance ping logs...');
+  const pingLogs = [];
+  const venueBssids = {
+    [IDS.lhc101]: 'C4:E9:84:A2:3F:01',
+    [IDS.c102]: 'C4:E9:84:A2:3F:02',
+    [IDS.lhc201]: 'C4:E9:84:A2:3F:03',
+    [IDS.lab3]: 'C4:E9:84:A2:3F:04',
+    [IDS.lhB]: 'C4:E9:84:A2:3F:05',
+  };
+
+  for (const record of attendanceRecords) {
+    if (record.ping_count > 0) {
+      const session = sessions.find(s => s.id === record.session_id);
+      if (!session) continue;
+      
+      const sessionStart = new Date(`${session.session_date}T${session.start_time}:00`);
+      const bssid = venueBssids[session.venue_id] || 'C4:E9:84:A2:3F:00';
+      
+      // Generate pings spread across the session
+      for (let p = 0; p < record.ping_count; p++) {
+        // Ping every ~10 minutes
+        const pingTime = new Date(sessionStart.getTime() + (p * 10 * 60000) + (Math.random() * 5 * 60000));
+        
+        // 5% chance of registering the wrong BSSID (walking past another room)
+        const actualBssid = Math.random() < 0.05 ? 'C4:E9:84:A2:3F:99' : bssid;
+        
+        pingLogs.push({
+          session_id: session.id,
+          student_id: record.student_id,
+          device_hash: 'stu1_dev_hash_99x',
+          bssid: actualBssid,
+          signal_strength: -40 - Math.floor(Math.random() * 30), // -40 to -70 dBm
+          ping_time: pingTime.toISOString()
+        });
+      }
+    }
+  }
+
+  for (let i = 0; i < pingLogs.length; i += 100) {
+    const batch = pingLogs.slice(i, i + 100);
+    const { error: pingErr } = await supabase.from('attendance_ping_logs').insert(batch);
+    if (pingErr) err(`Ping logs batch ${i}`, pingErr);
+  }
+  log(`Created ${pingLogs.length} ping logs`);
 
   // ── 9. Session Materials ──
   log('Creating session materials...');

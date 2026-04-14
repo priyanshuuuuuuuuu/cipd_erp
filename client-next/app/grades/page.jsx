@@ -31,11 +31,7 @@ export default function GradesPage() {
             const graded = all.filter(a => a.submission && a.submission.grade != null);
             
             setGrades(graded.map(a => {
-                // Determine total marks (default to 100 if missing from schema/seed)
-                // Note: The assignments table schema DOES NOT have total_marks. Let's assume 20 or 100 based on standard grading.
-                // In our seed script they were graded out of 20.
-                const total = 20; 
-                
+                const total = a.total_marks || 100; // real DB value (default 100 from Phase 2 migration)
                 return {
                     id: a.id,
                     title: a.title,
@@ -107,7 +103,21 @@ export default function GradesPage() {
                 </header>
 
                 {loading ? (
-                    <div style={{ color: '#aaa', textAlign: 'center', padding: '4rem' }}>Loading grades...</div>
+                    <div style={{ padding: '1.5rem 2rem' }}>
+                        <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
+                            {[1,2].map(i => (<div key={i} style={{ background: '#fff', border: '1px solid #e8e8e8', borderRadius: '14px', padding: '1rem 1.5rem', flex: 1 }}>
+                                <div style={{ width: '80px', height: '9px', borderRadius: '3px', background: '#f5f5f5', marginBottom: '8px', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.1}s` }} />
+                                <div style={{ width: '50px', height: '18px', borderRadius: '4px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.2}s` }} />
+                            </div>))}
+                        </div>
+                        <div style={{ background: '#fff', border: '1px solid #e8e8e8', borderRadius: '16px', overflow: 'hidden' }}>
+                            {[1,2,3,4].map(i => (<div key={i} style={{ display: 'flex', gap: '1rem', padding: '14px 1.5rem', borderBottom: '1px solid #f5f5f5', alignItems: 'center' }}>
+                                <div style={{ flex: 1 }}><div style={{ width: `${50+i*10}%`, height: '12px', borderRadius: '4px', background: '#f0f0f0', marginBottom: '6px', animation: 'shimmer 1.5s infinite', animationDelay: `${i*0.15}s` }} /><div style={{ width: '30%', height: '8px', borderRadius: '3px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${i*0.2}s` }} /></div>
+                                <div style={{ width: '80px', height: '10px', borderRadius: '3px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${i*0.25}s` }} />
+                                <div style={{ width: '50px', height: '22px', borderRadius: '20px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i*0.3}s` }} />
+                            </div>))}
+                        </div>
+                    </div>
                 ) : (
                     <div style={{ padding: '1.5rem 2rem', flex: 1 }}>
                         {/* Summary bar */}
@@ -172,6 +182,7 @@ export default function GradesPage() {
                     </div>
                 )}
             </div>
+            <style>{`@keyframes shimmer { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }`}</style>
         </div>
     );
 }

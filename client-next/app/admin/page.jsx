@@ -20,6 +20,8 @@ export default function AdminDashboard() {
     const [notifyStatus, setNotifyStatus] = useState(null);
     const [reminderStatus, setReminderStatus] = useState(null);
     const [newClass, setNewClass] = useState({ course_id: '', faculty_id: '', date: '', start_time: '', end_time: '', venue_id: '', title: '' });
+    const [scheduleLoading, setScheduleLoading] = useState(false);
+    const [scheduleError, setScheduleError] = useState('');
 
     // Lookup data for dropdowns
     const [lookupData, setLookupData] = useState({ courses: [], faculty: [], venues: [] });
@@ -146,23 +148,43 @@ export default function AdminDashboard() {
     };
 
     const handleScheduleSubmit = async () => {
-        if (!newClass.course_id || !newClass.date || !newClass.start_time || !newClass.title) return;
+        setScheduleError('');
+        // Client-side validation
+        if (!newClass.course_id) { setScheduleError('Please select a course.'); return; }
+        if (!newClass.title.trim()) { setScheduleError('Please enter a lecture title.'); return; }
+        if (!newClass.date) { setScheduleError('Please select a date.'); return; }
+        if (!newClass.start_time) { setScheduleError('Please select a start time.'); return; }
+        if (newClass.end_time && newClass.end_time <= newClass.start_time) {
+            setScheduleError('End time must be after start time.'); return;
+        }
+
+        // Auto-fill end_time to start_time + 1h if not provided
+        let endTime = newClass.end_time;
+        if (!endTime && newClass.start_time) {
+            const [h, m] = newClass.start_time.split(':').map(Number);
+            const endH = String((h + 1) % 24).padStart(2, '0');
+            endTime = `${endH}:${String(m).padStart(2, '0')}`;
+        }
+
+        setScheduleLoading(true);
         try {
-            const selectedCourse = lookupData.courses.find(c => c.id === newClass.course_id);
             await api.post('/api/admin/sessions', {
                 course_id: newClass.course_id,
                 faculty_id: newClass.faculty_id || null,
                 venue_id: newClass.venue_id || null,
-                title: newClass.title,
+                title: newClass.title.trim(),
                 session_date: newClass.date,
                 start_time: newClass.start_time,
-                end_time: newClass.end_time || newClass.start_time,
+                end_time: endTime,
             });
             setShowScheduleModal(false);
             setNewClass({ course_id: '', faculty_id: '', date: '', start_time: '', end_time: '', venue_id: '', title: '' });
+            setScheduleError('');
             fetchAll();
         } catch (e) {
-            alert('Failed to schedule: ' + e.message);
+            setScheduleError(e.message || 'Failed to schedule class. Please try again.');
+        } finally {
+            setScheduleLoading(false);
         }
     };
 
@@ -186,10 +208,11 @@ export default function AdminDashboard() {
                         <div className="nav-item active"><LayoutGrid size={18} /> <span>Dashboard</span></div>
                         <div className="nav-item" onClick={() => navTo('/admin/schedule')} style={{ cursor: 'pointer' }}><Calendar size={18} /> <span>Schedule Management</span></div>
                         <div className="nav-item" onClick={() => navTo('/admin/attendance')} style={{ cursor: 'pointer' }}><CheckCircle size={18} /> <span>Attendance Monitoring</span></div>
+                        <div className="nav-item" onClick={() => navTo('/admin/live-students')} style={{ cursor: 'pointer' }}><Users size={18} /> <span>Live Students</span></div>
                         <div className="nav-item" onClick={() => navTo('/admin/wifi-logs')} style={{ cursor: 'pointer' }}><Wifi size={18} /> <span>Wi-Fi Logs</span></div>
                         <div style={{ fontSize: '0.6rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', color: '#555', padding: '10px 1rem 4px' }}><span>Analytics</span></div>
                         <div className="nav-item" onClick={() => navTo('/admin/feedback')} style={{ cursor: 'pointer' }}><MessageSquare size={18} /> <span>Feedback Analytics</span></div>
-                        <div className="nav-item" onClick={() => navTo('/admin/faculty-hours')} style={{ cursor: 'pointer' }}><Clock size={18} /> <span>Faculty Hours & Honorarium</span></div>
+                        <div className="nav-item" onClick={() => navTo('/admin/faculty-hours')} style={{ cursor: 'pointer' }}><Clock size={18} /> <span>Faculty Management</span></div>
                         <div className="nav-item" onClick={() => navTo('/admin/reports')} style={{ cursor: 'pointer' }}><FileBarChart size={18} /> <span>Reports</span></div>
                         <div style={{ fontSize: '0.6rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', color: '#555', padding: '10px 1rem 4px' }}><span>System</span></div>
                         <div className="nav-item" onClick={() => navTo('/admin/notifications')} style={{ cursor: 'pointer' }}><Bell size={18} /> <span>Notifications</span></div>
@@ -222,7 +245,6 @@ export default function AdminDashboard() {
                             <div style={{ padding: '1rem 1.2rem', display: 'flex', gap: '8px' }}>
                                 {[
                                     { label: 'Schedule New Class', icon: Plus, bg: '#eff6ff', color: '#2563eb', action: () => setShowScheduleModal(true) },
-                                    { label: 'Start Attendance', icon: CheckCircle, bg: '#ecfdf5', color: '#16a34a', action: () => navTo('/admin/attendance') },
                                     { label: 'View Attendance', icon: CheckCircle, bg: '#f0fdf4', color: '#15803d', action: () => navTo('/admin/attendance') },
                                     { label: 'Send Notification', icon: Send, bg: '#faf5ff', color: '#7c3aed', action: () => {} },
                                     { label: 'Generate Reports', icon: FileBarChart, bg: '#fff7ed', color: '#c2410c', action: () => {} },
@@ -278,7 +300,16 @@ export default function AdminDashboard() {
                             </div>
                             <div>
                                 {loadingData ? (
-                                    <div style={{ padding: '1.5rem', color: '#aaa', fontSize: '0.82rem', textAlign: 'center' }}>Loading...</div>
+                                    <div>{[1,2,3].map(i => (
+                                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '14px 1.5rem', borderBottom: '1px solid #f5f5f5' }}>
+                                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                <div style={{ width: `${55 + i * 12}%`, height: '12px', borderRadius: '4px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.15}s` }} />
+                                                <div style={{ width: `${35 + i * 10}%`, height: '9px', borderRadius: '3px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.2}s` }} />
+                                            </div>
+                                            <div style={{ width: '65px', height: '22px', borderRadius: '8px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.1}s` }} />
+                                            <div style={{ width: '80px', height: '26px', borderRadius: '8px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.12}s` }} />
+                                        </div>
+                                    ))}</div>
                                 ) : upcomingClasses.length === 0 ? (
                                     <div style={{ padding: '1.5rem', color: '#888', fontSize: '0.82rem', textAlign: 'center' }}>No upcoming classes scheduled.</div>
                                 ) : upcomingClasses.map((cls, i) => (
@@ -310,7 +341,16 @@ export default function AdminDashboard() {
                             </div>
                             <div>
                                 {loadingData ? (
-                                    <div style={{ padding: '1.5rem', color: '#aaa', fontSize: '0.82rem', textAlign: 'center' }}>Loading...</div>
+                                    <div>{[1,2,3].map(i => (
+                                        <div key={i} style={{ padding: '12px 1.5rem', borderBottom: '1px solid #f5f5f5' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                                                <div style={{ width: `${40 + i * 15}%`, height: '12px', borderRadius: '4px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.15}s` }} />
+                                                <div style={{ width: '60px', height: '10px', borderRadius: '3px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.2}s` }} />
+                                            </div>
+                                            <div style={{ height: '6px', borderRadius: '3px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.1}s` }} />
+                                            <div style={{ width: '100px', height: '8px', borderRadius: '3px', background: '#f5f5f5', marginTop: '5px', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.25}s` }} />
+                                        </div>
+                                    ))}</div>
                                 ) : feedbackPending.length === 0 ? (
                                     <div style={{ padding: '1.5rem', color: '#888', fontSize: '0.82rem', textAlign: 'center' }}>No feedback data yet.</div>
                                 ) : feedbackPending.map((item, i) => {
@@ -362,13 +402,18 @@ export default function AdminDashboard() {
 
             {/* Schedule Modal */}
             {showScheduleModal && (
-                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }} onClick={() => setShowScheduleModal(false)}>
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }} onClick={() => { setShowScheduleModal(false); setScheduleError(''); }}>
                     <div style={{ background: '#fff', borderRadius: '16px', width: '480px', maxWidth: '90vw', boxShadow: '0 20px 60px rgba(0,0,0,0.15)', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.5rem', borderBottom: '1px solid #f0f0f0' }}>
                             <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>Schedule New Class</h3>
-                            <button onClick={() => setShowScheduleModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888' }}><X size={18} /></button>
+                            <button onClick={() => { setShowScheduleModal(false); setScheduleError(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888' }}><X size={18} /></button>
                         </div>
                         <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                            {scheduleError && (
+                                <div style={{ padding: '10px 14px', borderRadius: '8px', background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', fontSize: '0.82rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <AlertCircle size={14} />{scheduleError}
+                                </div>
+                            )}
                             <div>
                                 <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>Course *</label>
                                 <select value={newClass.course_id} onChange={e => setNewClass({ ...newClass, course_id: e.target.value })}
@@ -421,15 +466,15 @@ export default function AdminDashboard() {
                             </div>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', padding: '1rem 1.5rem', borderTop: '1px solid #f0f0f0' }}>
-                            <button onClick={() => setShowScheduleModal(false)} style={{ padding: '8px 20px', borderRadius: '8px', border: '1px solid #eee', background: '#fff', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 500, color: '#555' }}>Cancel</button>
-                            <button onClick={handleScheduleSubmit} style={{ padding: '8px 20px', borderRadius: '8px', border: 'none', background: '#111', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, color: '#fff', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                <Plus size={14} /> Schedule & Notify
+                            <button onClick={() => { setShowScheduleModal(false); setScheduleError(''); }} disabled={scheduleLoading} style={{ padding: '8px 20px', borderRadius: '8px', border: '1px solid #eee', background: '#fff', cursor: scheduleLoading ? 'not-allowed' : 'pointer', fontSize: '0.85rem', fontWeight: 500, color: '#555' }}>Cancel</button>
+                            <button onClick={handleScheduleSubmit} disabled={scheduleLoading} style={{ padding: '8px 20px', borderRadius: '8px', border: 'none', background: scheduleLoading ? '#555' : '#111', cursor: scheduleLoading ? 'not-allowed' : 'pointer', fontSize: '0.85rem', fontWeight: 600, color: '#fff', display: 'flex', alignItems: 'center', gap: '5px', transition: 'background 0.2s', minWidth: '150px', justifyContent: 'center' }}>
+                                {scheduleLoading ? <><RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} /> Scheduling...</> : <><Plus size={14} /> Schedule & Notify</>}
                             </button>
                         </div>
                     </div>
                 </div>
             )}
-            <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+            <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } } @keyframes shimmer { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }`}</style>
         </div>
     );
 }
