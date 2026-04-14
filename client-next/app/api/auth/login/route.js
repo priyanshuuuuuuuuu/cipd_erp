@@ -5,21 +5,46 @@ import { verifyPassword, signToken } from '@/lib/auth';
 
 export async function POST(req) {
   try {
-    const { email, password } = await req.json();
+    // Accept 'identifier' (email or enrollment number) with 'email' as legacy alias
+    const body = await req.json();
+    const { password } = body;
+    const identifier = (body.identifier || body.email || '').trim();
 
-    if (!email || !password) {
-      return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
+    if (!identifier || !password) {
+      return NextResponse.json({ error: 'Email/Enrollment No. and password are required' }, { status: 400 });
     }
 
-    // Look up user by email
-    const { data: user, error } = await supabaseAdmin
-      .from('users')
-      .select('*')
-      .eq('email', email.toLowerCase())
-      .single();
+    let user = null;
 
-    if (error || !user) {
-      return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
+    const isEmail = identifier.includes('@');
+
+    if (isEmail) {
+      // ── Path 1: Email login (all roles) ──────────────────────────────────
+      const { data, error } = await supabaseAdmin
+        .from('users')
+        .select('*')
+        .eq('email', identifier.toLowerCase())
+        .single();
+
+      if (!error && data) user = data;
+    } else {
+      // ── Path 2: Enrollment number login (students only) ───────────────────
+      // JOIN students onto users where students.enrollment_no matches identifier.
+      // students.id is a FK → users.id, so we embed the users row via a relation.
+      const { data, error } = await supabaseAdmin
+        .from('students')
+        .select('id, enrollment_no, users!inner(id, email, password_hash, role, first_name, last_name, is_active, preferences)')
+        .eq('enrollment_no', identifier)
+        .single();
+
+      if (!error && data?.users) {
+        // Flatten: merge the nested users row into a single object
+        user = { ...data.users };
+      }
+    }
+
+    if (!user) {
+      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
     if (!user.is_active) {
@@ -27,9 +52,9 @@ export async function POST(req) {
     }
 
     // Verify password
-    const valid = await verifyPassword(password, user.password_hash);
+    const valid = await verifyPassword(password.trim(), user.password_hash);
     if (!valid) {
-      return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
+      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
     // Build token payload
@@ -43,21 +68,11 @@ export async function POST(req) {
 
     const token = signToken(payload);
 
-    // Build response with cookie
-    const response = NextResponse.json({
-      token,
-      user: payload,
-    });
-
-    response.cookies.set('token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60, // 7 days
-      path: '/',
-    });
-
-    return response;
+    // Return token in JSON body only — client stores it in role-scoped localStorage.
+    // We intentionally do NOT set a shared 'token' cookie because multiple roles
+    // (student + admin) may be open in the same browser, and a shared cookie would
+    // cause the server to identify API calls as the wrong user.
+    return NextResponse.json({ token, user: payload });
   } catch (err) {
     console.error('Login error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

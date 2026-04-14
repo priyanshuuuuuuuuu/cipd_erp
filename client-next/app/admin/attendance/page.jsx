@@ -1,73 +1,354 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import '../../Dashboard.css';
 import {
     LayoutGrid, Calendar, MessageSquare, Settings, LogOut, Bell, Search, Menu,
     ChevronLeft, ChevronRight, Wifi, Clock, FileBarChart, Download, RefreshCw, Activity,
-    CheckCircle, AlertTriangle, Filter, Fingerprint, Shield, X
+    CheckCircle, AlertTriangle, Filter, Users, ChevronDown, ChevronUp, XCircle, Timer,
+    ShieldCheck, ShieldX, Smartphone
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { api } from '@/lib/api';
+
+/** Presence Timeline: step-function graph showing present(1) / absent(0) at each snapshot */
+function PresenceTimeline({ student, session, snapshotTimestamps }) {
+    if (!session || !snapshotTimestamps || snapshotTimestamps.length === 0) {
+        return <div style={{ padding: '16px 24px', fontSize: '0.75rem', color: '#aaa' }}>No snapshot data available</div>;
+    }
+
+    const studentPingIds = new Set((student.pings || []).map(p => p.snapshotId));
+    const W = 800, H = 100, PAD_L = 55, PAD_R = 20, PAD_T = 20, PAD_B = 30;
+    const graphW = W - PAD_L - PAD_R;
+    const graphH = H - PAD_T - PAD_B;
+
+    // Parse session start/end
+    const date = session.date;
+    const sessionStart = new Date(`${date}T${session.startTime}+05:30`).getTime();
+    const sessionEnd = new Date(`${date}T${session.endTime}+05:30`).getTime();
+    const totalMs = sessionEnd - sessionStart;
+
+    // Build data points: for each snapshot, is student present?
+    const points = snapshotTimestamps.map((ts, idx) => {
+        const t = new Date(ts).getTime();
+        const x = PAD_L + ((t - sessionStart) / totalMs) * graphW;
+        // Check if this snapshot's index corresponds to a ping (by matching snapshot order)
+        // We need to match by snapshot — pings have snapshotId 
+        // snapshotTimestamps are in order, check if student was in this snapshot
+        const snapId = student.pings?.find(p => {
+            const pTime = new Date(p.time).getTime();
+            return Math.abs(pTime - t) < 90000; // within 1.5 min
+        });
+        const present = !!snapId;
+        return { x, present, time: t, ts };
+    });
+
+    // Build step-function path
+    let pathD = '';
+    const yPresent = PAD_T + 5;
+    const yAbsent = PAD_T + graphH - 5;
+
+    points.forEach((p, i) => {
+        const y = p.present ? yPresent : yAbsent;
+        if (i === 0) {
+            // Start from session start
+            const startX = PAD_L;
+            pathD += `M ${startX} ${y}`;
+            pathD += ` L ${p.x} ${y}`;
+        } else {
+            // Step: horizontal to this x at prev y, then vertical to new y
+            const prevY = points[i - 1].present ? yPresent : yAbsent;
+            pathD += ` L ${p.x} ${prevY}`;
+            pathD += ` L ${p.x} ${y}`;
+        }
+    });
+    // Extend to end
+    if (points.length > 0) {
+        const lastY = points[points.length - 1].present ? yPresent : yAbsent;
+        const endX = PAD_L + graphW;
+        pathD += ` L ${endX} ${lastY}`;
+    }
+
+    // Build fill path (area under the "present" sections)
+    let fillD = '';
+    points.forEach((p, i) => {
+        const y = p.present ? yPresent : yAbsent;
+        if (i === 0) {
+            fillD += `M ${PAD_L} ${yAbsent} L ${PAD_L} ${y} L ${p.x} ${y}`;
+        } else {
+            const prevY = points[i - 1].present ? yPresent : yAbsent;
+            fillD += ` L ${p.x} ${prevY} L ${p.x} ${y}`;
+        }
+    });
+    if (points.length > 0) {
+        const lastY = points[points.length - 1].present ? yPresent : yAbsent;
+        fillD += ` L ${PAD_L + graphW} ${lastY} L ${PAD_L + graphW} ${yAbsent} Z`;
+    }
+
+    // Time labels on x-axis (every ~15 min)
+    const labelInterval = 15 * 60 * 1000;
+    const timeLabels = [];
+    for (let t = sessionStart; t <= sessionEnd; t += labelInterval) {
+        const x = PAD_L + ((t - sessionStart) / totalMs) * graphW;
+        const d = new Date(t);
+        const label = d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata', hour12: false });
+        timeLabels.push({ x, label });
+    }
+
+    return (
+        <div style={{ padding: '12px 24px 16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#555' }}>{student.name}</span>
+                <span style={{ fontSize: '0.65rem', color: '#aaa' }}>Presence Timeline</span>
+                <span style={{ fontSize: '0.65rem', color: '#aaa', marginLeft: 'auto' }}>
+                    {student.pingCount || 0}/{snapshotTimestamps.length} snapshots detected
+                </span>
+            </div>
+            <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ background: '#fff', borderRadius: '8px', border: '1px solid #e8e8e8' }}>
+                {/* Grid lines */}
+                <line x1={PAD_L} y1={yPresent} x2={PAD_L + graphW} y2={yPresent} stroke="#e8e8e8" strokeDasharray="4,4" />
+                <line x1={PAD_L} y1={yAbsent} x2={PAD_L + graphW} y2={yAbsent} stroke="#e8e8e8" strokeDasharray="4,4" />
+
+                {/* Y-axis labels */}
+                <text x={PAD_L - 8} y={yPresent + 4} textAnchor="end" fontSize="9" fill="#16a34a" fontWeight="700">Present</text>
+                <text x={PAD_L - 8} y={yAbsent + 4} textAnchor="end" fontSize="9" fill="#dc2626" fontWeight="700">Absent</text>
+
+                {/* Fill area for present sections */}
+                {fillD && <path d={fillD} fill="rgba(22,163,106,0.08)" />}
+
+                {/* Step-function line */}
+                <path d={pathD} fill="none" stroke="#16a34a" strokeWidth="2" strokeLinejoin="round" />
+
+                {/* Snapshot dots */}
+                {points.map((p, i) => (
+                    <circle key={i} cx={p.x} cy={p.present ? yPresent : yAbsent} r="3.5"
+                        fill={p.present ? '#16a34a' : '#ef4444'} stroke="#fff" strokeWidth="1.5" />
+                ))}
+
+                {/* X-axis time labels */}
+                {timeLabels.map((tl, i) => (
+                    <g key={i}>
+                        <line x1={tl.x} y1={PAD_T} x2={tl.x} y2={PAD_T + graphH} stroke="#f0f0f0" />
+                        <text x={tl.x} y={H - 6} textAnchor="middle" fontSize="8" fill="#aaa" fontFamily="monospace">{tl.label}</text>
+                    </g>
+                ))}
+            </svg>
+        </div>
+    );
+}
 
 export default function AdminAttendancePage() {
     const router = useRouter();
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-    const [sessionFilter, setSessionFilter] = useState('all');
-    const [dateFilter, setDateFilter] = useState('2026-02-14');
-    const [sessionActive, setSessionActive] = useState(false);
-    const [showAuthModal, setShowAuthModal] = useState(false);
-    const [authState, setAuthState] = useState('idle');
-    const [macFilter, setMacFilter] = useState('all');
-    const [timer, setTimer] = useState({ min: 7, sec: 24 });
+    const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
+    const [sessions, setSessions] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [expandedSession, setExpandedSession] = useState(null);
+    const [sessionStudents, setSessionStudents] = useState(null);
+    const [studentsLoading, setStudentsLoading] = useState(false);
+    const [nextRefreshIn, setNextRefreshIn] = useState(null);
+    const refreshTimerRef = useRef(null);
+    const scannerIntervalRef = useRef(6 * 60 * 1000);
+    const [scannerIntervalMs, _setScannerIntervalMs] = useState(6 * 60 * 1000);
+    const setScannerIntervalMs = (val) => { scannerIntervalRef.current = val; _setScannerIntervalMs(val); };
 
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setTimer(prev => {
-                if (prev.sec === 0) return prev.min === 0 ? { min: 11, sec: 59 } : { min: prev.min - 1, sec: 59 };
-                return { ...prev, sec: prev.sec - 1 };
+    // MAC Approvals state
+    const [macPending, setMacPending] = useState([]);
+    const [macLoading, setMacLoading] = useState(true);
+    const [macActioning, setMacActioning] = useState(null); // studentId being actioned
+    const [overrideLoading, setOverrideLoading] = useState(null); // studentId being overridden
+    const [confirmOverride, setConfirmOverride] = useState(null); // { studentId, studentName, action, sessionId }
+    const [expandedStudent, setExpandedStudent] = useState(null); // studentId for timeline graph
+
+    const handleOverride = async (sessionId, studentId, action) => {
+        setOverrideLoading(studentId);
+        try {
+            const res = await api.post('/api/admin/attendance/override', {
+                session_id: sessionId,
+                student_id: studentId,
+                action,
             });
-        }, 1000);
-        return () => clearInterval(interval);
-    }, []);
+            // Refresh the student data
+            const json = await api.get(`/api/admin/attendance/session-students?session_id=${sessionId}`);
+            setSessionStudents(json);
+            fetchSessions();
+            setConfirmOverride(null);
+        } catch (err) {
+            console.error('Override failed:', err);
+            alert('Override failed: ' + (err.message || 'Unknown error'));
+        } finally {
+            setOverrideLoading(null);
+        }
+    };
 
-    const pad = n => String(n).padStart(2, '0');
     const navTo = p => router.push(p);
 
-    const students = [
-        { name: 'Aarav Gupta', rollNo: 'CS21034', pings: 4, status: 'Present', mac: 'A4:83:E7:2B:9F:01', lastSeen: '09:36:15' },
-        { name: 'Sneha Kumar', rollNo: 'CS21056', pings: 2, status: 'Absent', mac: 'B2:C1:D4:8E:3A:02', lastSeen: '09:36:09' },
-        { name: 'Rohan Patel', rollNo: 'CS21023', pings: 5, status: 'Present', mac: 'C9:D4:A1:7B:E3:03', lastSeen: '09:48:19' },
-        { name: 'Priya Malhotra', rollNo: 'CS21045', pings: 3, status: 'Present', mac: null, lastSeen: '09:24:05' },
-        { name: 'Karan Singh', rollNo: 'CS21067', pings: 1, status: 'Absent', mac: 'E8:F2:B5:6D:1C:05', lastSeen: '09:48:03' },
-        { name: 'Vivaan Singh', rollNo: 'CS21091', pings: 3, status: 'Present', mac: null, lastSeen: '09:36:02' },
-        { name: 'Aditya Kumar', rollNo: 'CS21012', pings: 0, status: 'Absent', mac: null, lastSeen: '—' },
-    ];
+    const fetchSessions = useCallback(async () => {
+        try {
+            setLoading(true);
+            const json = await api.get(`/api/admin/attendance/sessions-by-date?date=${dateFilter}`);
+            setSessions(json.sessions || []);
+        } catch (err) {
+            console.error('Failed to fetch sessions:', err);
+        } finally {
+            setLoading(false);
+        }
+    }, [dateFilter]);
 
-    const rawLogs = [
-        { timestamp: '2026-02-14 09:00:12', hash: 'a7f3...e1d2', bssid: 'C4:E9:84:A2:3F:01', session: 'CS301-A' },
-        { timestamp: '2026-02-14 09:12:08', hash: 'b2c1...f4a8', bssid: 'C4:E9:84:A2:3F:01', session: 'CS301-A' },
-        { timestamp: '2026-02-14 09:12:14', hash: 'c9d4...b7e3', bssid: 'C4:E9:84:A2:3F:01', session: 'CS301-A' },
-        { timestamp: '2026-02-14 09:24:05', hash: 'd1e5...a3c7', bssid: 'C4:E9:84:A2:3F:01', session: 'CS301-A' },
-        { timestamp: '2026-02-14 09:36:02', hash: 'f3a7...c2e9', bssid: 'C4:E9:84:A2:3F:01', session: 'CS301-A' },
-        { timestamp: '2026-02-14 09:36:09', hash: 'b2c1...f4a8', bssid: 'C4:E9:84:A2:3F:02', session: 'CS301-A' },
-        { timestamp: '2026-02-14 09:36:15', hash: 'a7f3...e1d2', bssid: 'C4:E9:84:A2:3F:01', session: 'CS301-A' },
-        { timestamp: '2026-02-14 09:48:03', hash: 'e8f2...d6b1', bssid: 'C4:E9:84:A2:3F:01', session: 'CS301-A' },
-        { timestamp: '2026-02-14 09:48:19', hash: 'c9d4...b7e3', bssid: 'C4:E9:84:A2:3F:01', session: 'CS301-A' },
-    ];
+    useEffect(() => { fetchSessions(); }, [fetchSessions]);
 
-    const filtered = students.filter(s => macFilter === 'registered' ? s.mac : macFilter === 'not-registered' ? !s.mac : true);
-    const presentCount = students.filter(s => s.status === 'Present').length;
-    const absentCount = students.length - presentCount;
+    // Fetch pending MAC approvals on mount
+    const fetchMacApprovals = useCallback(async () => {
+        try {
+            setMacLoading(true);
+            const json = await api.get('/api/admin/settings/mac-approvals');
+            setMacPending(Array.isArray(json.pending) ? json.pending : []);
+        } catch (err) {
+            console.error('Failed to fetch MAC approvals:', err);
+            setMacPending([]);
+        } finally {
+            setMacLoading(false);
+        }
+    }, []);
 
-    const handleFingerprint = () => {
-        setAuthState('verifying');
-        setTimeout(() => {
-            if (Math.random() > 0.1) {
-                setAuthState('success');
-                setTimeout(() => { setShowAuthModal(false); setSessionActive(true); setAuthState('idle'); }, 1200);
-            } else setAuthState('failed');
-        }, 1800);
+    useEffect(() => { fetchMacApprovals(); }, [fetchMacApprovals]);
+
+    const handleMacAction = async (studentId, action) => {
+        setMacActioning(studentId);
+        try {
+            const res = await api.patch('/api/admin/settings/mac-approvals', { studentId, action });
+            if (!res.success) {
+                throw new Error(res.error || 'Approval failed');
+            }
+            console.log(`MAC ${action} confirmed for student ${studentId}:`, res.student);
+            // Only remove from list once the server confirms the update
+            setMacPending(prev => prev.filter(s => s.id !== studentId));
+        } catch (err) {
+            console.error('MAC action failed:', err);
+            alert(`Failed to ${action} MAC address: ${err.message}. Please try again.`);
+        } finally {
+            setMacActioning(null);
+        }
     };
+
+    // Clear auto-refresh timer
+    const clearRefreshTimer = () => {
+        if (refreshTimerRef.current) { clearTimeout(refreshTimerRef.current); refreshTimerRef.current = null; }
+        setNextRefreshIn(null);
+    };
+
+    // Schedule next refresh synced to server snapshot time (same as live students page)
+    const scheduleRefresh = (sessionId, lastSnapshotTime) => {
+        clearRefreshTimer();
+        if (!lastSnapshotTime) return;
+
+        // next refresh = lastSnapshot + scannerInterval + 15s buffer
+        const nextSnapshotTime = new Date(lastSnapshotTime).getTime() + scannerIntervalRef.current + 15000;
+        const delay = Math.max(30000, nextSnapshotTime - Date.now()); // at least 30s
+
+        setNextRefreshIn(Math.round(delay / 1000));
+        refreshTimerRef.current = setTimeout(() => {
+            refreshSessionStudents(sessionId);
+        }, delay);
+    };
+
+    // Silent refresh (no loading spinner) for ongoing session auto-updates
+    const refreshSessionStudents = async (sessionId) => {
+        try {
+            const json = await api.get(`/api/admin/attendance/session-students?session_id=${sessionId}`);
+            setSessionStudents(json);
+            if (json.summary?.scannerInterval) setScannerIntervalMs(json.summary.scannerInterval * 60 * 1000);
+            // Also refresh session list to keep status/counts current
+            fetchSessions();
+            // Re-schedule if still ongoing
+            if (json.isOngoing && json.lastSnapshot) {
+                scheduleRefresh(sessionId, json.lastSnapshot);
+            } else {
+                clearRefreshTimer();
+            }
+        } catch (err) {
+            console.error('Auto-refresh failed:', err);
+            // Retry in 30s
+            refreshTimerRef.current = setTimeout(() => refreshSessionStudents(sessionId), 30000);
+            setNextRefreshIn(30);
+        }
+    };
+
+    const fetchSessionStudents = async (sessionId) => {
+        if (expandedSession === sessionId) {
+            setExpandedSession(null);
+            setSessionStudents(null);
+            clearRefreshTimer();
+            return;
+        }
+        try {
+            setStudentsLoading(true);
+            setExpandedSession(sessionId);
+            clearRefreshTimer();
+            const json = await api.get(`/api/admin/attendance/session-students?session_id=${sessionId}`);
+            setSessionStudents(json);
+            if (json.summary?.scannerInterval) setScannerIntervalMs(json.summary.scannerInterval * 60 * 1000);
+            // Set up auto-refresh if ongoing (sync to last snapshot time)
+            if (json.isOngoing && json.lastSnapshot) {
+                scheduleRefresh(sessionId, json.lastSnapshot);
+            }
+        } catch (err) {
+            console.error('Failed to fetch session students:', err);
+        } finally {
+            setStudentsLoading(false);
+        }
+    };
+
+    // Cleanup timer on unmount
+    useEffect(() => {
+        return () => clearRefreshTimer();
+    }, []);
+
+    // Countdown ticker for next refresh
+    useEffect(() => {
+        if (nextRefreshIn === null || nextRefreshIn <= 0) return;
+        const tick = setInterval(() => {
+            setNextRefreshIn(prev => (prev !== null && prev > 0) ? prev - 1 : null);
+        }, 1000);
+        return () => clearInterval(tick);
+    }, [nextRefreshIn]);
+
+    const formatTime = (t) => {
+        if (!t) return '';
+        const [h, m] = t.split(':');
+        const hr = parseInt(h);
+        const ampm = hr >= 12 ? 'PM' : 'AM';
+        return `${hr % 12 || 12}:${m} ${ampm}`;
+    };
+
+    const SignalBars = ({ level }) => (
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '2px', height: '16px' }}>
+            {[1, 2, 3, 4, 5].map(i => (
+                <div key={i} style={{ width: '3px', height: `${i * 3 + 2}px`, borderRadius: '1px', background: i <= level ? (level >= 4 ? '#16a34a' : level >= 3 ? '#b45309' : '#dc2626') : '#e5e7eb' }} />
+            ))}
+        </div>
+    );
+
+    const getStatusStyle = (status) => {
+        switch (status) {
+            case 'present': return { bg: '#ecfdf5', color: '#166534', label: 'Present', icon: <CheckCircle size={11} /> };
+            case 'partial': return { bg: '#fffbeb', color: '#92400e', label: 'Partial', icon: <Timer size={11} /> };
+            case 'absent': return { bg: '#fef2f2', color: '#991b1b', label: 'Absent', icon: <XCircle size={11} /> };
+            default: return { bg: '#f5f5f5', color: '#888', label: status, icon: null };
+        }
+    };
+
+    const getSessionStatusStyle = (status) => {
+        switch (status) {
+            case 'ongoing': return { bg: '#ecfdf5', color: '#166534', dot: '#16a34a' };
+            case 'completed': return { bg: '#f0f0f0', color: '#555', dot: '#888' };
+            case 'scheduled': return { bg: '#eff6ff', color: '#1e40af', dot: '#3b82f6' };
+            default: return { bg: '#f5f5f5', color: '#888', dot: '#999' };
+        }
+    };
+
+    const totalDetected = sessions.reduce((a, s) => a + (s.detectedStudents || 0), 0);
+    const ongoingCount = sessions.filter(s => s.status === 'ongoing').length;
 
     const sidebarNav = (
         <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobileMenuOpen ? 'open' : ''}`}>
@@ -84,10 +365,11 @@ export default function AdminAttendancePage() {
                     <div className="nav-item" onClick={() => navTo('/admin')} style={{ cursor: 'pointer' }}><LayoutGrid size={18} /> <span>Dashboard</span></div>
                     <div className="nav-item" onClick={() => navTo('/admin/schedule')} style={{ cursor: 'pointer' }}><Calendar size={18} /> <span>Schedule Management</span></div>
                     <div className="nav-item active"><CheckCircle size={18} /> <span>Attendance Monitoring</span></div>
+                    <div className="nav-item" onClick={() => navTo('/admin/live-students')} style={{ cursor: 'pointer' }}><Users size={18} /> <span>Live Students</span></div>
                     <div className="nav-item" onClick={() => navTo('/admin/wifi-logs')} style={{ cursor: 'pointer' }}><Wifi size={18} /> <span>Wi-Fi Logs</span></div>
                     <div style={{ fontSize: '0.6rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', color: '#555', padding: '10px 1rem 4px' }}><span>Analytics</span></div>
                     <div className="nav-item" onClick={() => navTo('/admin/feedback')} style={{ cursor: 'pointer' }}><MessageSquare size={18} /> <span>Feedback Analytics</span></div>
-                    <div className="nav-item" onClick={() => navTo('/admin/faculty-hours')} style={{ cursor: 'pointer' }}><Clock size={18} /> <span>Faculty Hours &amp; Honorarium</span></div>
+                    <div className="nav-item" onClick={() => navTo('/admin/faculty-hours')} style={{ cursor: 'pointer' }}><Clock size={18} /> <span>Faculty Management</span></div>
                     <div className="nav-item" onClick={() => navTo('/admin/reports')} style={{ cursor: 'pointer' }}><FileBarChart size={18} /> <span>Reports</span></div>
                     <div style={{ fontSize: '0.6rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', color: '#555', padding: '10px 1rem 4px' }}><span>System</span></div>
                     <div className="nav-item" onClick={() => navTo('/admin/notifications')} style={{ cursor: 'pointer' }}><Bell size={18} /> <span>Notifications</span></div>
@@ -119,255 +401,637 @@ export default function AdminAttendancePage() {
                         </div>
                     </header>
 
-                    {/* Session strip */}
+                    {/* Stats Row */}
+                    <div className="am-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
+                        {[
+                            { label: 'Total Sessions', value: sessions.length, icon: Calendar, color: '#2563eb', bg: '#eff6ff' },
+                            { label: 'Ongoing', value: ongoingCount, icon: Activity, color: '#16a34a', bg: '#ecfdf5' },
+                            { label: 'Students Detected', value: totalDetected, icon: Users, color: '#7c3aed', bg: '#faf5ff' },
+                            { label: 'Completed', value: sessions.filter(s => s.status === 'completed').length, icon: CheckCircle, color: '#b45309', bg: '#fffbeb' },
+                        ].map((stat, i) => (
+                            <div key={i} className="am-stat-card" style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', padding: '1rem 1.2rem', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <div className="am-stat-icon" style={{ width: '40px', height: '40px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: stat.bg, color: stat.color, flexShrink: 0 }}><stat.icon size={18} /></div>
+                                <div>
+                                    <div style={{ fontSize: '1.2rem', fontWeight: 700, color: '#111' }}>{stat.value}</div>
+                                    <div style={{ fontSize: '0.7rem', color: '#888', fontWeight: 500 }}>{stat.label}</div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Date Picker + Info Strip */}
                     <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e8e8e8', marginBottom: '1.2rem', overflow: 'hidden' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', padding: '10px 1.2rem', fontSize: '0.78rem', borderBottom: '1px solid #f0f0f0', gap: '0', overflowX: 'auto', whiteSpace: 'nowrap' }}>
-                            {[['Session','CS301-A'],['Students',String(students.length)],['Detected',`${presentCount}/${students.length}`],['Ping','3/6'],['Window','09:00–10:00']].map(([label, val], i) => (
-                                <React.Fragment key={label}>
-                                    <div style={{ display:'flex', alignItems:'center', gap:'6px', padding:'0 14px', flexShrink:0 }}>
-                                        <span style={{ color:'#999', fontWeight:500, fontSize:'0.7rem', textTransform:'uppercase' }}>{label}</span>
-                                        <span style={{ fontWeight:700, color:'#111', fontFamily:'monospace' }}>{val}</span>
+                        <div className="am-date-strip" style={{ display: 'flex', alignItems: 'center', padding: '10px 1.5rem', gap: '16px', fontSize: '0.78rem', flexWrap: 'wrap' }}>
+                            <span style={{ fontWeight: 700, color: '#111', display: 'flex', alignItems: 'center', gap: '6px' }}><Calendar size={14} /> Select Date</span>
+                            <input type="date" value={dateFilter} onChange={e => setDateFilter(e.target.value)}
+                                style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #eee', fontSize: '0.82rem', color: '#555', fontFamily: 'inherit' }} />
+                            <span style={{ color: '#bbb', fontSize: '0.72rem' }}>
+                                {new Date(dateFilter + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                            </span>
+                            <button className="am-refresh-btn" onClick={fetchSessions} style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 12px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', fontSize: '0.72rem', color: '#888' }}><RefreshCw size={11} /> Refresh</button>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', padding: '7px 1.5rem', gap: '16px', fontSize: '0.7rem', color: '#aaa', background: '#fafafa', flexWrap: 'wrap' }}>
+                            <span>Signal: <span style={{ color: '#888', fontWeight: 500 }}>{'>'} 2</span></span>
+                            <span style={{ color: '#ddd' }}>·</span>
+                            <span>Window: <span style={{ color: '#888', fontWeight: 500 }}>Start → End + 2 min</span></span>
+                            <span style={{ color: '#ddd' }}>·</span>
+                            <span>Points: <span style={{ color: '#888', fontWeight: 500 }}>1.0 max</span></span>
+                            <span style={{ color: '#ddd' }}>·</span>
+                            <span>Late: <span style={{ color: '#b45309', fontWeight: 500 }}>−0.5</span></span>
+                            <span style={{ color: '#ddd' }}>·</span>
+                            <span>{'<'}75%: <span style={{ color: '#b45309', fontWeight: 500 }}>−0.2</span></span>
+                            <span style={{ color: '#ddd' }}>·</span>
+                            <span>{'<'}50%: <span style={{ color: '#dc2626', fontWeight: 500 }}>−0.3</span></span>
+                            <span style={{ color: '#ddd' }}>·</span>
+                            <span>{'<'}30%: <span style={{ color: '#dc2626', fontWeight: 500 }}>Absent</span></span>
+                            {nextRefreshIn !== null && nextRefreshIn > 0 && (
+                                <>
+                                    <span style={{ color: '#ddd' }}>·</span>
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#16a34a' }}>
+                                        <RefreshCw size={10} style={{ animation: 'spin 2s linear infinite' }} />
+                                        Live — next refresh: <span style={{ fontWeight: 700, fontFamily: 'monospace' }}>
+                                            {Math.floor(nextRefreshIn / 60)}m {String(nextRefreshIn % 60).padStart(2, '0')}s
+                                        </span>
+                                    </span>
+                                </>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Sessions List */}
+                    <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', borderTop: '3px solid #3B2D82', overflow: 'visible', marginBottom: '1.5rem' }}>
+                        <div className="am-section-header" style={{ padding: '0.8rem 1.5rem', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.95rem', fontWeight: 700 }}>
+                                <Clock size={16} /> Classes on {new Date(dateFilter + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                <span style={{ fontSize: '0.7rem', color: '#888', fontWeight: 500 }}>({sessions.length} sessions)</span>
+                            </div>
+                        </div>
+
+                        {loading ? (
+                            <div style={{ padding: '0' }}>
+                                {[1, 2, 3].map(i => (
+                                    <div key={i} style={{ padding: '14px 1.5rem', borderBottom: '1px solid #f0f0f0', display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                        <div style={{ width: '60px', height: '12px', borderRadius: '4px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite' }} />
+                                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                            <div style={{ width: `${50 + i * 15}%`, height: '12px', borderRadius: '4px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.15}s` }} />
+                                            <div style={{ width: `${30 + i * 10}%`, height: '9px', borderRadius: '3px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.2}s` }} />
+                                        </div>
+                                        <div style={{ width: '70px', height: '22px', borderRadius: '6px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.1}s` }} />
+                                        <div style={{ width: '16px', height: '16px', borderRadius: '3px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite' }} />
                                     </div>
-                                    {i < 4 && <div style={{ width:'1px', height:'20px', background:'#e8e8e8', flexShrink:0 }} />}
-                                </React.Fragment>
-                            ))}
-                            <div style={{ display:'flex', alignItems:'center', gap:'5px', padding:'0 14px', flexShrink:0, borderLeft:'1px solid #e8e8e8' }}>
-                                <span style={{ width:'6px', height:'6px', borderRadius:'50%', background: sessionActive ? '#16a34a' : '#999', display:'inline-block' }} />
-                                <span style={{ fontWeight:600, color: sessionActive ? '#111' : '#999', fontSize:'0.78rem' }}>{sessionActive ? 'Active' : 'Inactive'}</span>
-                            </div>
-                            <div style={{ marginLeft:'auto', padding:'0 14px', flexShrink:0 }}>
-                                <span style={{ fontWeight:700, color:'#111', fontFamily:'monospace', fontSize:'0.82rem' }}>{pad(timer.min)}:{pad(timer.sec)}</span>
-                                <span style={{ color:'#bbb', fontSize:'0.68rem', marginLeft:'4px' }}>next ping</span>
-                            </div>
-                            <div style={{ paddingRight:'14px', flexShrink:0 }}>
-                                <button onClick={() => { if (!sessionActive) { setShowAuthModal(true); setAuthState('idle'); } }} disabled={sessionActive}
-                                    style={{ display:'flex', alignItems:'center', gap:'5px', padding:'5px 14px', borderRadius:'6px', border: `1px solid ${sessionActive ? '#e8e8e8' : '#111'}`, background: sessionActive ? '#fafafa' : '#111', color: sessionActive ? '#999' : '#fff', fontSize:'0.72rem', fontWeight:600, cursor: sessionActive ? 'not-allowed' : 'pointer' }}>
-                                    {sessionActive ? <><CheckCircle size={11}/> Live Tracking Enabled</> : <><Shield size={11}/> Start Attendance</>}
-                                </button>
-                            </div>
-                        </div>
-                        <div style={{ display:'flex', alignItems:'center', padding:'7px 1.5rem', gap:'16px', fontSize:'0.7rem', color:'#aaa', background:'#fafafa' }}>
-                            <span>BSSID <span style={{ fontFamily:'monospace', color:'#888' }}>C4:E9:84:A2:3F:01</span></span>
-                            <span style={{ color:'#ddd' }}>·</span>
-                            <span>Venue <span style={{ color:'#888', fontWeight:500 }}>Room 204, Block A</span></span>
-                            <span style={{ color:'#ddd' }}>·</span>
-                            <span>Rule <span style={{ color:'#888', fontWeight:500 }}>≥ 3 pings = Present</span></span>
-                            <span style={{ color:'#ddd' }}>·</span>
-                            <span>Faculty <span style={{ color:'#888', fontWeight:500 }}>Prof. Anuj Grover</span></span>
-                            <button style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:'4px', padding:'3px 8px', borderRadius:'6px', border:'1px solid #e8e8e8', background:'#fff', cursor:'pointer', fontSize:'0.68rem', color:'#888' }}><RefreshCw size={10}/> Refresh</button>
-                        </div>
-                    </div>
-
-                    {/* Live Detection Progress Chart */}
-                    <div style={{ background:'#fff', borderRadius:'12px', border:'1px solid #e8e8e8', borderTop:'3px solid #00A5A0', overflow:'hidden', marginBottom:'1.5rem' }}>
-                        <div style={{ padding:'0.8rem 1.5rem', borderBottom:'1px solid #f0f0f0', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                            <div style={{ display:'flex', alignItems:'center', gap:'8px', fontSize:'0.95rem', fontWeight:700 }}><Activity size={16}/> Live Detection Progress — CS301-A</div>
-                            <div style={{ display:'flex', alignItems:'center', gap:'20px', fontSize:'0.72rem' }}>
-                                <span style={{ display:'flex', alignItems:'center', gap:'5px' }}><span style={{ width:'16px', height:'2px', background:'#111', display:'inline-block' }} /> Per-interval</span>
-                                <span style={{ display:'flex', alignItems:'center', gap:'5px' }}><span style={{ width:'16px', height:'2px', background:'#00A5A0', display:'inline-block' }} /> Cumulative unique</span>
-                                <span style={{ display:'flex', alignItems:'center', gap:'5px' }}><span style={{ width:'16px', height:'2px', background:'#ccc', display:'inline-block', borderTop:'1px dashed #aaa' }} /> Threshold (≥3)</span>
-                            </div>
-                        </div>
-                        <div style={{ padding:'1rem 1.5rem' }}>
-                            {(() => {
-                                const W = 700, H = 260;
-                                const pad2 = { top: 30, right: 40, bottom: 40, left: 50 };
-                                const cW = W - pad2.left - pad2.right, cH = H - pad2.top - pad2.bottom;
-                                const intervals = ['0 min', '10 min', '20 min', '30 min', '40 min', '50 min', '60 min'];
-                                const perInterval = [0, 4, 4, 6, 5, 6, 0];
-                                const cumUnique = [0, 4, 5, 6, 5, 6, 0];
-                                const maxY = 8;
-                                const xStep = cW / (intervals.length - 1);
-                                const yScale = v => pad2.top + cH - (v / maxY) * cH;
-                                const makePath = data => data.map((v, i) => `${i === 0 ? 'M' : 'L'}${pad2.left + i * xStep},${yScale(v)}`).join(' ');
-                                const thresholdY = yScale(3);
-                                return (
-                                    <svg viewBox={`0 0 ${W} ${H}`} style={{ width:'100%', height:'auto', display:'block' }}>
-                                        {/* Y grid lines and labels */}
-                                        {Array.from({ length: 9 }, (_, i) => {
-                                            const y = yScale(i);
-                                            return <g key={i}><line x1={pad2.left} y1={y} x2={W - pad2.right} y2={y} stroke="#f0f0f0" strokeWidth="1" /><text x={pad2.left - 10} y={y + 4} textAnchor="end" fontSize="10" fill="#bbb">{i}</text></g>;
-                                        })}
-                                        {/* X labels */}
-                                        {intervals.map((label, i) => <text key={i} x={pad2.left + i * xStep} y={H - 10} textAnchor="middle" fontSize="10" fill="#bbb">{label}</text>)}
-                                        {/* Threshold dashed line */}
-                                        <line x1={pad2.left} y1={thresholdY} x2={W - pad2.right} y2={thresholdY} stroke="#ccc" strokeWidth="1" strokeDasharray="6 4" />
-                                        <text x={W - pad2.right + 5} y={thresholdY + 4} fontSize="9" fill="#bbb">≥3</text>
-                                        {/* All students line */}
-                                        <line x1={pad2.left} y1={yScale(7)} x2={W - pad2.right} y2={yScale(7)} stroke="#e8e8e8" strokeWidth="1" strokeDasharray="3 3" />
-                                        <text x={W - pad2.right + 5} y={yScale(7) + 4} fontSize="9" fill="#ccc">All (7)</text>
-                                        {/* Per-interval line (black) */}
-                                        <path d={makePath(perInterval)} fill="none" stroke="#111" strokeWidth="2" strokeLinejoin="round" />
-                                        {perInterval.map((v, i) => <g key={i}><circle cx={pad2.left + i * xStep} cy={yScale(v)} r="4" fill="#fff" stroke="#111" strokeWidth="2" />{v > 0 && <text x={pad2.left + i * xStep} y={yScale(v) - 10} textAnchor="middle" fontSize="10" fill="#111" fontWeight="600">{v}</text>}</g>)}
-                                        {/* Cumulative unique line (teal) */}
-                                        <path d={makePath(cumUnique)} fill="none" stroke="#00A5A0" strokeWidth="2" strokeLinejoin="round" />
-                                        {cumUnique.map((v, i) => <g key={i}><circle cx={pad2.left + i * xStep} cy={yScale(v)} r="4" fill="#fff" stroke="#00A5A0" strokeWidth="2" />{v > 0 && <text x={pad2.left + i * xStep} y={yScale(v) - 10} textAnchor="middle" fontSize="10" fill="#00A5A0" fontWeight="600">{v}</text>}</g>)}
-                                    </svg>
-                                );
-                            })()}
-                        </div>
-                        <div style={{ display:'flex', alignItems:'center', padding:'8px 1.5rem', gap:'24px', fontSize:'0.72rem', color:'#888', background:'#fafafa', borderTop:'1px solid #f0f0f0' }}>
-                            <span style={{ display:'flex', alignItems:'center', gap:'5px' }}><span style={{ width:'6px', height:'6px', borderRadius:'50%', background:'#16a34a', display:'inline-block' }} /> Session active · Ping 3 of 5 completed</span>
-                            <span>Detection window: 09:00 AM — 10:00 AM · 10 min intervals</span>
-                            <span style={{ marginLeft:'auto', color:'#bbb' }}>Final status computed after session ends</span>
-                        </div>
-                    </div>
-
-                    {/* Attendance table + Summary */}
-                    <div style={{ display:'grid', gridTemplateColumns:'1fr 280px', gap:'1.2rem', marginBottom:'1.5rem' }}>
-                        <div style={{ background:'#fff', borderRadius:'10px', border:'1px solid #e8e8e8', overflow:'hidden' }}>
-                            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 1.5rem', borderBottom:'1px solid #f0f0f0' }}>
-                                <div style={{ fontSize:'0.9rem', fontWeight:700, display:'flex', alignItems:'center', gap:'8px' }}><Activity size={14}/> Attendance Snapshot</div>
-                                <button style={{ display:'flex', alignItems:'center', gap:'5px', padding:'4px 10px', borderRadius:'6px', border:'1px solid #e8e8e8', background:'#fff', cursor:'pointer', fontSize:'0.72rem', color:'#888' }}><Download size={11}/> Export</button>
-                            </div>
-                            <div style={{ display:'flex', gap:'8px', padding:'6px 1.5rem', borderBottom:'1px solid #f0f0f0', alignItems:'center' }}>
-                                <span style={{ fontSize:'0.68rem', color:'#aaa' }}>Filter MAC:</span>
-                                {['all','registered','not-registered'].map(f => (
-                                    <button key={f} onClick={() => setMacFilter(f)} style={{ padding:'2px 8px', borderRadius:'4px', fontSize:'0.68rem', fontWeight:600, border:`1px solid ${macFilter===f?'#111':'#e8e8e8'}`, background:macFilter===f?'#111':'#fff', color:macFilter===f?'#fff':'#888', cursor:'pointer' }}>
-                                        {f === 'not-registered' ? 'Not Registered' : f === 'all' ? 'All' : 'Registered'}
-                                    </button>
                                 ))}
-                                <span style={{ fontSize:'0.68rem', color:'#bbb', marginLeft:'auto' }}>{filtered.length} students</span>
                             </div>
-                            <div style={{ overflowX:'auto' }}>
-                                <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.82rem' }}>
+                        ) : sessions.length === 0 ? (
+                            <div style={{ padding: '3rem', textAlign: 'center', color: '#aaa' }}>
+                                <Calendar size={24} color="#ddd" />
+                                <div style={{ fontSize: '0.85rem', fontWeight: 600, marginTop: '8px' }}>No classes scheduled for this date</div>
+                            </div>
+                        ) : sessions.map((session, idx) => {
+                            const ss = getSessionStatusStyle(session.status);
+                            const isExpanded = expandedSession === session.id;
+                            return (
+                                <div key={session.id}>
+                                    <div onClick={() => fetchSessionStudents(session.id)}
+                                        style={{ display: 'flex', alignItems: 'center', padding: '12px 1.5rem', gap: '16px', borderBottom: '1px solid #f5f5f5', cursor: 'pointer', background: isExpanded ? '#fafafa' : 'transparent', transition: 'background 0.2s' }}
+                                        className="attendance-row am-session-row">
+                                        {/* Time */}
+                                        <div className="am-session-time" style={{ minWidth: '120px', flexShrink: 0 }}>
+                                            <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#111', fontFamily: 'monospace' }}>{formatTime(session.startTime)} – {formatTime(session.endTime)}</div>
+                                            <div style={{ fontSize: '0.68rem', color: '#bbb' }}>{session.venueName}{session.venueBuilding ? `, ${session.venueBuilding}` : ''}</div>
+                                        </div>
+
+                                        {/* Course */}
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#111' }}>{session.courseName || session.title}</div>
+                                            <div style={{ fontSize: '0.7rem', color: '#888' }}>{session.facultyName ? `Prof. ${session.facultyName}` : session.title}</div>
+                                        </div>
+
+                                        {/* Detected students */}
+                                        <div className="am-session-detected" style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: '90px' }}>
+                                            <Users size={13} color="#888" />
+                                            <span style={{ fontWeight: 600, fontFamily: 'monospace', fontSize: '0.82rem', color: '#111' }}>{session.detectedStudents || 0} detected</span>
+                                        </div>
+
+
+                                        {/* Status */}
+                                        <div className="am-session-status" style={{ minWidth: '90px' }}>
+                                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '3px 10px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600, background: ss.bg, color: ss.color }}>
+                                                <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: ss.dot }} /> {session.status.charAt(0).toUpperCase() + session.status.slice(1)}
+                                            </span>
+                                        </div>
+
+                                        {/* Expand */}
+                                        <div style={{ flexShrink: 0 }}>
+                                            {isExpanded ? <ChevronUp size={16} color="#888" /> : <ChevronDown size={16} color="#bbb" />}
+                                        </div>
+                                    </div>
+
+                                    {/* Expanded: Student Detail Table */}
+                                    {isExpanded && (
+                                        <div style={{ background: '#fafafa', borderBottom: '2px solid #e8e8e8' }}>
+                                            {/* Live indicator for ongoing sessions */}
+                                            {session.status === 'ongoing' && !studentsLoading && sessionStudents && (
+                                                <div className="am-live-strip" style={{
+                                                    display: 'flex', alignItems: 'center', padding: '8px 1.5rem', gap: '14px',
+                                                    fontSize: '0.72rem', background: '#ecfdf5', borderBottom: '1px solid #bbf7d0', flexWrap: 'wrap',
+                                                }}>
+                                                    <span style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#166534', fontWeight: 700 }}>
+                                                        <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#16a34a', display: 'inline-block', animation: 'pulse 2s infinite' }} />
+                                                        Live Attendance
+                                                    </span>
+                                                    <span style={{ color: '#86efac' }}>·</span>
+                                                    <span style={{ color: '#166534', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                        <RefreshCw size={10} style={{ animation: nextRefreshIn > 0 ? 'none' : 'spin 1s linear infinite' }} />
+                                                        Next update: <span style={{ fontWeight: 700, fontFamily: 'monospace' }}>
+                                                            {nextRefreshIn !== null && nextRefreshIn > 0
+                                                                ? `${Math.floor(nextRefreshIn / 60)}m ${String(nextRefreshIn % 60).padStart(2, '0')}s`
+                                                                : 'now'}
+                                                        </span>
+                                                    </span>
+                                                    {sessionStudents.lastSnapshot && (
+                                                        <>
+                                                            <span style={{ color: '#86efac' }}>·</span>
+                                                            <span style={{ color: '#15803d' }}>
+                                                                Last snapshot: <span style={{ fontWeight: 600 }}>
+                                                                    {new Date(sessionStudents.lastSnapshot).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' })}
+                                                                </span>
+                                                            </span>
+                                                        </>
+                                                    )}
+                                                    <button onClick={(e) => { e.stopPropagation(); refreshSessionStudents(session.id); }}
+                                                        style={{
+                                                            marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '4px',
+                                                            padding: '4px 10px', borderRadius: '6px', border: '1px solid #bbf7d0',
+                                                            background: '#fff', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 600, color: '#166534',
+                                                        }}>
+                                                        <RefreshCw size={10} /> Refresh Now
+                                                    </button>
+                                                </div>
+                                            )}
+                                            {studentsLoading ? (
+                                                <div style={{ padding: '0' }}>
+                                                    {/* Skeleton summary strip */}
+                                                    <div style={{ display: 'flex', gap: '20px', padding: '10px 1.5rem', borderBottom: '1px solid #e8e8e8' }}>
+                                                        {[1, 2, 3, 4].map(i => (
+                                                            <div key={i} style={{ width: '80px', height: '12px', borderRadius: '4px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.1}s` }} />
+                                                        ))}
+                                                    </div>
+                                                    {/* Skeleton table header */}
+                                                    <div style={{ padding: '8px 1.5rem', background: '#f0f0f0', display: 'flex', gap: '14px' }}>
+                                                        {[100, 70, 50, 60, 60, 50, 40, 50, 60, 60].map((w, i) => (
+                                                            <div key={i} style={{ width: `${w}px`, height: '9px', borderRadius: '3px', background: '#e8e8e8', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.05}s` }} />
+                                                        ))}
+                                                    </div>
+                                                    {/* Skeleton rows */}
+                                                    {[1, 2, 3, 4, 5, 6].map(i => (
+                                                        <div key={i} style={{ padding: '12px 1.5rem', borderBottom: '1px solid #f0f0f0', display: 'flex', alignItems: 'center', gap: '14px' }}>
+                                                            <div style={{ width: '100px', height: '12px', borderRadius: '4px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.08}s` }} />
+                                                            <div style={{ width: '70px', height: '10px', borderRadius: '3px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.1}s` }} />
+                                                            <div style={{ width: '40px', height: '16px', borderRadius: '3px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.12}s` }} />
+                                                            <div style={{ width: '45px', height: '10px', borderRadius: '3px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.14}s` }} />
+                                                            <div style={{ width: '45px', height: '10px', borderRadius: '3px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.16}s` }} />
+                                                            <div style={{ width: '50px', height: '10px', borderRadius: '3px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.18}s` }} />
+                                                            <div style={{ width: '25px', height: '10px', borderRadius: '3px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.2}s` }} />
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                                <div style={{ width: '36px', height: '6px', borderRadius: '3px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.22}s` }} />
+                                                                <div style={{ width: '20px', height: '10px', borderRadius: '3px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.24}s` }} />
+                                                            </div>
+                                                            <div style={{ width: '60px', height: '22px', borderRadius: '6px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.26}s` }} />
+                                                            <div style={{ display: 'flex', gap: '4px' }}>
+                                                                <div style={{ width: '50px', height: '20px', borderRadius: '4px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.28}s` }} />
+                                                                <div style={{ width: '50px', height: '20px', borderRadius: '4px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.3}s` }} />
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            ) : !sessionStudents ? (
+                                                <div style={{ padding: '2rem', textAlign: 'center', color: '#aaa', fontSize: '0.82rem' }}>No data available</div>
+                                            ) : (
+                                                <>
+                                                    {/* Summary strip */}
+                                                    <div style={{ display: 'flex', gap: '20px', padding: '10px 1.5rem', borderBottom: '1px solid #e8e8e8', fontSize: '0.72rem', flexWrap: 'wrap' }}>
+                                                        {[
+                                                            ['Present', sessionStudents.summary?.present || 0, '#16a34a'],
+                                                            ['Partial', sessionStudents.summary?.partial || 0, '#b45309'],
+                                                            ['Absent', sessionStudents.summary?.absent || 0, '#dc2626'],
+                                                        ].map(([label, val, color]) => (
+                                                            <span key={label} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                                                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: color, display: 'inline-block' }} />
+                                                                <span style={{ color: '#888' }}>{label}:</span>
+                                                                <span style={{ fontWeight: 700, color, fontFamily: 'monospace' }}>{val}</span>
+                                                            </span>
+                                                        ))}
+                                                        <span style={{ color: '#ddd' }}>·</span>
+                                                        <span style={{ color: '#888' }}>Snapshots: <span style={{ fontWeight: 700, color: '#555', fontFamily: 'monospace' }}>{sessionStudents.summary?.snapshotsAnalyzed || 0}</span></span>
+                                                        <span style={{ color: '#ddd' }}>·</span>
+                                                        <span style={{ color: '#888' }}>Enrolled: <span style={{ fontWeight: 700, color: '#555', fontFamily: 'monospace' }}>{sessionStudents.summary?.enrolled || sessionStudents.summary?.total || 0}</span></span>
+                                                    </div>
+
+                                                    {/* Student table */}
+                                                    <div style={{ overflowX: 'auto' }}>
+                                                        <table className="am-student-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+                                                            <thead>
+                                                                <tr style={{ background: '#f0f0f0' }}>
+                                                                    {[{l:'Student'},{l:'Enrollment',c:'am-col-enrollment'},{l:'Signal',c:'am-col-signal'},{l:'First Seen',c:'am-col-first'},{l:'Last Seen',c:'am-col-last'},{l:'Duration',c:'am-col-duration'},{l:'Pings',c:'am-col-pings'},{l:'Points'},{l:'Status'},{l:'Actions'}].map(h => (
+                                                                        <th key={h.l} className={h.c||''} style={{ padding: '8px 14px', textAlign: 'left', fontSize: '0.68rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#888', borderBottom: '1px solid #e0e0e0' }}>{h.l}</th>
+                                                                    ))}
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {(sessionStudents.students || []).map((s, i) => {
+                                                                    const st = getStatusStyle(s.status);
+                                                                    return (
+                                                                        <React.Fragment key={i}>
+                                                                        <tr onClick={() => setExpandedStudent(expandedStudent === s.studentId ? null : s.studentId)} style={{ borderBottom: '1px solid #f0f0f0', background: expandedStudent === s.studentId ? '#f0f7ff' : s.penalty ? '#fef2f2' : s.adminOverride ? '#fffbeb' : s.status === 'absent' ? '#fefefe' : '#fff', cursor: 'pointer', transition: 'background 0.15s' }}>
+                                                                            <td style={{ padding: '9px 14px' }}>
+                                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                                    <span style={{ fontWeight: 600, color: s.status === 'absent' ? '#aaa' : '#111' }}>{s.name}</span>
+                                                                                    {s.penalty && (
+                                                                                        <span style={{ padding: '1px 6px', borderRadius: '4px', fontSize: '0.58rem', fontWeight: 700, background: '#fecaca', color: '#991b1b' }}>PENALTY</span>
+                                                                                    )}
+                                                                                    {s.adminOverride && !s.penalty && (
+                                                                                        <span style={{ padding: '1px 6px', borderRadius: '4px', fontSize: '0.58rem', fontWeight: 700, background: '#fef3c7', color: '#92400e' }}>ADMIN</span>
+                                                                                    )}
+                                                                                </div>
+                                                                            </td>
+                                                                            <td className="am-col-enrollment" style={{ padding: '9px 14px', fontFamily: 'monospace', fontSize: '0.76rem', color: '#555' }}>{s.enrollmentNo}</td>
+                                                                            <td className="am-col-signal" style={{ padding: '9px 14px' }}>
+                                                                                {s.signal > 0 ? (
+                                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                                        <SignalBars level={s.signal} />
+                                                                                        <span style={{ fontFamily: 'monospace', fontSize: '0.75rem', fontWeight: 600, color: s.signal >= 4 ? '#16a34a' : s.signal >= 3 ? '#b45309' : '#dc2626' }}>{s.signal}</span>
+                                                                                        {s.avgSignal > 0 && (
+                                                                                            <span style={{ fontSize: '0.62rem', color: '#bbb' }}>avg {s.avgSignal}</span>
+                                                                                        )}
+                                                                                    </div>
+                                                                                ) : (
+                                                                                    <span style={{ color: '#ccc', fontSize: '0.75rem' }}>—</span>
+                                                                                )}
+                                                                            </td>
+                                                                            <td className="am-col-first" style={{ padding: '9px 14px', fontFamily: 'monospace', fontSize: '0.76rem', color: '#888' }}>
+                                                                                {s.firstSeen ? new Date(s.firstSeen).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' }) : '—'}
+                                                                            </td>
+                                                                            <td className="am-col-last" style={{ padding: '9px 14px', fontFamily: 'monospace', fontSize: '0.76rem', color: '#888' }}>
+                                                                                {s.lastSeen ? new Date(s.lastSeen).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' }) : '—'}
+                                                                            </td>
+                                                                            <td className="am-col-duration" style={{ padding: '9px 14px' }}>
+                                                                                <span style={{ fontWeight: 600, fontFamily: 'monospace', fontSize: '0.78rem', color: s.durationMinutes > 0 ? '#555' : '#ccc' }}>
+                                                                                    {s.durationMinutes > 0 ? `${s.durationMinutes} min` : '—'}
+                                                                                </span>
+                                                                            </td>
+                                                                            <td className="am-col-pings" style={{ padding: '9px 14px', fontFamily: 'monospace', fontSize: '0.78rem', color: '#888' }}>{s.pingCount || 0}<span style={{ color: '#ccc' }}>/{sessionStudents?.summary?.snapshotsAnalyzed || '?'}</span></td>
+                                                                            <td style={{ padding: '9px 14px' }} title={s.pointsBreakdown?.reason || ''}>
+                                                                                {s.points !== undefined ? (
+                                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                                        <div style={{
+                                                                                            width: '36px', height: '6px', borderRadius: '3px', background: '#f0f0f0', overflow: 'hidden',
+                                                                                        }}>
+                                                                                            <div style={{
+                                                                                                width: `${(s.points || 0) * 100}%`, height: '100%', borderRadius: '3px',
+                                                                                                background: s.points >= 0.8 ? '#16a34a' : s.points >= 0.5 ? '#b45309' : s.points > 0 ? '#dc2626' : '#e5e5e5',
+                                                                                            }} />
+                                                                                        </div>
+                                                                                        <span style={{
+                                                                                            fontWeight: 700, fontFamily: 'monospace', fontSize: '0.78rem',
+                                                                                            color: s.points >= 0.8 ? '#16a34a' : s.points >= 0.5 ? '#b45309' : s.points > 0 ? '#dc2626' : '#ccc',
+                                                                                        }}>{s.points.toFixed(1)}</span>
+                                                                                    </div>
+                                                                                ) : (
+                                                                                    <span style={{ color: '#ccc', fontSize: '0.75rem' }}>—</span>
+                                                                                )}
+                                                                            </td>
+                                                                            <td style={{ padding: '9px 14px' }}>
+                                                                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 10px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600, background: st.bg, color: st.color }}>
+                                                                                    {st.icon} {st.label}
+                                                                                </span>
+                                                                            </td>
+                                                                            <td style={{ padding: '9px 14px' }}>
+                                                                                {overrideLoading === s.studentId ? (
+                                                                                    <span style={{ fontSize: '0.7rem', color: '#aaa' }}>Saving...</span>
+                                                                                ) : s.penalty ? (
+                                                                                    <span style={{ fontSize: '0.65rem', color: '#991b1b', fontWeight: 600 }} title={s.penaltyReason}>⛔ Penalized</span>
+                                                                                ) : (
+                                                                                    <div style={{ display: 'flex', gap: '4px' }}>
+                                                                                        <button
+                                                                                            onClick={(e) => { e.stopPropagation(); handleOverride(expandedSession, s.studentId, 'present'); }}
+                                                                                            disabled={s.adminOverride && s.status === 'present'}
+                                                                                            style={{
+                                                                                                padding: '3px 8px', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 600, cursor: 'pointer',
+                                                                                                border: '1px solid #bbf7d0', background: s.adminOverride && s.status === 'present' ? '#dcfce7' : '#fff',
+                                                                                                color: '#166534', opacity: s.adminOverride && s.status === 'present' ? 0.6 : 1,
+                                                                                            }}
+                                                                                        >✓ Present</button>
+                                                                                        <button
+                                                                                            onClick={(e) => {
+                                                                                                e.stopPropagation();
+                                                                                                setConfirmOverride({ studentId: s.studentId, studentName: s.name, action: 'absent', sessionId: expandedSession });
+                                                                                            }}
+                                                                                            style={{
+                                                                                                padding: '3px 8px', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 600, cursor: 'pointer',
+                                                                                                border: '1px solid #fecaca', background: '#fff', color: '#991b1b',
+                                                                                            }}
+                                                                                        >✗ Absent</button>
+                                                                                    </div>
+                                                                                )}
+                                                                            </td>
+                                                                        </tr>
+                                                                        {/* Presence Timeline Graph */}
+                                                                        {expandedStudent === s.studentId && (
+                                                                            <tr>
+                                                                                <td colSpan={10} style={{ padding: 0, background: '#f9fafb', borderBottom: '2px solid #e0e0e0' }}>
+                                                                                    <PresenceTimeline
+                                                                                        student={s}
+                                                                                        session={sessionStudents.session}
+                                                                                        snapshotTimestamps={sessionStudents.snapshotTimestamps || []}
+                                                                                    />
+                                                                                </td>
+                                                                            </tr>
+                                                                        )}
+                                                                        </React.Fragment>
+                                                                    );
+                                                                })}
+                                                            </tbody>
+                                                        </table>
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* ── MAC Address Approvals ── */}
+                    <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', borderTop: '3px solid #E91E87', overflow: 'hidden', marginBottom: '1.5rem' }}>
+                        <div className="am-mac-header" style={{ padding: '0.8rem 1.5rem', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.95rem', fontWeight: 700 }}>
+                                <Smartphone size={16} />
+                                Pending MAC Address Approvals
+                                {macPending.length > 0 && (
+                                    <span style={{
+                                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                        minWidth: '20px', height: '20px', borderRadius: '10px',
+                                        background: '#E91E87', color: '#fff',
+                                        fontSize: '0.65rem', fontWeight: 700, padding: '0 5px'
+                                    }}>
+                                        {macPending.length}
+                                    </span>
+                                )}
+                            </div>
+                            <button
+                                onClick={fetchMacApprovals}
+                                style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 12px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', fontSize: '0.72rem', color: '#888' }}
+                            >
+                                <RefreshCw size={11} /> Refresh
+                            </button>
+                        </div>
+
+                        {macLoading ? (
+                            <div style={{ padding: '2.5rem', textAlign: 'center', color: '#aaa' }}>
+                                <Activity size={22} color="#ddd" />
+                                <div style={{ fontSize: '0.82rem', marginTop: '8px' }}>Loading pending requests...</div>
+                            </div>
+                        ) : macPending.length === 0 ? (
+                            <div style={{ padding: '2.5rem', textAlign: 'center', color: '#aaa' }}>
+                                <ShieldCheck size={28} color="#d1fae5" />
+                                <div style={{ fontSize: '0.85rem', fontWeight: 600, marginTop: '8px', color: '#16a34a' }}>All clear — no pending MAC approvals</div>
+                                <div style={{ fontSize: '0.72rem', color: '#bbb', marginTop: '4px' }}>Student device registrations are up to date.</div>
+                            </div>
+                        ) : (
+                            <div style={{ overflowX: 'auto' }}>
+                                <table className="am-mac-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
                                     <thead>
-                                        <tr style={{ background:'#fafafa' }}>
-                                            {['Student','Roll No','Pings','MAC Address','Last Seen','Status',''].map(h => (
-                                                <th key={h} style={{ padding:'8px 16px', textAlign:'left', fontSize:'0.68rem', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.5px', color:'#aaa', borderBottom:'1px solid #f0f0f0' }}>{h}</th>
+                                        <tr style={{ background: '#fafafa' }}>
+                                            {[{l:'Student'},{l:'Enrollment No.',c:'am-mac-col-enroll'},{l:'Email',c:'am-mac-col-email'},{l:'Pending MAC Address'},{l:'Actions'}].map(h => (
+                                                <th key={h.l} className={h.c||''} style={{ padding: '10px 16px', textAlign: 'left', fontSize: '0.68rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#aaa', borderBottom: '1px solid #f0f0f0' }}>{h.l}</th>
                                             ))}
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {filtered.map((s,i) => (
-                                            <tr key={i} className="attendance-row" style={{ borderBottom:'1px solid #f5f5f5' }}>
-                                                <td style={{ padding:'9px 16px', fontWeight:600, color:'#111' }}>{s.name}</td>
-                                                <td style={{ padding:'9px 16px', fontFamily:'monospace', fontSize:'0.78rem', color:'#555' }}>{s.rollNo}</td>
-                                                <td style={{ padding:'9px 16px' }}>
-                                                    <span style={{ fontWeight:600, fontFamily:'monospace', color: s.pings>=3?'#111':s.pings>=1?'#b45309':'#dc2626' }}>{s.pings}/5</span>
-                                                </td>
-                                                <td style={{ padding:'9px 16px' }}>
-                                                    {s.mac ? <span style={{ fontFamily:'monospace', fontSize:'0.75rem', color:'#999' }}>{s.mac}</span> : <span style={{ fontSize:'0.75rem', color:'#ccc', fontStyle:'italic' }}>Not Registered</span>}
-                                                </td>
-                                                <td style={{ padding:'9px 16px', fontFamily:'monospace', fontSize:'0.78rem', color:'#888' }}>{s.lastSeen}</td>
-                                                <td style={{ padding:'9px 16px' }}>
-                                                    <span style={{ display:'inline-flex', alignItems:'center', gap:'5px', padding:'2px 10px', borderRadius:'6px', fontSize:'0.75rem', fontWeight:500, background: s.status==='Present'?'#ecfdf5':'#fef2f2', color: s.status==='Present'?'#166534':'#991b1b' }}>
-                                                        <span style={{ width:'5px', height:'5px', borderRadius:'50%', background: s.status==='Present'?'#16a34a':'#dc2626' }} />{s.status}
-                                                    </span>
-                                                </td>
-                                                <td style={{ padding:'9px 16px' }}>
-                                                    <button className="change-status-btn" style={{ padding:'3px 8px', borderRadius:'6px', border:'1px solid #e8e8e8', background:'#fff', cursor:'pointer', fontSize:'0.7rem', color:'#999' }}>Override</button>
-                                                </td>
-                                            </tr>
-                                        ))}
+                                        {macPending.map(student => {
+                                            const isActioning = macActioning === student.id;
+                                            return (
+                                                <tr key={student.id} className="attendance-row" style={{ borderBottom: '1px solid #f5f5f5' }}>
+                                                    <td style={{ padding: '11px 16px', fontWeight: 600, color: '#111' }}>{student.name}</td>
+                                                    <td className="am-mac-col-enroll" style={{ padding: '11px 16px', fontFamily: 'monospace', fontSize: '0.78rem', color: '#555' }}>{student.enrollment_no || '—'}</td>
+                                                    <td className="am-mac-col-email" style={{ padding: '11px 16px', fontSize: '0.76rem', color: '#888' }}>{student.email}</td>
+                                                    <td style={{ padding: '11px 16px' }}>
+                                                        <code style={{
+                                                            padding: '4px 10px', background: '#fef9c3',
+                                                            border: '1px solid #fde047', borderRadius: '6px',
+                                                            fontFamily: 'monospace', fontSize: '0.82rem',
+                                                            fontWeight: 700, color: '#713f12', letterSpacing: '0.5px'
+                                                        }}>
+                                                            {student.mac_address}
+                                                        </code>
+                                                    </td>
+                                                    <td style={{ padding: '11px 16px' }}>
+                                                        <div style={{ display: 'flex', gap: '8px' }}>
+                                                            <button
+                                                                disabled={isActioning}
+                                                                onClick={() => handleMacAction(student.id, 'approve')}
+                                                                style={{
+                                                                    display: 'flex', alignItems: 'center', gap: '5px',
+                                                                    padding: '5px 14px', borderRadius: '7px', border: 'none',
+                                                                    background: isActioning ? '#e5e7eb' : '#ecfdf5',
+                                                                    color: isActioning ? '#aaa' : '#166534',
+                                                                    cursor: isActioning ? 'not-allowed' : 'pointer',
+                                                                    fontSize: '0.75rem', fontWeight: 700,
+                                                                    transition: 'all 0.15s',
+                                                                }}
+                                                            >
+                                                                <ShieldCheck size={13} />
+                                                                {isActioning ? 'Processing...' : 'Approve'}
+                                                            </button>
+                                                            <button
+                                                                disabled={isActioning}
+                                                                onClick={() => handleMacAction(student.id, 'reject')}
+                                                                style={{
+                                                                    display: 'flex', alignItems: 'center', gap: '5px',
+                                                                    padding: '5px 14px', borderRadius: '7px', border: 'none',
+                                                                    background: isActioning ? '#e5e7eb' : '#fef2f2',
+                                                                    color: isActioning ? '#aaa' : '#991b1b',
+                                                                    cursor: isActioning ? 'not-allowed' : 'pointer',
+                                                                    fontSize: '0.75rem', fontWeight: 700,
+                                                                    transition: 'all 0.15s',
+                                                                }}
+                                                            >
+                                                                <ShieldX size={13} />
+                                                                {isActioning ? 'Processing...' : 'Reject'}
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
                             </div>
-                        </div>
-
-                        <div style={{ display:'flex', flexDirection:'column', gap:'1rem' }}>
-                            <div style={{ background:'#fff', borderRadius:'10px', border:'1px solid #e8e8e8', padding:'1.2rem' }}>
-                                <div style={{ fontSize:'0.72rem', fontWeight:600, color:'#aaa', textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:'12px' }}>Detection Summary</div>
-                                {[['Present', presentCount, '#16a34a'],['Absent', absentCount, '#dc2626']].map(([label, count, color]) => (
-                                    <div key={label} style={{ marginBottom:'10px' }}>
-                                        <div style={{ display:'flex', justifyContent:'space-between', marginBottom:'4px', fontSize:'0.8rem' }}>
-                                            <span style={{ color:'#777' }}>{label}</span>
-                                            <span style={{ fontWeight:700, fontFamily:'monospace', color:'#111' }}>{count} <span style={{ fontSize:'0.68rem', color:'#aaa' }}>({Math.round(count/students.length*100)}%)</span></span>
-                                        </div>
-                                        <div style={{ width:'100%', height:'4px', background:'#e5e7eb', borderRadius:'2px', overflow:'hidden' }}>
-                                            <div style={{ width:`${count/students.length*100}%`, height:'100%', background:color, borderRadius:'2px' }} />
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                            <div style={{ background:'#fff', borderRadius:'10px', border:'1px solid #e8e8e8', padding:'1.2rem', flex:1 }}>
-                                <div style={{ fontSize:'0.72rem', fontWeight:600, color:'#aaa', textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:'12px' }}>System Config</div>
-                                {[['Detection Rule','≥ 3 pings'],['Ping Interval','10 min'],['Total Pings','6 per session'],['Window','60 min'],['BSSID Verified','Yes']].map(([label, val], i) => (
-                                    <div key={label} style={{ display:'flex', justifyContent:'space-between', padding:'4px 0', borderBottom: i<4?'1px solid #f5f5f5':'none', fontSize:'0.78rem' }}>
-                                        <span style={{ color:'#888' }}>{label}</span>
-                                        <span style={{ fontWeight:600, color:'#333', fontFamily:'monospace', fontSize:'0.76rem' }}>{val}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
+                        )}
                     </div>
 
-                    {/* Raw Logs */}
-                    <div style={{ background:'#fff', borderRadius:'12px', border:'1px solid #e8e8e8', borderTop:'3px solid #3B2D82', overflow:'hidden' }}>
-                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'1rem 1.5rem', borderBottom:'1px solid #f0f0f0', flexWrap:'wrap', gap:'10px' }}>
-                            <div style={{ display:'flex', alignItems:'center', gap:'8px', fontSize:'1rem', fontWeight:700 }}><Wifi size={16}/> Raw Wi-Fi Ping Logs</div>
-                            <div style={{ display:'flex', gap:'8px' }}>
-                                <select value={sessionFilter} onChange={e=>setSessionFilter(e.target.value)} style={{ padding:'6px 10px', borderRadius:'8px', border:'1px solid #eee', fontSize:'0.8rem', color:'#555', background:'#fff', cursor:'pointer' }}>
-                                    <option value="all">All Sessions</option>
-                                    <option value="CS301-A">CS301-A</option>
-                                </select>
-                                <input type="date" value={dateFilter} onChange={e=>setDateFilter(e.target.value)} style={{ padding:'5px 10px', borderRadius:'8px', border:'1px solid #eee', fontSize:'0.8rem', color:'#555' }} />
-                                <button style={{ display:'flex', alignItems:'center', gap:'5px', padding:'6px 14px', borderRadius:'8px', border:'none', background:'#111', cursor:'pointer', fontSize:'0.8rem', fontWeight:600, color:'#fff' }}><Download size={12}/> Export CSV</button>
-                            </div>
-                        </div>
-                        <div style={{ overflowX:'auto' }}>
-                            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.82rem' }}>
-                                <thead>
-                                    <tr style={{ background:'#f9f9f9' }}>
-                                        {['#','Timestamp','Device Hash','BSSID Detected','Session','Match'].map(h => (
-                                            <th key={h} style={{ padding:'10px 16px', textAlign:'left', fontSize:'0.7rem', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.5px', color:'#888', borderBottom:'1px solid #eee' }}>{h}</th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {rawLogs.map((log, i) => {
-                                        const isMatch = log.bssid === 'C4:E9:84:A2:3F:01';
-                                        return (
-                                            <tr key={i} className="attendance-row" style={{ borderBottom:'1px solid #f5f5f5' }}>
-                                                <td style={{ padding:'10px 16px', color:'#aaa' }}>{i+1}</td>
-                                                <td style={{ padding:'10px 16px', fontFamily:'monospace', fontSize:'0.8rem', color:'#333' }}>{log.timestamp}</td>
-                                                <td style={{ padding:'10px 16px', fontFamily:'monospace', fontSize:'0.8rem', color:'#777' }}>{log.hash}</td>
-                                                <td style={{ padding:'10px 16px', fontFamily:'monospace', fontSize:'0.8rem', color: isMatch?'#333':'#dc2626' }}>{log.bssid}</td>
-                                                <td style={{ padding:'10px 16px', fontWeight:500 }}>{log.session}</td>
-                                                <td style={{ padding:'10px 16px' }}>
-                                                    <span style={{ display:'inline-flex', alignItems:'center', gap:'4px', padding:'3px 10px', borderRadius:'8px', fontSize:'0.75rem', fontWeight:500, background: isMatch?'#ecfdf5':'#fef2f2', color: isMatch?'#166534':'#991b1b' }}>
-                                                        {isMatch ? <CheckCircle size={11}/> : <AlertTriangle size={11}/>}{isMatch ? 'Valid' : 'Mismatch'}
-                                                    </span>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
                 </div>
             </div>
+                {/* ── Absent Override Confirmation Modal ── */}
+                {confirmOverride && (
+                    <div style={{
+                        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex',
+                        alignItems: 'center', justifyContent: 'center', zIndex: 9999,
+                    }} onClick={() => setConfirmOverride(null)}>
+                        <div style={{
+                            background: '#fff', borderRadius: '12px', padding: '1.5rem', maxWidth: '440px', width: '90%',
+                            boxShadow: '0 20px 60px rgba(0,0,0,0.2)', border: '2px solid #fecaca',
+                        }} onClick={e => e.stopPropagation()}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1rem' }}>
+                                <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <AlertTriangle size={20} color="#dc2626" />
+                                </div>
+                                <div>
+                                    <div style={{ fontWeight: 700, fontSize: '1rem', color: '#111' }}>Mark Absent — Faking Penalty</div>
+                                    <div style={{ fontSize: '0.75rem', color: '#888' }}>This action has severe consequences</div>
+                                </div>
+                            </div>
 
-            {/* Auth Modal */}
-            {showAuthModal && (
-                <div style={{ position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.35)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999 }}
-                    onClick={() => { if (authState !== 'verifying') { setShowAuthModal(false); setAuthState('idle'); } }}>
-                    <div style={{ background:'#fff', borderRadius:'12px', width:'380px', maxWidth:'90vw', boxShadow:'0 8px 30px rgba(0,0,0,0.08)', overflow:'hidden' }} onClick={e=>e.stopPropagation()}>
-                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'14px 20px', borderBottom:'1px solid #f0f0f0' }}>
-                            <div style={{ display:'flex', alignItems:'center', gap:'8px' }}><Shield size={14} color="#555"/><span style={{ fontSize:'0.88rem', fontWeight:700 }}>Admin Authentication Required</span></div>
-                            <button onClick={() => { setShowAuthModal(false); setAuthState('idle'); }} style={{ background:'none', border:'none', cursor:'pointer', color:'#999' }}><X size={16}/></button>
-                        </div>
-                        <div style={{ padding:'24px 20px', textAlign:'center' }}>
-                            <div style={{ fontSize:'0.8rem', color:'#888', lineHeight:'1.6', marginBottom:'20px' }}>This action will initiate live attendance tracking for the current session.</div>
-                            <div style={{ width:'80px', height:'80px', margin:'0 auto 16px', borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', border:`2px solid ${authState==='success'?'#16a34a':authState==='failed'?'#dc2626':'#e8e8e8'}`, background: authState==='success'?'#f0fdf4':authState==='failed'?'#fef2f2':'#fafafa' }}>
-                                {authState === 'success' ? <CheckCircle size={32} color="#16a34a"/> : <Fingerprint size={32} color={authState==='failed'?'#dc2626':authState==='verifying'?'#555':'#bbb'}/>}
+                            <div style={{ padding: '12px', borderRadius: '8px', background: '#fef2f2', marginBottom: '1rem', fontSize: '0.8rem', color: '#991b1b', lineHeight: '1.5' }}>
+                                <strong>{confirmOverride.studentName}</strong> will be:
+                                <ul style={{ margin: '6px 0 0 16px', padding: 0 }}>
+                                    <li>Marked <strong>absent with 0 points</strong> for this session</li>
+                                    <li>Penalized with <strong>0 points and absent status</strong> on ALL sessions from <strong>1 week before to 1 week after</strong> this date</li>
+                                </ul>
                             </div>
-                            <div style={{ fontSize:'0.82rem', fontWeight:600, marginBottom:'4px', color: authState==='success'?'#16a34a':authState==='failed'?'#dc2626':'#333' }}>
-                                {authState==='idle'&&'Waiting for authentication'}{authState==='verifying'&&'Verifying...'}{authState==='success'&&'Authentication Successful ✓'}{authState==='failed'&&'Authentication Failed — Try Again'}
+
+                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                <button
+                                    onClick={() => setConfirmOverride(null)}
+                                    style={{
+                                        padding: '8px 16px', borderRadius: '6px', border: '1px solid #e5e7eb',
+                                        background: '#fff', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, color: '#555',
+                                    }}
+                                >Cancel</button>
+                                <button
+                                    onClick={() => handleOverride(confirmOverride.sessionId, confirmOverride.studentId, 'absent')}
+                                    disabled={overrideLoading === confirmOverride.studentId}
+                                    style={{
+                                        padding: '8px 16px', borderRadius: '6px', border: 'none',
+                                        background: '#dc2626', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700, color: '#fff',
+                                        opacity: overrideLoading === confirmOverride.studentId ? 0.6 : 1,
+                                    }}
+                                >{overrideLoading === confirmOverride.studentId ? 'Applying Penalty...' : 'Confirm — Mark Absent'}</button>
                             </div>
-                            <div style={{ fontSize:'0.72rem', color:'#aaa', marginBottom:'20px' }}>
-                                {authState==='idle'&&'Place your registered fingerprint to authenticate.'}{authState==='verifying'&&'Processing biometric data...'}{authState==='success'&&'Session will be activated shortly.'}{authState==='failed'&&'Fingerprint did not match. Please try again.'}
-                            </div>
-                            {(authState==='idle'||authState==='failed') && (
-                                <button onClick={handleFingerprint} style={{ display:'inline-flex', alignItems:'center', gap:'6px', padding:'8px 20px', borderRadius:'8px', border:'none', background:'#111', color:'#fff', fontSize:'0.8rem', fontWeight:600, cursor:'pointer' }}>
-                                    <Fingerprint size={14}/>{authState==='failed'?'Retry':'Authenticate'}
-                                </button>
-                            )}
                         </div>
                     </div>
-                </div>
-            )}
+                )}
+
+            <style jsx>{`
+                @keyframes spin {
+                    from { transform: rotate(0deg); }
+                    to { transform: rotate(360deg); }
+                }
+                @keyframes pulse {
+                    0%, 100% { opacity: 1; }
+                    50% { opacity: 0.4; }
+                }
+                @keyframes shimmer {
+                    0% { opacity: 0.4; }
+                    50% { opacity: 1; }
+                    100% { opacity: 0.4; }
+                }
+
+                /* ── Attendance Monitoring Mobile ── */
+                @media (max-width: 768px) {
+                    /* Stats grid: 2 columns */
+                    .am-stats-grid {
+                        grid-template-columns: 1fr 1fr !important;
+                        gap: 8px !important;
+                    }
+                    .am-stat-card {
+                        padding: 0.8rem !important;
+                        gap: 8px !important;
+                    }
+                    .am-stat-icon {
+                        width: 32px !important;
+                        height: 32px !important;
+                    }
+
+                    /* Date strip: stack vertically */
+                    .am-date-strip {
+                        flex-direction: column !important;
+                        align-items: flex-start !important;
+                        gap: 8px !important;
+                        padding: 10px 1rem !important;
+                    }
+                    .am-refresh-btn {
+                        width: 100%;
+                        justify-content: center;
+                        margin-left: 0 !important;
+                    }
+
+                    /* Section headers */
+                    .am-section-header {
+                        flex-direction: column !important;
+                        align-items: flex-start !important;
+                        gap: 6px !important;
+                        padding: 0.8rem 1rem !important;
+                    }
+
+                    /* Session rows: wrap for mobile */
+                    .am-session-row {
+                        flex-wrap: wrap !important;
+                        padding: 12px 1rem !important;
+                        gap: 8px !important;
+                    }
+                    .am-session-time {
+                        min-width: unset !important;
+                        width: 100% !important;
+                    }
+                    .am-session-detected {
+                        min-width: unset !important;
+                    }
+                    .am-session-status {
+                        min-width: unset !important;
+                    }
+
+                    /* Live strip: wrap */
+                    .am-live-strip {
+                        padding: 8px 1rem !important;
+                        gap: 8px !important;
+                    }
+                    .am-live-strip button {
+                        margin-left: 0 !important;
+                        width: 100%;
+                        justify-content: center;
+                    }
+
+                    /* Student detail table: hide low-priority columns */
+                    .am-col-enrollment,
+                    .am-col-signal,
+                    .am-col-first,
+                    .am-col-last,
+                    .am-col-duration,
+                    .am-col-pings {
+                        display: none !important;
+                    }
+                    .am-student-table th,
+                    .am-student-table td {
+                        padding: 6px 8px !important;
+                        font-size: 0.72rem !important;
+                    }
+
+                    /* MAC approvals table: hide email & enrollment */
+                    .am-mac-col-enroll,
+                    .am-mac-col-email {
+                        display: none !important;
+                    }
+                    .am-mac-table th,
+                    .am-mac-table td {
+                        padding: 8px 10px !important;
+                    }
+                    .am-mac-header {
+                        padding: 0.8rem 1rem !important;
+                    }
+                }
+            `}</style>
         </div>
     );
 }

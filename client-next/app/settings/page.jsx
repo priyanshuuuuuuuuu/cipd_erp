@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import '../Dashboard.css';
 import {
     LayoutGrid, Calendar, BookOpen, Users, MessageSquare, Settings,
@@ -18,6 +18,42 @@ const SETTING_SECTIONS = [
     { id: 'appearance', label: 'Appearance', icon: Palette },
     { id: 'privacy', label: 'Privacy & Security', icon: Shield },
 ];
+const SectionCard = ({ title, subtitle, children }) => (
+    <div style={{ background: '#fff', border: '1px solid #e8e8e8', borderRadius: '16px', overflow: 'hidden', marginBottom: '1rem' }}>
+        <div style={{ padding: '1.2rem 1.5rem', borderBottom: '1px solid #f5f5f5' }}>
+            <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#111' }}>{title}</div>
+            {subtitle && <div style={{ fontSize: '0.75rem', color: '#aaa', marginTop: '2px' }}>{subtitle}</div>}
+        </div>
+        <div style={{ padding: '1.5rem' }}>{children}</div>
+    </div>
+);
+
+const SettingRow = ({ label, description, children }) => (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.9rem 0', borderBottom: '1px solid #fafafa' }}>
+        <div>
+            <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#222' }}>{label}</div>
+            {description && <div style={{ fontSize: '0.72rem', color: '#aaa', marginTop: '2px' }}>{description}</div>}
+        </div>
+        <div style={{ flexShrink: 0, marginLeft: '1rem' }}>{children}</div>
+    </div>
+);
+
+const Toggle = ({ checked, onChange }) => (
+    <div onClick={() => onChange(!checked)} style={{
+        width: '44px', height: '24px', borderRadius: '12px',
+        background: checked ? '#111' : '#e0e0e0',
+        position: 'relative', cursor: 'pointer', transition: 'background 0.2s',
+        flexShrink: 0,
+    }}>
+        <div style={{
+            position: 'absolute', top: '3px',
+            left: checked ? '22px' : '3px',
+            width: '18px', height: '18px', borderRadius: '50%',
+            background: '#fff', transition: 'left 0.2s',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
+        }} />
+    </div>
+);
 
 export default function SettingsPage() {
     const router = useRouter();
@@ -28,6 +64,7 @@ export default function SettingsPage() {
     // Profile state
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [statusRefreshing, setStatusRefreshing] = useState(false);
 
     // MAC address state
     const [macInput, setMacInput] = useState('');
@@ -35,7 +72,11 @@ export default function SettingsPage() {
     const [macMsg, setMacMsg] = useState(null); // { type: 'success'|'error', text }
     const [showMac, setShowMac] = useState(false);
 
-    // Notification settings (local state, no backend yet)
+    // Ref to hold latest profile for use inside the polling interval
+    const profileRef = useRef(profile);
+    useEffect(() => { profileRef.current = profile; }, [profile]);
+
+    // Notification settings
     const [notifSettings, setNotifSettings] = useState({
         scheduleReminders: true,
         attendanceAlerts: true,
@@ -49,23 +90,120 @@ export default function SettingsPage() {
     const [theme, setTheme] = useState('light');
     const [fontSize, setFontSize] = useState('medium');
 
+    // Preferences saving state
+    const [prefSaving, setPrefSaving] = useState(false);
+    const [prefMsg, setPrefMsg] = useState(null);
+
+    // Password change state
+    const [pwForm, setPwForm] = useState({ current: '', newPw: '', confirm: '' });
+    const [pwSaving, setPwSaving] = useState(false);
+    const [pwMsg, setPwMsg] = useState(null); // { type: 'success'|'error', text }
+
     const navTo = (p) => router.push(p);
     const displayName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Student' : 'Student';
 
     const fetchProfile = useCallback(async () => {
         try {
-            const res = await api.get('/api/students/profile');
-            const p = res.profile || res;
-            setProfile(p);
-            setMacInput(p.mac_address || '');
+            const ts = Date.now();
+            const [profileRes, prefsRes] = await Promise.allSettled([
+                api.get(`/api/students/profile?_t=${ts}`),
+                api.get(`/api/students/settings?_t=${ts}`),
+            ]);
+
+            if (profileRes.status === 'fulfilled') {
+                const p = profileRes.value.profile || profileRes.value;
+                setProfile(p);
+                setMacInput(p.mac_address || '');
+            }
+
+            if (prefsRes.status === 'fulfilled') {
+                const prefs = prefsRes.value.preferences || {};
+                if (prefs.notifications) setNotifSettings(prev => ({ ...prev, ...prefs.notifications }));
+                if (prefs.appearance) {
+                    if (prefs.appearance.theme) setTheme(prefs.appearance.theme);
+                    if (prefs.appearance.fontSize) setFontSize(prefs.appearance.fontSize);
+                }
+            }
         } catch (e) {
-            console.error('Profile fetch error', e);
+            console.error('Settings fetch error', e);
         } finally {
             setLoading(false);
         }
     }, []);
 
     useEffect(() => { if (authReady) fetchProfile(); }, [fetchProfile, authReady]);
+
+    // ── Lightweight status-only refresh (for polling / manual check) ────────
+    // Only updates mac_address + mac_verified to avoid clobbering input fields.
+    const refreshMacStatus = useCallback(async (opts = {}) => {
+        if (opts.showSpinner) setStatusRefreshing(true);
+        try {
+            // Bypass all caches: unique timestamp + no-store pragma header
+            const res = await api.get(`/api/students/profile?_t=${Date.now()}`);
+            const p = res.profile || res;
+
+            if (!p || (!p.mac_address && p.mac_address !== null && !p.mac_verified)) {
+                // Unexpected shape — do nothing
+                return;
+            }
+
+            const wasApproved = p.mac_address && p.mac_verified;
+
+            setProfile(prev => ({
+                ...prev,
+                mac_address: p.mac_address,
+                mac_verified: p.mac_verified,
+            }));
+
+            if (wasApproved) {
+                // Sync the input field to the approved MAC
+                setMacInput(p.mac_address);
+                // Reveal it so the student can see the real value
+                setShowMac(true);
+                if (opts.showSpinner) {
+                    setMacMsg({ type: 'success', text: `✓ Verified! Your MAC address is now active: ${p.mac_address}` });
+                }
+            } else if (opts.showSpinner) {
+                setMacMsg({ type: 'error', text: 'Still pending — admin has not approved yet.' });
+            }
+        } catch (e) {
+            console.error('Status refresh error', e);
+            if (opts.showSpinner) {
+                setMacMsg({ type: 'error', text: `Check failed: ${e.message || 'Network error'}` });
+            }
+        } finally {
+            if (opts.showSpinner) setStatusRefreshing(false);
+        }
+    }, []);
+
+    // ── Poll every 20s while a MAC is pending ─────────────────────────────
+    useEffect(() => {
+        if (!profile) return;
+        // Only poll when the student has submitted a MAC that hasn't been verified yet
+        const isPending = profile.mac_address && !profile.mac_verified;
+        if (!isPending) return;
+
+        const interval = setInterval(() => {
+            // Re-check profile ref so we stop if it got approved between ticks
+            const current = profileRef.current;
+            if (current?.mac_address && !current?.mac_verified) {
+                refreshMacStatus();
+            }
+        }, 20000); // every 20 seconds
+
+        return () => clearInterval(interval);
+    }, [profile?.mac_address, profile?.mac_verified, refreshMacStatus]);
+
+    // ── Refresh on tab/window focus ───────────────────────────────────────
+    useEffect(() => {
+        const onVisibility = () => {
+            if (document.visibilityState === 'visible') {
+                refreshMacStatus();
+            }
+        };
+        document.addEventListener('visibilitychange', onVisibility);
+        return () => document.removeEventListener('visibilitychange', onVisibility);
+    }, [refreshMacStatus]);
 
     const macValid = (mac) => /^([A-Fa-f0-9]{2}:){5}[A-Fa-f0-9]{2}$/.test(mac);
 
@@ -87,42 +225,73 @@ export default function SettingsPage() {
         }
     };
 
-    const SectionCard = ({ title, subtitle, children }) => (
-        <div style={{ background: '#fff', border: '1px solid #e8e8e8', borderRadius: '16px', overflow: 'hidden', marginBottom: '1rem' }}>
-            <div style={{ padding: '1.2rem 1.5rem', borderBottom: '1px solid #f5f5f5' }}>
-                <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#111' }}>{title}</div>
-                {subtitle && <div style={{ fontSize: '0.75rem', color: '#aaa', marginTop: '2px' }}>{subtitle}</div>}
-            </div>
-            <div style={{ padding: '1.5rem' }}>{children}</div>
-        </div>
-    );
+    // Persist a preference change to the backend
+    const savePreference = async (section, key, value) => {
+        setPrefSaving(true);
+        setPrefMsg(null);
+        try {
+            await api.patch('/api/students/settings', {
+                [section]: { [key]: value },
+            });
+            setPrefMsg({ type: 'success', text: 'Saved.' });
+            setTimeout(() => setPrefMsg(null), 2000);
+        } catch (e) {
+            setPrefMsg({ type: 'error', text: 'Could not save preference.' });
+        } finally {
+            setPrefSaving(false);
+        }
+    };
 
-    const SettingRow = ({ label, description, children }) => (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.9rem 0', borderBottom: '1px solid #fafafa' }}>
-            <div>
-                <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#222' }}>{label}</div>
-                {description && <div style={{ fontSize: '0.72rem', color: '#aaa', marginTop: '2px' }}>{description}</div>}
-            </div>
-            <div style={{ flexShrink: 0, marginLeft: '1rem' }}>{children}</div>
-        </div>
-    );
+    const handleNotifToggle = (key, value) => {
+        setNotifSettings(s => ({ ...s, [key]: value }));
+        savePreference('notifications', key, value);
+    };
 
-    const Toggle = ({ checked, onChange }) => (
-        <div onClick={() => onChange(!checked)} style={{
-            width: '44px', height: '24px', borderRadius: '12px',
-            background: checked ? '#111' : '#e0e0e0',
-            position: 'relative', cursor: 'pointer', transition: 'background 0.2s',
-            flexShrink: 0,
-        }}>
-            <div style={{
-                position: 'absolute', top: '3px',
-                left: checked ? '22px' : '3px',
-                width: '18px', height: '18px', borderRadius: '50%',
-                background: '#fff', transition: 'left 0.2s',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
-            }} />
-        </div>
-    );
+    const handleThemeChange = (value) => {
+        setTheme(value);
+        savePreference('appearance', 'theme', value);
+    };
+
+    const handleFontSizeChange = (value) => {
+        setFontSize(value);
+        savePreference('appearance', 'fontSize', value);
+    };
+
+    // Password change handler
+    const handlePasswordChange = async () => {
+        setPwMsg(null);
+        
+        const currentTrimmed = pwForm.current.trim();
+        const newPwTrimmed = pwForm.newPw.trim();
+        const confirmTrimmed = pwForm.confirm.trim();
+
+        if (!currentTrimmed || !newPwTrimmed || !confirmTrimmed) {
+            setPwMsg({ type: 'error', text: 'All fields are required.' });
+            return;
+        }
+        if (newPwTrimmed !== confirmTrimmed) {
+            setPwMsg({ type: 'error', text: 'New passwords do not match.' });
+            return;
+        }
+        if (newPwTrimmed.length < 8) {
+            setPwMsg({ type: 'error', text: 'New password must be at least 8 characters.' });
+            return;
+        }
+        setPwSaving(true);
+        try {
+            await api.post('/api/auth/update-password', {
+                currentPassword: currentTrimmed,
+                newPassword: newPwTrimmed,
+            });
+            setPwMsg({ type: 'success', text: 'Password updated successfully.' });
+            setPwForm({ current: '', newPw: '', confirm: '' });
+        } catch (e) {
+            setPwMsg({ type: 'error', text: e.message || 'Failed to update password.' });
+        } finally {
+            setPwSaving(false);
+        }
+    };
+    // Components were moved outside of SettingsPage to prevent re-mounting
 
     return (
         <div className="dashboard-container">
@@ -196,22 +365,41 @@ export default function SettingsPage() {
                                     <div style={{ fontSize: '0.8rem', color: '#aaa' }}>Manage your device registration used for Wi-Fi based attendance detection.</div>
                                 </div>
 
-                                <SectionCard title="MAC Address Registration" subtitle="Your device's MAC address is used by the attendance system to detect your presence in class.">
+                                <SectionCard title={`MAC Address Registration — ${profile?.first_name || user?.firstName || 'Student'}`} subtitle="Your device's MAC address is used by the attendance system to detect your presence in class.">
                                     {/* Current status */}
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', background: profile?.mac_verified ? '#f0fdf4' : '#fef9c3', borderRadius: '10px', marginBottom: '1.5rem' }}>
                                         {profile?.mac_verified
                                             ? <CheckCircle size={18} color="#16a34a" />
                                             : <AlertCircle size={18} color="#b45309" />}
-                                        <div>
+                                        <div style={{ flex: 1 }}>
                                             <div style={{ fontSize: '0.85rem', fontWeight: 600, color: profile?.mac_verified ? '#16a34a' : '#b45309' }}>
                                                 {profile?.mac_verified ? 'Verified & Active' : 'Pending Verification'}
                                             </div>
                                             <div style={{ fontSize: '0.72rem', color: '#888', marginTop: '1px' }}>
                                                 {profile?.mac_verified
                                                     ? 'Your device is registered and will be detected during attendance sessions.'
-                                                    : 'Your MAC address has been submitted and is awaiting admin verification.'}
+                                                    : 'Your MAC address has been submitted and is awaiting admin verification. Status updates automatically.'}
                                             </div>
                                         </div>
+                                        {/* Manual refresh button — only shown when pending */}
+                                        {!profile?.mac_verified && profile?.mac_address && (
+                                            <button
+                                                onClick={() => refreshMacStatus({ showSpinner: true })}
+                                                disabled={statusRefreshing}
+                                                title="Check approval status"
+                                                style={{
+                                                    display: 'flex', alignItems: 'center', gap: '5px',
+                                                    padding: '5px 12px', borderRadius: '8px',
+                                                    border: '1px solid #fde047', background: '#fff',
+                                                    cursor: statusRefreshing ? 'not-allowed' : 'pointer',
+                                                    fontSize: '0.72rem', fontWeight: 600, color: '#713f12',
+                                                    flexShrink: 0,
+                                                }}
+                                            >
+                                                <RefreshCw size={12} style={{ animation: statusRefreshing ? 'spin 1s linear infinite' : 'none' }} />
+                                                {statusRefreshing ? 'Checking...' : 'Check Status'}
+                                            </button>
+                                        )}
                                     </div>
 
                                     {/* Current MAC display */}
@@ -237,8 +425,18 @@ export default function SettingsPage() {
                                         <div style={{ display: 'flex', gap: '10px' }}>
                                             <input
                                                 value={macInput}
-                                                onChange={e => { setMacInput(e.target.value.toUpperCase()); setMacMsg(null); }}
+                                                onChange={e => {
+                                                    // Strip non-hex, uppercase it
+                                                    let val = e.target.value.replace(/[^A-Fa-f0-9]/g, '').toUpperCase();
+                                                    // Group by 2 and join with colon
+                                                    if (val.length > 0) {
+                                                        val = val.match(/.{1,2}/g).join(':');
+                                                    }
+                                                    setMacInput(val.slice(0, 17)); // Max 17 chars (XX:XX:XX:XX:XX:XX)
+                                                    setMacMsg(null);
+                                                }}
                                                 placeholder="A4:83:E7:2B:9F:01"
+                                                maxLength={17}
                                                 style={{
                                                     flex: 1, padding: '10px 14px', borderRadius: '10px',
                                                     border: `1px solid ${macMsg?.type === 'error' ? '#fca5a5' : '#e0e0e0'}`,
@@ -273,11 +471,40 @@ export default function SettingsPage() {
                                         )}
                                     </div>
 
-                                    <div style={{ padding: '12px 16px', background: '#f8f8f8', borderRadius: '10px', fontSize: '0.75rem', color: '#888', lineHeight: 1.6 }}>
-                                        <strong style={{ color: '#555' }}>How to find your MAC address:</strong><br />
-                                        <strong>Windows:</strong> Run <code style={{ background: '#eee', padding: '1px 4px', borderRadius: '4px' }}>ipconfig /all</code> in Command Prompt → look for "Physical Address"<br />
-                                        <strong>macOS:</strong> System Preferences → Network → Advanced → Hardware<br />
-                                        <strong>Linux:</strong> Run <code style={{ background: '#eee', padding: '1px 4px', borderRadius: '4px' }}>ip link show</code> in terminal
+                                    <div style={{ borderRadius: '10px', overflow: 'hidden', border: '1px solid #e8e8e8', fontSize: '0.75rem' }}>
+                                        {/* Warning banner */}
+                                        <div style={{ padding: '10px 14px', background: '#fff7ed', borderBottom: '1px solid #fed7aa', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                                            <AlertCircle size={14} color="#c2410c" style={{ flexShrink: 0, marginTop: '1px' }} />
+                                            <div style={{ color: '#7c2d12', lineHeight: 1.5 }}>
+                                                <strong>Important:</strong> You must <strong>disable MAC randomisation</strong> before registering. The attendance system uses your fixed (factory) MAC address. A randomised MAC changes every time you connect and will not be recognised.
+                                            </div>
+                                        </div>
+
+                                        {/* Android */}
+                                        <div style={{ padding: '12px 14px', background: '#f8f8f8', borderBottom: '1px solid #eee' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                                                <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#333' }}>Android</span>
+                                            </div>
+                                            <div style={{ color: '#666', lineHeight: 1.7 }}>
+                                                <strong style={{ color: '#444' }}>Step 1 – Find your MAC address:</strong><br />
+                                                Settings → About phone → Status → <strong>Phone Wi-Fi MAC address</strong><br /><br />
+                                                <strong style={{ color: '#444' }}>Step 2 – Disable randomised MAC:</strong><br />
+                                                Settings → Wi-Fi → long-press your network → <em>Modify network</em> → Advanced → <strong>MAC address type → Use device MAC</strong>
+                                            </div>
+                                        </div>
+
+                                        {/* iOS */}
+                                        <div style={{ padding: '12px 14px', background: '#f8f8f8' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                                                <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#333' }}>iPhone / iPad (iOS)</span>
+                                            </div>
+                                            <div style={{ color: '#666', lineHeight: 1.7 }}>
+                                                <strong style={{ color: '#444' }}>Step 1 – Find your MAC address:</strong><br />
+                                                Settings → General → About → <strong>Wi-Fi Address</strong><br /><br />
+                                                <strong style={{ color: '#444' }}>Step 2 – Disable Private Wi-Fi Address:</strong><br />
+                                                Settings → Wi-Fi → tap the <strong>(i)</strong> next to your network → toggle <strong>Private Wi-Fi Address → Off</strong> → tap <em>Continue</em>
+                                            </div>
+                                        </div>
                                     </div>
                                 </SectionCard>
 
@@ -320,14 +547,39 @@ export default function SettingsPage() {
                                 </SectionCard>
                                 <SectionCard title="Password" subtitle="Change your account password.">
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                                        {['Current Password', 'New Password', 'Confirm New Password'].map((label, i) => (
-                                            <div key={i}>
+                                        {[
+                                            { label: 'Current Password', key: 'current' },
+                                            { label: 'New Password', key: 'newPw' },
+                                            { label: 'Confirm New Password', key: 'confirm' },
+                                        ].map(({ label, key }) => (
+                                            <div key={key}>
                                                 <div style={{ fontSize: '0.75rem', color: '#888', marginBottom: '5px' }}>{label}</div>
-                                                <input type="password" placeholder="••••••••" style={{ width: '100%', padding: '9px 12px', borderRadius: '9px', border: '1px solid #e0e0e0', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }} />
+                                                <input
+                                                    type="password"
+                                                    placeholder="••••••••"
+                                                    value={pwForm[key]}
+                                                    onChange={e => setPwForm(f => ({ ...f, [key]: e.target.value }))}
+                                                    style={{ width: '100%', padding: '9px 12px', borderRadius: '9px', border: '1px solid #e0e0e0', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
+                                                />
                                             </div>
                                         ))}
-                                        <button style={{ marginTop: '4px', padding: '9px 20px', background: '#111', color: '#fff', border: 'none', borderRadius: '9px', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600, alignSelf: 'flex-start' }}>
-                                            Update Password
+                                        {pwMsg && (
+                                            <div style={{ padding: '8px 12px', borderRadius: '8px', fontSize: '0.78rem', fontWeight: 500,
+                                                background: pwMsg.type === 'success' ? '#f0fdf4' : '#fef2f2',
+                                                color: pwMsg.type === 'success' ? '#16a34a' : '#dc2626',
+                                                display: 'flex', alignItems: 'center', gap: '6px',
+                                            }}>
+                                                {pwMsg.type === 'success' ? <CheckCircle size={13} /> : <AlertCircle size={13} />}
+                                                {pwMsg.text}
+                                            </div>
+                                        )}
+                                        <button
+                                            onClick={handlePasswordChange}
+                                            disabled={pwSaving}
+                                            style={{ marginTop: '4px', padding: '9px 20px', background: pwSaving ? '#ccc' : '#111', color: '#fff', border: 'none', borderRadius: '9px', cursor: pwSaving ? 'not-allowed' : 'pointer', fontSize: '0.82rem', fontWeight: 600, alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: '6px' }}
+                                        >
+                                            {pwSaving ? <RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Save size={14} />}
+                                            {pwSaving ? 'Updating...' : 'Update Password'}
                                         </button>
                                     </div>
                                 </SectionCard>
@@ -342,6 +594,14 @@ export default function SettingsPage() {
                                     <div style={{ fontSize: '0.8rem', color: '#aaa' }}>Choose which notifications you receive from the system.</div>
                                 </div>
                                 <SectionCard title="Academic Alerts">
+                                    {prefMsg && (
+                                        <div style={{ marginBottom: '0.75rem', padding: '6px 12px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 500,
+                                            background: prefMsg.type === 'success' ? '#f0fdf4' : '#fef2f2',
+                                            color: prefMsg.type === 'success' ? '#16a34a' : '#dc2626',
+                                        }}>
+                                            {prefMsg.text}
+                                        </div>
+                                    )}
                                     {[
                                         { key: 'scheduleReminders', label: 'Schedule Reminders', desc: 'Get reminded before class starts' },
                                         { key: 'attendanceAlerts', label: 'Attendance Alerts', desc: 'Alert when attendance drops below 75%' },
@@ -349,7 +609,7 @@ export default function SettingsPage() {
                                         { key: 'gradeUpdates', label: 'Grade Updates', desc: 'Notify when assignments are graded' },
                                     ].map(n => (
                                         <SettingRow key={n.key} label={n.label} description={n.desc}>
-                                            <Toggle checked={notifSettings[n.key]} onChange={v => setNotifSettings(s => ({ ...s, [n.key]: v }))} />
+                                            <Toggle checked={notifSettings[n.key]} onChange={v => handleNotifToggle(n.key, v)} />
                                         </SettingRow>
                                     ))}
                                 </SectionCard>
@@ -359,7 +619,7 @@ export default function SettingsPage() {
                                         { key: 'systemAnnouncements', label: 'System Announcements', desc: 'Important institutional announcements' },
                                     ].map(n => (
                                         <SettingRow key={n.key} label={n.label} description={n.desc}>
-                                            <Toggle checked={notifSettings[n.key]} onChange={v => setNotifSettings(s => ({ ...s, [n.key]: v }))} />
+                                            <Toggle checked={notifSettings[n.key]} onChange={v => handleNotifToggle(n.key, v)} />
                                         </SettingRow>
                                     ))}
                                 </SectionCard>
@@ -376,11 +636,11 @@ export default function SettingsPage() {
                                 <SectionCard title="Theme">
                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginTop: '4px' }}>
                                         {[
-                                            { id: 'light', label: 'Light', bg: '#fff', border: '#e0e0e0', preview: '#f5f5f5' },
-                                            { id: 'dark', label: 'Dark', bg: '#1a1a1a', border: '#333', preview: '#111' },
-                                            { id: 'system', label: 'System', bg: 'linear-gradient(135deg,#fff 50%,#1a1a1a 50%)', border: '#ccc', preview: '#888' },
+                                            { id: 'light', label: 'Light', bg: '#fff', border: '#e0e0e0' },
+                                            { id: 'dark', label: 'Dark', bg: '#1a1a1a', border: '#333' },
+                                            { id: 'system', label: 'System', bg: 'linear-gradient(135deg,#fff 50%,#1a1a1a 50%)', border: '#ccc' },
                                         ].map(t => (
-                                            <div key={t.id} onClick={() => setTheme(t.id)} style={{
+                                            <div key={t.id} onClick={() => handleThemeChange(t.id)} style={{
                                                 border: `2px solid ${theme === t.id ? '#111' : '#e8e8e8'}`,
                                                 borderRadius: '12px', padding: '1rem', cursor: 'pointer',
                                                 textAlign: 'center', transition: 'border-color 0.15s',
@@ -395,7 +655,7 @@ export default function SettingsPage() {
                                     <SettingRow label="Font Size" description="Adjust the default text size across pages">
                                         <div style={{ display: 'flex', gap: '6px' }}>
                                             {['small', 'medium', 'large'].map(s => (
-                                                <button key={s} onClick={() => setFontSize(s)} style={{
+                                                <button key={s} onClick={() => handleFontSizeChange(s)} style={{
                                                     padding: '5px 14px', borderRadius: '8px', border: `1px solid ${fontSize === s ? '#111' : '#e0e0e0'}`,
                                                     background: fontSize === s ? '#111' : '#fff', color: fontSize === s ? '#fff' : '#666',
                                                     cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600, textTransform: 'capitalize',
@@ -405,6 +665,14 @@ export default function SettingsPage() {
                                             ))}
                                         </div>
                                     </SettingRow>
+                                    {prefMsg && (
+                                        <div style={{ marginTop: '0.5rem', padding: '6px 12px', borderRadius: '8px', fontSize: '0.75rem', fontWeight: 500,
+                                            background: prefMsg.type === 'success' ? '#f0fdf4' : '#fef2f2',
+                                            color: prefMsg.type === 'success' ? '#16a34a' : '#dc2626',
+                                        }}>
+                                            {prefMsg.text}
+                                        </div>
+                                    )}
                                 </SectionCard>
                             </div>
                         )}

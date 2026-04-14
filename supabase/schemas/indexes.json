@@ -1,0 +1,101 @@
+[
+  {
+    "indexdef": "CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id)"
+  },
+  {
+    "indexdef": "CREATE UNIQUE INDEX users_email_key ON public.users USING btree (email)"
+  },
+  {
+    "indexdef": "CREATE INDEX idx_users_role ON public.users USING btree (role)"
+  },
+  {
+    "indexdef": "CREATE UNIQUE INDEX students_pkey ON public.students USING btree (id)"
+  },
+  {
+    "indexdef": "CREATE UNIQUE INDEX students_enrollment_no_key ON public.students USING btree (enrollment_no)"
+  },
+  {
+    "indexdef": "CREATE UNIQUE INDEX faculty_pkey ON public.faculty USING btree (id)"
+  },
+  {
+    "indexdef": "CREATE UNIQUE INDEX courses_pkey ON public.courses USING btree (id)"
+  },
+  {
+    "indexdef": "CREATE UNIQUE INDEX course_enrollments_pkey ON public.course_enrollments USING btree (id)"
+  },
+  {
+    "indexdef": "CREATE UNIQUE INDEX course_enrollments_course_id_student_id_key ON public.course_enrollments USING btree (course_id, student_id)"
+  },
+  {
+    "indexdef": "CREATE UNIQUE INDEX sessions_pkey ON public.sessions USING btree (id)"
+  },
+  {
+    "indexdef": "CREATE INDEX idx_sessions_date ON public.sessions USING btree (session_date)"
+  },
+  {
+    "indexdef": "CREATE INDEX idx_sessions_faculty ON public.sessions USING btree (faculty_id)"
+  },
+  {
+    "indexdef": "CREATE INDEX idx_sessions_course ON public.sessions USING btree (course_id)"
+  },
+  {
+    "indexdef": "CREATE UNIQUE INDEX unique_venue_schedule ON public.sessions USING btree (venue_id, session_date, start_time, end_time) WHERE (status <> 'cancelled'::session_status)"
+  },
+  {
+    "indexdef": "CREATE UNIQUE INDEX attendance_records_pkey ON public.attendance_records USING btree (id)"
+  },
+  {
+    "indexdef": "CREATE UNIQUE INDEX attendance_records_session_id_student_id_key ON public.attendance_records USING btree (session_id, student_id)"
+  },
+  {
+    "indexdef": "CREATE INDEX idx_attendance_student ON public.attendance_records USING btree (student_id)"
+  },
+  {
+    "indexdef": "CREATE INDEX idx_attendance_session ON public.attendance_records USING btree (session_id)"
+  },
+  {
+    "indexdef": "CREATE UNIQUE INDEX feedback_responses_pkey ON public.feedback_responses USING btree (id)"
+  },
+  {
+    "indexdef": "CREATE INDEX idx_feedback_session ON public.feedback_responses USING btree (session_id)"
+  },
+  {
+    "indexdef": "CREATE INDEX idx_feedback_student ON public.feedback_responses USING btree (student_id)"
+  },
+  {
+    "indexdef": "CREATE UNIQUE INDEX feedback_questions_pkey ON public.feedback_questions USING btree (id)"
+  },
+  {
+    "indexdef": "CREATE UNIQUE INDEX assignments_pkey ON public.assignments USING btree (id)"
+  },
+  {
+    "indexdef": "CREATE UNIQUE INDEX session_materials_pkey ON public.session_materials USING btree (id)"
+  },
+  {
+    "indexdef": "CREATE INDEX idx_session_materials_course_id ON public.session_materials USING btree (course_id)"
+  },
+  {
+    "indexdef": "CREATE UNIQUE INDEX assignment_submissions_pkey ON public.assignment_submissions USING btree (id)"
+  },
+  {
+    "indexdef": "CREATE UNIQUE INDEX wifi_snapshots_pkey ON public.wifi_snapshots USING btree (id)"
+  },
+  {
+    "indexdef": "CREATE UNIQUE INDEX notifications_pkey ON public.notifications USING btree (id)"
+  },
+  {
+    "indexdef": "CREATE INDEX idx_notifications_recipient ON public.notifications USING btree (recipient_id)"
+  },
+  {
+    "indexdef": "CREATE INDEX idx_notifications_read ON public.notifications USING btree (recipient_id, is_read)"
+  },
+  {
+    "indexdef": "CREATE UNIQUE INDEX venues_pkey ON public.venues USING btree (id)"
+  },
+  {
+    "indexdef": "CREATE UNIQUE INDEX venues_router_bssid_key ON public.venues USING btree (router_bssid)"
+  },
+  {
+    "indexdef": "CREATE UNIQUE INDEX system_settings_pkey ON public.system_settings USING btree (id)"
+  }
+]

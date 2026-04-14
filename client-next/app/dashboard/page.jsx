@@ -5,7 +5,7 @@ import '../Dashboard.css';
 import {
     LayoutGrid, Calendar, BookOpen, Users, MessageSquare, Settings, LogOut, Bell, Search,
     ChevronDown, Clock, FileText, AlertCircle, CheckCircle, XCircle, Menu, ChevronLeft,
-    ChevronRight, Wifi, X, Fingerprint
+    ChevronRight, Wifi, X, Fingerprint, ExternalLink, RefreshCw
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Cell } from 'recharts';
@@ -29,6 +29,11 @@ const StudentDashboard = () => {
     const [pendingFeedback, setPendingFeedback] = useState(null);
     const [profile, setProfile] = useState(null);
 
+    // Google Classroom state
+    const [gcAssignments, setGcAssignments] = useState([]);
+    const [gcConnected, setGcConnected] = useState(null);   // null = loading, true/false
+    const [gcLoading, setGcLoading] = useState(false);
+
     // MAC state
     const [macInput, setMacInput] = useState('');
     const [isEditingMac, setIsEditingMac] = useState(false);
@@ -40,8 +45,12 @@ const StudentDashboard = () => {
     const registeredMac = profile?.mac_address || '';
 
     const fetchAll = useCallback(async () => {
+        // Build today's date in local timezone (avoids IST vs UTC mismatch)
+        const now = new Date();
+        const localDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
         const [todayRes, weekRes, attRes, assRes, fbRes, profRes] = await Promise.allSettled([
-            api.get('/api/students/schedule/today'),
+            api.get(`/api/students/schedule/today?date=${localDate}`),
             api.get('/api/students/schedule/week'),
             api.get('/api/students/attendance/summary'),
             api.get('/api/students/assignments'),
@@ -56,7 +65,33 @@ const StudentDashboard = () => {
         if (profRes.status === 'fulfilled') setProfile(profRes.value.profile);
     }, []);
 
-    useEffect(() => { if (authReady) fetchAll(); }, [fetchAll, authReady]);
+    const fetchGcAssignments = useCallback(async () => {
+        setGcLoading(true);
+        try {
+            const res = await api.get('/api/classroom/assignments');
+            setGcConnected(res.connected);
+            if (res.connected) setGcAssignments(res.assignments || []);
+        } catch {
+            setGcConnected(false);
+        } finally {
+            setGcLoading(false);
+        }
+    }, []);
+
+    useEffect(() => { if (authReady) { fetchAll(); fetchGcAssignments(); } }, [fetchAll, fetchGcAssignments, authReady]);
+
+    // Handle ?gc_connected=1 or ?gc_error= query params after OAuth redirect
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('gc_connected') === '1') {
+            fetchGcAssignments();
+            window.history.replaceState({}, '', '/dashboard');
+        }
+        if (params.get('gc_error')) {
+            setGcConnected(false);
+            window.history.replaceState({}, '', '/dashboard');
+        }
+    }, [fetchGcAssignments]);
 
     // Build bar chart data from weekSessions
     const weeklyBarData = (() => {
@@ -148,8 +183,14 @@ const StudentDashboard = () => {
                     <section>
                         <div className="section-title">Today's Schedule</div>
                         <div className="schedule-cards">
-                            {todaySessions.length === 0 ? (
-                                <div style={{ padding: '1.5rem', color: '#aaa', fontSize: '0.82rem' }}>No classes scheduled for today.</div>
+                            {todaySessions.length === 0 && !attendance ? (
+                                <div style={{ display: 'flex', gap: '1rem' }}>{[1,2,3].map(i => (
+                                    <div key={i} style={{ background: '#fff', border: '1px solid #e8e8e8', borderRadius: '16px', padding: '1.2rem', flex: 1, minWidth: '180px' }}>
+                                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#f0f0f0', marginBottom: '10px', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.15}s` }} />
+                                        <div style={{ width: '80%', height: '12px', borderRadius: '4px', background: '#f0f0f0', marginBottom: '8px', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.2}s` }} />
+                                        <div style={{ width: '50%', height: '9px', borderRadius: '3px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.25}s` }} />
+                                    </div>
+                                ))}</div>
                             ) : todaySessions.map((s, i) => (
                                 <div key={s.id} className={`schedule-card${i === 1 ? ' active' : ''}`}>
                                     {i === 1 && <div className="next-class-badge">Next Class</div>}
@@ -241,31 +282,125 @@ const StudentDashboard = () => {
                         </div>
                     </div>
 
-                    <div className="section-title" style={{ marginTop: '0.5rem', marginBottom: '0.5rem' }}>Pending Assignments</div>
+                    {/* ── Pending Assignments ── */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.5rem', marginBottom: '0.5rem' }}>
+                        <div className="section-title" style={{ margin: 0 }}>Pending Assignments</div>
+                        {gcConnected && (
+                            <button
+                                onClick={fetchGcAssignments}
+                                title="Refresh Google Classroom"
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', color: '#888', display: 'flex', alignItems: 'center' }}
+                            >
+                                <RefreshCw size={13} style={{ animation: gcLoading ? 'spin 1s linear infinite' : 'none' }} />
+                            </button>
+                        )}
+                    </div>
 
-                    {assignments.length === 0 ? (
-                        <div style={{ padding: '1rem', color: '#aaa', fontSize: '0.82rem' }}>No pending assignments!</div>
-                    ) : assignments.slice(0, 3).map((a, i) => {
-                        const daysLeft = a.due_date ? Math.ceil((new Date(a.due_date) - new Date()) / (1000 * 60 * 60 * 24)) : null;
-                        const daysColor = daysLeft !== null ? (daysLeft <= 3 ? '#ef4444' : daysLeft <= 7 ? '#f59e0b' : '#22c55e') : '#ccc';
-                        const daysLabel = daysLeft !== null ? (daysLeft <= 0 ? 'Due!' : `${daysLeft}d`) : '—';
-                        const facultyName = a.faculty?.users ? `${a.faculty.users.first_name} ${a.faculty.users.last_name}` : '';
-                        return (
-                            <div key={a.id} className="assignment-card">
-                                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                                    <div className="icon-box"><FileText size={18} /></div>
-                                    <div style={{ flex: 1, minWidth: 0 }}>
-                                        <div style={{ fontSize: '0.82rem', fontWeight: '700', lineHeight: 1.3 }}>{a.title}</div>
-                                        <div style={{ fontSize: '0.68rem', color: '#888', marginTop: '2px' }}>{a.courses?.name || ''}</div>
-                                        {facultyName && <div style={{ fontSize: '0.65rem', color: '#aaa', marginTop: '1px' }}>{facultyName}</div>}
-                                    </div>
-                                </div>
-                                <div style={{ width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem', fontWeight: 700, color: daysColor, border: `2px solid ${daysColor}`, background: `${daysColor}10`, flexShrink: 0 }}>
-                                    {daysLabel}
+                    {/* Google Classroom not set up */}
+                    {gcConnected === false && (
+                        <div style={{ marginBottom: '10px', padding: '10px 12px', background: '#fafafa', borderRadius: '10px', border: '1px solid #ebebeb' }}>
+                            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#888', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                <img src="https://ssl.gstatic.com/classroom/favicon.png" alt="GC" width={13} height={13} style={{ opacity: 0.5 }} />
+                                Google Classroom
+                            </div>
+                            <div style={{ fontSize: '0.68rem', color: '#aaa', lineHeight: 1.4 }}>Classroom sync not set up yet. Contact your admin.</div>
+                        </div>
+                    )}
+
+                    {/* Loading state */}
+                    {gcConnected === null && (
+                        <div>{[1,2].map(i => (
+                            <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'center', padding: '10px 0' }}>
+                                <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.15}s` }} />
+                                <div style={{ flex: 1 }}>
+                                    <div style={{ width: `${60 + i * 15}%`, height: '10px', borderRadius: '4px', background: '#f0f0f0', marginBottom: '5px', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.2}s` }} />
+                                    <div style={{ width: '40%', height: '8px', borderRadius: '3px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.25}s` }} />
                                 </div>
                             </div>
-                        );
-                    })}
+                        ))}</div>
+                    )}
+
+                    {/* Merged assignment list: ERP + Google Classroom */}
+                    {(() => {
+                        // Build unified list
+                        const erpItems = assignments.map(a => ({
+                            id: a.id,
+                            title: a.title,
+                            courseName: a.courses?.name || '',
+                            subtitle: a.faculty?.users ? `${a.faculty.users.first_name} ${a.faculty.users.last_name}` : '',
+                            dueDate: a.due_date,
+                            source: 'erp',
+                            link: null,
+                        }));
+
+                        const gcItems = gcAssignments.map(a => ({
+                            id: `gc_${a.id}`,
+                            title: a.title,
+                            courseName: a.courseName,
+                            subtitle: '',
+                            dueDate: a.dueDate,
+                            source: 'google_classroom',
+                            link: a.alternateLink,
+                        }));
+
+                        const combined = [...erpItems, ...gcItems].sort((a, b) => {
+                            if (!a.dueDate && !b.dueDate) return 0;
+                            if (!a.dueDate) return 1;
+                            if (!b.dueDate) return -1;
+                            return new Date(a.dueDate) - new Date(b.dueDate);
+                        }).slice(0, 5);
+
+                        if (combined.length === 0) {
+                            return <div style={{ padding: '0.75rem', color: '#aaa', fontSize: '0.82rem' }}>No pending assignments!</div>;
+                        }
+
+                        return combined.map((a) => {
+                            let daysLeft = null;
+                            if (a.dueDate) {
+                                const due = new Date(a.dueDate);
+                                const today = new Date();
+                                due.setHours(0, 0, 0, 0);
+                                today.setHours(0, 0, 0, 0);
+                                daysLeft = Math.round((due - today) / (1000 * 60 * 60 * 24));
+                            }
+                            const daysColor = daysLeft !== null ? (daysLeft <= 0 ? '#ef4444' : daysLeft <= 3 ? '#ef4444' : daysLeft <= 7 ? '#f59e0b' : '#22c55e') : '#ccc';
+                            const daysLabel = daysLeft !== null ? (daysLeft < 0 ? 'Late' : daysLeft === 0 ? 'Today' : `${daysLeft}d`) : '—';
+                            const isGC = a.source === 'google_classroom';
+
+                            return (
+                                <div
+                                    key={a.id}
+                                    className="assignment-card"
+                                    onClick={() => { if (a.link) window.open(a.link, '_blank'); }}
+                                    style={{ cursor: a.link ? 'pointer' : 'default', transition: 'box-shadow 0.15s', position: 'relative' }}
+                                    onMouseEnter={e => { if (a.link) e.currentTarget.style.boxShadow = '0 2px 12px rgba(26,86,219,0.10)'; }}
+                                    onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; }}
+                                >
+                                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                        <div className="icon-box" style={{ background: isGC ? '#e8f0fe' : undefined, color: isGC ? '#1a56db' : undefined, flexShrink: 0 }}>
+                                            {isGC
+                                                ? <img src="https://ssl.gstatic.com/classroom/favicon.png" alt="GC" width={16} height={16} />
+                                                : <FileText size={16} />}
+                                        </div>
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                                <div style={{ fontSize: '0.80rem', fontWeight: 700, lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '130px' }}>{a.title}</div>
+                                                {isGC && (
+                                                    <span style={{ fontSize: '0.58rem', fontWeight: 700, padding: '1px 5px', borderRadius: '4px', background: '#e8f0fe', color: '#1a56db', flexShrink: 0 }}>GC</span>
+                                                )}
+                                            </div>
+                                            <div style={{ fontSize: '0.67rem', color: '#888', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.courseName}</div>
+                                            {a.subtitle && <div style={{ fontSize: '0.63rem', color: '#aaa' }}>{a.subtitle}</div>}
+                                        </div>
+                                        {a.link && <ExternalLink size={11} color="#aaa" style={{ flexShrink: 0 }} />}
+                                    </div>
+                                    <div style={{ width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.63rem', fontWeight: 700, color: daysColor, border: `2px solid ${daysColor}`, background: `${daysColor}10`, flexShrink: 0 }}>
+                                        {daysLabel}
+                                    </div>
+                                </div>
+                            );
+                        });
+                    })()}
 
                     <div className="section-title" style={{ marginTop: '0.5rem', marginBottom: '0.5rem' }}>Pending Feedback</div>
                     {pendingFeedback ? (
@@ -384,6 +519,7 @@ const StudentDashboard = () => {
                     </div>
                 </div>
             )}
+            <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } } @keyframes shimmer { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }`}</style>
         </div>
     );
 };

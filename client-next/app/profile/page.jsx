@@ -112,7 +112,24 @@ export default function ProfilePage() {
                 </header>
 
                 {loading ? (
-                    <div style={{ color: '#aaa', textAlign: 'center', padding: '4rem' }}>Loading profile...</div>
+                    <div style={{ padding: '1.5rem 2rem' }}>
+                        <div style={{ background: '#fff', border: '1px solid #e8e8e8', borderRadius: '20px', padding: '1.5rem 2rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '2rem' }}>
+                            <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: '#f0f0f0', flexShrink: 0, animation: 'shimmer 1.5s infinite' }} />
+                            <div style={{ flex: 1 }}>
+                                <div style={{ width: '40%', height: '16px', borderRadius: '4px', background: '#f0f0f0', marginBottom: '10px', animation: 'shimmer 1.5s infinite', animationDelay: '0.1s' }} />
+                                <div style={{ width: '60%', height: '10px', borderRadius: '3px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: '0.2s' }} />
+                            </div>
+                            <div style={{ display: 'flex', gap: '1rem' }}>{[1,2,3].map(i => (<div key={i} style={{ width: '80px', height: '60px', borderRadius: '12px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${i*0.15}s` }} />))}</div>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                            {[1,2].map(i => (<div key={i} style={{ background: '#fff', border: '1px solid #e8e8e8', borderRadius: '16px', padding: '1.5rem' }}>
+                                {[1,2,3,4].map(j => (<div key={j} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f8f8f8' }}>
+                                    <div style={{ width: '30%', height: '10px', borderRadius: '3px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${(i*4+j)*0.1}s` }} />
+                                    <div style={{ width: '40%', height: '10px', borderRadius: '3px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${(i*4+j)*0.12}s` }} />
+                                </div>))}
+                            </div>))}
+                        </div>
+                    </div>
                 ) : (
                     <div style={{ padding: '1.5rem 2rem', flex: 1 }}>
                         {/* Profile header card */}
@@ -359,6 +376,7 @@ export default function ProfilePage() {
                     </div>
                 )}
             </div>
+            <style>{`@keyframes shimmer { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }`}</style>
         </div>
     );
 }
