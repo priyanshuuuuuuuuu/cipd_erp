@@ -7,7 +7,7 @@ import { withRole } from '@/lib/middleware';
 // Supports two modes:
 //   1. Status-only update: { status: 'scheduled' | 'completed' | 'cancelled' }
 //   2. Full session edit: { title, course_id, faculty_id, venue_id, session_type_id,
-//                           session_date, start_time, end_time }
+//                           session_date, start_time, end_time, skill_ids }
 async function handler(req, { params }) {
   try {
     const { id } = params;
@@ -57,6 +57,7 @@ async function handler(req, { params }) {
       start_time,
       end_time,
       status,
+      skill_ids, // optional array of skill UUIDs (max 4)
     } = body;
 
     // Build update payload — only include fields that were sent
@@ -71,7 +72,7 @@ async function handler(req, { params }) {
     if (end_time !== undefined)        updates.end_time        = end_time || null;
     if (status !== undefined)          updates.status          = status;
 
-    if (Object.keys(updates).length === 0) {
+    if (Object.keys(updates).length === 0 && skill_ids === undefined) {
       return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
     }
 
@@ -80,27 +81,60 @@ async function handler(req, { params }) {
       return NextResponse.json({ error: 'End time must be after start time' }, { status: 400 });
     }
 
-    const { data, error } = await supabaseAdmin
-      .from('sessions')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single();
+    // Update session row (only if there are core field changes)
+    let sessionData = null;
+    if (Object.keys(updates).length > 0) {
+      const { data, error } = await supabaseAdmin
+        .from('sessions')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
 
-    if (error) {
-      if (error.code === '23505') {
-        return NextResponse.json(
-          { error: 'Venue conflict: another session is already scheduled at this venue and time' },
-          { status: 409 }
-        );
+      if (error) {
+        if (error.code === '23505') {
+          return NextResponse.json(
+            { error: 'Venue conflict: another session is already scheduled at this venue and time' },
+            { status: 409 }
+          );
+        }
+        console.error('Edit session error:', error);
+        return NextResponse.json({ error: 'Failed to update session' }, { status: 500 });
       }
-      console.error('Edit session error:', error);
-      return NextResponse.json({ error: 'Failed to update session' }, { status: 500 });
+      if (!data) return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+      sessionData = data;
     }
 
-    if (!data) return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+    // ── Sync session_skills ────────────────────────────────────────────────
+    if (Array.isArray(skill_ids)) {
+      const capped = skill_ids.slice(0, 4); // enforce max 4
 
-    return NextResponse.json({ session: data });
+      // Delete existing mappings
+      const { error: delErr } = await supabaseAdmin
+        .from('session_skills')
+        .delete()
+        .eq('session_id', id);
+
+      if (delErr) {
+        console.error('Delete session_skills error:', delErr);
+        return NextResponse.json({ error: 'Failed to update skills' }, { status: 500 });
+      }
+
+      // Insert new mappings (skip if empty)
+      if (capped.length > 0) {
+        const rows = capped.map(skill_id => ({ session_id: id, skill_id }));
+        const { error: insErr } = await supabaseAdmin
+          .from('session_skills')
+          .insert(rows);
+
+        if (insErr) {
+          console.error('Insert session_skills error:', insErr);
+          return NextResponse.json({ error: 'Failed to save skills' }, { status: 500 });
+        }
+      }
+    }
+
+    return NextResponse.json({ session: sessionData, skill_ids: skill_ids ?? [] });
   } catch (err) {
     console.error('Session PATCH error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
