@@ -23,7 +23,7 @@ export default function AdminSchedulePage() {
     const [loading, setLoading] = useState(true);
 
     // Date sorting
-    const [dateSortDir, setDateSortDir] = useState('asc'); // 'asc' | 'desc'
+    const [dateSortDir, setDateSortDir] = useState('desc'); // 'asc' | 'desc'
 
     // ── Add-session form state ───────────────────────────────────────────────
     const [newClass, setNewClass] = useState({ course_id: '', faculty_id: '', date: '', start_time: '', end_time: '', venue_id: '', title: '', session_type_id: '' });
