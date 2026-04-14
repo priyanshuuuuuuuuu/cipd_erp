@@ -32,7 +32,7 @@ export default function AdminSchedulePage() {
 
     // ── Add-session form state ───────────────────────────────────────────────
     const [newClass, setNewClass] = useState({ course_id: '', faculty_id: '', date: '', start_time: '', end_time: '', venue_id: '', title: '', session_type_id: '', skill_ids: [] });
-    const [lookupData, setLookupData] = useState({ courses: [], faculty: [], venues: [], sessionTypes: [], skills: [] });
+    const [lookupData, setLookupData] = useState({ courses: [], faculty: [], venues: [], sessionTypes: [], skills: [], categories: [] });
     const [scheduleLoading, setScheduleLoading] = useState(false);
     const [scheduleError, setScheduleError] = useState('');
 
@@ -134,6 +134,7 @@ export default function AdminSchedulePage() {
                 venues: data.venues || [],
                 sessionTypes: data.sessionTypes || [],
                 skills: data.skills || [],
+                categories: data.categories || [],
             });
         } catch (err) {
             console.error('Failed to fetch lookup data:', err);
@@ -295,6 +296,7 @@ export default function AdminSchedulePage() {
             faculty_id: s.faculty_id,
             venue_id: s.venue_id,
             session_type_id: s.session_type_id,
+            category_id: s.category_id || '',
             session_date: s.date,
             start_time: s.time,
             end_time: s.endTime,
@@ -1055,13 +1057,31 @@ export default function AdminSchedulePage() {
                                     handleEditAddType
                                 )}
 
+                                {/* ── Category picker (filters skills below) ──────── */}
+                                <div>
+                                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>Category</label>
+                                    <select
+                                        value={editForm.category_id || ''}
+                                        onChange={e => setEditForm(f => ({ ...f, category_id: e.target.value, skill_ids: [] }))}
+                                        style={{ ...inp, cursor: 'pointer', background: '#fff' }}
+                                    >
+                                        <option value=''>Select category...</option>
+                                        {lookupData.categories
+                                            .filter(c => !editForm.course_id || c.course_id === editForm.course_id)
+                                            .map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                    </select>
+                                    {editForm.course_id && lookupData.categories.filter(c => c.course_id === editForm.course_id).length === 0 && (
+                                        <div style={{ fontSize: '0.72rem', color: '#aaa', marginTop: '4px' }}>No categories found for this course yet.</div>
+                                    )}
+                                </div>
+
                                 {/* ── Skills multi-select (edit modal only) ──────── */}
                                 <div>
                                     <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>
                                         <Tag size={12} style={{ display: 'inline', marginRight: '5px', verticalAlign: 'middle' }} />
                                         Skills Covered
                                         <span style={{ fontSize: '0.7rem', fontWeight: 400, color: '#aaa', marginLeft: '6px' }}>
-                                            (select up to 4)
+                                            (select up to 4{editForm.category_id ? ' · filtered by category' : ''})
                                         </span>
                                     </label>
 
@@ -1126,6 +1146,7 @@ export default function AdminSchedulePage() {
                                             <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #ddd', borderRadius: '8px', zIndex: 10, maxHeight: '200px', overflowY: 'auto', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', marginTop: '4px' }}>
                                                 {lookupData.skills
                                                     .filter(sk => !(editForm.skill_ids || []).includes(sk.id))
+                                                    .filter(sk => !editForm.category_id || sk.category_id === editForm.category_id)
                                                     .filter(sk => sk.name.toLowerCase().includes(skillSearchText.toLowerCase()))
                                                     .map(sk => (
                                                         <div
@@ -1143,7 +1164,7 @@ export default function AdminSchedulePage() {
                                                             {sk.name}
                                                         </div>
                                                     ))}
-                                                {lookupData.skills.filter(sk => !(editForm.skill_ids || []).includes(sk.id)).filter(sk => sk.name.toLowerCase().includes(skillSearchText.toLowerCase())).length === 0 && (
+                                                {lookupData.skills.filter(sk => !(editForm.skill_ids || []).includes(sk.id)).filter(sk => !editForm.category_id || sk.category_id === editForm.category_id).filter(sk => sk.name.toLowerCase().includes(skillSearchText.toLowerCase())).length === 0 && (
                                                     <div style={{ padding: '8px 12px', fontSize: '0.8rem', color: '#999', textAlign: 'center' }}>No skills found...</div>
                                                 )}
                                             </div>
