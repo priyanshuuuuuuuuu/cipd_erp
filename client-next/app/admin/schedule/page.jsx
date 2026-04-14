@@ -5,7 +5,7 @@ import {
     LayoutGrid, Calendar, MessageSquare, Settings, LogOut, Bell, Search, Menu,
     ChevronLeft, ChevronRight, Wifi, Clock, FileBarChart, CheckCircle, Plus,
     MapPin, User, Users, Edit3, Trash2, X, AlertTriangle, RefreshCw, Filter,
-    List, CalendarDays, AlertCircle, Loader2, Tag, ArrowUpDown, ArrowUp, ArrowDown, Info
+    List, CalendarDays, AlertCircle, Loader2, Tag, ArrowUpDown, ArrowUp, ArrowDown, Info, Send
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
@@ -24,6 +24,11 @@ export default function AdminSchedulePage() {
 
     // Date sorting
     const [dateSortDir, setDateSortDir] = useState('desc'); // 'asc' | 'desc'
+
+    // ── Feedback rollout state ───────────────────────────────────────────────
+    const [rollingOutId, setRollingOutId] = useState(null);   // session id currently being processed
+    const [rolloutMsg, setRolloutMsg] = useState('');         // success/error flash message
+    const [backfilling, setBackfilling] = useState(false);
 
     // ── Add-session form state ───────────────────────────────────────────────
     const [newClass, setNewClass] = useState({ course_id: '', faculty_id: '', date: '', start_time: '', end_time: '', venue_id: '', title: '', session_type_id: '', skill_ids: [] });
@@ -66,6 +71,45 @@ export default function AdminSchedulePage() {
     const [skillSearchOpen, setSkillSearchOpen] = useState(false);
 
     const navTo = p => router.push(p);
+
+    // ── Rollout feedback for a single completed session ───────────────────────
+    const handleRolloutFeedback = async (sessionId, sessionTitle) => {
+        setRollingOutId(sessionId);
+        setRolloutMsg('');
+        try {
+            const res = await api.post('/api/admin/sessions/rollout-feedback', { session_id: sessionId });
+            const notified = res.notified ?? 0;
+            const skipped = res.skipped ?? 0;
+            setRolloutMsg(
+                notified === 0
+                    ? `All students for "${sessionTitle}" already notified (${skipped} skipped).`
+                    : `✓ Feedback sent to ${notified} student(s) for "${sessionTitle}".`
+            );
+        } catch (err) {
+            setRolloutMsg(`✗ Rollout failed: ${err.message}`);
+        } finally {
+            setRollingOutId(null);
+            setTimeout(() => setRolloutMsg(''), 5000);
+        }
+    };
+
+    // ── Backfill all completed sessions ──────────────────────────────────────
+    const handleBackfillAll = async () => {
+        if (!confirm('Send feedback forms for ALL completed sessions that are missing notifications? This may send many emails.')) return;
+        setBackfilling(true);
+        setRolloutMsg('');
+        try {
+            const res = await api.post('/api/admin/sessions/rollout-feedback', { all_completed: true });
+            setRolloutMsg(
+                `✓ Backfill done: ${res.totalNotified} notification(s) sent across ${res.sessionsWithActivity?.length ?? 0} sessions, ${res.totalSkipped} already had notifications.`
+            );
+        } catch (err) {
+            setRolloutMsg(`✗ Backfill failed: ${err.message}`);
+        } finally {
+            setBackfilling(false);
+            setTimeout(() => setRolloutMsg(''), 8000);
+        }
+    };
 
     // ── Fetch sessions ───────────────────────────────────────────────────────
     const fetchSessions = useCallback(async () => {
@@ -535,10 +579,20 @@ export default function AdminSchedulePage() {
 
                     {/* Controls row */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                        <div style={{ display: 'flex', gap: '8px' }}>
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                             {[['all', 'All'], ['today', 'Today'], ['week', 'This Week'], ['confirmed', 'Confirmed'], ['pending', 'Pending']].map(([key, label]) => (
                                 <button key={key} onClick={() => setActiveFilter(key)} style={{ padding: '6px 16px', borderRadius: '6px', border: `1px solid ${activeFilter === key ? '#111' : '#e8e8e8'}`, background: activeFilter === key ? '#111' : '#fff', color: activeFilter === key ? '#fff' : '#888', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer' }}>{label}</button>
                             ))}
+                            {/* Backfill button */}
+                            <button
+                                onClick={handleBackfillAll}
+                                disabled={backfilling}
+                                title="Send feedback forms to all students from completed sessions that haven't been notified yet"
+                                style={{ padding: '6px 14px', borderRadius: '6px', border: '1px solid #2563eb', background: '#eff6ff', color: '#2563eb', fontSize: '0.75rem', fontWeight: 600, cursor: backfilling ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '5px', opacity: backfilling ? 0.6 : 1 }}
+                            >
+                                {backfilling ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <Send size={12} />}
+                                {backfilling ? 'Sending...' : 'Backfill Feedback'}
+                            </button>
                         </div>
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                             <div style={{ display: 'flex', border: '1px solid #e8e8e8', borderRadius: '6px', overflow: 'hidden' }}>
@@ -548,6 +602,13 @@ export default function AdminSchedulePage() {
                             <button onClick={() => { setShowScheduleModal(true); setScheduleError(''); }} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '7px 16px', borderRadius: '8px', border: 'none', background: '#111', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600, color: '#fff' }}><Plus size={14} /> Schedule Class</button>
                         </div>
                     </div>
+
+                    {/* Rollout flash message */}
+                    {rolloutMsg && (
+                        <div style={{ padding: '10px 16px', borderRadius: '8px', marginBottom: '1rem', fontSize: '0.82rem', fontWeight: 500, background: rolloutMsg.startsWith('✓') ? '#f0fdf4' : '#fef2f2', color: rolloutMsg.startsWith('✓') ? '#166534' : '#dc2626', border: `1px solid ${rolloutMsg.startsWith('✓') ? '#bbf7d0' : '#fecaca'}` }}>
+                            {rolloutMsg}
+                        </div>
+                    )}
 
                     {/* List View */}
                     {viewMode === 'list' && (
@@ -661,6 +722,17 @@ export default function AdminSchedulePage() {
                                                                 style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #3B2D82', background: '#f5f3ff', cursor: 'pointer', color: '#3B2D82' }}
                                                                 title="Edit session"
                                                             ><Edit3 size={13} /></button>
+                                                             {s.status === 'Completed' && (
+                                                                 <button
+                                                                     onClick={() => handleRolloutFeedback(s.id, s.course)}
+                                                                     disabled={rollingOutId === s.id}
+                                                                     className="change-status-btn"
+                                                                     style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #2563eb', background: '#eff6ff', cursor: rollingOutId === s.id ? 'not-allowed' : 'pointer', color: '#2563eb', opacity: rollingOutId === s.id ? 0.6 : 1 }}
+                                                                     title="Send feedback form to students who attended this session"
+                                                                 >
+                                                                     {rollingOutId === s.id ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Send size={13} />}
+                                                                 </button>
+                                                             )}
                                                             <button className="change-status-btn" style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', color: '#ccc' }}><Trash2 size={13} /></button>
                                                         </div>
                                                     </td>

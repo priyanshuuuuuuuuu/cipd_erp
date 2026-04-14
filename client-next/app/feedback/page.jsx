@@ -6,7 +6,7 @@ import {
     LayoutGrid, Calendar, BookOpen, Users, MessageSquare, Settings,
     LogOut, Bell, Search, Menu, ChevronLeft, ChevronRight,
     CheckCircle, Clock, FileText, Send, Lock, Trophy, Award, ArrowLeft,
-    AlertTriangle
+    AlertTriangle, Eye, X
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
@@ -17,12 +17,12 @@ const MCQ_OPTIONS = ['Highly Engaging', 'Engaging', 'Average', 'Poor'];
 
 /* ─── Category display config ─── */
 const CATEGORY_CONFIG = {
-    Structure: { label: 'I. Structure of the Session', icon: '🏗️' },
-    Content: { label: 'II. Content', icon: '📚' },
-    Faculty: { label: 'III. Faculty / Instructor', icon: '👨‍🏫' },
-    Logistics: { label: 'IV. Logistics and Support', icon: '🏢' },
-    Engagement: { label: 'V. Engagement Level', icon: '🎯' },
-    General: { label: 'VI. Additional Comments', icon: '💬' },
+    Structure:  { label: 'I. Structure of the Session',  icon: '🏗️' },
+    Content:    { label: 'II. Content',                  icon: '📚' },
+    Faculty:    { label: 'III. Faculty / Instructor',    icon: '👨‍🏫' },
+    Logistics:  { label: 'IV. Logistics and Support',    icon: '🏢' },
+    Engagement: { label: 'V. Engagement Level',          icon: '🎯' },
+    General:    { label: 'VI. Additional Comments',      icon: '💬' },
 };
 
 export default function FeedbackPage() {
@@ -39,11 +39,16 @@ export default function FeedbackPage() {
     const [leaderboard, setLeaderboard] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // Form view states
+    // Form fill states
     const [selectedForm, setSelectedForm] = useState(null);
     const [responses, setResponses] = useState({});
     const [submitting, setSubmitting] = useState(false);
     const [justSubmitted, setJustSubmitted] = useState(false);
+
+    // View submitted response modal
+    const [viewResponseForm, setViewResponseForm] = useState(null);
+    const [viewResponseData, setViewResponseData] = useState([]);
+    const [viewResponseLoading, setViewResponseLoading] = useState(false);
 
     const displayName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Student' : 'Student';
 
@@ -54,7 +59,6 @@ export default function FeedbackPage() {
             if (q.type === 'yes_no') defaults[q.id] = true;
             else if (q.type === 'rating') defaults[q.id] = 5;
             else if (q.type === 'mcq') defaults[q.id] = 'Highly Engaging';
-            // text defaults to empty (optional)
         });
         setResponses(defaults);
     }, []);
@@ -79,7 +83,7 @@ export default function FeedbackPage() {
 
     useEffect(() => { if (authReady) fetchData(); }, [fetchData, authReady]);
 
-    /* ─── Open a form ─── */
+    /* ─── Open a form to fill ─── */
     const openForm = (form) => {
         setSelectedForm(form);
         setJustSubmitted(false);
@@ -90,6 +94,26 @@ export default function FeedbackPage() {
         setSelectedForm(null);
         setResponses({});
         setJustSubmitted(false);
+    };
+
+    /* ─── Open submitted response viewer ─── */
+    const openViewResponse = async (form) => {
+        setViewResponseForm(form);
+        setViewResponseLoading(true);
+        setViewResponseData([]);
+        try {
+            const data = await api.get(`/api/feedback/my-response?session_id=${form.session_id}`);
+            setViewResponseData(data.responses || []);
+        } catch (e) {
+            console.error('Failed to load response:', e);
+        } finally {
+            setViewResponseLoading(false);
+        }
+    };
+
+    const closeViewResponse = () => {
+        setViewResponseForm(null);
+        setViewResponseData([]);
     };
 
     /* ─── Response change handler ─── */
@@ -117,7 +141,6 @@ export default function FeedbackPage() {
                 responses: responseArray,
             });
             setJustSubmitted(true);
-            // Refresh data
             fetchData();
         } catch (e) {
             alert('Failed to submit feedback: ' + e.message);
@@ -158,8 +181,8 @@ export default function FeedbackPage() {
         return `${mins}m left`;
     };
 
-    const pendingForms = forms.filter(f => !f.submitted && !f.expired);
-    const expiredForms = forms.filter(f => !f.submitted && f.expired);
+    const pendingForms   = forms.filter(f => !f.submitted && !f.expired);
+    const expiredForms   = forms.filter(f => !f.submitted && f.expired);
     const submittedForms = forms.filter(f => f.submitted);
 
     return (
@@ -219,19 +242,19 @@ export default function FeedbackPage() {
                                     </div>
                                 ))}</div>
                             ) : (
-                            <div style={{ display: 'flex', gap: '12px', marginBottom: '1.2rem' }}>
-                                {[
-                                    { label: 'Pending', value: stats.totalPending || 0, color: '#b45309', bg: '#fffbeb' },
-                                    { label: 'Submitted', value: stats.totalSubmitted || 0, color: '#16a34a', bg: '#f0fdf4' },
-                                    { label: 'Expired', value: stats.totalExpired || 0, color: '#dc2626', bg: '#fef2f2' },
-                                    { label: 'Total Sessions', value: stats.totalAttended || 0, color: '#6355F1', bg: '#f5f3ff' },
-                                ].map(s => (
-                                    <div key={s.label} style={{ flex: 1, background: s.bg, borderRadius: '10px', border: `1px solid ${s.color}22`, padding: '14px 18px' }}>
-                                        <div style={{ fontSize: '0.68rem', fontWeight: 600, color: s.color, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>{s.label}</div>
-                                        <div style={{ fontSize: '1.5rem', fontWeight: 800, color: s.color, fontFamily: 'monospace' }}>{s.value}</div>
-                                    </div>
-                                ))}
-                            </div>
+                                <div style={{ display: 'flex', gap: '12px', marginBottom: '1.2rem' }}>
+                                    {[
+                                        { label: 'Pending',        value: stats.totalPending   || 0, color: '#b45309', bg: '#fffbeb' },
+                                        { label: 'Submitted',      value: stats.totalSubmitted || 0, color: '#16a34a', bg: '#f0fdf4' },
+                                        { label: 'Expired',        value: stats.totalExpired   || 0, color: '#dc2626', bg: '#fef2f2' },
+                                        { label: 'Total Sessions', value: stats.totalAttended  || 0, color: '#6355F1', bg: '#f5f3ff' },
+                                    ].map(s => (
+                                        <div key={s.label} style={{ flex: 1, background: s.bg, borderRadius: '10px', border: `1px solid ${s.color}22`, padding: '14px 18px' }}>
+                                            <div style={{ fontSize: '0.68rem', fontWeight: 600, color: s.color, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>{s.label}</div>
+                                            <div style={{ fontSize: '1.5rem', fontWeight: 800, color: s.color, fontFamily: 'monospace' }}>{s.value}</div>
+                                        </div>
+                                    ))}
+                                </div>
                             )}
 
                             {/* Pending forms */}
@@ -306,7 +329,15 @@ export default function FeedbackPage() {
                                                         <div style={{ fontSize: '0.68rem', fontWeight: 600, color: '#16a34a', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '2px' }}>{form.course?.name || 'Course'}</div>
                                                         <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#333' }}>{form.title}</div>
                                                     </div>
-                                                    <span style={{ padding: '3px 10px', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 600, background: '#16a34a', color: '#fff' }}>✓ Done</span>
+                                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                                        <button
+                                                            onClick={() => openViewResponse(form)}
+                                                            style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 12px', borderRadius: '6px', border: '1px solid #bbf7d0', background: '#fff', color: '#16a34a', fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer' }}
+                                                        >
+                                                            <Eye size={12} /> View Response
+                                                        </button>
+                                                        <span style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600, background: '#16a34a', color: '#fff' }}>✓ Done</span>
+                                                    </div>
                                                 </div>
                                             </div>
                                         ))}
@@ -314,7 +345,7 @@ export default function FeedbackPage() {
                                 </div>
                             )}
 
-                            {/* No forms at all */}
+                            {/* No forms */}
                             {forms.length === 0 && !loading && (
                                 <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e8e8e8', padding: '3rem', textAlign: 'center', color: '#888' }}>
                                     <CheckCircle size={40} color="#16a34a" style={{ marginBottom: '1rem' }} />
@@ -325,10 +356,9 @@ export default function FeedbackPage() {
                         </>
                     )}
 
-                    {/* ═══════════════════ FORM VIEW ═══════════════════ */}
+                    {/* ═══════════════════ FORM FILL VIEW ═══════════════════ */}
                     {activeTab === 'feedback' && selectedForm && !justSubmitted && (
                         <>
-                            {/* Back + session info */}
                             <div style={{ marginBottom: '1rem' }}>
                                 <button onClick={closeForm} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', color: '#555', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', marginBottom: '10px' }}>
                                     <ArrowLeft size={14} /> Back to list
@@ -351,13 +381,11 @@ export default function FeedbackPage() {
                                 </div>
                             </div>
 
-                            {/* Pre-filled notice */}
                             <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '10px 16px', marginBottom: '1rem', fontSize: '0.78rem', color: '#166534', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <CheckCircle size={14} color="#16a34a" />
                                 <span><strong>Pre-filled with positive defaults.</strong> Just review and submit, or change any answer you disagree with.</span>
                             </div>
 
-                            {/* Sectioned form */}
                             <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e8e8e8', boxShadow: '0 1px 4px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
                                 <div style={{ padding: '12px 1.5rem', borderBottom: '1px solid #f0f0f0', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <FileText size={14} color="#888" /><span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#111' }}>Session Feedback Form</span>
@@ -368,20 +396,16 @@ export default function FeedbackPage() {
                                         const config = CATEGORY_CONFIG[category] || { label: category, icon: '📋' };
                                         return (
                                             <div key={category} style={{ marginBottom: catIdx < Object.keys(groupedQuestions).length - 1 ? '1.5rem' : '1rem' }}>
-                                                {/* Section header */}
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px', paddingBottom: '8px', borderBottom: '2px solid #f0f0f0' }}>
                                                     <span style={{ fontSize: '1rem' }}>{config.icon}</span>
                                                     <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#111' }}>{config.label}</span>
                                                 </div>
-
                                                 {qs.map((q, idx) => (
                                                     <div key={q.id} style={{ marginBottom: idx < qs.length - 1 ? '1.2rem' : '0', paddingBottom: idx < qs.length - 1 ? '1.2rem' : '0', borderBottom: idx < qs.length - 1 ? '1px solid #f9f9f9' : 'none' }}>
                                                         <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '10px' }}>
                                                             <span style={{ fontSize: '0.85rem', fontWeight: 500, color: '#333' }}>{q.question}</span>
                                                             {q.type === 'text' && <span style={{ fontSize: '0.68rem', color: '#bbb' }}>(Optional)</span>}
                                                         </div>
-
-                                                        {/* Rating (1-5) */}
                                                         {q.type === 'rating' && (
                                                             <div style={{ display: 'flex', gap: '0', marginLeft: '0' }}>
                                                                 {[1,2,3,4,5].map(n => (
@@ -393,8 +417,6 @@ export default function FeedbackPage() {
                                                                 <div style={{ marginLeft:'12px',display:'flex',alignItems:'center',gap:'16px',fontSize:'0.68rem',color:'#bbb' }}><span>1 = Poor</span><span>5 = Excellent</span></div>
                                                             </div>
                                                         )}
-
-                                                        {/* Yes / No */}
                                                         {q.type === 'yes_no' && (
                                                             <div style={{ display:'flex',gap:'0' }}>
                                                                 {[true, false].map(opt => (
@@ -402,8 +424,6 @@ export default function FeedbackPage() {
                                                                 ))}
                                                             </div>
                                                         )}
-
-                                                        {/* MCQ (engagement level) */}
                                                         {q.type === 'mcq' && (
                                                             <div style={{ display:'flex',gap:'0',flexWrap:'wrap' }}>
                                                                 {MCQ_OPTIONS.map((opt, oi) => (
@@ -411,8 +431,6 @@ export default function FeedbackPage() {
                                                                 ))}
                                                             </div>
                                                         )}
-
-                                                        {/* Text / Descriptive */}
                                                         {q.type === 'text' && (
                                                             <textarea value={responses[q.id] || ''} onChange={e=>handleResponseChange(q.id, e.target.value)} placeholder="Write your response here..." rows={3} style={{ width:'100%',padding:'10px 14px',borderRadius:'8px',border:'1px solid #e8e8e8',fontSize:'0.85rem',fontFamily:'inherit',color:'#333',resize:'vertical',outline:'none',background:'#fafafa',lineHeight:'1.5',boxSizing:'border-box' }} />
                                                         )}
@@ -421,8 +439,6 @@ export default function FeedbackPage() {
                                             </div>
                                         );
                                     })}
-
-                                    {/* Submit button */}
                                     <div style={{ display:'flex',justifyContent:'flex-end',paddingTop:'12px',borderTop:'1px solid #f0f0f0',gap:'10px',alignItems:'center' }}>
                                         <span style={{ fontSize: '0.72rem', color: '#bbb' }}>Pre-filled answers will be submitted as-is</span>
                                         <button onClick={handleSubmit} disabled={submitting} style={{ display:'flex',alignItems:'center',gap:'6px',padding:'10px 24px',borderRadius:'8px',border:'none',background:'#6355F1',color:'#fff',fontSize:'0.85rem',fontWeight:700,cursor:'pointer',transition:'opacity 0.15s',opacity:submitting?0.6:1 }}>
@@ -457,16 +473,16 @@ export default function FeedbackPage() {
                             <div style={{ background:'#fff',borderRadius:'10px',border:'1px solid #e8e8e8',boxShadow:'0 1px 4px rgba(0,0,0,0.02)',overflow:'hidden' }}>
                                 <div style={{ display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 1.2rem',borderBottom:'1px solid #f0f0f0' }}>
                                     <div style={{ display:'flex',alignItems:'center',gap:'8px' }}><Trophy size={14} color="#888" /><span style={{ fontSize:'0.88rem',fontWeight:700,color:'#111' }}>Engagement Leaderboard</span></div>
-                                    <span style={{ fontSize:'0.7rem',color:'#bbb' }}>Based on feedback credits & consistency</span>
+                                    <span style={{ fontSize:'0.7rem',color:'#bbb' }}>Based on feedback credits &amp; consistency</span>
                                 </div>
                                 <div style={{ overflowX:'auto' }}>
                                     <table style={{ width:'100%',borderCollapse:'collapse',fontSize:'0.82rem' }}>
                                         <thead><tr style={{ background:'#fafafa' }}>{['Rank','Student','Credits','Streak','Submissions'].map(h=><th key={h} style={{ padding:'8px 16px',textAlign:'left',fontSize:'0.68rem',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.4px',color:'#aaa',borderBottom:'1px solid #f0f0f0' }}>{h}</th>)}</tr></thead>
                                         <tbody>
                                             {(leaderboard.length > 0 ? leaderboard : [
-                                                { rank: 1, name: 'Aarav Gupta', credits: 280, streak: 14, submissions: '14/14' },
-                                                { rank: 2, name: 'Sneha Kumar', credits: 260, streak: 13, submissions: '13/14' },
-                                                { rank: 3, name: 'Rohan Patel', credits: 240, streak: 12, submissions: '13/14' },
+                                                { rank: 1, name: 'Aarav Gupta',  credits: 280, streak: 14, submissions: '14/14' },
+                                                { rank: 2, name: 'Sneha Kumar',  credits: 260, streak: 13, submissions: '13/14' },
+                                                { rank: 3, name: 'Rohan Patel',  credits: 240, streak: 12, submissions: '13/14' },
                                             ]).map(entry => {
                                                 const rankBg = entry.rank===1?'#fef3c7':entry.rank===2?'#e5e7eb':entry.rank===3?'#fed7aa':'#f9fafb';
                                                 return (
@@ -486,7 +502,93 @@ export default function FeedbackPage() {
                         </>
                     )}
                 </div>
-        </div>
+            </div>
+
+            {/* ═══════════ VIEW RESPONSE MODAL ═══════════ */}
+            {viewResponseForm && (
+                <div
+                    style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}
+                    onClick={closeViewResponse}
+                >
+                    <div
+                        style={{ background: '#fff', borderRadius: '14px', width: '100%', maxWidth: '600px', maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}
+                        onClick={e => e.stopPropagation()}
+                    >
+                        {/* Header */}
+                        <div style={{ padding: '16px 20px', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <div>
+                                <div style={{ fontSize: '0.68rem', fontWeight: 600, color: '#16a34a', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '3px' }}>{viewResponseForm.course?.name}</div>
+                                <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#111' }}>{viewResponseForm.title}</div>
+                                <div style={{ fontSize: '0.72rem', color: '#aaa', marginTop: '2px' }}>Your submitted responses</div>
+                            </div>
+                            <button onClick={closeViewResponse} style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#aaa', padding: '4px', lineHeight: 1 }}><X size={20} /></button>
+                        </div>
+
+                        {/* Body */}
+                        <div style={{ overflowY: 'auto', padding: '16px 20px', flex: 1 }}>
+                            {viewResponseLoading ? (
+                                <div style={{ textAlign: 'center', padding: '2rem', color: '#aaa' }}>Loading your responses...</div>
+                            ) : viewResponseData.length === 0 ? (
+                                <div style={{ textAlign: 'center', padding: '2rem', color: '#aaa' }}>No response data found.</div>
+                            ) : (() => {
+                                const grouped = viewResponseData.reduce((acc, r) => {
+                                    const cat = r.feedback_questions?.category || 'General';
+                                    if (!acc[cat]) acc[cat] = [];
+                                    acc[cat].push(r);
+                                    return acc;
+                                }, {});
+
+                                const renderAnswer = (r) => {
+                                    const q = r.feedback_questions;
+                                    if (!q) return null;
+                                    let answer = null;
+                                    if (q.type === 'rating') answer = (
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '8px', background: '#111', color: '#fff', fontWeight: 800, fontSize: '0.95rem', fontFamily: 'monospace' }}>{r.rating}</span>
+                                            <span style={{ fontSize: '0.72rem', color: '#aaa' }}>out of 5</span>
+                                        </div>
+                                    );
+                                    else if (q.type === 'yes_no') answer = (
+                                        <span style={{ padding: '4px 14px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 700, background: r.yes_no ? '#f0fdf4' : '#fef2f2', color: r.yes_no ? '#16a34a' : '#dc2626', border: `1px solid ${r.yes_no ? '#bbf7d0' : '#fecaca'}` }}>{r.yes_no ? 'Yes' : 'No'}</span>
+                                    );
+                                    else if (q.type === 'mcq') answer = (
+                                        <span style={{ padding: '4px 14px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 600, background: '#f5f3ff', color: '#6355F1', border: '1px solid #e0d9ff' }}>{r.text_answer}</span>
+                                    );
+                                    else if (q.type === 'text') answer = r.text_answer
+                                        ? <span style={{ fontSize: '0.85rem', color: '#333', lineHeight: 1.6, fontStyle: 'italic' }}>"{r.text_answer}"</span>
+                                        : <span style={{ fontSize: '0.78rem', color: '#ccc' }}>No comment</span>;
+
+                                    return (
+                                        <div key={r.id} style={{ padding: '12px 0', borderBottom: '1px solid #f5f5f5' }}>
+                                            <div style={{ fontSize: '0.82rem', fontWeight: 500, color: '#444', marginBottom: '8px' }}>{q.question}</div>
+                                            {answer}
+                                        </div>
+                                    );
+                                };
+
+                                return Object.entries(grouped).map(([cat, rows]) => {
+                                    const cfg = CATEGORY_CONFIG[cat] || { label: cat, icon: '📋' };
+                                    return (
+                                        <div key={cat} style={{ marginBottom: '20px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', paddingBottom: '6px', borderBottom: '2px solid #f0f0f0' }}>
+                                                <span style={{ fontSize: '0.9rem' }}>{cfg.icon}</span>
+                                                <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#111' }}>{cfg.label}</span>
+                                            </div>
+                                            {rows.map(r => renderAnswer(r))}
+                                        </div>
+                                    );
+                                });
+                            })()}
+                        </div>
+
+                        {/* Footer */}
+                        <div style={{ padding: '12px 20px', borderTop: '1px solid #f0f0f0', display: 'flex', justifyContent: 'flex-end' }}>
+                            <button onClick={closeViewResponse} style={{ padding: '8px 20px', borderRadius: '8px', border: '1px solid #e8e8e8', background: '#fff', color: '#555', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer' }}>Close</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <style>{`@keyframes shimmer { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }`}</style>
         </div>
     );
