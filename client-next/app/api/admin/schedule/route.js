@@ -53,6 +53,25 @@ async function handler(request) {
 
         if (error) throw error;
 
+        // Fetch skill_ids for all sessions in one batch query
+        const sessionIds = (data || []).map(s => s.id);
+        let skillsMap = {}; // { session_id: [skill_id, ...] }
+
+        if (sessionIds.length > 0) {
+            try {
+                const { data: ssData } = await supabaseAdmin
+                    .from('session_skills')
+                    .select('session_id, skill_id')
+                    .in('session_id', sessionIds);
+
+                (ssData || []).forEach(row => {
+                    if (!skillsMap[row.session_id]) skillsMap[row.session_id] = [];
+                    skillsMap[row.session_id].push(row.skill_id);
+                });
+            } catch (_) {
+                // table may not exist yet — skills just won't be populated
+            }
+        }
         // Fetch real enrollment counts in one batch query
         const courseIds = [...new Set((data || []).map(s => s.course_id).filter(Boolean))];
         let enrollmentMap = {};
@@ -68,29 +87,42 @@ async function handler(request) {
             });
         }
 
-        const sessions = (data || []).map(s => ({
-            id: s.id,
-            // Display values
-            course: s.courses?.name || 'Unknown',
-            sessionType: s.session_types?.name || null,
-            faculty: s.faculty?.users
-                ? `Prof. ${s.faculty.users.first_name} ${s.faculty.users.last_name}`
-                : 'Unknown',
-            venue: s.venues?.name || 'TBA',
-            date: s.session_date,
-            time: s.start_time?.slice(0, 5),
-            endTime: s.end_time?.slice(0, 5),
-            students: enrollmentMap[s.course_id] || 0,
-            status: s.status === 'scheduled'
+        const sessions = (data || []).map(s => {
+            let computedStatus = s.status === 'scheduled'
                 ? 'Confirmed'
-                : s.status.charAt(0).toUpperCase() + s.status.slice(1),
-            // Raw IDs / values for edit form pre-fill
-            title: s.title || '',
-            course_id: s.course_id || '',
-            faculty_id: s.faculty_id || '',
-            venue_id: s.venue_id || '',
-            session_type_id: s.session_type_id || '',
-        }));
+                : s.status.charAt(0).toUpperCase() + s.status.slice(1);
+
+            if (s.status === 'scheduled' && s.session_date && s.end_time) {
+                // If it's a past date/time, treat it as completed
+                const sessionEnd = new Date(`${s.session_date}T${s.end_time}`);
+                if (sessionEnd < new Date()) {
+                    computedStatus = 'Completed';
+                }
+            }
+
+            return {
+                id: s.id,
+                // Display values
+                course: s.courses?.name || 'Unknown',
+                sessionType: s.session_types?.name || null,
+                faculty: s.faculty?.users
+                    ? `Prof. ${s.faculty.users.first_name} ${s.faculty.users.last_name}`
+                    : 'Unknown',
+                venue: s.venues?.name || 'TBA',
+                date: s.session_date,
+                time: s.start_time?.slice(0, 5),
+                endTime: s.end_time?.slice(0, 5),
+                students: enrollmentMap[s.course_id] || 0,
+                status: computedStatus,
+                // Raw IDs / values for edit form pre-fill
+                title: s.title || '',
+                course_id: s.course_id || '',
+                faculty_id: s.faculty_id || '',
+                venue_id: s.venue_id || '',
+                session_type_id: s.session_type_id || '',
+                skill_ids: skillsMap[s.id] || [],
+            };
+        });
 
         return NextResponse.json({ sessions });
 

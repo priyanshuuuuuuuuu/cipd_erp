@@ -27,7 +27,7 @@ export default function AdminSchedulePage() {
 
     // ── Add-session form state ───────────────────────────────────────────────
     const [newClass, setNewClass] = useState({ course_id: '', faculty_id: '', date: '', start_time: '', end_time: '', venue_id: '', title: '', session_type_id: '' });
-    const [lookupData, setLookupData] = useState({ courses: [], faculty: [], venues: [], sessionTypes: [] });
+    const [lookupData, setLookupData] = useState({ courses: [], faculty: [], venues: [], sessionTypes: [], skills: [] });
     const [scheduleLoading, setScheduleLoading] = useState(false);
     const [scheduleError, setScheduleError] = useState('');
 
@@ -49,6 +49,14 @@ export default function AdminSchedulePage() {
     const [editNewTypeName, setEditNewTypeName] = useState('');
     const [editAddTypeLoading, setEditAddTypeLoading] = useState(false);
     const [editAddTypeError, setEditAddTypeError] = useState('');
+
+    // ── Edit-modal skills state ──────────────────────────────────────────
+    const [editShowAddSkill, setEditShowAddSkill] = useState(false);
+    const [editNewSkillName, setEditNewSkillName] = useState('');
+    const [editAddSkillLoading, setEditAddSkillLoading] = useState(false);
+    const [editAddSkillError, setEditAddSkillError] = useState('');
+    const [skillSearchText, setSkillSearchText] = useState('');
+    const [skillSearchOpen, setSkillSearchOpen] = useState(false);
 
     const navTo = p => router.push(p);
 
@@ -74,6 +82,7 @@ export default function AdminSchedulePage() {
                 faculty: data.faculty || [],
                 venues: data.venues || [],
                 sessionTypes: data.sessionTypes || [],
+                skills: data.skills || [],
             });
         } catch (err) {
             console.error('Failed to fetch lookup data:', err);
@@ -126,6 +135,44 @@ export default function AdminSchedulePage() {
         }
     };
 
+    // ── Add new skill (edit modal) ─────────────────────────────────────────
+    const handleEditAddSkill = async () => {
+        if (!editNewSkillName.trim()) return;
+        setEditAddSkillError('');
+        setEditAddSkillLoading(true);
+        try {
+            const res = await api.post('/api/admin/skills', { name: editNewSkillName.trim() });
+            // Refresh skills list in lookup
+            const refreshed = await api.get('/api/admin/skills');
+            setLookupData(prev => ({ ...prev, skills: refreshed.skills || [] }));
+            // Auto-select the new skill if under 4
+            setEditForm(prev => {
+                const current = prev.skill_ids || [];
+                if (current.length < 4) {
+                    return { ...prev, skill_ids: [...current, res.skill.id] };
+                }
+                return prev;
+            });
+            setEditNewSkillName('');
+            setEditShowAddSkill(false);
+        } catch (err) {
+            setEditAddSkillError(err.message || 'Failed to add skill.');
+        } finally {
+            setEditAddSkillLoading(false);
+        }
+    };
+
+    const toggleSkill = (skillId) => {
+        setEditForm(prev => {
+            const current = prev.skill_ids || [];
+            if (current.includes(skillId)) {
+                return { ...prev, skill_ids: current.filter(id => id !== skillId) };
+            }
+            if (current.length >= 4) return prev; // max 4
+            return { ...prev, skill_ids: [...current, skillId] };
+        });
+    };
+
     useEffect(() => {
         if (authReady) {
             fetchSessions();
@@ -160,11 +207,17 @@ export default function AdminSchedulePage() {
             session_date: s.date,
             start_time: s.time,
             end_time: s.endTime,
+            skill_ids: s.skill_ids || [],
         });
         setEditError('');
         setEditSuccess('');
         setEditShowAddType(false);
         setEditNewTypeName('');
+        setEditShowAddSkill(false);
+        setEditNewSkillName('');
+        setEditAddSkillError('');
+        setSkillSearchText('');
+        setSkillSearchOpen(false);
     };
 
     const closeEdit = () => {
@@ -188,7 +241,10 @@ export default function AdminSchedulePage() {
         setEditSuccess('');
         setEditLoading(true);
         try {
-            await api.patch(`/api/admin/sessions/${editSession.id}`, editForm);
+            await api.patch(`/api/admin/sessions/${editSession.id}`, {
+                ...editForm,
+                skill_ids: editForm.skill_ids || [],
+            });
             setEditSuccess('Session updated successfully.');
             fetchSessions();
             setTimeout(() => closeEdit(), 1200);
@@ -471,39 +527,42 @@ export default function AdminSchedulePage() {
                                                     <div style={{ fontSize: '0.9rem', fontWeight: 600, marginTop: '8px' }}>No sessions match this filter</div>
                                                 </div>
                                             </td></tr>
-                                        ) : sortedSessions.map((s) => (
-                                            <tr key={s.id} className="attendance-row" style={{ borderBottom: '1px solid #f5f5f5' }}>
-                                                <td style={{ padding: '12px 16px', fontWeight: 600, color: '#111' }}>{s.course}</td>
-                                                <td style={{ padding: '12px 16px' }}>
-                                                    {s.sessionType
-                                                        ? <span style={{ padding: '2px 9px', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 600, background: '#f5f3ff', color: '#3B2D82', border: '1px solid #ddd6fe', whiteSpace: 'nowrap' }}>{s.sessionType}</span>
-                                                        : <span style={{ color: '#ccc', fontSize: '0.75rem' }}>—</span>}
-                                                </td>
-                                                <td style={{ padding: '12px 16px', color: '#555' }}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><User size={12} color="#aaa" />{s.faculty}</div>
-                                                </td>
-                                                <td style={{ padding: '12px 16px', color: '#555' }}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><MapPin size={12} color="#aaa" />{s.venue}</div>
-                                                </td>
-                                                <td style={{ padding: '12px 16px', fontFamily: 'monospace', fontSize: '0.78rem', color: '#555' }}>{formatDate(s.date)}</td>
-                                                <td style={{ padding: '12px 16px', fontFamily: 'monospace', fontSize: '0.78rem', color: '#555' }}>{s.time} – {s.endTime}</td>
-                                                <td style={{ padding: '12px 16px' }}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#555' }}><Users size={12} color="#aaa" />{s.students}</div>
-                                                </td>
-                                                <td style={{ padding: '12px 16px' }}>{statusBadge(s.status)}</td>
-                                                <td style={{ padding: '12px 16px' }}>
-                                                    <div style={{ display: 'flex', gap: '6px' }}>
-                                                        <button
-                                                            onClick={() => openEdit(s)}
-                                                            className="change-status-btn"
-                                                            style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #3B2D82', background: '#f5f3ff', cursor: 'pointer', color: '#3B2D82' }}
-                                                            title="Edit session"
-                                                        ><Edit3 size={13} /></button>
-                                                        <button className="change-status-btn" style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', color: '#ccc' }}><Trash2 size={13} /></button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        ))}
+                                        ) : sortedSessions.map((s) => {
+                                            const isToday = s.date === todayStr;
+                                            return (
+                                                <tr key={s.id} className="attendance-row" style={{ borderBottom: '1px solid #f5f5f5' }}>
+                                                    <td style={{ padding: '12px 16px', fontWeight: 600, color: '#111', borderLeft: isToday ? '4px solid #3B2D82' : '4px solid transparent' }}>{s.course}</td>
+                                                    <td style={{ padding: '12px 16px' }}>
+                                                        {s.sessionType
+                                                            ? <span style={{ padding: '2px 9px', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 600, background: '#f5f3ff', color: '#3B2D82', border: '1px solid #ddd6fe', whiteSpace: 'nowrap' }}>{s.sessionType}</span>
+                                                            : <span style={{ color: '#ccc', fontSize: '0.75rem' }}>—</span>}
+                                                    </td>
+                                                    <td style={{ padding: '12px 16px', color: '#555' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><User size={12} color="#aaa" />{s.faculty}</div>
+                                                    </td>
+                                                    <td style={{ padding: '12px 16px', color: '#555' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}><MapPin size={12} color="#aaa" />{s.venue}</div>
+                                                    </td>
+                                                    <td style={{ padding: '12px 16px', fontFamily: 'monospace', fontSize: '0.78rem', color: '#555' }}>{formatDate(s.date)}</td>
+                                                    <td style={{ padding: '12px 16px', fontFamily: 'monospace', fontSize: '0.78rem', color: '#555' }}>{s.time} – {s.endTime}</td>
+                                                    <td style={{ padding: '12px 16px' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#555' }}><Users size={12} color="#aaa" />{s.students}</div>
+                                                    </td>
+                                                    <td style={{ padding: '12px 16px' }}>{statusBadge(s.status)}</td>
+                                                    <td style={{ padding: '12px 16px' }}>
+                                                        <div style={{ display: 'flex', gap: '6px' }}>
+                                                            <button
+                                                                onClick={() => openEdit(s)}
+                                                                className="change-status-btn"
+                                                                style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #3B2D82', background: '#f5f3ff', cursor: 'pointer', color: '#3B2D82' }}
+                                                                title="Edit session"
+                                                            ><Edit3 size={13} /></button>
+                                                            <button className="change-status-btn" style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', color: '#ccc' }}><Trash2 size={13} /></button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
                             </div>
@@ -530,7 +589,7 @@ export default function AdminSchedulePage() {
                                                 return (
                                                     <div key={`${dayObj.dateKey}-${time}`} style={{ padding: '4px', borderBottom: '1px solid #f5f5f5', borderRight: '1px solid #f0f0f0', minHeight: '60px' }}>
                                                         {daySessions.map(s => (
-                                                            <div key={s.id} style={{ padding: '6px 8px', borderRadius: '6px', marginBottom: '2px', background: s.status === 'Confirmed' ? '#ecfdf5' : '#fffbeb', border: `1px solid ${s.status === 'Confirmed' ? '#bbf7d0' : '#fde68a'}`, cursor: 'pointer' }}>
+                                                            <div key={s.id} style={{ padding: '6px 8px', borderRadius: '8px', marginBottom: '2px', background: s.status === 'Confirmed' ? '#ecfdf5' : '#fffbeb', border: s.date === todayStr ? '1px solid #a78bfa' : `1px solid ${s.status === 'Confirmed' ? '#bbf7d0' : '#fde68a'}`, cursor: 'pointer' }}>
                                                                 <div style={{ fontSize: '0.65rem', fontWeight: 600, color: '#111', lineHeight: 1.3 }}>{s.course}</div>
                                                                 <div style={{ fontSize: '0.58rem', color: '#888' }}>{s.time}–{s.endTime}</div>
                                                             </div>
@@ -700,6 +759,142 @@ export default function AdminSchedulePage() {
                                     editAddTypeError, setEditAddTypeError,
                                     handleEditAddType
                                 )}
+
+                                {/* ── Skills multi-select (edit modal only) ──────── */}
+                                <div>
+                                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>
+                                        <Tag size={12} style={{ display: 'inline', marginRight: '5px', verticalAlign: 'middle' }} />
+                                        Skills Covered
+                                        <span style={{ fontSize: '0.7rem', fontWeight: 400, color: '#aaa', marginLeft: '6px' }}>
+                                            (select up to 4)
+                                        </span>
+                                    </label>
+
+                                    {/* Selected skill pills */}
+                                    {(editForm.skill_ids || []).length > 0 && (
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
+                                            {(editForm.skill_ids || []).map(sid => {
+                                                const skill = lookupData.skills.find(sk => sk.id === sid);
+                                                return skill ? (
+                                                    <span
+                                                        key={sid}
+                                                        style={{
+                                                            display: 'inline-flex', alignItems: 'center', gap: '4px',
+                                                            padding: '3px 8px', borderRadius: '6px',
+                                                            background: '#f5f3ff', color: '#3B2D82',
+                                                            border: '1px solid #ddd6fe', fontSize: '0.72rem', fontWeight: 600,
+                                                        }}
+                                                    >
+                                                        {skill.name}
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => toggleSkill(sid)}
+                                                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0 2px', color: '#7c3aed', display: 'flex', alignItems: 'center' }}
+                                                        >
+                                                            <X size={10} />
+                                                        </button>
+                                                    </span>
+                                                ) : null;
+                                            })}
+                                        </div>
+                                    )}
+
+                                    {/* Dropdown to pick skills */}
+                                    <div style={{ position: 'relative' }}>
+                                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                            <input
+                                                type="text"
+                                                placeholder={(editForm.skill_ids || []).length >= 4 ? "Maximum 4 skills selected" : "Search to add a skill..."}
+                                                value={skillSearchText}
+                                                onChange={e => {
+                                                    setSkillSearchText(e.target.value);
+                                                    setSkillSearchOpen(true);
+                                                }}
+                                                onFocus={() => {
+                                                    if ((editForm.skill_ids || []).length < 4) {
+                                                        setSkillSearchOpen(true);
+                                                    }
+                                                }}
+                                                onBlur={() => {
+                                                    setTimeout(() => setSkillSearchOpen(false), 200);
+                                                }}
+                                                disabled={(editForm.skill_ids || []).length >= 4}
+                                                style={{
+                                                    ...inp, width: '100%',
+                                                    opacity: (editForm.skill_ids || []).length >= 4 ? 0.5 : 1,
+                                                    paddingRight: '30px'
+                                                }}
+                                            />
+                                            <Search size={14} color="#aaa" style={{ position: 'absolute', right: '10px' }} />
+                                        </div>
+                                        {skillSearchOpen && (editForm.skill_ids || []).length < 4 && (
+                                            <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #ddd', borderRadius: '8px', zIndex: 10, maxHeight: '200px', overflowY: 'auto', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', marginTop: '4px' }}>
+                                                {lookupData.skills
+                                                    .filter(sk => !(editForm.skill_ids || []).includes(sk.id))
+                                                    .filter(sk => sk.name.toLowerCase().includes(skillSearchText.toLowerCase()))
+                                                    .map(sk => (
+                                                        <div
+                                                            key={sk.id}
+                                                            onMouseDown={(e) => {
+                                                                e.preventDefault();
+                                                                toggleSkill(sk.id);
+                                                                setSkillSearchText('');
+                                                                setSkillSearchOpen(false);
+                                                            }}
+                                                            style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #f9f9f9', fontSize: '0.8rem', color: '#333' }}
+                                                            onMouseEnter={e => e.target.style.background = '#f5f3ff'}
+                                                            onMouseLeave={e => e.target.style.background = '#fff'}
+                                                        >
+                                                            {sk.name}
+                                                        </div>
+                                                    ))}
+                                                {lookupData.skills.filter(sk => !(editForm.skill_ids || []).includes(sk.id)).filter(sk => sk.name.toLowerCase().includes(skillSearchText.toLowerCase())).length === 0 && (
+                                                    <div style={{ padding: '8px 12px', fontSize: '0.8rem', color: '#999', textAlign: 'center' }}>No skills found...</div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Inline add new skill */}
+                                    {!editShowAddSkill ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => { setEditShowAddSkill(true); setEditAddSkillError(''); }}
+                                            style={{ marginTop: '6px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.75rem', color: '#3B2D82', fontWeight: 600, padding: '2px 0', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                        >
+                                            <Plus size={12} /> Add new skill
+                                        </button>
+                                    ) : (
+                                        <div style={{ marginTop: '8px', display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                            <input
+                                                autoFocus
+                                                type="text"
+                                                placeholder="e.g. Financial Modelling"
+                                                value={editNewSkillName}
+                                                onChange={e => { setEditNewSkillName(e.target.value); setEditAddSkillError(''); }}
+                                                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleEditAddSkill(); } if (e.key === 'Escape') setEditShowAddSkill(false); }}
+                                                style={{ flex: 1, padding: '6px 10px', borderRadius: '7px', border: `1px solid ${editAddSkillError ? '#fca5a5' : '#e5e7eb'}`, fontSize: '0.82rem', fontFamily: 'inherit', outline: 'none' }}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={handleEditAddSkill}
+                                                disabled={editAddSkillLoading || !editNewSkillName.trim()}
+                                                style={{ padding: '6px 12px', borderRadius: '7px', border: 'none', background: '#3B2D82', color: '#fff', cursor: editAddSkillLoading ? 'not-allowed' : 'pointer', fontSize: '0.78rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}
+                                            >
+                                                {editAddSkillLoading ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <Plus size={12} />}
+                                                Save
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => { setEditShowAddSkill(false); setEditNewSkillName(''); setEditAddSkillError(''); }}
+                                                style={{ padding: '6px 8px', borderRadius: '7px', border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', color: '#888' }}
+                                            >
+                                                <X size={12} />
+                                            </button>
+                                        </div>
+                                    )}
+                                    {editAddSkillError && <div style={{ fontSize: '0.72rem', color: '#dc2626', marginTop: '4px' }}>⚠ {editAddSkillError}</div>}
+                                </div>
                                 <div>
                                     <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>Status</label>
                                     <select value={editForm.status || 'scheduled'} onChange={e => setEditForm(f => ({ ...f, status: e.target.value }))} style={{ ...inp, cursor: 'pointer', background: '#fff' }}>
