@@ -60,7 +60,7 @@ async function getHandler(req) {
 
 async function postHandler(req) {
   try {
-    const { course_id, faculty_id, title, venue_id, session_date, start_time, end_time, session_type_id } = await req.json();
+    const { course_id, faculty_id, title, venue_id, session_date, start_time, end_time, session_type_id, skill_ids } = await req.json();
 
     if (!title || !session_date || !start_time || !end_time) {
       return NextResponse.json({ error: 'title, session_date, start_time, and end_time are required' }, { status: 400 });
@@ -90,6 +90,19 @@ async function postHandler(req) {
       }
       console.error('Create session error:', error);
       return NextResponse.json({ error: 'Failed to create session' }, { status: 500 });
+    }
+
+    if (skill_ids && skill_ids.length > 0) {
+      try {
+        const skillsToInsert = skill_ids.map(skill_id => ({
+          session_id: data.id,
+          skill_id
+        }));
+        await supabaseAdmin.from('session_skills').insert(skillsToInsert);
+      } catch (skillErr) {
+        console.error('Failed to insert session skills:', skillErr);
+        // Continue, as session creation was successful
+      }
     }
 
     return NextResponse.json({ session: data }, { status: 201 });

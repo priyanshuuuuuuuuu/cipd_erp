@@ -5,7 +5,7 @@ import {
     LayoutGrid, Calendar, MessageSquare, Settings, LogOut, Bell, Search, Menu,
     ChevronLeft, ChevronRight, Wifi, Clock, FileBarChart, CheckCircle, Plus,
     MapPin, User, Users, Edit3, Trash2, X, AlertTriangle, RefreshCw, Filter,
-    List, CalendarDays, AlertCircle, Loader2, Tag, ArrowUpDown, ArrowUp, ArrowDown
+    List, CalendarDays, AlertCircle, Loader2, Tag, ArrowUpDown, ArrowUp, ArrowDown, Info
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
@@ -26,10 +26,17 @@ export default function AdminSchedulePage() {
     const [dateSortDir, setDateSortDir] = useState('desc'); // 'asc' | 'desc'
 
     // ── Add-session form state ───────────────────────────────────────────────
-    const [newClass, setNewClass] = useState({ course_id: '', faculty_id: '', date: '', start_time: '', end_time: '', venue_id: '', title: '', session_type_id: '' });
+    const [newClass, setNewClass] = useState({ course_id: '', faculty_id: '', date: '', start_time: '', end_time: '', venue_id: '', title: '', session_type_id: '', skill_ids: [] });
     const [lookupData, setLookupData] = useState({ courses: [], faculty: [], venues: [], sessionTypes: [], skills: [] });
     const [scheduleLoading, setScheduleLoading] = useState(false);
     const [scheduleError, setScheduleError] = useState('');
+
+    const [newSkillSearchText, setNewSkillSearchText] = useState('');
+    const [newSkillSearchOpen, setNewSkillSearchOpen] = useState(false);
+    const [newShowAddSkill, setNewShowAddSkill] = useState(false);
+    const [newNewSkillName, setNewNewSkillName] = useState('');
+    const [newAddSkillLoading, setNewAddSkillLoading] = useState(false);
+    const [newAddSkillError, setNewAddSkillError] = useState('');
 
     // ── Add-type inline state ────────────────────────────────────────────────
     const [showAddType, setShowAddType] = useState(false);
@@ -173,6 +180,46 @@ export default function AdminSchedulePage() {
         });
     };
 
+    const handleAddNewClassSkill = async () => {
+        if (!newNewSkillName.trim()) return;
+        setNewAddSkillError('');
+        setNewAddSkillLoading(true);
+        try {
+            const res = await api.post('/api/admin/skills', { name: newNewSkillName.trim() });
+            setLookupData(prev => {
+                const arr = prev.skills || [];
+                if (!arr.find(x => x.id === res.skill.id)) {
+                    return { ...prev, skills: [...arr, res.skill].sort((a, b) => a.name.localeCompare(b.name)) };
+                }
+                return prev;
+            });
+            setNewClass(prev => {
+                const current = prev.skill_ids || [];
+                if (current.length < 4) {
+                    return { ...prev, skill_ids: [...current, res.skill.id] };
+                }
+                return prev;
+            });
+            setNewNewSkillName('');
+            setNewShowAddSkill(false);
+        } catch (err) {
+            setNewAddSkillError(err.message || 'Failed to add skill.');
+        } finally {
+            setNewAddSkillLoading(false);
+        }
+    };
+
+    const toggleNewClassSkill = (skillId) => {
+        setNewClass(prev => {
+            const current = prev.skill_ids || [];
+            if (current.includes(skillId)) {
+                return { ...prev, skill_ids: current.filter(id => id !== skillId) };
+            }
+            if (current.length >= 4) return prev; // max 4
+            return { ...prev, skill_ids: [...current, skillId] };
+        });
+    };
+
     useEffect(() => {
         if (authReady) {
             fetchSessions();
@@ -301,12 +348,17 @@ export default function AdminSchedulePage() {
                 session_date: newClass.date,
                 start_time: newClass.start_time,
                 end_time: endTime,
+                skill_ids: newClass.skill_ids || [],
             });
             setShowScheduleModal(false);
-            setNewClass({ course_id: '', faculty_id: '', date: '', start_time: '', end_time: '', venue_id: '', title: '', session_type_id: '' });
+            setNewClass({ course_id: '', faculty_id: '', date: '', start_time: '', end_time: '', venue_id: '', title: '', session_type_id: '', skill_ids: [] });
             setScheduleError('');
             setShowAddType(false);
             setNewTypeName('');
+            setNewSkillSearchText('');
+            setNewSkillSearchOpen(false);
+            setNewShowAddSkill(false);
+            setNewNewSkillName('');
             fetchSessions();
         } catch (e) {
             setScheduleError(e.message || 'Failed to schedule class. Please try again.');
@@ -435,6 +487,21 @@ export default function AdminSchedulePage() {
             </aside>
 
             <div className="main-content">
+                <style>{`
+                    .skills-tooltip-wrap { position: relative; display: inline-flex; align-items: center; }
+                    .skills-tooltip-content {
+                        display: none; position: absolute; z-index: 50; top: 100%; left: 0;
+                        margin-top: 6px; padding: 10px 12px; background: #222; color: #fff;
+                        font-size: 0.75rem; border-radius: 6px; white-space: nowrap; font-weight: normal;
+                        box-shadow: 0 4px 12px rgba(0,0,0,0.15); line-height: 1.4;
+                    }
+                    .skills-tooltip-wrap:hover .skills-tooltip-content { display: block; }
+                    .skills-tooltip-content::before {
+                        content: ''; position: absolute; top: -4px; left: 16px;
+                        border-width: 0 4px 4px 4px; border-style: solid;
+                        border-color: transparent transparent #222 transparent;
+                    }
+                `}</style>
                 <div className="content-center admin-full">
                     <header className="dashboard-header">
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -531,7 +598,44 @@ export default function AdminSchedulePage() {
                                             const isToday = s.date === todayStr;
                                             return (
                                                 <tr key={s.id} className="attendance-row" style={{ borderBottom: '1px solid #f5f5f5' }}>
-                                                    <td style={{ padding: '12px 16px', fontWeight: 600, color: '#111', borderLeft: isToday ? '4px solid #3B2D82' : '4px solid transparent' }}>{s.course}</td>
+                                                    <td style={{ padding: '12px 16px', fontWeight: 600, color: '#111', borderLeft: isToday ? '4px solid #3B2D82' : '4px solid transparent' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                            {s.course}
+                                                            {(() => {
+                                                                const sCount = s.skill_ids?.length || 0;
+                                                                return (
+                                                                    <div className="skills-tooltip-wrap" style={{ marginLeft: '4px' }}>
+                                                                        <span style={{
+                                                                            fontSize: '0.65rem',
+                                                                            padding: '2px 8px',
+                                                                            background: sCount > 0 ? '#f0fdf4' : '#f9fafb',
+                                                                            color: sCount > 0 ? '#15803d' : '#9ca3af',
+                                                                            border: `1px solid ${sCount > 0 ? '#bbf7d0' : '#e5e7eb'}`,
+                                                                            borderRadius: '6px',
+                                                                            fontWeight: 600,
+                                                                            cursor: 'default',
+                                                                            whiteSpace: 'nowrap'
+                                                                        }}>
+                                                                            {sCount} Skills
+                                                                        </span>
+                                                                        <div className="skills-tooltip-content">
+                                                                            {sCount > 0 ? (
+                                                                                <>
+                                                                                    <div style={{ fontWeight: 600, marginBottom: '6px', color: '#a78bfa' }}>Skills Covered:</div>
+                                                                                    {s.skill_ids.map(id => {
+                                                                                        const sk = lookupData.skills.find(x => x.id === id);
+                                                                                        return sk ? <div key={id}>• {sk.name}</div> : null;
+                                                                                    })}
+                                                                                </>
+                                                                            ) : (
+                                                                                <div style={{ color: '#aaa' }}>No skills added</div>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })()}
+                                                        </div>
+                                                    </td>
                                                     <td style={{ padding: '12px 16px' }}>
                                                         {s.sessionType
                                                             ? <span style={{ padding: '2px 9px', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 600, background: '#f5f3ff', color: '#3B2D82', border: '1px solid #ddd6fe', whiteSpace: 'nowrap' }}>{s.sessionType}</span>
@@ -672,6 +776,125 @@ export default function AdminSchedulePage() {
                                 addTypeError, setAddTypeError,
                                 handleAddType
                             )}
+                            {/* Skills Section for New Class */}
+                            <div>
+                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>
+                                    Skills Covered <span style={{ fontSize: '0.7rem', color: '#888', fontWeight: 'normal' }}>(Optional, max 4)</span>
+                                </label>
+
+                                {/* Selected Skills pills */}
+                                {(newClass.skill_ids || []).length > 0 && (
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
+                                        {newClass.skill_ids.map(id => {
+                                            const sk = lookupData.skills.find(x => x.id === id);
+                                            return sk ? (
+                                                <div key={id} style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#f5f3ff', color: '#3B2D82', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600, border: '1px solid #ddd6fe' }}>
+                                                    {sk.name}
+                                                    <button type="button" onClick={() => toggleNewClassSkill(id)} style={{ background: 'none', border: 'none', padding: 0, margin: 0, color: '#a78bfa', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                                                        <X size={12} />
+                                                    </button>
+                                                </div>
+                                            ) : null;
+                                        })}
+                                    </div>
+                                )}
+
+                                {/* Dropdown to pick skills */}
+                                <div style={{ position: 'relative' }}>
+                                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                        <input
+                                            type="text"
+                                            placeholder={(newClass.skill_ids || []).length >= 4 ? "Maximum 4 skills selected" : "Search to add a skill..."}
+                                            value={newSkillSearchText}
+                                            onChange={e => {
+                                                setNewSkillSearchText(e.target.value);
+                                                setNewSkillSearchOpen(true);
+                                            }}
+                                            onFocus={() => {
+                                                if ((newClass.skill_ids || []).length < 4) {
+                                                    setNewSkillSearchOpen(true);
+                                                }
+                                            }}
+                                            onBlur={() => {
+                                                setTimeout(() => setNewSkillSearchOpen(false), 200);
+                                            }}
+                                            disabled={(newClass.skill_ids || []).length >= 4}
+                                            style={{
+                                                ...inp, width: '100%',
+                                                opacity: (newClass.skill_ids || []).length >= 4 ? 0.5 : 1,
+                                                paddingRight: '30px'
+                                            }}
+                                        />
+                                        <Search size={14} color="#aaa" style={{ position: 'absolute', right: '10px' }} />
+                                    </div>
+                                    {newSkillSearchOpen && (newClass.skill_ids || []).length < 4 && (
+                                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #ddd', borderRadius: '8px', zIndex: 10, maxHeight: '200px', overflowY: 'auto', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', marginTop: '4px' }}>
+                                            {lookupData.skills
+                                                .filter(sk => !(newClass.skill_ids || []).includes(sk.id))
+                                                .filter(sk => sk.name.toLowerCase().includes(newSkillSearchText.toLowerCase()))
+                                                .map(sk => (
+                                                    <div
+                                                        key={sk.id}
+                                                        onMouseDown={(e) => {
+                                                            e.preventDefault();
+                                                            toggleNewClassSkill(sk.id);
+                                                            setNewSkillSearchText('');
+                                                            setNewSkillSearchOpen(false);
+                                                        }}
+                                                        style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #f9f9f9', fontSize: '0.8rem', color: '#333' }}
+                                                        onMouseEnter={e => e.target.style.background = '#f5f3ff'}
+                                                        onMouseLeave={e => e.target.style.background = '#fff'}
+                                                    >
+                                                        {sk.name}
+                                                    </div>
+                                                ))}
+                                            {lookupData.skills.filter(sk => !(newClass.skill_ids || []).includes(sk.id)).filter(sk => sk.name.toLowerCase().includes(newSkillSearchText.toLowerCase())).length === 0 && (
+                                                <div style={{ padding: '8px 12px', fontSize: '0.8rem', color: '#999', textAlign: 'center' }}>No skills found...</div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Inline add new skill */}
+                                {!newShowAddSkill ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => { setNewShowAddSkill(true); setNewAddSkillError(''); }}
+                                        style={{ marginTop: '6px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.75rem', color: '#3B2D82', fontWeight: 600, padding: '2px 0', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                    >
+                                        <Plus size={12} /> Add new skill
+                                    </button>
+                                ) : (
+                                    <div style={{ marginTop: '8px', display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                        <input
+                                            autoFocus
+                                            type="text"
+                                            placeholder="e.g. Node.js"
+                                            value={newNewSkillName}
+                                            onChange={e => { setNewNewSkillName(e.target.value); setNewAddSkillError(''); }}
+                                            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddNewClassSkill(); } if (e.key === 'Escape') setNewShowAddSkill(false); }}
+                                            style={{ flex: 1, padding: '6px 10px', borderRadius: '7px', border: `1px solid ${newAddSkillError ? '#fca5a5' : '#e5e7eb'}`, fontSize: '0.82rem', fontFamily: 'inherit', outline: 'none' }}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={handleAddNewClassSkill}
+                                            disabled={newAddSkillLoading || !newNewSkillName.trim()}
+                                            style={{ padding: '6px 12px', borderRadius: '7px', border: 'none', background: '#3B2D82', color: '#fff', cursor: newAddSkillLoading ? 'not-allowed' : 'pointer', fontSize: '0.78rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}
+                                        >
+                                            {newAddSkillLoading ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <Plus size={12} />}
+                                            Save
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => { setNewShowAddSkill(false); setNewNewSkillName(''); setNewAddSkillError(''); }}
+                                            style={{ padding: '6px 8px', borderRadius: '7px', border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', color: '#888' }}
+                                        >
+                                            <X size={12} />
+                                        </button>
+                                    </div>
+                                )}
+                                {newAddSkillError && <div style={{ fontSize: '0.72rem', color: '#dc2626', marginTop: '4px' }}>⚠ {newAddSkillError}</div>}
+                            </div>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', padding: '1rem 1.5rem', borderTop: '1px solid #f0f0f0' }}>
                             <button onClick={() => { setShowScheduleModal(false); setScheduleError(''); }} disabled={scheduleLoading} style={{ padding: '8px 20px', borderRadius: '8px', border: '1px solid #eee', background: '#fff', cursor: scheduleLoading ? 'not-allowed' : 'pointer', fontSize: '0.85rem', fontWeight: 500, color: '#555' }}>Cancel</button>
