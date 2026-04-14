@@ -20,17 +20,23 @@ async function handler(req) {
     if (req.method === 'PUT') {
       const body = await req.json();
       
-      const { pingInterval, pingsPerSession, presenceThreshold, attendanceWindow } = body;
+      const { scannerInterval, minSignal } = body;
+
+      const updatePayload = {
+        updated_at: new Date().toISOString()
+      };
+      if (scannerInterval !== undefined) {
+        updatePayload.scanner_interval_minutes = scannerInterval;
+        updatePayload.ping_interval = scannerInterval; // keep old column in sync
+      }
+      if (minSignal !== undefined) {
+        updatePayload.min_signal = minSignal;
+        updatePayload.presence_threshold = minSignal; // keep old column in sync
+      }
 
       const { data, error } = await supabaseAdmin
         .from('system_settings')
-        .update({
-          ping_interval: pingInterval,
-          pings_per_session: pingsPerSession,
-          presence_threshold: presenceThreshold,
-          attendance_window: attendanceWindow,
-          updated_at: new Date().toISOString()
-        })
+        .update(updatePayload)
         .eq('id', 1)
         .select()
         .single();

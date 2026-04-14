@@ -245,7 +245,6 @@ export default function AdminDashboard() {
                             <div style={{ padding: '1rem 1.2rem', display: 'flex', gap: '8px' }}>
                                 {[
                                     { label: 'Schedule New Class', icon: Plus, bg: '#eff6ff', color: '#2563eb', action: () => setShowScheduleModal(true) },
-                                    { label: 'Start Attendance', icon: CheckCircle, bg: '#ecfdf5', color: '#16a34a', action: () => navTo('/admin/attendance') },
                                     { label: 'View Attendance', icon: CheckCircle, bg: '#f0fdf4', color: '#15803d', action: () => navTo('/admin/attendance') },
                                     { label: 'Send Notification', icon: Send, bg: '#faf5ff', color: '#7c3aed', action: () => {} },
                                     { label: 'Generate Reports', icon: FileBarChart, bg: '#fff7ed', color: '#c2410c', action: () => {} },

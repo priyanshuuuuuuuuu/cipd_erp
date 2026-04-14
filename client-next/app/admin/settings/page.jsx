@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import '../../Dashboard.css';
 import {
     LayoutGrid, Calendar, MessageSquare, Settings as SettingsIcon, LogOut, Bell, Search, Menu,
-    ChevronLeft, ChevronRight, Wifi, Clock, FileBarChart, CheckCircle, Save,
+    ChevronLeft, ChevronRight, Wifi, Clock, FileBarChart, CheckCircle, Save, Users,
     Plus, Trash2, Edit3, Shield, X, Eye, EyeOff, AlertCircle, ExternalLink
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -22,10 +22,8 @@ export default function AdminSettingsPage() {
     const [errorMsg, setErrorMsg] = useState('');
 
     const [detectionConfig, setDetectionConfig] = useState({
-        pingInterval: 10,
-        pingsPerSession: 6,
-        presenceThreshold: 3,
-        attendanceWindow: 60,
+        scannerInterval: 6,
+        minSignal: 2,
     });
 
     const [bssidList, setBssidList] = useState([]);
@@ -50,18 +48,14 @@ export default function AdminSettingsPage() {
 
         const loadData = async () => {
             try {
-                const confRes = await fetch('/api/admin/settings/config');
-                const conf = await confRes.json();
-                if (conf && conf.ping_interval) {
+                const conf = await api.get('/api/admin/settings/config');
+                if (conf) {
                     setDetectionConfig({
-                        pingInterval: conf.ping_interval,
-                        pingsPerSession: conf.pings_per_session,
-                        presenceThreshold: conf.presence_threshold,
-                        attendanceWindow: conf.attendance_window,
+                        scannerInterval: conf.scanner_interval_minutes || conf.ping_interval || 6,
+                        minSignal: conf.min_signal ?? conf.presence_threshold ?? 2,
                     });
                 }
-                const venRes = await fetch('/api/admin/settings/bssid');
-                const venues = await venRes.json();
+                const venues = await api.get('/api/admin/settings/bssid');
                 setBssidList(Array.isArray(venues) ? venues : []);
             } catch (err) {
                 console.error("Error loading settings:", err);
@@ -75,26 +69,15 @@ export default function AdminSettingsPage() {
         setErrorMsg('');
         try {
             if (section === 'detection') {
-                const res = await fetch('/api/admin/settings/config', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(detectionConfig),
-                });
-                if (!res.ok) throw new Error("Failed to save config");
+                await api.put('/api/admin/settings/config', detectionConfig);
             } else if (section === 'account') {
                 if (!accountSettings.currentPassword || !accountSettings.newPassword) {
                     throw new Error("Both current and new passwords are required");
                 }
-                const res = await fetch('/api/admin/settings/password', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        currentPassword: accountSettings.currentPassword,
-                        newPassword: accountSettings.newPassword,
-                    }),
+                await api.post('/api/admin/settings/password', {
+                    currentPassword: accountSettings.currentPassword,
+                    newPassword: accountSettings.newPassword,
                 });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error || "Password update failed");
                 setAccountSettings({ ...accountSettings, currentPassword: '', newPassword: '' });
                 alert("Password successfully updated!");
             }
@@ -111,14 +94,9 @@ export default function AdminSettingsPage() {
     const handleAddBssid = async () => {
         if (!newBssid.bssid || !newBssid.venue) return;
         try {
-            const res = await fetch('/api/admin/settings/bssid', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ bssid: newBssid.bssid, venue: newBssid.venue }),
-            });
-            const { data } = await res.json();
-            if (data) {
-                setBssidList(prev => [...prev, data]);
+            const result = await api.post('/api/admin/settings/bssid', { bssid: newBssid.bssid, venue: newBssid.venue });
+            if (result?.data) {
+                setBssidList(prev => [...prev, result.data]);
                 setNewBssid({ bssid: '', venue: '' });
                 setShowBssidModal(false);
             }
@@ -132,14 +110,8 @@ export default function AdminSettingsPage() {
         const item = bssidList.find(b => b.id === id);
         if(!item) return;
         try {
-            const res = await fetch('/api/admin/settings/bssid', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id, is_active: !item.is_active }),
-            });
-            if (res.ok) {
-                setBssidList(prev => prev.map(b => b.id === id ? { ...b, is_active: !b.is_active } : b));
-            }
+            await api.patch('/api/admin/settings/bssid', { id, is_active: !item.is_active });
+            setBssidList(prev => prev.map(b => b.id === id ? { ...b, is_active: !b.is_active } : b));
         } catch (err) {
             console.error("Error toggling BSSID:", err);
         }
@@ -148,20 +120,14 @@ export default function AdminSettingsPage() {
     const handleEditBssid = async () => {
         if (!editingBssid || !editingBssid.router_bssid || !editingBssid.name) return;
         try {
-            const res = await fetch('/api/admin/settings/bssid', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    id: editingBssid.id, 
-                    router_bssid: editingBssid.router_bssid, 
-                    name: editingBssid.name 
-                }),
+            await api.patch('/api/admin/settings/bssid', { 
+                id: editingBssid.id, 
+                router_bssid: editingBssid.router_bssid, 
+                name: editingBssid.name 
             });
-            if (res.ok) {
-                setBssidList(prev => prev.map(b => b.id === editingBssid.id ? editingBssid : b));
-                setShowEditModal(false);
-                setEditingBssid(null);
-            }
+            setBssidList(prev => prev.map(b => b.id === editingBssid.id ? editingBssid : b));
+            setShowEditModal(false);
+            setEditingBssid(null);
         } catch (err) {
             console.error("Error editing BSSID:", err);
             alert("Failed to update BSSID");
@@ -171,10 +137,8 @@ export default function AdminSettingsPage() {
     const removeBssid = async (id) => {
         if(!confirm("Are you sure you want to delete this venue?")) return;
         try {
-            const res = await fetch(`/api/admin/settings/bssid?id=${id}`, { method: 'DELETE' });
-            if (res.ok) {
-                setBssidList(prev => prev.filter(b => b.id !== id));
-            }
+            await api.delete(`/api/admin/settings/bssid?id=${id}`);
+            setBssidList(prev => prev.filter(b => b.id !== id));
         } catch (err) {
             console.error("Error removing BSSID:", err);
         }
@@ -201,6 +165,7 @@ export default function AdminSettingsPage() {
                     <div className="nav-item" onClick={() => navTo('/admin')} style={{ cursor: 'pointer' }}><LayoutGrid size={18} /> <span>Dashboard</span></div>
                     <div className="nav-item" onClick={() => navTo('/admin/schedule')} style={{ cursor: 'pointer' }}><Calendar size={18} /> <span>Schedule Management</span></div>
                     <div className="nav-item" onClick={() => navTo('/admin/attendance')} style={{ cursor: 'pointer' }}><CheckCircle size={18} /> <span>Attendance Monitoring</span></div>
+                    <div className="nav-item" onClick={() => navTo('/admin/live-students')} style={{ cursor: 'pointer' }}><Users size={18} /> <span>Live Students</span></div>
                     <div className="nav-item" onClick={() => navTo('/admin/wifi-logs')} style={{ cursor: 'pointer' }}><Wifi size={18} /> <span>Wi-Fi Logs</span></div>
                     <div style={{ fontSize: '0.6rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', color: '#555', padding: '10px 1rem 4px' }}><span>Analytics</span></div>
                     <div className="nav-item" onClick={() => navTo('/admin/feedback')} style={{ cursor: 'pointer' }}><MessageSquare size={18} /> <span>Feedback Analytics</span></div>
@@ -242,12 +207,10 @@ export default function AdminSettingsPage() {
                             <SaveButton section="detection" />
                         </div>
                         <div style={{ padding: '1.2rem 1.5rem' }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px', maxWidth: '500px' }}>
                                 {[
-                                    { label: 'Ping Interval (minutes)', key: 'pingInterval', min: 1, max: 30 },
-                                    { label: 'Pings per Session', key: 'pingsPerSession', min: 1, max: 20 },
-                                    { label: 'Presence Threshold (≥ pings)', key: 'presenceThreshold', min: 1, max: 10 },
-                                    { label: 'Attendance Window (minutes)', key: 'attendanceWindow', min: 15, max: 180 },
+                                    { label: 'Rescan Time (minutes)', key: 'scannerInterval', min: 1, max: 30, desc: 'How often the Wi-Fi scanner captures a snapshot' },
+                                    { label: 'Min Signal Threshold', key: 'minSignal', min: 0, max: 10, desc: 'Minimum signal level to count a detection' },
                                 ].map(field => (
                                     <div key={field.key}>
                                         <label style={{ fontSize: '0.72rem', fontWeight: 600, color: '#888', display: 'block', marginBottom: '5px' }}>{field.label}</label>
@@ -255,13 +218,14 @@ export default function AdminSettingsPage() {
                                             onChange={e => setDetectionConfig({ ...detectionConfig, [field.key]: parseInt(e.target.value) || 0 })}
                                             style={{ ...inputStyle, fontFamily: 'monospace', fontWeight: 600 }}
                                             onFocus={e => e.target.style.borderColor = '#111'} onBlur={e => e.target.style.borderColor = '#e5e7eb'} />
+                                        <div style={{ fontSize: '0.65rem', color: '#bbb', marginTop: '4px' }}>{field.desc}</div>
                                     </div>
                                 ))}
                             </div>
                             <div style={{ marginTop: '14px', padding: '10px 14px', borderRadius: '8px', background: '#f9fafb', border: '1px solid #f0f0f0', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
                                 <AlertCircle size={14} color="#888" style={{ flexShrink: 0, marginTop: '2px' }} />
                                 <div style={{ fontSize: '0.72rem', color: '#888', lineHeight: 1.6 }}>
-                                    Current rule: A student is marked <strong style={{ color: '#333' }}>Present</strong> if detected by ≥ <strong style={{ color: '#111' }}>{detectionConfig.presenceThreshold}</strong> pings out of <strong style={{ color: '#111' }}>{detectionConfig.pingsPerSession}</strong> total pings within <strong style={{ color: '#111' }}>{detectionConfig.attendanceWindow} min</strong> (every <strong style={{ color: '#111' }}>{detectionConfig.pingInterval} min</strong>).
+                                    Scanner captures every <strong style={{ color: '#111' }}>{detectionConfig.scannerInterval} min</strong>. A 90-min session expects <strong style={{ color: '#111' }}>{Math.floor(90 / (detectionConfig.scannerInterval || 6))}</strong> snapshots. Only signals <strong style={{ color: '#111' }}>{'>'} {detectionConfig.minSignal}</strong> are counted.
                                 </div>
                             </div>
                         </div>
