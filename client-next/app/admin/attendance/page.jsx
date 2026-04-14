@@ -10,6 +10,132 @@ import {
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 
+/** Presence Timeline: step-function graph showing present(1) / absent(0) at each snapshot */
+function PresenceTimeline({ student, session, snapshotTimestamps }) {
+    if (!session || !snapshotTimestamps || snapshotTimestamps.length === 0) {
+        return <div style={{ padding: '16px 24px', fontSize: '0.75rem', color: '#aaa' }}>No snapshot data available</div>;
+    }
+
+    const studentPingIds = new Set((student.pings || []).map(p => p.snapshotId));
+    const W = 800, H = 100, PAD_L = 55, PAD_R = 20, PAD_T = 20, PAD_B = 30;
+    const graphW = W - PAD_L - PAD_R;
+    const graphH = H - PAD_T - PAD_B;
+
+    // Parse session start/end
+    const date = session.date;
+    const sessionStart = new Date(`${date}T${session.startTime}+05:30`).getTime();
+    const sessionEnd = new Date(`${date}T${session.endTime}+05:30`).getTime();
+    const totalMs = sessionEnd - sessionStart;
+
+    // Build data points: for each snapshot, is student present?
+    const points = snapshotTimestamps.map((ts, idx) => {
+        const t = new Date(ts).getTime();
+        const x = PAD_L + ((t - sessionStart) / totalMs) * graphW;
+        // Check if this snapshot's index corresponds to a ping (by matching snapshot order)
+        // We need to match by snapshot — pings have snapshotId 
+        // snapshotTimestamps are in order, check if student was in this snapshot
+        const snapId = student.pings?.find(p => {
+            const pTime = new Date(p.time).getTime();
+            return Math.abs(pTime - t) < 90000; // within 1.5 min
+        });
+        const present = !!snapId;
+        return { x, present, time: t, ts };
+    });
+
+    // Build step-function path
+    let pathD = '';
+    const yPresent = PAD_T + 5;
+    const yAbsent = PAD_T + graphH - 5;
+
+    points.forEach((p, i) => {
+        const y = p.present ? yPresent : yAbsent;
+        if (i === 0) {
+            // Start from session start
+            const startX = PAD_L;
+            pathD += `M ${startX} ${y}`;
+            pathD += ` L ${p.x} ${y}`;
+        } else {
+            // Step: horizontal to this x at prev y, then vertical to new y
+            const prevY = points[i - 1].present ? yPresent : yAbsent;
+            pathD += ` L ${p.x} ${prevY}`;
+            pathD += ` L ${p.x} ${y}`;
+        }
+    });
+    // Extend to end
+    if (points.length > 0) {
+        const lastY = points[points.length - 1].present ? yPresent : yAbsent;
+        const endX = PAD_L + graphW;
+        pathD += ` L ${endX} ${lastY}`;
+    }
+
+    // Build fill path (area under the "present" sections)
+    let fillD = '';
+    points.forEach((p, i) => {
+        const y = p.present ? yPresent : yAbsent;
+        if (i === 0) {
+            fillD += `M ${PAD_L} ${yAbsent} L ${PAD_L} ${y} L ${p.x} ${y}`;
+        } else {
+            const prevY = points[i - 1].present ? yPresent : yAbsent;
+            fillD += ` L ${p.x} ${prevY} L ${p.x} ${y}`;
+        }
+    });
+    if (points.length > 0) {
+        const lastY = points[points.length - 1].present ? yPresent : yAbsent;
+        fillD += ` L ${PAD_L + graphW} ${lastY} L ${PAD_L + graphW} ${yAbsent} Z`;
+    }
+
+    // Time labels on x-axis (every ~15 min)
+    const labelInterval = 15 * 60 * 1000;
+    const timeLabels = [];
+    for (let t = sessionStart; t <= sessionEnd; t += labelInterval) {
+        const x = PAD_L + ((t - sessionStart) / totalMs) * graphW;
+        const d = new Date(t);
+        const label = d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata', hour12: false });
+        timeLabels.push({ x, label });
+    }
+
+    return (
+        <div style={{ padding: '12px 24px 16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#555' }}>{student.name}</span>
+                <span style={{ fontSize: '0.65rem', color: '#aaa' }}>Presence Timeline</span>
+                <span style={{ fontSize: '0.65rem', color: '#aaa', marginLeft: 'auto' }}>
+                    {student.pingCount || 0}/{snapshotTimestamps.length} snapshots detected
+                </span>
+            </div>
+            <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ background: '#fff', borderRadius: '8px', border: '1px solid #e8e8e8' }}>
+                {/* Grid lines */}
+                <line x1={PAD_L} y1={yPresent} x2={PAD_L + graphW} y2={yPresent} stroke="#e8e8e8" strokeDasharray="4,4" />
+                <line x1={PAD_L} y1={yAbsent} x2={PAD_L + graphW} y2={yAbsent} stroke="#e8e8e8" strokeDasharray="4,4" />
+
+                {/* Y-axis labels */}
+                <text x={PAD_L - 8} y={yPresent + 4} textAnchor="end" fontSize="9" fill="#16a34a" fontWeight="700">Present</text>
+                <text x={PAD_L - 8} y={yAbsent + 4} textAnchor="end" fontSize="9" fill="#dc2626" fontWeight="700">Absent</text>
+
+                {/* Fill area for present sections */}
+                {fillD && <path d={fillD} fill="rgba(22,163,106,0.08)" />}
+
+                {/* Step-function line */}
+                <path d={pathD} fill="none" stroke="#16a34a" strokeWidth="2" strokeLinejoin="round" />
+
+                {/* Snapshot dots */}
+                {points.map((p, i) => (
+                    <circle key={i} cx={p.x} cy={p.present ? yPresent : yAbsent} r="3.5"
+                        fill={p.present ? '#16a34a' : '#ef4444'} stroke="#fff" strokeWidth="1.5" />
+                ))}
+
+                {/* X-axis time labels */}
+                {timeLabels.map((tl, i) => (
+                    <g key={i}>
+                        <line x1={tl.x} y1={PAD_T} x2={tl.x} y2={PAD_T + graphH} stroke="#f0f0f0" />
+                        <text x={tl.x} y={H - 6} textAnchor="middle" fontSize="8" fill="#aaa" fontFamily="monospace">{tl.label}</text>
+                    </g>
+                ))}
+            </svg>
+        </div>
+    );
+}
+
 export default function AdminAttendancePage() {
     const router = useRouter();
     const [isCollapsed, setIsCollapsed] = useState(false);
@@ -22,7 +148,9 @@ export default function AdminAttendancePage() {
     const [studentsLoading, setStudentsLoading] = useState(false);
     const [nextRefreshIn, setNextRefreshIn] = useState(null);
     const refreshTimerRef = useRef(null);
-    const SNAPSHOT_INTERVAL_MS = 6 * 60 * 1000; // 6 min scanner cadence
+    const scannerIntervalRef = useRef(6 * 60 * 1000);
+    const [scannerIntervalMs, _setScannerIntervalMs] = useState(6 * 60 * 1000);
+    const setScannerIntervalMs = (val) => { scannerIntervalRef.current = val; _setScannerIntervalMs(val); };
 
     // MAC Approvals state
     const [macPending, setMacPending] = useState([]);
@@ -30,6 +158,7 @@ export default function AdminAttendancePage() {
     const [macActioning, setMacActioning] = useState(null); // studentId being actioned
     const [overrideLoading, setOverrideLoading] = useState(null); // studentId being overridden
     const [confirmOverride, setConfirmOverride] = useState(null); // { studentId, studentName, action, sessionId }
+    const [expandedStudent, setExpandedStudent] = useState(null); // studentId for timeline graph
 
     const handleOverride = async (sessionId, studentId, action) => {
         setOverrideLoading(studentId);
@@ -113,8 +242,8 @@ export default function AdminAttendancePage() {
         clearRefreshTimer();
         if (!lastSnapshotTime) return;
 
-        // next refresh = lastSnapshot + 6 min + 15s buffer
-        const nextSnapshotTime = new Date(lastSnapshotTime).getTime() + SNAPSHOT_INTERVAL_MS + 15000;
+        // next refresh = lastSnapshot + scannerInterval + 15s buffer
+        const nextSnapshotTime = new Date(lastSnapshotTime).getTime() + scannerIntervalRef.current + 15000;
         const delay = Math.max(30000, nextSnapshotTime - Date.now()); // at least 30s
 
         setNextRefreshIn(Math.round(delay / 1000));
@@ -128,6 +257,7 @@ export default function AdminAttendancePage() {
         try {
             const json = await api.get(`/api/admin/attendance/session-students?session_id=${sessionId}`);
             setSessionStudents(json);
+            if (json.summary?.scannerInterval) setScannerIntervalMs(json.summary.scannerInterval * 60 * 1000);
             // Also refresh session list to keep status/counts current
             fetchSessions();
             // Re-schedule if still ongoing
@@ -157,6 +287,7 @@ export default function AdminAttendancePage() {
             clearRefreshTimer();
             const json = await api.get(`/api/admin/attendance/session-students?session_id=${sessionId}`);
             setSessionStudents(json);
+            if (json.summary?.scannerInterval) setScannerIntervalMs(json.summary.scannerInterval * 60 * 1000);
             // Set up auto-refresh if ongoing (sync to last snapshot time)
             if (json.isOngoing && json.lastSnapshot) {
                 scheduleRefresh(sessionId, json.lastSnapshot);
@@ -328,7 +459,7 @@ export default function AdminAttendancePage() {
                     </div>
 
                     {/* Sessions List */}
-                    <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', borderTop: '3px solid #3B2D82', overflow: 'hidden', marginBottom: '1.5rem' }}>
+                    <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', borderTop: '3px solid #3B2D82', overflow: 'visible', marginBottom: '1.5rem' }}>
                         <div className="am-section-header" style={{ padding: '0.8rem 1.5rem', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.95rem', fontWeight: 700 }}>
                                 <Clock size={16} /> Classes on {new Date(dateFilter + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
@@ -510,7 +641,8 @@ export default function AdminAttendancePage() {
                                                                 {(sessionStudents.students || []).map((s, i) => {
                                                                     const st = getStatusStyle(s.status);
                                                                     return (
-                                                                        <tr key={i} style={{ borderBottom: '1px solid #f0f0f0', background: s.penalty ? '#fef2f2' : s.adminOverride ? '#fffbeb' : s.status === 'absent' ? '#fefefe' : '#fff' }}>
+                                                                        <React.Fragment key={i}>
+                                                                        <tr onClick={() => setExpandedStudent(expandedStudent === s.studentId ? null : s.studentId)} style={{ borderBottom: '1px solid #f0f0f0', background: expandedStudent === s.studentId ? '#f0f7ff' : s.penalty ? '#fef2f2' : s.adminOverride ? '#fffbeb' : s.status === 'absent' ? '#fefefe' : '#fff', cursor: 'pointer', transition: 'background 0.15s' }}>
                                                                             <td style={{ padding: '9px 14px' }}>
                                                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                                                     <span style={{ fontWeight: 600, color: s.status === 'absent' ? '#aaa' : '#111' }}>{s.name}</span>
@@ -547,7 +679,7 @@ export default function AdminAttendancePage() {
                                                                                     {s.durationMinutes > 0 ? `${s.durationMinutes} min` : '—'}
                                                                                 </span>
                                                                             </td>
-                                                                            <td className="am-col-pings" style={{ padding: '9px 14px', fontFamily: 'monospace', fontSize: '0.78rem', color: '#888' }}>{s.pingCount || 0}</td>
+                                                                            <td className="am-col-pings" style={{ padding: '9px 14px', fontFamily: 'monospace', fontSize: '0.78rem', color: '#888' }}>{s.pingCount || 0}<span style={{ color: '#ccc' }}>/{sessionStudents?.summary?.snapshotsAnalyzed || '?'}</span></td>
                                                                             <td style={{ padding: '9px 14px' }} title={s.pointsBreakdown?.reason || ''}>
                                                                                 {s.points !== undefined ? (
                                                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -603,6 +735,19 @@ export default function AdminAttendancePage() {
                                                                                 )}
                                                                             </td>
                                                                         </tr>
+                                                                        {/* Presence Timeline Graph */}
+                                                                        {expandedStudent === s.studentId && (
+                                                                            <tr>
+                                                                                <td colSpan={10} style={{ padding: 0, background: '#f9fafb', borderBottom: '2px solid #e0e0e0' }}>
+                                                                                    <PresenceTimeline
+                                                                                        student={s}
+                                                                                        session={sessionStudents.session}
+                                                                                        snapshotTimestamps={sessionStudents.snapshotTimestamps || []}
+                                                                                    />
+                                                                                </td>
+                                                                            </tr>
+                                                                        )}
+                                                                        </React.Fragment>
                                                                     );
                                                                 })}
                                                             </tbody>

@@ -10,8 +10,9 @@ import { sendFeedbackAvailableEmail } from '@/lib/emailer';
  * No auth required — secured by CRON_SECRET header.
  */
 
-const MIN_SIGNAL = 2;
+let MIN_SIGNAL = 2;
 const MIN_PINGS_PRESENT = 3;
+let SCANNER_INTERVAL_MIN = 6;
 
 const normalizeMac = (mac) => {
   if (!mac) return '';
@@ -28,6 +29,16 @@ export async function GET(req) {
   }
 
   try {
+    // Read scanner settings from DB
+    const { data: settings } = await supabaseAdmin
+      .from('system_settings')
+      .select('scanner_interval_minutes, min_signal, ping_interval, presence_threshold')
+      .eq('id', 1)
+      .single();
+
+    SCANNER_INTERVAL_MIN = settings?.scanner_interval_minutes || settings?.ping_interval || 6;
+    MIN_SIGNAL = settings?.min_signal ?? settings?.presence_threshold ?? 2;
+
     const now = new Date();
     const today = now.toISOString().split('T')[0];
     const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
@@ -95,6 +106,8 @@ export async function GET(req) {
       // Time window: start_time → end_time + 2 min
       const sessionStartDate = new Date(`${date}T${session.start_time}+05:30`);
       const sessionEndDate = new Date(`${date}T${session.end_time}+05:30`);
+      const sessionDurationMin = Math.round((sessionEndDate - sessionStartDate) / 60000);
+      const expectedTotalSnapshots = Math.floor(sessionDurationMin / SCANNER_INTERVAL_MIN);
       sessionEndDate.setMinutes(sessionEndDate.getMinutes() + 2);
 
       // Fetch wifi_snapshots in window
@@ -147,8 +160,8 @@ export async function GET(req) {
         const durationMinutes = Math.round((lastSeen - firstSeen) / 60000 * 10) / 10;
         const avgSignal = Math.round(timeline.reduce((a, t) => a + t.signal, 0) / timeline.length * 10) / 10;
 
-        // Calculate points
-        const { points, status: pointsStatus, breakdown } = calculatePoints(uniqueSnapshots, orderedSnapshotIds);
+        // Calculate points using expected total snapshots from session duration
+        const { points, status: pointsStatus, breakdown } = calculatePoints(uniqueSnapshots, orderedSnapshotIds, expectedTotalSnapshots);
 
         // For ongoing sessions, keep 'partial' if points calc says present but pings < 3
         let status = pointsStatus;

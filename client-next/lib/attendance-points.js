@@ -15,10 +15,13 @@
 /**
  * @param {Set} studentSnapshotIds  - Set of snapshot IDs this student was seen in
  * @param {string[]} orderedSnapshotIds - All snapshot IDs in session, ordered by time
+ * @param {number} [expectedTotalSnapshots] - Expected snapshots from session duration / scanner interval
  * @returns {{ points: number, status: string, breakdown: object }}
  */
-export function calculatePoints(studentSnapshotIds, orderedSnapshotIds) {
-  const totalSnapshots = orderedSnapshotIds.length;
+export function calculatePoints(studentSnapshotIds, orderedSnapshotIds, expectedTotalSnapshots = 0) {
+  const actualSnapshots = orderedSnapshotIds.length;
+  // Use the larger of actual vs expected so scanner downtime can't inflate %
+  const totalSnapshots = Math.max(actualSnapshots, expectedTotalSnapshots || 0);
   const pingCount = studentSnapshotIds.size;
 
   // No snapshots in session yet — can't calculate

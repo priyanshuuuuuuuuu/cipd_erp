@@ -25,8 +25,9 @@ export default function AdminLiveStudentsPage() {
     const [unchangedCount, setUnchangedCount] = useState(0);
     const [nextRefreshIn, setNextRefreshIn] = useState(null); // seconds until next auto-refresh
     const refreshTimerRef = useRef(null);
-
-    const SNAPSHOT_INTERVAL_MS = 6 * 60 * 1000; // 6 minutes — scanner cadence
+    const scannerIntervalRef = useRef(6 * 60 * 1000);
+    const [scannerIntervalMs, _setScannerIntervalMs] = useState(6 * 60 * 1000);
+    const setScannerIntervalMs = (val) => { scannerIntervalRef.current = val; _setScannerIntervalMs(val); };
 
     const navTo = p => router.push(p);
 
@@ -52,9 +53,9 @@ export default function AdminLiveStudentsPage() {
             setData(json);
             setLastRefresh(new Date());
 
-            // Schedule next refresh: 6 min after last DB snapshot time + 15s buffer for DB write
+            // Schedule next refresh: scannerInterval after last DB snapshot time + 15s buffer for DB write
             if (json.lastUpdated) {
-                const nextSnapshotTime = new Date(json.lastUpdated).getTime() + SNAPSHOT_INTERVAL_MS + 15000;
+                const nextSnapshotTime = new Date(json.lastUpdated).getTime() + scannerIntervalRef.current + 15000;
                 const delay = Math.max(30000, nextSnapshotTime - Date.now()); // at least 30s
 
                 setNextRefreshIn(Math.round(delay / 1000));
@@ -62,10 +63,10 @@ export default function AdminLiveStudentsPage() {
                 if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
                 refreshTimerRef.current = setTimeout(() => fetchData(), delay);
             } else {
-                // No snapshot data — fallback to fixed 6 min
+                // No snapshot data — fallback to scanner interval
                 if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
-                refreshTimerRef.current = setTimeout(() => fetchData(), SNAPSHOT_INTERVAL_MS);
-                setNextRefreshIn(360);
+                refreshTimerRef.current = setTimeout(() => fetchData(), scannerIntervalRef.current);
+                setNextRefreshIn(Math.round(scannerIntervalRef.current / 1000));
             }
         } catch (err) {
             console.error('Failed to fetch live students:', err);
@@ -80,7 +81,16 @@ export default function AdminLiveStudentsPage() {
     }, []);
 
     useEffect(() => {
-        fetchData();
+        // Load scanner interval from settings BEFORE first data fetch
+        const init = async () => {
+            try {
+                const conf = await api.get('/api/admin/settings/config');
+                const mins = conf?.scanner_interval_minutes || conf?.ping_interval || 6;
+                setScannerIntervalMs(mins * 60 * 1000);
+            } catch (e) {}
+            fetchData();
+        };
+        init();
         return () => { if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current); };
     }, [fetchData]);
 

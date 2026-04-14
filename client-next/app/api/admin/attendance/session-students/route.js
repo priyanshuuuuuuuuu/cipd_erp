@@ -9,7 +9,8 @@ const normalizeMac = (mac) => {
   return mac.trim().toUpperCase().replace(/[-.\s]/g, ':').replace(/:+/g, ':').replace(/^:|:$/g, '');
 };
 const isValidMac = (mac) => /^([A-F0-9]{2}:){5}[A-F0-9]{2}$/.test(mac);
-const MIN_SIGNAL = 2;
+let MIN_SIGNAL = 2;
+let SCANNER_INTERVAL_MIN = 6;
 
 async function handler(req) {
   try {
@@ -38,13 +39,24 @@ async function handler(req) {
     const date = session.session_date;
     const courseId = session.courses?.id;
 
+    // Read scanner settings from DB
+    const { data: settings } = await supabaseAdmin
+      .from('system_settings')
+      .select('scanner_interval_minutes, min_signal, ping_interval, presence_threshold')
+      .eq('id', 1)
+      .single();
+
+    SCANNER_INTERVAL_MIN = settings?.scanner_interval_minutes || settings?.ping_interval || 6;
+    MIN_SIGNAL = settings?.min_signal ?? settings?.presence_threshold ?? 2;
+
     // 2. Build time window
     const [sh, sm] = (session.start_time || '00:00:00').split(':').map(Number);
     const [eh, em] = (session.end_time || '23:59:00').split(':').map(Number);
     const sessionStartDate = new Date(`${date}T${session.start_time}+05:30`);
     const sessionEndDate = new Date(`${date}T${session.end_time}+05:30`);
-    sessionEndDate.setMinutes(sessionEndDate.getMinutes() + 2);
     const sessionDurationMin = (eh * 60 + em) - (sh * 60 + sm);
+    const expectedTotalSnapshots = Math.floor(sessionDurationMin / SCANNER_INTERVAL_MIN);
+    sessionEndDate.setMinutes(sessionEndDate.getMinutes() + 2);
 
     const now = new Date();
     const today = now.toISOString().split('T')[0];
@@ -178,7 +190,7 @@ async function handler(req) {
         const avgSignal = Math.round(timeline.reduce((a, t) => a + t.signal, 0) / timeline.length * 10) / 10;
         const latestSignal = timeline[timeline.length - 1].signal;
 
-        const { points, status: pointsStatus, breakdown } = calculatePoints(uniqueSnapshots, orderedSnapshotIds);
+        const { points, status: pointsStatus, breakdown } = calculatePoints(uniqueSnapshots, orderedSnapshotIds, expectedTotalSnapshots);
         let status = pointsStatus;
         if (isOngoing && pingCount > 0 && pingCount < 3 && status !== 'absent') {
           status = 'partial';
@@ -302,7 +314,10 @@ async function handler(req) {
         partial: partialCount,
         absent: absentCount,
         snapshotsAnalyzed: (snapshots || []).length,
+        expectedTotalSnapshots,
+        scannerInterval: SCANNER_INTERVAL_MIN,
       },
+      snapshotTimestamps: (snapshots || []).map(s => s.captured_at),
       lastSnapshot: lastSnapshotTime,
       isOngoing,
     });
