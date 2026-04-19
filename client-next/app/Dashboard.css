@@ -211,13 +211,15 @@
 .content-center {
     flex: 1;
     min-width: 0;
-    height: 100%;
+    height: auto;
+    min-height: 100%;
     overflow-y: visible;
     padding: 1rem;
     padding-right: 1rem;
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+    padding-bottom: 3rem;
 }
 
 /* Admin full-width scrollable content */
