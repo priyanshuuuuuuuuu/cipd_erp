@@ -1,22 +1,24 @@
 /**
  * Attendance Points Calculator
  * 
- * Points: 0.0 to 1.0
- * Rules:
- *   1. Start with 1.0
- *   2. If NOT present in first 2 snapshots → -0.5 (late penalty)
- *   3. Check presence % (how many snapshots out of total):
- *      - < 30% → mark absent (points = 0)
- *      - < 50% → deduct 0.3 more
- *      - < 75% → deduct 0.2 more
- *      - ≥ 75% → no extra deduction
+ * NEW SYSTEM (0–6 scale):
+ *   Attendance (normal): 0–5 points based on ping presence %
+ *     - ≥ 85% → 5 points
+ *     - ≥ 70% → 4 points
+ *     - ≥ 45% → 3 points
+ *     - < 45% → 0 points (absent)
+ *
+ *   Bonus: 0–1 point
+ *     - +1 if present in first 2 snapshots (within ~8 min of class start, pings every 4 min)
+ *
+ *   Total per session: max 6 (5 attendance + 1 bonus)
  */
 
 /**
  * @param {Set} studentSnapshotIds  - Set of snapshot IDs this student was seen in
  * @param {string[]} orderedSnapshotIds - All snapshot IDs in session, ordered by time
  * @param {number} [expectedTotalSnapshots] - Expected snapshots from session duration / scanner interval
- * @returns {{ points: number, status: string, breakdown: object }}
+ * @returns {{ points: number, bonusPoints: number, attendancePoints: number, status: string, breakdown: object }}
  */
 export function calculatePoints(studentSnapshotIds, orderedSnapshotIds, expectedTotalSnapshots = 0) {
   const actualSnapshots = orderedSnapshotIds.length;
@@ -26,68 +28,102 @@ export function calculatePoints(studentSnapshotIds, orderedSnapshotIds, expected
 
   // No snapshots in session yet — can't calculate
   if (totalSnapshots === 0) {
-    return { points: 0, status: 'absent', breakdown: { base: 0, latePenalty: 0, presencePenalty: 0, reason: 'No snapshots in session' } };
+    return {
+      points: 0,
+      attendancePoints: 0,
+      bonusPoints: 0,
+      status: 'absent',
+      breakdown: {
+        presencePercent: 0,
+        attendancePoints: 0,
+        bonusPoints: 0,
+        tier: 'none',
+        reason: 'No snapshots in session',
+      },
+    };
   }
 
   // Student not seen at all
   if (pingCount === 0) {
-    return { points: 0, status: 'absent', breakdown: { base: 0, latePenalty: 0, presencePenalty: 0, reason: 'Not detected' } };
+    return {
+      points: 0,
+      attendancePoints: 0,
+      bonusPoints: 0,
+      status: 'absent',
+      breakdown: {
+        presencePercent: 0,
+        attendancePoints: 0,
+        bonusPoints: 0,
+        tier: 'none',
+        reason: 'Not detected',
+      },
+    };
   }
 
   const presencePercent = (pingCount / totalSnapshots) * 100;
 
-  let points = 1.0;
-  let latePenalty = 0;
-  let presencePenalty = 0;
-  let reason = '';
+  // ── Attendance points (0–5) based on presence % ──
+  let attendancePoints = 0;
+  let tier = '';
 
-  // Rule 1: Late check — not present in first 2 snapshots
-  const first2 = orderedSnapshotIds.slice(0, 2);
-  const presentInFirst2 = first2.some(id => studentSnapshotIds.has(id));
-  if (!presentInFirst2) {
-    latePenalty = 0.5;
-    points -= 0.5;
-    reason = 'Late (-0.5)';
+  if (presencePercent >= 85) {
+    attendancePoints = 5;
+    tier = '≥85%';
+  } else if (presencePercent >= 70) {
+    attendancePoints = 4;
+    tier = '≥70%';
+  } else if (presencePercent >= 45) {
+    attendancePoints = 3;
+    tier = '≥45%';
+  } else {
+    attendancePoints = 0;
+    tier = '<45%';
   }
 
-  // Rule 2: Presence percentage check (else-if chain, worst first)
-  if (presencePercent < 30) {
-    // Mark absent entirely
+  // If attendance is 0, mark absent
+  if (attendancePoints === 0) {
     return {
       points: 0,
+      attendancePoints: 0,
+      bonusPoints: 0,
       status: 'absent',
       breakdown: {
-        base: 1.0,
-        latePenalty,
-        presencePenalty: 'absent',
         presencePercent: Math.round(presencePercent),
-        reason: `${reason ? reason + ' + ' : ''}Presence < 30% → Absent`,
+        attendancePoints: 0,
+        bonusPoints: 0,
+        tier,
+        reason: `Presence ${Math.round(presencePercent)}% (< 45%) → Absent`,
       },
     };
-  } else if (presencePercent < 50) {
-    presencePenalty = 0.3;
-    points -= 0.3;
-    reason += `${reason ? ' + ' : ''}Presence < 50% (-0.3)`;
-  } else if (presencePercent < 75) {
-    presencePenalty = 0.2;
-    points -= 0.2;
-    reason += `${reason ? ' + ' : ''}Presence < 75% (-0.2)`;
   }
 
-  // Clamp to 0
-  points = Math.max(0, Math.round(points * 100) / 100);
+  // ── Bonus point (+1 for early arrival) ──
+  // Present in any of the first 2 snapshots = within first ~8 minutes
+  const first2 = orderedSnapshotIds.slice(0, 2);
+  const presentInFirst2 = first2.some(id => studentSnapshotIds.has(id));
+  const bonusPoints = presentInFirst2 ? 1 : 0;
 
-  const status = points > 0 ? 'present' : 'absent';
+  const totalPoints = attendancePoints + bonusPoints;
+  const status = 'present';
+
+  let reason = `Presence ${Math.round(presencePercent)}% → ${attendancePoints} pts`;
+  if (bonusPoints > 0) {
+    reason += ' + 1 early bonus';
+  } else {
+    reason += ' (no early bonus)';
+  }
 
   return {
-    points,
+    points: totalPoints,
+    attendancePoints,
+    bonusPoints,
     status,
     breakdown: {
-      base: 1.0,
-      latePenalty,
-      presencePenalty,
       presencePercent: Math.round(presencePercent),
-      reason: reason || 'Full attendance (1.0)',
+      attendancePoints,
+      bonusPoints,
+      tier,
+      reason,
     },
   };
 }
