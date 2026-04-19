@@ -85,6 +85,17 @@ async function handler(req) {
     const SCANNER_INTERVAL_MIN = settings?.scanner_interval_minutes || settings?.ping_interval || 6;
     const MIN_SIGNAL = settings?.min_signal ?? settings?.presence_threshold ?? 2;
 
+    // 5b. Fetch ALL attendance_records as a fallback source
+    const { data: attendanceRecords } = await supabaseAdmin
+      .from('attendance_records')
+      .select('student_id, session_id, status');
+
+    // Build lookup: "studentId:sessionId" -> status
+    const attendanceMap = {};
+    (attendanceRecords || []).forEach(r => {
+      attendanceMap[`${r.student_id}:${r.session_id}`] = r.status;
+    });
+
     // 6. Process each session
     // Accumulate points: studentId -> { attendance, bonus, feedback, sessions }
     const pointsMap = {};
@@ -114,6 +125,7 @@ async function handler(req) {
 
       const orderedSnapshotIds = (snapshots || []).map(s => s.id);
       const totalSnapshots = Math.max(orderedSnapshotIds.length, expectedTotalSnapshots);
+      const hasWifiData = (snapshots || []).length > 0;
 
       // Parse snapshots to build MAC -> snapshot presence
       const macToSnapshots = {};  // mac -> Set of snapshot IDs
@@ -157,30 +169,42 @@ async function handler(req) {
         }
         pointsMap[studentId].sessionsEnrolled++;
 
-        // ── Attendance + Bonus ──
-        const mac = student.mac;
-        const studentSnapshots = mac ? (macToSnapshots[mac] || new Set()) : new Set();
-        const pingCount = studentSnapshots.size;
-
         let attendancePoints = 0;
         let bonusPoints = 0;
 
-        if (totalSnapshots > 0 && pingCount > 0) {
-          const presencePercent = (pingCount / totalSnapshots) * 100;
+        if (hasWifiData) {
+          // ── PRIMARY: Wi-Fi ping-based scoring ──
+          const mac = student.mac;
+          const studentSnapshots = mac ? (macToSnapshots[mac] || new Set()) : new Set();
+          const pingCount = studentSnapshots.size;
 
-          if (presencePercent >= 85) attendancePoints = 5;
-          else if (presencePercent >= 70) attendancePoints = 4;
-          else if (presencePercent >= 45) attendancePoints = 3;
-          // else 0
+          if (totalSnapshots > 0 && pingCount > 0) {
+            const presencePercent = (pingCount / totalSnapshots) * 100;
 
-          // Bonus: present in first 2 snapshots
-          if (attendancePoints > 0) {
-            const first2 = orderedSnapshotIds.slice(0, 2);
-            const earlyPresent = first2.some(id => studentSnapshots.has(id));
-            if (earlyPresent) bonusPoints = 1;
+            if (presencePercent >= 85) attendancePoints = 5;
+            else if (presencePercent >= 70) attendancePoints = 4;
+            else if (presencePercent >= 45) attendancePoints = 3;
 
+            // Bonus: present in first 2 snapshots
+            if (attendancePoints > 0) {
+              const first2 = orderedSnapshotIds.slice(0, 2);
+              const earlyPresent = first2.some(id => studentSnapshots.has(id));
+              if (earlyPresent) bonusPoints = 1;
+              pointsMap[studentId].sessionsAttended++;
+            }
+          }
+        } else {
+          // ── FALLBACK: attendance_records table (CSV import) ──
+          const recordStatus = attendanceMap[`${studentId}:${session.id}`];
+          if (recordStatus === 'present') {
+            attendancePoints = 5;
+            bonusPoints = 1; // full credit when admin-verified present
+            pointsMap[studentId].sessionsAttended++;
+          } else if (recordStatus === 'partial') {
+            attendancePoints = 3;
             pointsMap[studentId].sessionsAttended++;
           }
+          // 'absent' or undefined -> 0 points
         }
 
         // ── Feedback ──
