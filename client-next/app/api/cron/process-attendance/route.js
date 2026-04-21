@@ -2,12 +2,18 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { calculatePoints } from '@/lib/attendance-points';
-import { sendFeedbackAvailableEmail } from '@/lib/emailer';
+import { rolloutFeedbackForSession } from '@/lib/feedback-rollout';
 
 /**
  * Server-side cron endpoint: processes attendance for all ongoing/recent sessions.
  * Called automatically every 6 minutes by the background worker.
  * No auth required — secured by CRON_SECRET header.
+ *
+ * Two-pass strategy:
+ *  Pass 1 - WiFi attendance processing for active/recently-ended sessions TODAY
+ *  Pass 2 - Missed sessions sweep: any session (any date) that ended but is
+ *            still not marked completed -> mark completed + roll out feedback.
+ *            Makes the system self-healing even if the worker missed the window.
  */
 
 let MIN_SIGNAL = 2;
@@ -21,7 +27,6 @@ const normalizeMac = (mac) => {
 const isValidMac = (mac) => /^([A-F0-9]{2}:){5}[A-F0-9]{2}$/.test(mac);
 
 export async function GET(req) {
-  // Verify cron secret
   const authHeader = req.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET || 'cipd-attendance-cron-2026';
   if (authHeader !== `Bearer ${cronSecret}`) {
@@ -29,7 +34,6 @@ export async function GET(req) {
   }
 
   try {
-    // Read scanner settings from DB
     const { data: settings } = await supabaseAdmin
       .from('system_settings')
       .select('scanner_interval_minutes, min_signal, ping_interval, presence_threshold')
@@ -40,10 +44,16 @@ export async function GET(req) {
     MIN_SIGNAL = settings?.min_signal ?? settings?.presence_threshold ?? 2;
 
     const now = new Date();
-    const today = now.toISOString().split('T')[0];
-    const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+    // All session_date / start_time / end_time in DB are stored as IST values.
+    // We must compare against IST, not UTC.
+    const nowIST = new Date(now.getTime() + 5.5 * 60 * 60 * 1000); // shift to IST
+    const today = nowIST.toISOString().split('T')[0];               // YYYY-MM-DD in IST
+    const currentTime = `${String(nowIST.getHours()).padStart(2, '0')}:${String(nowIST.getMinutes()).padStart(2, '0')}:${String(nowIST.getSeconds()).padStart(2, '0')}`;
 
-    // 1. Fetch all sessions for today
+    // =========================================================================
+    // PASS 1 - WiFi attendance processing (active / recently-ended TODAY)
+    // =========================================================================
+
     const { data: sessions, error: sessErr } = await supabaseAdmin
       .from('sessions')
       .select('id, title, session_date, start_time, end_time, status')
@@ -55,7 +65,6 @@ export async function GET(req) {
       return NextResponse.json({ error: sessErr.message }, { status: 500 });
     }
 
-    // Filter to ongoing + recently completed sessions (end_time within last 10 min)
     const tenMinAgo = new Date(now.getTime() - 10 * 60000);
     const tenMinAgoTime = `${String(tenMinAgo.getHours()).padStart(2, '0')}:${String(tenMinAgo.getMinutes()).padStart(2, '0')}:00`;
 
@@ -65,25 +74,6 @@ export async function GET(req) {
       return isOngoing || justEnded;
     });
 
-    if (activeSessions.length === 0) {
-      // Still fetch latest snapshot for staleness detection
-      const { data: latestSnap } = await supabaseAdmin
-        .from('wifi_snapshots')
-        .select('captured_at')
-        .order('captured_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      return NextResponse.json({
-        message: 'No active sessions to process',
-        date: today,
-        time: currentTime,
-        sessionsProcessed: 0,
-        latestSnapshotAt: latestSnap?.captured_at || null,
-      });
-    }
-
-    // 2. Fetch all students with MAC addresses
     const { data: allStudents } = await supabaseAdmin
       .from('students')
       .select('id, enrollment_no, mac_address')
@@ -91,26 +81,21 @@ export async function GET(req) {
 
     const macToStudent = {};
     (allStudents || []).forEach(s => {
-      if (s.mac_address) {
-        macToStudent[normalizeMac(s.mac_address)] = s;
-      }
+      if (s.mac_address) macToStudent[normalizeMac(s.mac_address)] = s;
     });
 
-    // 3. Process each active session
     const results = [];
 
     for (const session of activeSessions) {
       const date = session.session_date;
       const isOngoing = session.start_time <= currentTime && session.end_time > currentTime;
 
-      // Time window: start_time → end_time + 2 min
       const sessionStartDate = new Date(`${date}T${session.start_time}+05:30`);
       const sessionEndDate = new Date(`${date}T${session.end_time}+05:30`);
       const sessionDurationMin = Math.round((sessionEndDate - sessionStartDate) / 60000);
       const expectedTotalSnapshots = Math.floor(sessionDurationMin / SCANNER_INTERVAL_MIN);
       sessionEndDate.setMinutes(sessionEndDate.getMinutes() + 2);
 
-      // Fetch wifi_snapshots in window
       const { data: snapshots } = await supabaseAdmin
         .from('wifi_snapshots')
         .select('id, iw_dump, captured_at')
@@ -118,9 +103,7 @@ export async function GET(req) {
         .lte('captured_at', sessionEndDate.toISOString())
         .order('captured_at', { ascending: true });
 
-      // Parse snapshots and build per-MAC timeline
       const macTimeline = {};
-      // Ordered list of all snapshot IDs in session (for points calc)
       const orderedSnapshotIds = (snapshots || []).map(s => s.id);
 
       (snapshots || []).forEach(snap => {
@@ -138,13 +121,11 @@ export async function GET(req) {
           if (!isValidMac(mac)) return;
           const sig = parseInt(c.signal) || 0;
           if (sig <= MIN_SIGNAL) return;
-
           if (!macTimeline[mac]) macTimeline[mac] = [];
           macTimeline[mac].push({ snapshotId: snap.id, time: new Date(snap.captured_at), signal: sig });
         });
       });
 
-      // Build attendance records
       const attendanceRecords = [];
       const processedIds = new Set();
 
@@ -160,10 +141,8 @@ export async function GET(req) {
         const durationMinutes = Math.round((lastSeen - firstSeen) / 60000 * 10) / 10;
         const avgSignal = Math.round(timeline.reduce((a, t) => a + t.signal, 0) / timeline.length * 10) / 10;
 
-        // Calculate points using expected total snapshots from session duration
-        const { points, status: pointsStatus, breakdown } = calculatePoints(uniqueSnapshots, orderedSnapshotIds, expectedTotalSnapshots);
+        const { points, status: pointsStatus } = calculatePoints(uniqueSnapshots, orderedSnapshotIds, expectedTotalSnapshots);
 
-        // For ongoing sessions, keep 'partial' if points calc says present but pings < 3
         let status = pointsStatus;
         if (isOngoing && pingCount > 0 && pingCount < MIN_PINGS_PRESENT && status !== 'absent') {
           status = 'partial';
@@ -183,7 +162,6 @@ export async function GET(req) {
         });
       });
 
-      // Fetch existing overridden/penalized records to skip them
       const { data: existingOverrides } = await supabaseAdmin
         .from('attendance_records')
         .select('student_id')
@@ -191,21 +169,13 @@ export async function GET(req) {
         .or('admin_override.eq.true,penalty.eq.true');
 
       const overriddenIds = new Set((existingOverrides || []).map(r => r.student_id));
-
-      // Upsert only non-overridden records
       const safeRecords = attendanceRecords.filter(r => !overriddenIds.has(r.student_id));
 
       if (safeRecords.length > 0) {
         const { error: upsertErr } = await supabaseAdmin
           .from('attendance_records')
-          .upsert(safeRecords, {
-            onConflict: 'session_id,student_id',
-            ignoreDuplicates: false,
-          });
-
-        if (upsertErr) {
-          console.error(`Cron: upsert error for session ${session.id}:`, upsertErr);
-        }
+          .upsert(safeRecords, { onConflict: 'session_id,student_id', ignoreDuplicates: false });
+        if (upsertErr) console.error(`Cron: upsert error for session ${session.id}:`, upsertErr);
       }
 
       const present = attendanceRecords.filter(r => r.status === 'present').length;
@@ -221,84 +191,68 @@ export async function GET(req) {
         partial,
       });
 
-      console.log(`Cron: Processed session "${session.title}" — ${present} present, ${partial} partial, ${(snapshots || []).length} snapshots`);
+      console.log(`Cron: Processed session "${session.title}" - ${present} present, ${partial} partial, ${(snapshots || []).length} snapshots`);
 
-      // ── AUTO-ROLLOUT: when session just ended, notify attended students ──
       if (!isOngoing && session.status !== 'completed') {
-        // Mark session as completed
-        await supabaseAdmin
+        await supabaseAdmin.from('sessions').update({ status: 'completed' }).eq('id', session.id);
+
+        const presentStudentIds = attendanceRecords
+          .filter(r => r.status === 'present' || r.status === 'partial')
+          .map(r => r.student_id);
+
+        rolloutFeedbackForSession(session.id, presentStudentIds.length > 0 ? presentStudentIds : null)
+          .then(res => console.log(`Cron: Feedback for "${session.title}" - ${res.notified} notified, ${res.skipped} skipped`))
+          .catch(err => console.error('Feedback auto-rollout error:', err.message));
+      }
+    }
+
+    // =========================================================================
+    // PASS 2 - Missed sessions sweep (self-healing, runs every cron cycle)
+    //
+    // Finds sessions from ANY date that ended but are still not 'completed'.
+    // Marks them completed and fires feedback rollout automatically.
+    // The rolloutFeedbackForSession helper deduplicates notifications so it is
+    // completely safe to call even if partially triggered before.
+    // =========================================================================
+
+    const { data: missedSessions } = await supabaseAdmin
+      .from('sessions')
+      .select('id, title, session_date, start_time, end_time, status')
+      .not('status', 'eq', 'completed')
+      .not('status', 'eq', 'cancelled')
+      .or(`session_date.lt.${today},and(session_date.eq.${today},end_time.lt.${currentTime})`);
+
+    const activeSessionIds = new Set(activeSessions.map(s => s.id));
+    const missed = (missedSessions || []).filter(s => !activeSessionIds.has(s.id));
+
+    let missedCompletedCount = 0;
+
+    if (missed.length > 0) {
+      console.log(`Cron Pass 2: ${missed.length} overdue session(s) found - marking completed + rolling out feedback`);
+
+      for (const session of missed) {
+        const { error: updateErr } = await supabaseAdmin
           .from('sessions')
           .update({ status: 'completed' })
           .eq('id', session.id);
 
-        // Fire-and-forget: send feedback notifications
-        (async () => {
-          try {
-            const presentStudentIds = attendanceRecords
-              .filter(r => r.status === 'present' || r.status === 'partial')
-              .map(r => r.student_id);
+        if (updateErr) {
+          console.error(`Cron: Failed to mark session ${session.id} completed:`, updateErr.message);
+          continue;
+        }
 
-            if (presentStudentIds.length === 0) return;
-
-            // Get session details for the email
-            const { data: sessionDetail } = await supabaseAdmin
-              .from('sessions')
-              .select(`
-                id, title, session_date, start_time, end_time, course_id,
-                courses ( id, name ),
-                faculty ( id, users ( first_name, last_name ) )
-              `)
-              .eq('id', session.id)
-              .single();
-
-            // Compute deadline (24h from end)
-            const deadline = new Date(`${session.session_date}T${session.end_time}+05:30`);
-            deadline.setHours(deadline.getHours() + 24);
-
-            // Get student details
-            const { data: students } = await supabaseAdmin
-              .from('users')
-              .select('id, first_name, last_name, email')
-              .in('id', presentStudentIds)
-              .eq('is_active', true);
-
-            // Insert notifications + send emails
-            const notifications = (students || []).map(s => ({
-              recipient_id: s.id,
-              type: 'feedback_available',
-              title: `📝 Feedback: ${sessionDetail?.courses?.name || session.title}`,
-              message: `Your feedback form for "${session.title}" is ready. Deadline: ${deadline.toLocaleString('en-IN')}. Submit now!`,
-              course_id: sessionDetail?.course_id,
-              session_id: session.id,
-              is_read: false,
-            }));
-
-            if (notifications.length > 0) {
-              await supabaseAdmin.from('notifications').insert(notifications);
+        rolloutFeedbackForSession(session.id, null)
+          .then(res => {
+            if (res.notified > 0) {
+              console.log(`Cron [missed]: "${session.title}" (${session.session_date}) - ${res.notified} students notified`);
             }
+          })
+          .catch(err => console.error(`Cron [missed]: Rollout error for ${session.id}:`, err.message));
 
-            // Send emails in parallel
-            await Promise.allSettled(
-              (students || []).map(async (student) => {
-                try {
-                  const name = `${student.first_name || ''} ${student.last_name || ''}`.trim() || 'Student';
-                  await sendFeedbackAvailableEmail(student.email, name, sessionDetail || session, deadline.toISOString());
-                  console.log(`✉ Feedback email sent to ${student.email}`);
-                } catch (emailErr) {
-                  console.error(`Feedback email failed for ${student.email}:`, emailErr.message);
-                }
-              })
-            );
-
-            console.log(`Cron: Feedback rollout for "${session.title}" — ${notifications.length} students notified`);
-          } catch (bgErr) {
-            console.error('Feedback auto-rollout error:', bgErr.message);
-          }
-        })();
+        missedCompletedCount++;
       }
     }
 
-    // Fetch latest snapshot timestamp for staleness detection
     const { data: latestSnap } = await supabaseAdmin
       .from('wifi_snapshots')
       .select('captured_at')
@@ -307,10 +261,11 @@ export async function GET(req) {
       .single();
 
     return NextResponse.json({
-      message: `Processed ${results.length} session(s)`,
+      message: `Processed ${results.length} active session(s), completed ${missedCompletedCount} missed session(s)`,
       date: today,
       time: currentTime,
       sessionsProcessed: results.length,
+      missedSessionsCompleted: missedCompletedCount,
       latestSnapshotAt: latestSnap?.captured_at || null,
       results,
     });
