@@ -1,0 +1,244 @@
+% $ biblatex auxiliary file $
+% $ biblatex bbl format version 3.3 $
+% Do not modify the above lines!
+%
+% This is an auxiliary file used by the 'biblatex' package.
+% This file may safely be deleted. It will be recreated by
+% biber as required.
+%
+\begingroup
+\makeatletter
+\@ifundefined{ver@biblatex.sty}
+  {\@latex@error
+     {Missing 'biblatex' package}
+     {The bibliography requires the 'biblatex' package.}
+      \aftergroup\endinput}
+  {}
+\endgroup
+
+
+\refsection{0}
+  \datalist[entry]{none/global//global/global/global}
+    \entry{olanrewaju2020wifi}{inproceedings}{}{}
+      \name{author}{3}{}{%
+        {{hash=f086f26208ae66f4e91c28e1f00ba5ed}{%
+           family={Olanrewaju},
+           familyi={O\bibinitperiod},
+           given={Rashidah\bibnamedelima F.},
+           giveni={R\bibinitperiod\bibinitdelim F\bibinitperiod}}}%
+        {{hash=43a5f9217f54a0ff958d39cfbbe1916b}{%
+           family={Islam},
+           familyi={I\bibinitperiod},
+           given={Tarik},
+           giveni={T\bibinitperiod}}}%
+        {{hash=f8bea678ca6cdc4b133ee797536c7b05}{%
+           family={Ali},
+           familyi={A\bibinitperiod},
+           given={Norshuhani\bibnamedelima Z.},
+           giveni={N\bibinitperiod\bibinitdelim Z\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {IEEE}%
+      }
+      \strng{namehash}{41e9d7754f9761d3c4056ce27aa3b99a}
+      \strng{fullhash}{b934c4439e99d4956f9dd242d100b0fb}
+      \strng{fullhashraw}{b934c4439e99d4956f9dd242d100b0fb}
+      \strng{bibnamehash}{b934c4439e99d4956f9dd242d100b0fb}
+      \strng{authorbibnamehash}{b934c4439e99d4956f9dd242d100b0fb}
+      \strng{authornamehash}{41e9d7754f9761d3c4056ce27aa3b99a}
+      \strng{authorfullhash}{b934c4439e99d4956f9dd242d100b0fb}
+      \strng{authorfullhashraw}{b934c4439e99d4956f9dd242d100b0fb}
+      \field{sortinit}{2}
+      \field{sortinithash}{8b555b3791beccb63322c22f3320aa9a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{2020 IEEE International Conference on Informatics, IoT, and Enabling Technologies (ICIoT)}
+      \field{title}{Development of a {Wi-Fi} Based Automated Attendance Monitoring System}
+      \field{year}{2020}
+      \true{nocite}
+      \field{pages}{52\bibrangedash 57}
+      \range{pages}{6}
+      \verb{doi}
+      \verb 10.1109/ICIoT48696.2020.9089483
+      \endverb
+    \endentry
+    \entry{kassem2019wifi}{inproceedings}{}{}
+      \name{author}{2}{}{%
+        {{hash=f88d06584ff982b948996b9732a38fd4}{%
+           family={Kassem},
+           familyi={K\bibinitperiod},
+           given={Ali},
+           giveni={A\bibinitperiod}}}%
+        {{hash=1209cb389c589425e8e2c8513a0e1470}{%
+           family={Harmanani},
+           familyi={H\bibinitperiod},
+           given={Haidar},
+           giveni={H\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {IEEE}%
+      }
+      \strng{namehash}{33b1f8b4da2bf8f8558f253adb4e2e6d}
+      \strng{fullhash}{33b1f8b4da2bf8f8558f253adb4e2e6d}
+      \strng{fullhashraw}{33b1f8b4da2bf8f8558f253adb4e2e6d}
+      \strng{bibnamehash}{33b1f8b4da2bf8f8558f253adb4e2e6d}
+      \strng{authorbibnamehash}{33b1f8b4da2bf8f8558f253adb4e2e6d}
+      \strng{authornamehash}{33b1f8b4da2bf8f8558f253adb4e2e6d}
+      \strng{authorfullhash}{33b1f8b4da2bf8f8558f253adb4e2e6d}
+      \strng{authorfullhashraw}{33b1f8b4da2bf8f8558f253adb4e2e6d}
+      \field{sortinit}{3}
+      \field{sortinithash}{ad6fe7482ffbd7b9f99c9e8b5dccd3d7}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{2019 IEEE International Symposium on Signal Processing and Information Technology (ISSPIT)}
+      \field{title}{A {Wi-Fi} Based Smart System for Automated Student Attendance in Educational Institutions}
+      \field{year}{2019}
+      \true{nocite}
+      \field{pages}{1\bibrangedash 6}
+      \range{pages}{6}
+      \verb{doi}
+      \verb 10.1109/ISSPIT47144.2019.9001783
+      \endverb
+    \endentry
+    \entry{aldholay2018erp}{article}{}{}
+      \name{author}{4}{}{%
+        {{hash=35f74dbcca8e8cb7986a97e0638d79c4}{%
+           family={Aldholay},
+           familyi={A\bibinitperiod},
+           given={Abdullah},
+           giveni={A\bibinitperiod}}}%
+        {{hash=9c1eb9d621ab80924b7755fe5dc54c88}{%
+           family={Isaac},
+           familyi={I\bibinitperiod},
+           given={Omer},
+           giveni={O\bibinitperiod}}}%
+        {{hash=cf89936c8cd1ea80cb131e76ecc752f6}{%
+           family={Abdullah},
+           familyi={A\bibinitperiod},
+           given={Zaini},
+           giveni={Z\bibinitperiod}}}%
+        {{hash=e11113c48fcb50b4be576177fc4e7860}{%
+           family={Ramayah},
+           familyi={R\bibinitperiod},
+           given={T.},
+           giveni={T\bibinitperiod}}}%
+      }
+      \strng{namehash}{d393a879ef6da3b8bcfa179bdddd14bb}
+      \strng{fullhash}{91b46bfdfb1257b8cbeee7736c4e2d5a}
+      \strng{fullhashraw}{91b46bfdfb1257b8cbeee7736c4e2d5a}
+      \strng{bibnamehash}{91b46bfdfb1257b8cbeee7736c4e2d5a}
+      \strng{authorbibnamehash}{91b46bfdfb1257b8cbeee7736c4e2d5a}
+      \strng{authornamehash}{d393a879ef6da3b8bcfa179bdddd14bb}
+      \strng{authorfullhash}{91b46bfdfb1257b8cbeee7736c4e2d5a}
+      \strng{authorfullhashraw}{91b46bfdfb1257b8cbeee7736c4e2d5a}
+      \field{sortinit}{4}
+      \field{sortinithash}{9381316451d1b9788675a07e972a12a7}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Telematics and Informatics}
+      \field{number}{5}
+      \field{title}{The Role of Transformational Leadership as a Mediating Variable in {DeLone} and {McLean} Information System Success Model}
+      \field{volume}{35}
+      \field{year}{2018}
+      \true{nocite}
+      \field{pages}{1421\bibrangedash 1437}
+      \range{pages}{17}
+      \verb{doi}
+      \verb 10.1016/j.tele.2018.03.015
+      \endverb
+    \endentry
+    \entry{cavalcanti2021feedback}{article}{}{}
+      \name{author}{4}{}{%
+        {{hash=3f9ccc0cf6adda85e31de89eb9c9a099}{%
+           family={Cavalcanti},
+           familyi={C\bibinitperiod},
+           given={Anderson\bibnamedelima P.},
+           giveni={A\bibinitperiod\bibinitdelim P\bibinitperiod}}}%
+        {{hash=0e632bff0d1771d053adde9d35df68e3}{%
+           family={Barbosa},
+           familyi={B\bibinitperiod},
+           given={Aristides},
+           giveni={A\bibinitperiod}}}%
+        {{hash=6808ec542d1d1859903949a62cd56675}{%
+           family={Carvalho},
+           familyi={C\bibinitperiod},
+           given={Rafael},
+           giveni={R\bibinitperiod}}}%
+        {{hash=77c75868eb807a1f6fe9d90c2ef8d7e9}{%
+           family={Freitas},
+           familyi={F\bibinitperiod},
+           given={Fred},
+           giveni={F\bibinitperiod}}}%
+      }
+      \strng{namehash}{4271ab5ebe915624fedfa9f0d37e095f}
+      \strng{fullhash}{c8ae299986ee9ea3670f71055921ab62}
+      \strng{fullhashraw}{c8ae299986ee9ea3670f71055921ab62}
+      \strng{bibnamehash}{c8ae299986ee9ea3670f71055921ab62}
+      \strng{authorbibnamehash}{c8ae299986ee9ea3670f71055921ab62}
+      \strng{authornamehash}{4271ab5ebe915624fedfa9f0d37e095f}
+      \strng{authorfullhash}{c8ae299986ee9ea3670f71055921ab62}
+      \strng{authorfullhashraw}{c8ae299986ee9ea3670f71055921ab62}
+      \field{sortinit}{5}
+      \field{sortinithash}{20e9b4b0b173788c5dace24730f47d8c}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Computers and Education: Artificial Intelligence}
+      \field{title}{Automatic Feedback in Online Learning Environments: A Systematic Literature Review}
+      \field{volume}{2}
+      \field{year}{2021}
+      \true{nocite}
+      \field{pages}{100027}
+      \range{pages}{1}
+      \verb{doi}
+      \verb 10.1016/j.caeai.2021.100027
+      \endverb
+    \endentry
+    \entry{rfc7519}{report}{}{}
+      \name{author}{3}{}{%
+        {{hash=5a25bc91f524ca6dfc2ecf9f4a13903c}{%
+           family={Jones},
+           familyi={J\bibinitperiod},
+           given={Michael},
+           giveni={M\bibinitperiod}}}%
+        {{hash=81e40ae87af997090fa9a9696e364c65}{%
+           family={Bradley},
+           familyi={B\bibinitperiod},
+           given={John},
+           giveni={J\bibinitperiod}}}%
+        {{hash=34e6848475fd66697bfcb80787f2aef0}{%
+           family={Sakimura},
+           familyi={S\bibinitperiod},
+           given={Nat},
+           giveni={N\bibinitperiod}}}%
+      }
+      \list{institution}{1}{%
+        {Internet Engineering Task Force (IETF)}%
+      }
+      \strng{namehash}{8c74f36d6695ec51f419b547a3316502}
+      \strng{fullhash}{48d544cafb60a3ced64569d686a33135}
+      \strng{fullhashraw}{48d544cafb60a3ced64569d686a33135}
+      \strng{bibnamehash}{48d544cafb60a3ced64569d686a33135}
+      \strng{authorbibnamehash}{48d544cafb60a3ced64569d686a33135}
+      \strng{authornamehash}{8c74f36d6695ec51f419b547a3316502}
+      \strng{authorfullhash}{48d544cafb60a3ced64569d686a33135}
+      \strng{authorfullhashraw}{48d544cafb60a3ced64569d686a33135}
+      \field{sortinit}{6}
+      \field{sortinithash}{b33bc299efb3c36abec520a4c896a66d}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{number}{RFC 7519}
+      \field{title}{{JSON} Web Token ({JWT})}
+      \field{type}{techreport}
+      \field{year}{2015}
+      \true{nocite}
+      \verb{urlraw}
+      \verb https://tools.ietf.org/html/rfc7519
+      \endverb
+      \verb{url}
+      \verb https://tools.ietf.org/html/rfc7519
+      \endverb
+    \endentry
+  \enddatalist
+\endrefsection
+\endinput
+

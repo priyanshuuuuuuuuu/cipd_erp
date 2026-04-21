@@ -1,0 +1,21 @@
+% figs/arch_layers.tex — 4-layer architecture diagram
+\begin{figure}[!ht]
+\centering
+\begin{tikzpicture}[font=\small, node distance=6pt]
+  \node[layernode, text width=14cm, draw=softred, fill=redbg!60] (ext) at (7,7.8)
+    {External Services Layer \quad {\footnotesize Email SMTP $\cdot$ Google OAuth $\cdot$ Google Classroom API}};
+  \node[layernode, text width=14cm, draw=accentblue, fill=boxbg] (db) at (7,6.3)
+    {Database Layer \quad {\footnotesize PostgreSQL via Supabase — Users $\cdot$ Sessions $\cdot$ Attendance $\cdot$ Feedback $\cdot$ Files}};
+  \node[layernode, text width=14cm, draw=successgreen, fill=greenbg!60] (be) at (7,4.8)
+    {Backend Layer \quad {\footnotesize Next.js API Routes — Auth $\cdot$ Scheduling $\cdot$ Attendance $\cdot$ Feedback $\cdot$ Reporting}};
+  \node[layernode, text width=14cm, draw=warnorange, fill=orangebg!60] (fe) at (7,3.3)
+    {Frontend Layer \quad {\footnotesize Next.js (React) — Admin Dashboard $\cdot$ Student Dashboard $\cdot$ Feedback UI}};
+
+  \draw[myarrow] (fe.north) -- node[right,font=\scriptsize,color=midgray]{HTTP / REST} (be.south);
+  \draw[myarrow] (be.north) -- node[right,font=\scriptsize,color=midgray]{SQL queries}  (db.south);
+  \draw[myarrow] (be.east |- be.center) -- ++(0.6,0) |-
+    node[near start,right,font=\scriptsize,color=midgray]{External calls} (ext.east);
+\end{tikzpicture}
+\caption{Four-layer high-level architecture of CIPD 360 ERP}
+\label{fig:arch_layers}
+\end{figure}

@@ -1,0 +1,24 @@
+% tables/api_attendance.tex
+\begin{table}[!ht]
+\centering
+\begin{tabular}{|l|l|p{6.5cm}|}
+\hline
+\textbf{Method} & \textbf{Endpoint} & \textbf{Description} \\ \hline
+\multicolumn{3}{|l|}{\textit{Student}} \\ \hline
+GET  & \texttt{/api/students/attendance/summary}  & Attendance overview \\
+GET  & \texttt{/api/students/attendance/sessions} & Session-wise attendance \\
+GET  & \texttt{/api/students/attendance/presence} & Live presence status \\
+POST & \texttt{/api/students/attendance/ping}     & Send attendance ping \\ \hline
+\multicolumn{3}{|l|}{\textit{Admin}} \\ \hline
+GET  & \texttt{/api/admin/attendance/weekly}           & Weekly attendance report \\
+GET  & \texttt{/api/admin/attendance/sessions-by-date} & Sessions for a date \\
+GET  & \texttt{/api/admin/attendance/session-students} & Detailed student attendance \\
+GET  & \texttt{/api/admin/attendance/snapshot}         & Snapshot-based attendance \\
+POST & \texttt{/api/admin/attendance/override}         & Manual attendance override \\ \hline
+\multicolumn{3}{|l|}{\textit{Monitoring}} \\ \hline
+GET & \texttt{/api/admin/live-students} & Real-time connected devices \\
+GET & \texttt{/api/admin/wifi-logs}     & Wi-Fi logs for audit \\ \hline
+\end{tabular}
+\caption{Attendance API endpoints (Student, Admin, and Monitoring)}
+\label{tab:api_attendance}
+\end{table}

@@ -1,0 +1,21 @@
+% figs/workflow.tex — System workflow cycle
+\begin{figure}[!ht]
+\centering
+\begin{tikzpicture}[font=\small]
+  \node[blknode=3.4cm] (w1) at (0,   0)    {1.\ Session\\Scheduling};
+  \node[blknode=3.4cm] (w2) at (4.2, 0)    {2.\ Attendance\\Tracking};
+  \node[blknode=3.4cm] (w3) at (8.4, 0)    {3.\ Attendance\\Processing};
+  \node[blknode=3.4cm] (w4) at (8.4,-2.4)  {4.\ Feedback\\Rollout};
+  \node[blknode=3.4cm] (w5) at (4.2,-2.4)  {5.\ Feedback\\Collection};
+  \node[blknode=3.4cm] (w6) at (0,  -2.4)  {6.\ Reporting \&\\Visualization};
+
+  \draw[myarrow] (w1.east)  -- (w2.west);
+  \draw[myarrow] (w2.east)  -- (w3.west);
+  \draw[myarrow] (w3.south) -- (w4.north);
+  \draw[myarrow] (w4.west)  -- (w5.east);
+  \draw[myarrow] (w5.west)  -- (w6.east);
+  \draw[myarrow] (w6.north) -- (w1.south);
+\end{tikzpicture}
+\caption{End-to-end operational workflow of CIPD 360 ERP}
+\label{fig:workflow}
+\end{figure}

@@ -1,0 +1,362 @@
+% chapters/results.tex  — Sections 7, 8, 9, 10, 11
+
+\chapter{Results and Observations}{\label{ch:results}}
+
+\section{System Outputs}
+
+The system successfully provides a unified interface for managing academic operations. Key outputs
+include:
+
+\begin{itemize}
+    \item \textbf{Role Based Dashboards:} Personalized views displaying schedules, attendance, and pending
+    tasks.
+    \item \textbf{Attendance Records:} Automated session wise and student wise tracking, including
+    participation scores.
+    \item \textbf{Feedback Data:} Structured responses aggregated into summaries and analytics.
+    \item \textbf{Reports and Visualizations:} Data presented through graphs, tables, and downloadable
+    reports.
+\end{itemize}
+
+\section{Observations}
+
+Based on system behaviour and usage, several key observations were made:
+
+\begin{itemize}
+    \item \textbf{Reduction in Manual Effort:} Automation of attendance tracking and feedback collection
+    significantly reduces administrative workload.
+    \item \textbf{Improved Data Availability:} Real time access to scheduling, attendance, and feedback data
+    improves transparency for all stakeholders.
+    \item \textbf{Enhanced Student Engagement Tracking:} The combination of attendance and feedback data
+    provides a more comprehensive view of student participation.
+    \item \textbf{Streamlined Workflows:} Integration between modules ensures that processes such as
+    attendance computation and feedback rollout occur without manual intervention.
+    \item \textbf{Centralized Data Management:} Consolidation of academic data into a single system
+    simplifies monitoring and reporting.
+\end{itemize}
+
+These observations indicate that the system effectively addresses many of the inefficiencies present
+in traditional approaches.
+
+\section{Limitations}
+
+Despite its effectiveness, the system has certain limitations:
+
+\begin{itemize}
+    \item \textbf{Dependence on Network Infrastructure:} The attendance system relies on WiFi connectivity
+    and accurate device detection, which may be affected by network conditions.
+    \item \textbf{Device Dependency:} Attendance accuracy depends on students connecting their registered
+    devices to the network.
+    \item \textbf{Potential Security Concerns:} Although mitigated through verification, MAC based systems
+    can be susceptible to spoofing.
+    \item \textbf{Limited Scale Testing:} The system has primarily been tested within the CiPD environment
+    and may require further validation for large scale deployment.
+\end{itemize}
+
+These limitations highlight areas where further refinement and enhancement may be required.
+
+% ─────────────────────────────────────────────────────────────────────────────
+\chapter{Challenges and Solutions}
+% ─────────────────────────────────────────────────────────────────────────────
+
+\section{Attendance Reliability and Accuracy}
+
+\textbf{Challenge:}
+
+Ensuring reliable attendance detection using WiFi signals was a major challenge. Factors such as
+device disconnections, weak signal strength, and intermittent connectivity could lead to inaccurate
+presence detection.
+
+\textbf{Solution:}
+
+Instead of relying on a single detection point, a multi interval detection strategy was implemented.
+Attendance is computed based on repeated detections across the session duration, reducing the
+impact of temporary disconnections. Additionally, signal strength filtering and threshold based logic
+were used to improve detection accuracy.
+
+\section{Network Access and Infrastructure Constraints}
+
+\textbf{Challenge:}
+
+Initial attempts to use the institute's existing WiFi network for attendance tracking were restricted
+due to permission limitations. Continuous monitoring of connected devices was not allowed.
+
+\textbf{Solution:}
+
+A dedicated WiFi network was established specifically for the CiPD program. A separate router was
+configured to provide controlled access, enabling reliable detection of connected devices without
+violating network policies. This approach provided full control over the attendance data pipeline.
+
+\section{Hardware and Firmware Limitations}
+
+\textbf{Challenge:}
+
+To enhance network level data collection, attempts were made to install custom firmware
+(OpenWRT) on the router. However, the specific hardware used did not support this modification.
+
+\textbf{Solution:}
+
+The system was adapted to work within the constraints of the existing router firmware. Instead of
+deep packet level analysis, the implementation relied on available device detection capabilities,
+ensuring functionality without requiring unsupported configurations.
+
+\section{Preventing Proxy Attendance}
+
+\textbf{Challenge:}
+
+A key concern in automated attendance systems is the possibility of proxy attendance, especially
+when relying on device based identification.
+
+\textbf{Solution:}
+
+A combination of safeguards was implemented, including:
+
+\begin{itemize}
+    \item MAC address registration with administrative verification
+    \item Monitoring of detection patterns for anomalies
+    \item Provision for manual checks and penalties
+\end{itemize}
+
+These measures reduce the likelihood of misuse while maintaining system usability.
+
+\section{Feedback Participation and Engagement}
+
+\textbf{Challenge:}
+
+Ensuring consistent student participation in feedback submission is often difficult, leading to
+incomplete or biased data.
+
+\textbf{Solution:}
+
+The feedback system was designed to be lightweight and quick to complete. A notification and
+reminder mechanism was implemented to prompt students to submit feedback within a defined
+time window, improving participation rates.
+
+\section{Balancing Automation and Control}
+
+\textbf{Challenge:}
+
+While automation reduces manual effort, it also introduces risks if processes fail or produce incorrect
+results without oversight.
+
+\textbf{Solution:}
+
+Administrative controls such as manual overrides, monitoring dashboards, and configurable
+parameters were incorporated. This ensures that the system remains flexible and allows human
+intervention when necessary.
+
+% ─────────────────────────────────────────────────────────────────────────────
+\chapter{Future Scope}
+% ─────────────────────────────────────────────────────────────────────────────
+
+While the CIPD 360 ERP system provides a functional and integrated solution for academic
+management, there are several opportunities for further enhancement and expansion.
+
+One potential improvement is the incorporation of advanced analytics and machine learning
+techniques to derive deeper insights from attendance and feedback data. Predictive models could be
+used to identify at risk students, analyze engagement trends, and support data driven academic
+interventions.
+
+The attendance system can be further strengthened by exploring hybrid approaches, such as
+combining WiFi based detection with technologies like Bluetooth or facial recognition. This would
+improve accuracy and reduce dependency on a single method. But a more robust approach would be
+to integrate this software over to mobile S and utilize the institution network for a full proof
+mechanism.
+
+Another area of expansion is the development of a dedicated mobile application, which would
+enhance accessibility and enable real time notifications, making the system more convenient for
+daily use.
+
+The platform can also be extended to support full scale Learning Management System (LMS)
+capabilities, including advanced assignment workflows, peer evaluations, and incorporation of
+agentic AI to automate workflows.
+
+From a deployment perspective, the system can be scaled beyond the CiPD program to support
+multiple courses, departments, or institutions, with configurable modules to adapt to different
+academic structures. Meaning it can be cross institutionalized and can be used to support similar
+programs in other colleges.
+
+% ─────────────────────────────────────────────────────────────────────────────
+\chapter{Conclusion}
+% ─────────────────────────────────────────────────────────────────────────────
+
+This project presented the design and development of CIPD 360 ERP, an integrated academic
+management system tailored for the CiPD program at IIIT Delhi. The system was developed to
+address key inefficiencies in traditional academic workflows by introducing automation,
+centralization, and data driven insights.
+
+By integrating scheduling, attendance tracking, feedback collection, and reporting into a unified
+platform, the system successfully streamlines core academic processes. A significant contribution of
+this work is the implementation of a WiFi based automated attendance mechanism, which
+demonstrates a practical and scalable alternative to conventional attendance systems. In addition,
+the incorporation of a structured feedback system and role based dashboards enables continuous
+monitoring and evaluation of academic activities.
+
+The project also highlights the importance of iterative development and user centric design. Through
+continuous feedback from stakeholders and multiple rounds of experimentation, the system was
+refined to align with real world requirements and constraints. Challenges related to network
+limitations, reliability, and system integration were addressed through thoughtful design decisions
+and practical trade offs.
+
+Overall, the CIPD 360 ERP system demonstrates the feasibility of building a scalable and modular
+academic ERP solution for dynamic educational environments. While certain limitations remain, the
+system establishes a strong foundation for future enhancements and broader deployment.
+
+% ─────────────────────────────────────────────────────────────────────────────
+\appendix
+\chapter{API Endpoints}
+% ─────────────────────────────────────────────────────────────────────────────
+
+\section{Authentication APIs}
+
+\begin{table}[!ht]
+    \centering
+    \begin{tabular}{|l|l|p{6.5cm}|}
+    \hline
+    \textbf{Method} & \textbf{Endpoint} & \textbf{Description} \\ \hline
+    POST  & \texttt{/api/auth/login}              & User login (email/enrollment + password) \\
+    POST  & \texttt{/api/auth/signup}             & Student registration \\
+    GET   & \texttt{/api/auth/me}                & Get current user profile \\
+    POST  & \texttt{/api/auth/logout}            & Logout user \\
+    POST  & \texttt{/api/auth/update-password}   & Change password \\
+    GET   & \texttt{/api/auth/google/connect}    & Initiate Google OAuth \\
+    GET   & \texttt{/api/auth/google/callback}   & Handle OAuth callback \\ \hline
+    \end{tabular}
+    \caption{Authentication API endpoints}
+    \label{tab:api_auth}
+\end{table}
+
+\section{User Management APIs}
+
+\begin{table}[!ht]
+    \centering
+    \begin{tabular}{|l|l|p{6.5cm}|}
+    \hline
+    \textbf{Method} & \textbf{Endpoint} & \textbf{Description} \\ \hline
+    GET   & \texttt{/api/students/profile}  & Fetch student profile \\
+    GET   & \texttt{/api/students/settings} & Get user preferences \\
+    PATCH & \texttt{/api/students/settings} & Update preferences \\
+    PATCH & \texttt{/api/students/mac}      & Register MAC address \\ \hline
+    \end{tabular}
+    \caption{User management API endpoints}
+    \label{tab:api_user}
+\end{table}
+
+\section{Scheduling \& Session APIs}
+
+\begin{table}[!ht]
+    \centering
+    \begin{tabular}{|l|l|p{5.5cm}|}
+    \hline
+    \textbf{Method} & \textbf{Endpoint} & \textbf{Description} \\ \hline
+    \multicolumn{3}{|l|}{\textit{Student}} \\ \hline
+    GET & \texttt{/api/calendar/sessions}          & Fetch sessions by date range \\
+    GET & \texttt{/api/students/schedule/today}    & Today's schedule \\
+    GET & \texttt{/api/students/schedule/week}     & Weekly schedule \\ \hline
+    \multicolumn{3}{|l|}{\textit{Admin}} \\ \hline
+    GET   & \texttt{/api/admin/schedule}                  & Get all sessions (filtered) \\
+    GET   & \texttt{/api/admin/sessions}                  & List sessions \\
+    POST  & \texttt{/api/admin/sessions}                  & Create session \\
+    PATCH & \texttt{/api/admin/sessions/[id]}             & Update session / mark completed \\
+    GET   & \texttt{/api/admin/session-types}             & Fetch session types \\
+    POST  & \texttt{/api/admin/session-types}             & Create session type \\
+    GET   & \texttt{/api/admin/lookup}                    & Fetch courses, faculty, venues, etc. \\
+    GET   & \texttt{/api/admin/skills}                    & Get skills \\
+    POST  & \texttt{/api/admin/skills}                    & Create skill \\
+    GET   & \texttt{/api/admin/categories}                & Get categories \\
+    POST  & \texttt{/api/admin/categories}                & Create category \\
+    POST  & \texttt{/api/admin/sessions/rollout-feedback} & Trigger feedback rollout \\ \hline
+    \end{tabular}
+    \caption{Scheduling and session API endpoints}
+    \label{tab:api_schedule}
+\end{table}
+
+\section{Attendance APIs}
+
+\begin{table}[!ht]
+    \centering
+    \begin{tabular}{|l|l|p{5.5cm}|}
+    \hline
+    \textbf{Method} & \textbf{Endpoint} & \textbf{Description} \\ \hline
+    \multicolumn{3}{|l|}{\textit{Student}} \\ \hline
+    GET  & \texttt{/api/students/attendance/summary}  & Attendance overview \\
+    GET  & \texttt{/api/students/attendance/sessions} & Session-wise attendance \\
+    GET  & \texttt{/api/students/attendance/presence} & Live presence status \\
+    POST & \texttt{/api/students/attendance/ping}     & Send attendance ping \\ \hline
+    \multicolumn{3}{|l|}{\textit{Admin}} \\ \hline
+    GET  & \texttt{/api/admin/attendance/weekly}            & Weekly attendance report \\
+    GET  & \texttt{/api/admin/attendance/sessions-by-date}  & Sessions for a date \\
+    GET  & \texttt{/api/admin/attendance/session-students}  & Detailed student attendance \\
+    GET  & \texttt{/api/admin/attendance/snapshot}          & Snapshot-based attendance \\
+    POST & \texttt{/api/admin/attendance/override}          & Manual attendance override \\ \hline
+    \multicolumn{3}{|l|}{\textit{Monitoring}} \\ \hline
+    GET & \texttt{/api/admin/live-students} & Real-time connected devices \\
+    GET & \texttt{/api/admin/wifi-logs}     & Wi-Fi logs for audit \\ \hline
+    \multicolumn{3}{|l|}{\textit{Settings}} \\ \hline
+    GET    & \texttt{/api/admin/settings/config}         & Get system config \\
+    PUT    & \texttt{/api/admin/settings/config}         & Update config \\
+    GET    & \texttt{/api/admin/settings/mac-approvals}  & Pending MAC approvals \\
+    PATCH  & \texttt{/api/admin/settings/mac-approvals}  & Approve/reject MAC \\
+    GET    & \texttt{/api/admin/settings/bssid}          & Get router BSSID \\
+    POST   & \texttt{/api/admin/settings/bssid}          & Add BSSID \\
+    PATCH  & \texttt{/api/admin/settings/bssid}          & Update BSSID \\
+    DELETE & \texttt{/api/admin/settings/bssid}          & Delete BSSID \\ \hline
+    \end{tabular}
+    \caption{Attendance API endpoints (Student, Admin, Monitoring, and Settings)}
+    \label{tab:api_attendance}
+\end{table}
+
+\section{Feedback APIs}
+
+\begin{table}[!ht]
+    \centering
+    \begin{tabular}{|l|l|p{5.5cm}|}
+    \hline
+    \textbf{Method} & \textbf{Endpoint} & \textbf{Description} \\ \hline
+    \multicolumn{3}{|l|}{\textit{Student}} \\ \hline
+    GET  & \texttt{/api/feedback/pending}      & Get pending feedback \\
+    POST & \texttt{/api/feedback/submit}       & Submit feedback \\
+    GET  & \texttt{/api/feedback/my-response}  & View submitted response \\
+    GET  & \texttt{/api/feedback/leaderboard}  & Engagement leaderboard \\ \hline
+    \multicolumn{3}{|l|}{\textit{Admin}} \\ \hline
+    GET    & \texttt{/api/admin/feedback/analytics}       & Feedback analytics \\
+    GET    & \texttt{/api/admin/feedback/forms}           & List feedback forms \\
+    PATCH  & \texttt{/api/admin/feedback/forms}           & Update deadlines \\
+    GET    & \texttt{/api/admin/feedback/questions}       & Get questions \\
+    POST   & \texttt{/api/admin/feedback/questions}       & Add question \\
+    PATCH  & \texttt{/api/admin/feedback/questions}       & Update question \\
+    DELETE & \texttt{/api/admin/feedback/questions}       & Delete question \\
+    GET    & \texttt{/api/admin/feedback/student-response}& View individual response \\
+    GET    & \texttt{/api/admin/feedback/status}          & Pending feedback status \\ \hline
+    \end{tabular}
+    \caption{Feedback API endpoints (Student and Admin)}
+    \label{tab:api_feedback}
+\end{table}
+
+\section{Notification APIs}
+
+\begin{table}[!ht]
+    \centering
+    \begin{tabular}{|l|l|p{6.5cm}|}
+    \hline
+    \textbf{Method} & \textbf{Endpoint} & \textbf{Description} \\ \hline
+    POST  & \texttt{/api/admin/notifications}   & Send notifications/reminders \\
+    GET   & \texttt{/api/student/notifications} & Fetch student notifications \\
+    PATCH & \texttt{/api/student/notifications} & Update notification status \\ \hline
+    \end{tabular}
+    \caption{Notification API endpoints}
+    \label{tab:api_notif}
+\end{table}
+
+\section{Cron / Automation APIs}
+
+\begin{table}[!ht]
+    \centering
+    \begin{tabular}{|l|l|p{6.5cm}|}
+    \hline
+    \textbf{Method} & \textbf{Endpoint} & \textbf{Description} \\ \hline
+    GET & \texttt{/api/cron/process-attendance} & Auto process attendance \\
+    GET & \texttt{/api/cron/feedback-reminder}  & Send feedback reminders \\ \hline
+    \end{tabular}
+    \caption{Cron and automation API endpoints}
+    \label{tab:api_cron}
+\end{table}

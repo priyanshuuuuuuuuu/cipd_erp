@@ -1,0 +1,32 @@
+% figs/scoring.tex — Attendance points scoring bar chart
+\begin{figure}[!ht]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  xbar, bar width=18pt,
+  symbolic y coords={
+    {Absent ($<$50\%)},
+    {Partial (50--70\%)},
+    {Reduced (70--85\%)},
+    {Full ($\geq$85\%)}},
+  ytick=data,
+  xmin=0, xmax=6.5,
+  xlabel={Points Awarded},
+  title={Points-Based Attendance Scoring Model},
+  nodes near coords, nodes near coords align={horizontal},
+  every node near coord/.append style={font=\small},
+  width=0.78\textwidth, height=5.5cm,
+  xmajorgrids=true, grid style={dashed, gray!35},
+  enlarge y limits=0.25,
+]
+\addplot[fill=accentblue!75, draw=accentblue] coordinates {
+  (0,{Absent ($<$50\%)})
+  (3,{Partial (50--70\%)})
+  (4,{Reduced (70--85\%)})
+  (5,{Full ($\geq$85\%)})
+};
+\end{axis}
+\end{tikzpicture}
+\caption{Points-based attendance scoring thresholds and corresponding values}
+\label{fig:scoring}
+\end{figure}

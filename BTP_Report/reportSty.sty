@@ -1,0 +1,107 @@
+\ProvidesPackage{reportSty}
+\usepackage{fullpage}
+\usepackage{verbatim}
+\usepackage{setspace}
+\usepackage{fancyhdr}
+
+%\usepackage{noReferences}
+\usepackage[small]{caption}
+\usepackage{graphics}
+\usepackage{graphicx}
+\usepackage{color}
+
+\usepackage{hyperref}
+\usepackage{lipsum}
+\usepackage[backend=biber,style=ieee]{biblatex}
+\usepackage{tikz}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{hyperref}
+\usepackage{geometry}
+\usepackage{xcolor}
+\usepackage{adjustbox}
+\usepackage[nottoc,numbib]{tocbibind}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{multicol}
+\usepackage{float}
+\usepackage{subcaption}
+\usepackage{mdframed}
+
+% hyperref setup
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=blue,      
+    urlcolor=black,
+    citecolor=blue,
+}
+
+% tikz libraries
+\usetikzlibrary{calc}
+\usetikzlibrary{arrows.meta}
+\usetikzlibrary{shapes.geometric,positioning,fit,backgrounds,chains,matrix,patterns,shadows}
+
+% bibliography file
+\addbibresource{ref.bib}
+
+% tables of content spacing
+\setlength{\parskip}{1ex}
+\parindent 0in
+
+% top and bottom margins
+\geometry{
+    top=20mm,
+    bottom=20mm,
+    left=25mm,
+    right=25mm
+}
+
+% header and footer
+\fancyhf{}
+\fancyfoot[CF]{\thepage}
+\pagestyle{fancy}
+\renewcommand{\headrulewidth}{0pt}
+
+% ── Shared TikZ styles ────────────────────────────────────────────────────────
+\definecolor{iiitblue}{RGB}{0,51,102}
+\definecolor{accentblue}{RGB}{30,100,180}
+\definecolor{lightblue}{RGB}{220,235,255}
+\definecolor{boxbg}{RGB}{235,245,255}
+\definecolor{greenbg}{RGB}{225,248,225}
+\definecolor{orangebg}{RGB}{255,243,220}
+\definecolor{redbg}{RGB}{255,230,230}
+\definecolor{successgreen}{RGB}{34,139,34}
+\definecolor{warnorange}{RGB}{200,100,20}
+\definecolor{softred}{RGB}{180,30,30}
+\definecolor{midgray}{RGB}{120,120,120}
+
+\tikzset{
+  blknode/.style={rectangle, draw=accentblue, fill=boxbg,
+    text width=#1, align=center, minimum height=1cm,
+    rounded corners=3pt, font=\small},
+  blknode/.default=3cm,
+  layernode/.style={rectangle, draw=iiitblue, fill=lightblue!70,
+    text width=13cm, align=center, minimum height=1.1cm,
+    rounded corners=3pt, font=\small\bfseries, color=iiitblue},
+  dbnode/.style={rectangle, draw=successgreen, fill=greenbg,
+    rounded corners=3pt, align=center, font=\small,
+    minimum height=0.9cm, text width=#1},
+  dbnode/.default=3cm,
+  apinode/.style={rectangle, draw=warnorange, fill=orangebg,
+    rounded corners=3pt, align=center, font=\small,
+    minimum height=0.9cm, text width=#1},
+  apinode/.default=3cm,
+  usernode/.style={rectangle, draw=softred, fill=redbg,
+    rounded corners=3pt, align=center, font=\small,
+    minimum height=0.9cm, text width=#1},
+  usernode/.default=3cm,
+  myarrow/.style={-Stealth, thick, color=iiitblue},
+  dasharrow/.style={-Stealth, dashed, thick, color=midgray},
+}

@@ -1,0 +1,25 @@
+% figs/att_trend.tex — Weekly attendance trend line chart
+\begin{figure}[!ht]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  xlabel={Week}, ylabel={Attendance (\%)},
+  xtick={1,2,3,4,5,6,7,8},
+  xticklabels={W1,W2,W3,W4,W5,W6,W7,W8},
+  ymin=55, ymax=100,
+  title={Sample Weekly Class Attendance Trend},
+  legend pos=south east, legend style={font=\small},
+  width=0.82\textwidth, height=6cm,
+  ymajorgrids=true, grid style={dashed, gray!35},
+  mark size=2.5pt,
+]
+\addplot[color=accentblue, mark=*, thick, smooth] coordinates {
+  (1,78)(2,82)(3,75)(4,88)(5,91)(6,84)(7,79)(8,86)};
+\addplot[color=softred, dashed, thick] coordinates {
+  (1,85)(2,85)(3,85)(4,85)(5,85)(6,85)(7,85)(8,85)};
+\legend{Class Average, 85\% Threshold}
+\end{axis}
+\end{tikzpicture}
+\caption{Sample weekly attendance trend with the 85\% minimum threshold shown}
+\label{fig:att_trend}
+\end{figure}

@@ -1,0 +1,17 @@
+% tables/api_auth.tex
+\begin{table}[!ht]
+\centering
+\begin{tabular}{|l|l|p{7cm}|}
+\hline
+\textbf{Method} & \textbf{Endpoint} & \textbf{Description} \\ \hline
+POST  & \texttt{/api/auth/login}             & User login (email/enrollment + password) \\
+POST  & \texttt{/api/auth/signup}            & Student registration \\
+GET   & \texttt{/api/auth/me}               & Get current user profile \\
+POST  & \texttt{/api/auth/logout}           & Logout user \\
+POST  & \texttt{/api/auth/update-password}  & Change password \\
+GET   & \texttt{/api/auth/google/connect}   & Initiate Google OAuth flow \\
+GET   & \texttt{/api/auth/google/callback}  & Handle OAuth callback \\ \hline
+\end{tabular}
+\caption{Authentication API endpoints}
+\label{tab:api_auth}
+\end{table}
