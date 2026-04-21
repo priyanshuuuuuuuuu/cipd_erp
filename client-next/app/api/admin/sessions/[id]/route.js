@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { withRole } from '@/lib/middleware';
+import { rolloutFeedbackForSession } from '@/lib/feedback-rollout';
 
 // PATCH /api/admin/sessions/[id]
 // Supports two modes:
@@ -37,10 +38,15 @@ async function handler(req, { params }) {
       }
       if (!data) return NextResponse.json({ error: 'Session not found' }, { status: 404 });
 
-      // Trigger attendance calculation when marked completed
+      // Trigger attendance calculation + feedback rollout when marked completed
       if (status === 'completed') {
         const { error: calcError } = await supabaseAdmin.rpc('calculate_attendance', { p_session: id });
         if (calcError) console.error('Attendance calculation error:', calcError);
+
+        // Fire feedback rollout asynchronously (non-blocking)
+        rolloutFeedbackForSession(id).catch((err) =>
+          console.error('Feedback rollout error after admin mark-complete:', err.message)
+        );
       }
 
       return NextResponse.json({ session: data });
