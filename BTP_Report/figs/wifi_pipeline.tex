@@ -1,0 +1,28 @@
+% figs/wifi_pipeline.tex — WiFi detection pipeline diagram
+\begin{figure}[!ht]
+\centering
+\begin{tikzpicture}[font=\small]
+  \node[blknode=2.4cm] (router) at (0,    0) {Dedicated\\WiFi Router\\{\footnotesize 192.168.0.1}};
+  \node[blknode=2.4cm] (script) at (3.2,  0) {Selenium\\Script\\{\footnotesize (24/7 PC)}};
+  \node[blknode=2.4cm] (parse)  at (6.4,  0) {Parse MAC\\ + Signal\\Strength};
+  \node[blknode=2.4cm] (filter) at (9.6,  0) {Threshold\\Filter\\{\footnotesize Signal $>2$}};
+  \node[dbnode=2.4cm]  (map)    at (9.6, -2.4){Map to\\Registered\\Students};
+  \node[dbnode=2.4cm]  (db)     at (6.4, -2.4){Update\\Attendance\\Records};
+
+  \draw[myarrow] (router.east) -- (script.west);
+  \draw[myarrow] (script.east) -- (parse.west);
+  \draw[myarrow] (parse.east)  -- (filter.west);
+  \draw[myarrow] (filter.south) -- (map.north);
+  \draw[myarrow] (map.west)     -- (db.east);
+
+  % labels
+  \node[font=\scriptsize,color=midgray,above=3pt of router] {Step 1};
+  \node[font=\scriptsize,color=midgray,above=3pt of script] {Step 2};
+  \node[font=\scriptsize,color=midgray,above=3pt of parse]  {Step 3};
+  \node[font=\scriptsize,color=midgray,above=3pt of filter] {Step 4};
+  \node[font=\scriptsize,color=midgray,below=3pt of map]    {Step 5};
+  \node[font=\scriptsize,color=midgray,below=3pt of db]     {Step 6};
+\end{tikzpicture}
+\caption{WiFi-based automated attendance detection pipeline}
+\label{fig:wifi_pipeline}
+\end{figure}

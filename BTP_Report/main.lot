@@ -1,0 +1,23 @@
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {4.1}{\ignorespaces Technology stack of CIPD 360 ERP}}{10}{table.caption.13}%
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {7.1}{\ignorespaces Summary of key challenges and corresponding solutions}}{25}{table.caption.22}%
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {A.1}{\ignorespaces Authentication API endpoints}}{29}{table.caption.24}%
+\contentsline {table}{\numberline {A.2}{\ignorespaces User management API endpoints}}{29}{table.caption.25}%
+\contentsline {table}{\numberline {A.3}{\ignorespaces Scheduling API endpoints — Student}}{29}{table.caption.26}%
+\contentsline {table}{\numberline {A.4}{\ignorespaces Scheduling API endpoints — Admin}}{30}{table.caption.27}%
+\contentsline {table}{\numberline {A.5}{\ignorespaces Attendance API endpoints — Student}}{30}{table.caption.28}%
+\contentsline {table}{\numberline {A.6}{\ignorespaces Attendance API endpoints — Admin}}{30}{table.caption.29}%
+\contentsline {table}{\numberline {A.7}{\ignorespaces Monitoring and settings API endpoints}}{31}{table.caption.30}%
+\contentsline {table}{\numberline {A.8}{\ignorespaces Feedback API endpoints — Student}}{31}{table.caption.31}%
+\contentsline {table}{\numberline {A.9}{\ignorespaces Feedback API endpoints — Admin}}{31}{table.caption.32}%
+\contentsline {table}{\numberline {A.10}{\ignorespaces Notification API endpoints}}{32}{table.caption.33}%
+\contentsline {table}{\numberline {A.11}{\ignorespaces Cron and automation API endpoints}}{32}{table.caption.34}%

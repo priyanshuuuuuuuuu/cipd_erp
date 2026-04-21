@@ -1,0 +1,30 @@
+% figs/att_compare.tex — Attendance approach comparison bar chart
+\begin{figure}[!ht]
+\centering
+\begin{tikzpicture}
+\begin{axis}[
+  ybar, bar width=14pt,
+  symbolic x coords={Bluetooth, RFID, {Face Recog.}, {Wi-Fi}},
+  xtick=data,
+  ymin=0, ymax=11,
+  ylabel={Suitability Score (out of 10)},
+  title={Comparative Evaluation of Attendance Tracking Approaches},
+  legend style={at={(0.5,-0.22)}, anchor=north, legend columns=3, font=\small},
+  nodes near coords, nodes near coords align={vertical},
+  every node near coord/.append style={font=\scriptsize},
+  width=0.80\textwidth, height=6.5cm,
+  ymajorgrids=true, grid style={dashed,gray!35},
+  enlarge x limits=0.20,
+]
+\addplot[fill=accentblue!75, draw=accentblue]
+  coordinates {(Bluetooth,4)(RFID,7)({Face Recog.},5)({Wi-Fi},9)};
+\addplot[fill=successgreen!75, draw=successgreen]
+  coordinates {(Bluetooth,3)(RFID,5)({Face Recog.},4)({Wi-Fi},9)};
+\addplot[fill=warnorange!85, draw=warnorange]
+  coordinates {(Bluetooth,6)(RFID,3)({Face Recog.},5)({Wi-Fi},9)};
+\legend{Accuracy, Scalability, Cost-Effectiveness}
+\end{axis}
+\end{tikzpicture}
+\caption{Comparative evaluation of four candidate attendance tracking approaches}
+\label{fig:att_compare}
+\end{figure}

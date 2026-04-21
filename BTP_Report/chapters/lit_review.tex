@@ -1,0 +1,212 @@
+\chapter{Research, Ideation and Continuous Evaluation}{\label{ch:lit_review}}
+
+\section{Stakeholder Research and Problem Discovery}
+
+The project began with a user centric research phase aimed at understanding the real world
+challenges within the CiPD program. Interactions were conducted with students, faculty members,
+and administrative staff to identify pain points and validate potential solutions.
+
+Students highlighted issues with manual attendance systems, describing them as inconvenient and
+prone to proxy marking and lack of transparency. They also emphasized the absence of a centralized
+platform for accessing schedules, resources, and tracking participation.
+
+Faculty members pointed out difficulties in managing schedules, monitoring engagement, and
+collecting structured feedback. Administrative stakeholders faced challenges in consolidating data for
+reporting and decision making.
+
+Based on these discussions, the key problem areas identified were:
+
+\begin{itemize}
+    \item Inefficient and unreliable attendance tracking
+    \item Lack of a centralized integrated system
+    \item Inconsistent feedback mechanisms
+    \item Limited access to real time analytics
+\end{itemize}
+
+An iterative validation process was followed, where early ideas were continuously discussed with
+stakeholders to ensure alignment with actual user needs.
+
+\section{Exploration of Attendance Solutions}
+
+Attendance tracking emerged as the most critical component, leading to the evaluation of multiple
+approaches:
+
+\begin{itemize}
+    \item Bluetooth based systems relied on proximity detection but were unreliable due to device
+    settings and inconsistent discoverability.
+    \item RFID systems offered accuracy but required additional hardware, making them costly and
+    less scalable.
+    \item Face recognition approaches using computer vision were explored but faced challenges
+    related to accuracy, computational overhead, and privacy concerns.
+\end{itemize}
+
+After evaluating these options, Wi Fi based detection was selected as the most practical solution. It
+leverages existing infrastructure to detect connected devices and infer presence.
+
+The choice was driven by:
+
+\begin{itemize}
+    \item No additional hardware requirement
+    \item Scalability for large classrooms
+    \item Passive and non intrusive operation
+    \item Compatibility with existing systems
+\end{itemize}
+
+This evaluation ensured that the final approach was both feasible and scalable.
+
+\input{figs/att_compare.tex}
+
+\section{Network Level Experimentation and Constraints}
+
+Following the selection of Wi Fi based attendance, experiments were conducted to test feasibility
+within the institute's network. Initial trials using the existing network demonstrated that connected
+devices could be detected using network scanning techniques.
+
+However, restricted access and permission limitations prevented continuous monitoring on the
+institutional network. To address this, a dedicated router was deployed within the CiPD classroom,
+creating a controlled environment for reliable device detection.
+
+Attempts were also made to enhance the router's capabilities using custom firmware (OpenWRT),
+but hardware limitations restricted further customization.
+
+These experiments highlighted key practical constraints such as network permissions, infrastructure
+limitations, and hardware compatibility, which influenced the final system design.
+
+\section{Continuous Feedback and Iterative Development}
+
+The system was developed using an iterative approach, with regular demonstrations to stakeholders
+for feedback. This allowed continuous refinement of features such as dashboards, attendance
+tracking, and feedback interfaces.
+
+Key improvements based on feedback included:
+
+\begin{itemize}
+    \item Enhanced notification mechanisms for timely updates
+    \item Improved visualization of attendance data
+    \item Focus on student wise analytics instead of only aggregated views
+\end{itemize}
+
+This feedback driven approach ensured that the system remained aligned with user expectations and
+practical requirements while minimizing major redesign efforts.
+
+% ─────────────────────────────────────────────────────────────────────────────
+\chapter{System Overview}{\label{ch:sysoverview}}
+% ─────────────────────────────────────────────────────────────────────────────
+
+\section{Overview of CIPD 360 ERP}
+
+CIPD 360 ERP is a web based system that provides a centralized interface for managing academic
+activities. It replaces fragmented and manual processes with a cohesive platform that integrates
+multiple functionalities into a single system.
+
+The system is built with the following goals:
+
+\begin{itemize}
+    \item To provide a unified platform for all stakeholders
+    \item To reduce manual intervention in routine academic processes
+    \item To enable real time access to data and insights
+    \item To support scalability for future expansion
+\end{itemize}
+
+By consolidating scheduling, attendance, feedback, and reporting into one system, the platform
+ensures consistency and reduces redundancy across operations.
+
+\section{Key Features Overview}
+
+The system incorporates several key features that collectively support academic management:
+
+\begin{itemize}
+    \item \textbf{Scheduling System:}
+    Enables administrators to create and manage academic sessions, with support for conflict
+    detection and dynamic updates.
+
+    \item \textbf{Automated Attendance System:}
+    Uses WiFi based detection to track student presence, reducing dependency on manual
+    attendance methods.
+
+    \item \textbf{Feedback System:}
+    Provides session based feedback collection with structured forms and analytical insights.
+
+    \item \textbf{Dashboard and Reporting:}
+    Offers role based dashboards with visual analytics for monitoring attendance, feedback, and
+    session activity.
+
+    \item \textbf{Content and Assignment Management:}
+    Supports sharing of learning materials and management of assignments within the platform.
+\end{itemize}
+
+These features are tightly integrated, allowing smooth data flow and enabling automation across
+workflows.
+
+\section{User Roles and Responsibilities}
+
+The system is designed around 2 primary user roles, each with distinct responsibilities and access
+levels:
+
+\begin{itemize}
+    \item \textbf{Administrator:}
+    Responsible for managing the overall system, including scheduling sessions, monitoring
+    attendance, generating reports, and configuring system settings. As well as managing
+    faculties and other teaching staff.
+
+    \item \textbf{Student:}
+    Responsible for attending sessions, accessing course materials, submitting feedback, and
+    tracking personal attendance and academic progress.
+\end{itemize}
+
+\section{System Workflow}
+
+The CIPD 360 ERP follows a structured workflow that connects different modules into a cohesive
+pipeline:
+
+\begin{enumerate}
+    \item \textbf{Session Scheduling:}
+    Administrators create and manage sessions, defining details such as timing, faculty, and
+    venue.
+
+    \item \textbf{Attendance Tracking:}
+    During the session, the system monitors connected devices on the CiPD network and records
+    presence data.
+
+    \item \textbf{Attendance Processing:}
+    After the session, detection data is processed to compute attendance records and
+    participation scores.
+
+    \item \textbf{Feedback Rollout:}
+    Once a session is completed, feedback forms are automatically made available to students.
+
+    \item \textbf{Feedback Collection and Analysis:}
+    Students submit feedback, which is aggregated and analysed for insights.
+
+    \item \textbf{Reporting and Visualization:}
+    Data from all modules is consolidated and presented through dashboards and reports.
+\end{enumerate}
+
+This workflow ensures that academic activities are not isolated but part of a continuous, automated
+process.
+
+\input{figs/workflow.tex}
+
+\section{System Characteristics}
+
+The system is designed with several important characteristics:
+
+\begin{itemize}
+    \item \textbf{Modularity:}
+    Each module (attendance, scheduling, feedback, etc.) operates independently but integrates
+    with others.
+
+    \item \textbf{Scalability:}
+    The architecture allows the system to handle increasing numbers of users and sessions.
+
+    \item \textbf{Automation:}
+    Key workflows such as attendance computation and feedback rollout are automated.
+
+    \item \textbf{Real Time Data Access:}
+    Users have access to up to date information through dynamic dashboards.
+
+    \item \textbf{User Centric Design:}
+    Interfaces are tailored to the needs of different roles.
+\end{itemize}
+
+These characteristics ensure that the system remains robust, flexible, and efficient.
