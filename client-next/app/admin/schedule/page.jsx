@@ -24,6 +24,9 @@ export default function AdminSchedulePage() {
 
     // Date sorting
     const [dateSortDir, setDateSortDir] = useState('desc'); // 'asc' | 'desc'
+    
+    // Calendar week offset
+    const [weekOffset, setWeekOffset] = useState(0);
 
     // ── Feedback rollout state ───────────────────────────────────────────────
     const [rollingOutId, setRollingOutId] = useState(null);   // session id currently being processed
@@ -414,10 +417,15 @@ export default function AdminSchedulePage() {
     };
 
     // Calendar view helpers
+    const currentRealToday = new Date();
+    const todayStr = currentRealToday.toISOString().split('T')[0];
+
+    const weekStart = new Date();
+    weekStart.setDate(weekStart.getDate() + (weekOffset * 7));
+
     const calendarDays = [];
-    const todayFull = new Date();
     for (let i = 0; i < 5; i++) {
-        const d = new Date(todayFull);
+        const d = new Date(weekStart);
         d.setDate(d.getDate() + i);
         calendarDays.push({
             label: d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' }),
@@ -427,8 +435,6 @@ export default function AdminSchedulePage() {
     const timeSlots = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00'];
     const getSessionsForSlot = (dateKey, time) =>
         sessions.filter(s => s.date === dateKey && s.time?.startsWith(time.split(':')[0]));
-
-    const todayStr = todayFull.toISOString().split('T')[0];
     const totalToday = sessions.filter(s => s.date === todayStr).length;
     const confirmed = sessions.filter(s => s.status === 'Confirmed').length;
     const pending = sessions.filter(s => s.status === 'Pending').length;
@@ -753,6 +759,13 @@ export default function AdminSchedulePage() {
                         <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', borderTop: '3px solid #00A5A0', overflow: 'hidden' }}>
                             <div style={{ padding: '0.8rem 1.5rem', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.95rem', fontWeight: 700 }}><CalendarDays size={16} /> Weekly Calendar</div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <button onClick={() => setWeekOffset(prev => prev - 1)} style={{ background: 'none', border: '1px solid #e8e8e8', borderRadius: '6px', padding: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><ChevronLeft size={16} /></button>
+                                    <button onClick={() => setWeekOffset(0)} style={{ background: 'none', border: 'none', fontSize: '0.8rem', fontWeight: 600, color: '#555', minWidth: '80px', textAlign: 'center', cursor: 'pointer' }}>
+                                        {weekOffset === 0 ? 'This Week' : weekOffset === -1 ? 'Last Week' : weekOffset === 1 ? 'Next Week' : `${weekOffset > 0 ? '+' : ''}${weekOffset} Weeks`}
+                                    </button>
+                                    <button onClick={() => setWeekOffset(prev => prev + 1)} style={{ background: 'none', border: '1px solid #e8e8e8', borderRadius: '6px', padding: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><ChevronRight size={16} /></button>
+                                </div>
                             </div>
                             <div style={{ overflowX: 'auto' }}>
                                 <div style={{ display: 'grid', gridTemplateColumns: '70px repeat(5, 1fr)', minWidth: '700px' }}>
