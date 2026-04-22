@@ -1,0 +1,278 @@
+[
+  {
+    "id": "fe33692d-d258-4334-8b9b-9e6b2d554849",
+    "course_id": "81c5903a-8eea-4dce-a34b-b8040fcae15a",
+    "name": "Microcontroller",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "180a10ef-5f65-4391-b694-b9741db0f872",
+    "course_id": "81c5903a-8eea-4dce-a34b-b8040fcae15a",
+    "name": "FPGAs/ DSP",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "61ba0877-2983-47d3-94ca-f1a2c369de29",
+    "course_id": "81c5903a-8eea-4dce-a34b-b8040fcae15a",
+    "name": "Wireless Technologies",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "9e3260a2-3237-4a5c-83a9-abb8f84a6ab1",
+    "course_id": "81c5903a-8eea-4dce-a34b-b8040fcae15a",
+    "name": "Memory map",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "53f5f884-1dda-4800-b9fe-f5e43a31aaa7",
+    "course_id": "81c5903a-8eea-4dce-a34b-b8040fcae15a",
+    "name": "Clock configuration",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "24534c5f-a69d-4583-8b50-a621934fb374",
+    "course_id": "81c5903a-8eea-4dce-a34b-b8040fcae15a",
+    "name": "Programming Basic",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "198f5535-56a0-4296-8215-435433257850",
+    "course_id": "81c5903a-8eea-4dce-a34b-b8040fcae15a",
+    "name": "OTA",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "b8e2f730-05ae-4eab-9d2e-d7e43e7ff798",
+    "course_id": "81c5903a-8eea-4dce-a34b-b8040fcae15a",
+    "name": "TCP/IP",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "ef551552-ea37-4033-9f47-790b8c55d8c9",
+    "course_id": "81c5903a-8eea-4dce-a34b-b8040fcae15a",
+    "name": "GIT HUB",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "7950cb91-6914-4c04-89bd-4291d0874e1f",
+    "course_id": "81c5903a-8eea-4dce-a34b-b8040fcae15a",
+    "name": "Documentation Writing",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "a4319750-51db-49d2-a1fe-137374b3ed5c",
+    "course_id": "81c5903a-8eea-4dce-a34b-b8040fcae15a",
+    "name": "Code review",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "04aad290-cb52-42e5-ba96-186882e78411",
+    "course_id": "81c5903a-8eea-4dce-a34b-b8040fcae15a",
+    "name": "PWM",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "68d7cf4a-2707-4f8f-acd9-550ef4cf4fb2",
+    "course_id": "81c5903a-8eea-4dce-a34b-b8040fcae15a",
+    "name": "Emulation",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "147a2924-b272-48bb-a9cb-2c87c470e529",
+    "course_id": "81c5903a-8eea-4dce-a34b-b8040fcae15a",
+    "name": "Basic Electronics",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "234a7e6d-fe86-46dc-aa41-cfbfbf59cdbb",
+    "course_id": "81c5903a-8eea-4dce-a34b-b8040fcae15a",
+    "name": "EMS",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "71511bd6-4be9-4924-b63d-494086add521",
+    "course_id": "89f61edb-96f4-4fec-a026-17599f668be4",
+    "name": "AlxDesign (Designing for AI)",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "ebc65d59-8a57-4c3b-a2b1-cf8e1ff65e4b",
+    "course_id": "89f61edb-96f4-4fec-a026-17599f668be4",
+    "name": "App Design",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "cbdfcc4d-604d-49da-97d6-11cb56b0667d",
+    "course_id": "89f61edb-96f4-4fec-a026-17599f668be4",
+    "name": "Battery",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "1dc10a59-756a-4691-a6a8-ad9e7465a991",
+    "course_id": "89f61edb-96f4-4fec-a026-17599f668be4",
+    "name": "Battery management",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "998ede13-db65-4499-81bb-069fa05fbb6f",
+    "course_id": "89f61edb-96f4-4fec-a026-17599f668be4",
+    "name": "Cognitive & Behavioral Design",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "396127d8-7a7c-41ad-aca5-fe4e529eb072",
+    "course_id": "89f61edb-96f4-4fec-a026-17599f668be4",
+    "name": "Contextual & Environmental Design",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "6dc55342-8eae-48ec-bd30-377597a525b1",
+    "course_id": "89f61edb-96f4-4fec-a026-17599f668be4",
+    "name": "Design for Data",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "251b7620-de22-4db8-bfd2-bebf8d02b197",
+    "course_id": "89f61edb-96f4-4fec-a026-17599f668be4",
+    "name": "Design Thinking",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "fa1eb396-c487-4f2b-97b0-591da282558e",
+    "course_id": "89f61edb-96f4-4fec-a026-17599f668be4",
+    "name": "Ergonomics & Human Factors",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "cfd1dfa0-5f29-4083-b745-607f3cdba21f",
+    "course_id": "89f61edb-96f4-4fec-a026-17599f668be4",
+    "name": "Ethical & Responsible Design",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "c1b8d6b9-4fb0-4e2d-86fd-293756b06177",
+    "course_id": "89f61edb-96f4-4fec-a026-17599f668be4",
+    "name": "Experience Design (XD)",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "769b2cd1-191f-4bb4-9d15-a8a521ede99b",
+    "course_id": "89f61edb-96f4-4fec-a026-17599f668be4",
+    "name": "Human-Centered Design",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "25fd443a-d04e-4dd3-a35f-f8d6d5398823",
+    "course_id": "89f61edb-96f4-4fec-a026-17599f668be4",
+    "name": "Ideating/Ideation",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "780cec72-bb52-40a3-831c-c67fd0a994be",
+    "course_id": "89f61edb-96f4-4fec-a026-17599f668be4",
+    "name": "Industrial/Form Factor Design",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "6393914d-1cf7-408b-a2ed-f094ae304480",
+    "course_id": "89f61edb-96f4-4fec-a026-17599f668be4",
+    "name": "Interaction Design (ixD)",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "f6d861ef-69c5-4372-9f0e-258ba4a45181",
+    "course_id": "89f61edb-96f4-4fec-a026-17599f668be4",
+    "name": "Market Analysis",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "e2843ddf-27bc-40f3-97e0-246b47a701c0",
+    "course_id": "89f61edb-96f4-4fec-a026-17599f668be4",
+    "name": "PCB Design",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "0824c8a6-b942-4495-a964-2955b411d453",
+    "course_id": "89f61edb-96f4-4fec-a026-17599f668be4",
+    "name": "Product Design",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "dad0540d-80d3-4803-a7dc-d2004deb7b20",
+    "course_id": "89f61edb-96f4-4fec-a026-17599f668be4",
+    "name": "Product-System Design",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "9f76e58f-d11d-43ad-a8cf-470e50b1564e",
+    "course_id": "89f61edb-96f4-4fec-a026-17599f668be4",
+    "name": "Program Management",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "54f55f28-ff00-406f-aa30-d3f3c94f9925",
+    "course_id": "89f61edb-96f4-4fec-a026-17599f668be4",
+    "name": "Prototyping",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "f8e794a6-9745-4aef-a30b-0defd1321dac",
+    "course_id": "89f61edb-96f4-4fec-a026-17599f668be4",
+    "name": "Rapid Prototyping Tools",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "613db319-d536-49dc-afdf-43bc5d1468e8",
+    "course_id": "89f61edb-96f4-4fec-a026-17599f668be4",
+    "name": "System Thinking",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "c010202a-1365-4e31-9c1c-b8eff262082f",
+    "course_id": "89f61edb-96f4-4fec-a026-17599f668be4",
+    "name": "Testing",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "d2d85af2-d9f0-448a-bf7b-6b68bc130130",
+    "course_id": "89f61edb-96f4-4fec-a026-17599f668be4",
+    "name": "Usability Evaluation/Testing",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "b08ad302-49f2-4aa2-be75-4d0d8e28e892",
+    "course_id": "89f61edb-96f4-4fec-a026-17599f668be4",
+    "name": "Usability Engineering",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "c9073cfe-cc02-429d-9dd6-48e5b1ab6d0a",
+    "course_id": "89f61edb-96f4-4fec-a026-17599f668be4",
+    "name": "User/Design Research",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "a8d02b77-487b-4be4-b61f-b5a4fc7c71dd",
+    "course_id": "89f61edb-96f4-4fec-a026-17599f668be4",
+    "name": "Visual and Interface Design",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "957d7ee4-7a75-4e00-9130-532b38ae7d1b",
+    "course_id": "1a55da31-f75b-42aa-a604-3c44e2f9927a",
+    "name": "Business and Leadership",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "d481c379-9492-47dc-8c28-8e6fef1c7b8e",
+    "course_id": "1a55da31-f75b-42aa-a604-3c44e2f9927a",
+    "name": "Entrepreneurship",
+    "created_at": "2026-04-14T16:25:05.589568"
+  },
+  {
+    "id": "e0329926-6118-43e3-927e-2f88136f0579",
+    "course_id": "1a55da31-f75b-42aa-a604-3c44e2f9927a",
+    "name": "Market Analysis",
+    "created_at": "2026-04-14T16:25:05.589568"
+  }
+]

@@ -1,0 +1,50 @@
+[
+  {
+    "id": "53d668b6-c8f7-4b3b-9988-515533e95403",
+    "name": "LHC-101",
+    "building": "Lecture Hall Complex",
+    "router_bssid": "C4:E9:84:A2:3F:01",
+    "created_at": "2026-03-17T18:13:45.519228",
+    "is_active": true
+  },
+  {
+    "id": "fb018ea9-4983-4470-a3ae-f848d02953a6",
+    "name": "C-102",
+    "building": "Science Block",
+    "router_bssid": "C4:E9:84:A2:3F:02",
+    "created_at": "2026-03-17T18:13:45.519228",
+    "is_active": true
+  },
+  {
+    "id": "4cb34799-6d01-42e7-8768-ae18ed7c27fb",
+    "name": "LHC-201",
+    "building": "Lecture Hall Complex",
+    "router_bssid": "C4:E9:84:A2:3F:03",
+    "created_at": "2026-03-17T18:13:45.519228",
+    "is_active": true
+  },
+  {
+    "id": "f7195b44-8606-4006-baab-d97a81219207",
+    "name": "Lab 3",
+    "building": "Computer Centre",
+    "router_bssid": "C4:E9:84:A2:3F:04",
+    "created_at": "2026-03-17T18:13:45.519228",
+    "is_active": true
+  },
+  {
+    "id": "3aa7b6e8-7197-4ede-a501-b4b9ebd16f2f",
+    "name": "Lecture Hall B",
+    "building": "Main Building",
+    "router_bssid": "C4:E9:84:A2:3F:05",
+    "created_at": "2026-03-17T18:13:45.519228",
+    "is_active": true
+  },
+  {
+    "id": "01522c3e-3b07-4b24-86f3-65a6eb0e76d5",
+    "name": "CiPD Training Room",
+    "building": "Old Academic Buildimg - 5th Floor",
+    "router_bssid": null,
+    "created_at": "2026-04-08T11:52:45.76407",
+    "is_active": true
+  }
+]

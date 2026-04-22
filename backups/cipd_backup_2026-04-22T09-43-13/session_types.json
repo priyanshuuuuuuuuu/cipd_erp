@@ -1,0 +1,47 @@
+[
+  {
+    "id": "01ca2bd6-46fb-43c6-b169-6fa56aa4450c",
+    "name": "Lecture",
+    "created_at": "2026-04-07T11:28:57.855537"
+  },
+  {
+    "id": "6ccc27fc-a8e5-46d4-b19e-c43e1b6de9e4",
+    "name": "Lab",
+    "created_at": "2026-04-07T11:28:57.855537"
+  },
+  {
+    "id": "7114495d-fbbc-43b9-96cf-2945ef1509f8",
+    "name": "Workshop",
+    "created_at": "2026-04-07T11:28:57.855537"
+  },
+  {
+    "id": "2fe12e65-f066-42d5-bcc6-8e2cb6dcf808",
+    "name": "Self Work",
+    "created_at": "2026-04-07T11:28:57.855537"
+  },
+  {
+    "id": "dfe73bb5-96a8-4ca6-a25e-5002042bff74",
+    "name": "Tool Training",
+    "created_at": "2026-04-07T11:28:57.855537"
+  },
+  {
+    "id": "47517bb5-1b89-4557-a887-02105fbbdd21",
+    "name": "Industry Visit",
+    "created_at": "2026-04-07T11:28:57.855537"
+  },
+  {
+    "id": "b77dbf79-025d-4e57-8c83-68b5f4f54036",
+    "name": "Holiday",
+    "created_at": "2026-04-07T11:28:57.855537"
+  },
+  {
+    "id": "cecd04f2-07ed-48f6-871a-03aa75d3230f",
+    "name": "Capstone",
+    "created_at": "2026-04-07T11:28:57.855537"
+  },
+  {
+    "id": "08429c20-a7ac-4ebf-8b4d-7c27895f8f63",
+    "name": "Trial",
+    "created_at": "2026-04-07T11:34:52.213599"
+  }
+]

@@ -1,0 +1,542 @@
+[
+  {
+    "id": "9dc03bee-1c49-4801-881b-5751bb20515b",
+    "designation": "Professor",
+    "years_experience": 26,
+    "honorarium_rate_per_hour": 3000,
+    "created_at": "2026-03-17T18:13:44.983874",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "563371dc-caa0-41da-ad11-7ea9783f890a",
+    "designation": null,
+    "years_experience": 3,
+    "honorarium_rate_per_hour": null,
+    "created_at": "2026-04-14T10:28:05.074216",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "08447e7d-c511-4239-88ea-7713e875f312",
+    "designation": null,
+    "years_experience": null,
+    "honorarium_rate_per_hour": null,
+    "created_at": "2026-04-14T10:28:05.074216",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "b06c3891-29f5-451c-a6e0-adf6e2039866",
+    "designation": null,
+    "years_experience": 28,
+    "honorarium_rate_per_hour": null,
+    "created_at": "2026-04-14T10:28:05.074216",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "38233d10-41ac-42e2-b4a0-1b99f572c8ba",
+    "designation": null,
+    "years_experience": 50,
+    "honorarium_rate_per_hour": null,
+    "created_at": "2026-04-14T10:28:05.074216",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "698c93dd-a763-4f7e-b679-d94414cd531d",
+    "designation": null,
+    "years_experience": 28,
+    "honorarium_rate_per_hour": null,
+    "created_at": "2026-04-14T10:28:05.074216",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "d4ba866b-c5fd-4968-992f-7fb111a339bf",
+    "designation": null,
+    "years_experience": 15,
+    "honorarium_rate_per_hour": null,
+    "created_at": "2026-04-14T10:28:05.074216",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "e089fb46-68a6-45dd-869f-3838d324d3d9",
+    "designation": null,
+    "years_experience": 15,
+    "honorarium_rate_per_hour": null,
+    "created_at": "2026-04-14T10:28:05.074216",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "ca4ecb49-f4d1-4b3e-ba48-99b8cafbbc6f",
+    "designation": null,
+    "years_experience": 35,
+    "honorarium_rate_per_hour": null,
+    "created_at": "2026-04-14T10:28:05.074216",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "59d388e3-a1b0-4ed2-b76a-6c6a181a93d5",
+    "designation": null,
+    "years_experience": 27,
+    "honorarium_rate_per_hour": null,
+    "created_at": "2026-04-14T10:28:05.074216",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "ae579ae1-a2a3-44a0-850a-837e8a3d3092",
+    "designation": null,
+    "years_experience": 35,
+    "honorarium_rate_per_hour": null,
+    "created_at": "2026-04-14T10:28:05.074216",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "e6ca7308-798e-4961-969c-9e9185f49b3b",
+    "designation": null,
+    "years_experience": 40,
+    "honorarium_rate_per_hour": null,
+    "created_at": "2026-04-14T10:28:05.074216",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "1d4c0525-bed2-485e-8fcc-ee7fa7bf549e",
+    "designation": null,
+    "years_experience": 47,
+    "honorarium_rate_per_hour": null,
+    "created_at": "2026-04-14T10:28:05.074216",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "a5a7fd6c-e826-4b8c-a3e1-617c3955a608",
+    "designation": null,
+    "years_experience": 23,
+    "honorarium_rate_per_hour": null,
+    "created_at": "2026-04-14T10:28:05.074216",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "286a8e06-3066-4d26-8dcb-56d6300c05b7",
+    "designation": null,
+    "years_experience": null,
+    "honorarium_rate_per_hour": null,
+    "created_at": "2026-04-14T10:28:05.074216",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "5bbe61ca-9819-48f3-b38c-8c6b8b3bbff9",
+    "designation": null,
+    "years_experience": null,
+    "honorarium_rate_per_hour": null,
+    "created_at": "2026-04-14T10:28:05.074216",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "f9ea3f81-7f07-49b6-ba09-cdf3faa9b6f3",
+    "designation": null,
+    "years_experience": 27,
+    "honorarium_rate_per_hour": null,
+    "created_at": "2026-04-14T10:28:05.074216",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "a6678b41-e96a-4923-858e-e0b8d83c1782",
+    "designation": null,
+    "years_experience": 26,
+    "honorarium_rate_per_hour": null,
+    "created_at": "2026-04-14T10:28:05.074216",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "a0c786ba-7f43-4457-9d1f-929a42710808",
+    "designation": null,
+    "years_experience": 35,
+    "honorarium_rate_per_hour": null,
+    "created_at": "2026-04-14T10:28:05.074216",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "ae71ab75-d4b9-4ceb-a235-a5a55ee28f1a",
+    "designation": null,
+    "years_experience": 23,
+    "honorarium_rate_per_hour": null,
+    "created_at": "2026-04-14T10:28:05.074216",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "7d9952e7-7adf-4f03-a66e-f5580c1db61a",
+    "designation": null,
+    "years_experience": 18,
+    "honorarium_rate_per_hour": null,
+    "created_at": "2026-04-14T10:28:05.074216",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "365437b9-c977-4710-ab5a-b6585ce0a035",
+    "designation": null,
+    "years_experience": 35,
+    "honorarium_rate_per_hour": null,
+    "created_at": "2026-04-14T10:28:05.074216",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "bf133809-7e96-40bf-82b3-56cb796759cc",
+    "designation": null,
+    "years_experience": 52,
+    "honorarium_rate_per_hour": null,
+    "created_at": "2026-04-14T10:28:05.074216",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "66664983-d668-4fdb-88f8-e7f2b8e407c9",
+    "designation": null,
+    "years_experience": 30,
+    "honorarium_rate_per_hour": null,
+    "created_at": "2026-04-14T10:28:05.074216",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "773201d2-754e-44fb-a598-e702d29a678d",
+    "designation": null,
+    "years_experience": 12,
+    "honorarium_rate_per_hour": null,
+    "created_at": "2026-04-14T10:28:05.074216",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "f5867f98-0a79-494e-b5ce-6d7a6037fd9e",
+    "designation": null,
+    "years_experience": 9,
+    "honorarium_rate_per_hour": null,
+    "created_at": "2026-04-14T10:28:05.074216",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "f898cb61-f264-451b-a070-3a9732d4af9e",
+    "designation": null,
+    "years_experience": null,
+    "honorarium_rate_per_hour": null,
+    "created_at": "2026-04-14T10:28:05.074216",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "4822f34a-a73a-4cb2-854a-ae8809f2c89e",
+    "designation": "Student",
+    "years_experience": 2,
+    "honorarium_rate_per_hour": 1500,
+    "created_at": "2026-04-14T10:28:05.074216",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "da48c1df-14f4-4810-bf69-0333fdf7891b",
+    "designation": "Instructor",
+    "years_experience": 26,
+    "honorarium_rate_per_hour": 2000,
+    "created_at": "2026-04-21T20:15:26.954326",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "f1c1a3bb-1905-4c00-ab05-358f2ffe803d",
+    "designation": "Instructor",
+    "years_experience": 3,
+    "honorarium_rate_per_hour": 2000,
+    "created_at": "2026-04-21T20:15:27.490298",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "ffa4f479-183f-4660-868c-2dcc171d124a",
+    "designation": "Instructor",
+    "years_experience": 2,
+    "honorarium_rate_per_hour": 2000,
+    "created_at": "2026-04-21T20:15:28.004629",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "a5e54618-76b1-46cf-979f-81f448ff6081",
+    "designation": "Instructor",
+    "years_experience": null,
+    "honorarium_rate_per_hour": 2000,
+    "created_at": "2026-04-21T20:15:28.524577",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "579f38da-a792-461d-91f8-9f5cb93a8cf9",
+    "designation": "Instructor",
+    "years_experience": 28,
+    "honorarium_rate_per_hour": 2000,
+    "created_at": "2026-04-21T20:15:29.055455",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "9fb11a84-43e8-4078-b41a-c810300acbd0",
+    "designation": "Instructor",
+    "years_experience": 50,
+    "honorarium_rate_per_hour": 2000,
+    "created_at": "2026-04-21T20:15:29.568213",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "a8e9679d-495b-45de-a41f-940015fdc5e3",
+    "designation": "Instructor",
+    "years_experience": 28,
+    "honorarium_rate_per_hour": 2000,
+    "created_at": "2026-04-21T20:15:30.083955",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "7c33dec1-df7f-4d90-8db4-373535ad5063",
+    "designation": "Instructor",
+    "years_experience": 15,
+    "honorarium_rate_per_hour": 2000,
+    "created_at": "2026-04-21T20:15:30.598438",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "4d8c4851-2969-4bdb-9cc3-3dce73125d5c",
+    "designation": "Instructor",
+    "years_experience": 15,
+    "honorarium_rate_per_hour": 2000,
+    "created_at": "2026-04-21T20:15:31.102887",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "5827e2b8-df9d-412d-8d8f-210fc7456300",
+    "designation": "Instructor",
+    "years_experience": 35,
+    "honorarium_rate_per_hour": 2000,
+    "created_at": "2026-04-21T20:15:31.573364",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "32ccbea1-7c30-4627-85da-7d2182b3fa57",
+    "designation": "Instructor",
+    "years_experience": 27,
+    "honorarium_rate_per_hour": 2000,
+    "created_at": "2026-04-21T20:15:32.04377",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "ded2506d-a5b4-4faf-86b6-4653090cb37f",
+    "designation": "Assistant Professor",
+    "years_experience": 6,
+    "honorarium_rate_per_hour": 1500,
+    "created_at": "2026-03-17T18:13:44.983874",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "9c052ecf-ef72-47a4-b9cc-baa8dafa6469",
+    "designation": "Associate Professor",
+    "years_experience": 12,
+    "honorarium_rate_per_hour": 2200,
+    "created_at": "2026-03-17T18:13:44.983874",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "0d113966-ae9a-43bb-bd91-176bb1b2769c",
+    "designation": "Assistant Professor",
+    "years_experience": 20,
+    "honorarium_rate_per_hour": null,
+    "created_at": "2026-04-07T18:38:32.975845",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "3428f55a-dc55-4640-9465-d379ac950207",
+    "designation": "Instructor",
+    "years_experience": 35,
+    "honorarium_rate_per_hour": 2000,
+    "created_at": "2026-04-21T20:15:32.610066",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "821d01bc-a647-40d2-9aeb-fa95d58f7065",
+    "designation": "Former Director",
+    "years_experience": 30,
+    "honorarium_rate_per_hour": 2000,
+    "created_at": "2026-03-17T18:13:44.983874",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "ce7e72c5-b265-4054-b070-127c1fa880f4",
+    "designation": "Professor",
+    "years_experience": 59,
+    "honorarium_rate_per_hour": 3000,
+    "created_at": "2026-03-17T18:13:44.983874",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "61259b99-aed7-47a6-9411-6c00211f8671",
+    "designation": "Instructor",
+    "years_experience": 40,
+    "honorarium_rate_per_hour": 2000,
+    "created_at": "2026-04-21T20:15:33.186171",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "3f6d1689-8724-4205-8a40-1e3e7ffb2a9f",
+    "designation": "Instructor",
+    "years_experience": 47,
+    "honorarium_rate_per_hour": 2000,
+    "created_at": "2026-04-21T20:15:33.820604",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "8e53b0be-e00c-42ed-b556-fef2edecebd8",
+    "designation": "Instructor",
+    "years_experience": 23,
+    "honorarium_rate_per_hour": 2000,
+    "created_at": "2026-04-21T20:15:34.33786",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "b8395f23-e835-45a6-a65e-51a6790e18b6",
+    "designation": "Instructor",
+    "years_experience": 27,
+    "honorarium_rate_per_hour": 2000,
+    "created_at": "2026-04-21T20:15:34.871112",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "59eb116c-6522-4b54-adc4-b7f2392b59f6",
+    "designation": "Instructor",
+    "years_experience": 26,
+    "honorarium_rate_per_hour": 2000,
+    "created_at": "2026-04-21T20:15:35.351046",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "bc0aeac6-d86c-4533-ad75-151543e7e242",
+    "designation": "Instructor",
+    "years_experience": 35,
+    "honorarium_rate_per_hour": 2000,
+    "created_at": "2026-04-21T20:15:35.824089",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "500974c6-83d6-4dea-927a-cf6d5758e66c",
+    "designation": "Instructor",
+    "years_experience": 23,
+    "honorarium_rate_per_hour": 2000,
+    "created_at": "2026-04-21T20:15:36.296397",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "b2d7a536-4443-438c-84c4-2041d0b3f71d",
+    "designation": "Instructor",
+    "years_experience": 18,
+    "honorarium_rate_per_hour": 2000,
+    "created_at": "2026-04-21T20:15:36.776861",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "ad908364-1589-4ae8-b946-0d2aa0aee52f",
+    "designation": "Instructor",
+    "years_experience": 35,
+    "honorarium_rate_per_hour": 2000,
+    "created_at": "2026-04-21T20:15:37.257442",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "57573027-4792-443f-9d4a-5fe5e63be60f",
+    "designation": "Instructor",
+    "years_experience": 52,
+    "honorarium_rate_per_hour": 2000,
+    "created_at": "2026-04-21T20:15:37.764146",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "556c07f1-352c-4e4c-badb-aa4e586b406b",
+    "designation": "Instructor",
+    "years_experience": 30,
+    "honorarium_rate_per_hour": 2000,
+    "created_at": "2026-04-21T20:15:38.262975",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "fec245f4-ef91-4b1a-964f-1ca4340d390d",
+    "designation": "Instructor",
+    "years_experience": 12,
+    "honorarium_rate_per_hour": 2000,
+    "created_at": "2026-04-21T20:15:38.764816",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "ab9217ae-6503-443f-b794-a5456e6f1942",
+    "designation": "Instructor",
+    "years_experience": 9,
+    "honorarium_rate_per_hour": 2000,
+    "created_at": "2026-04-21T20:15:39.233444",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "c8d4bb9f-58aa-48de-ad1c-c56baa8bff53",
+    "designation": "Instructor",
+    "years_experience": null,
+    "honorarium_rate_per_hour": 2000,
+    "created_at": "2026-04-21T20:15:39.697539",
+    "department": null,
+    "photo_url": null
+  },
+  {
+    "id": "3e2bf13c-e48e-4ece-a448-957ed4a30be4",
+    "designation": "Instructor",
+    "years_experience": null,
+    "honorarium_rate_per_hour": 2000,
+    "created_at": "2026-04-21T20:15:40.163668",
+    "department": null,
+    "photo_url": null
+  }
+]
