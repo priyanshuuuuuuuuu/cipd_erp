@@ -1,0 +1,912 @@
+[
+  {
+    "id": "2b99f643-aa6a-4231-81dd-f6f69e1c4796",
+    "name": "Bare Metal",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "19ff96cd-f2b2-47b0-a23e-3be667f0d0ef",
+    "name": "UART",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "12127bbf-8b5e-445f-a20f-52ce84eff5f2",
+    "name": "SPI",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "a9785068-76a0-4214-96e1-fadf0e48acc7",
+    "name": "I2C",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "c89b4f3e-7679-4a94-a50e-1a4064344e3c",
+    "name": "CAN",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "c629eb3b-482f-480b-bc65-7a50ea910246",
+    "name": "USB",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "8be686cf-52b3-441b-96ac-2a68f70ddfe9",
+    "name": "Ethernet",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "08e885f6-9556-43b2-a084-34dae8fb661f",
+    "name": "RS232/RS422",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "e02fd6c8-d6d3-4322-8882-f09b53c09bbb",
+    "name": "Data Sheet",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "95c374d3-5f0d-446d-9e28-266f2bf66a9b",
+    "name": "Components Analysing",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "6ea2ff4f-57f1-45b9-a29d-97fa649021dd",
+    "name": "ADC",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "be3cbf58-c6b9-49ec-9c02-79d7b4dabf6c",
+    "name": "DMA",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "1558f944-ebf0-444b-a058-9487fcafa19c",
+    "name": "DAC",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "567c63ce-a156-4f04-8f5b-2e76eef5ad0f",
+    "name": "Timer",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "b6fb9e89-129f-4b6d-a2a8-583041603faf",
+    "name": "HW-SW optimisation",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "9575f9cf-506b-4d8c-af51-fec7af38551d",
+    "name": "Debug",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "260f7081-cf77-4ebd-913c-ac56118d4627",
+    "name": "RESET",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "40b2fcae-6900-4586-923a-0c40cb29d54b",
+    "name": "Interrupts",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "fc35aa91-1302-4622-aaaf-e6fa3e287069",
+    "name": "Low Power",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "369a11f6-9c4d-4af6-88c7-3635c0fdfdc6",
+    "name": "Watchdogs",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "3f89d0ff-847e-486f-aee0-ad15a0ca29c6",
+    "name": "RTOS",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "7df018f3-f6b6-4676-8fcd-c5e1b1e16054",
+    "name": "Wifi",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "ff1d1033-08d0-4e6f-a6d9-4bd271933cad",
+    "name": "BLE",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "92205788-fe32-4515-8f48-9f66a165ff4a",
+    "name": "Zigbee",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "d770dffa-96af-4d71-a26a-cfe67e59efef",
+    "name": "RFID",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "275be1bf-28cf-45ca-9d1f-fadedd019d39",
+    "name": "GPS",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "50bb9139-8d40-40f9-9977-706200799d13",
+    "name": "Antenna",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "4c624847-ed18-49ff-90a2-fc2286c3d45b",
+    "name": "Compound Wireless",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "119e1d3b-6318-4201-9773-7e0ac4867852",
+    "name": "Circuit Test",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "519badee-de9a-43ac-bf3a-71d4f7c56dea",
+    "name": "Lab Equipment",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "25c246bb-ff6f-443c-922b-918268cabb2a",
+    "name": "Circuit Simulation",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "36772153-3fa0-446f-95c6-9b1436008f92",
+    "name": "Components",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "7d515279-b6e4-409f-b915-6607d57c77af",
+    "name": "555",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "101121a0-3402-44c1-b17f-3a28d4afe74e",
+    "name": "Seq Circuits",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "1edc93d0-7c77-4d23-90d7-7ec3a4f3ebc5",
+    "name": "Memory",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "3fd49675-0ece-4628-ba04-4da10bd02b30",
+    "name": "DC-DC",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "976c57da-a4be-47e4-a7ee-d32cafc02eef",
+    "name": "Battery",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "68a98ab6-3d6c-491c-acaa-ff3fe47e20af",
+    "name": "BMS",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "f4bb1fb3-c73e-4c39-8852-bc4eb91d539b",
+    "name": "FPGA-DSP",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "797bb43c-f57a-4035-b81b-bd8567577a87",
+    "name": "FPGA-ToolChain",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "6b89aa64-bcaf-4dce-9e50-c270b8215a5a",
+    "name": "HW-SW Codesign",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "b371619f-154e-478b-9d4a-98b7f60c6aac",
+    "name": "PCB Schematic",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "69e29a73-1abd-452e-8f57-913b2977005c",
+    "name": "PCB Layout",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "f9d7f1e4-d380-4ee0-8d19-ed15b5898e94",
+    "name": "PCB Mounting",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "95d847dd-3510-4577-90de-40cf3bf6beaf",
+    "name": "BOM",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "4afc130b-0e12-4f1c-863f-9104cfa19808",
+    "name": "Component Library",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "67f70a7b-8b15-411b-87f0-319a1f6b7111",
+    "name": "Vendor Selection",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "1bd504ea-18b7-4f5f-a0c4-f881e004ca4a",
+    "name": "PCB Fabrication",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "10692ccc-57e5-4b8b-9ac9-a88e7ed79453",
+    "name": "PCB Soldering",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "405c83cd-6809-49c6-ba25-ef4b84dfbdc9",
+    "name": "Product Design",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "955cf90c-7636-4899-b80e-7796c08b0f0d",
+    "name": "Design Thinking",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "c2070606-ea25-4e06-b337-80957b9fae10",
+    "name": "Industrial Design",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "afd40995-85ad-4792-b208-fa937ae6954b",
+    "name": "Prototyping",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "97912067-56ae-4971-9142-ede92f15b973",
+    "name": "Failure Analysis",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "bc3ea604-da24-49e3-b8cb-4b3e31503b82",
+    "name": "DFM",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "94326165-616a-4f7d-8bc4-373b8fe0e9a8",
+    "name": "Certifications",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "d6bd254c-a0ea-45a4-82f1-41c9c526dc25",
+    "name": "Scaling",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "e6f72ba8-78dc-4800-be88-74d3b04fd883",
+    "name": "3D Printing",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "5f75db9c-54c0-4cef-bad0-6a98647de600",
+    "name": "UI/UX",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "b22d0f3b-f259-47a3-ab29-70c1248986cd",
+    "name": "Industry Immersion",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "660ea20c-af92-4aa6-93ce-96cc107e3a46",
+    "name": "Testing",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "66de182b-ba6b-40e3-a2a3-4cdaf6dcbc33",
+    "name": "DFT",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "58830140-9efd-4812-b40f-3d97c85cb4bb",
+    "name": "Arch Design",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "00eed963-ea5a-4d1b-9eae-efee65a310b4",
+    "name": "Design Doc",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "3c11b436-26a1-49ce-ab4d-ec207aa340d8",
+    "name": "Data Flow",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "066e0ee2-db2f-4069-b947-8f8f6b232166",
+    "name": "Security",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "aefb1494-4730-47c3-b5d2-9cbe2fb4124e",
+    "name": "UC-Battery",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "abae4366-38e1-4d67-9034-8a81f3d2bfe6",
+    "name": "Reliability",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "7edd8df0-0261-4e65-9531-e4170005b6df",
+    "name": "App Design",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "d1e5338a-d0b6-454f-8639-92b75c4200d9",
+    "name": "bare metal interface",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "b9d6e99d-b688-401f-8d9f-3d997af5c38f",
+    "name": "AWS",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "7066a09c-401e-4b93-8e15-aa4837e25e87",
+    "name": "Assembly",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "42984bf4-50b6-46ea-a703-64ddd540efbf",
+    "name": "User Need Identification",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "92b8471a-3fba-40a9-898a-248ce86fc715",
+    "name": "User Experience",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "b6ff40e9-d9e7-4df1-8f96-b64f48772054",
+    "name": "Accessibility",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "e1934673-8691-41dc-b98e-3766acf6cede",
+    "name": "Designing Human Interface",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "4aded1df-4961-4095-9b6c-077c27b5651d",
+    "name": "Visual Design Aspects",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "d7ef34dd-8523-49a2-8342-720a2c56ca1a",
+    "name": "Design for Engagement (Game Design)",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "277958f4-81f9-45bf-8bd4-ac4f69fcc90a",
+    "name": "Systems Thinking",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "5be0c2b6-d5b8-463e-8a05-d8c03c7c4443",
+    "name": "Product Integration",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "5cfc5908-11b8-4d9a-b048-a79e28bd3766",
+    "name": "AIxDesign",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "1c3f79ad-8104-4921-93ea-07dcd35f05c5",
+    "name": "Usability",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "d70eb32f-c8d8-4995-a15d-12749d1ae6ab",
+    "name": "Contextualization",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "34a5f58f-a1b4-46f8-9406-836c57282cc2",
+    "name": "User Research",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "03ea67ee-042c-4285-b49c-0387d48c5759",
+    "name": "Form Design",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "e2bb3e59-4703-49db-b1ae-dbca7388ba32",
+    "name": "Ideation",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "c8540be7-a71a-4241-949d-b5ebcb85d0f4",
+    "name": "Rapid Prototyping",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "f17aa180-10a4-459a-b83f-1fe04228aee3",
+    "name": "Ergonomics",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "cc2ce3fe-3b46-4d05-8742-afec0692ec3a",
+    "name": "Human Factors",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "65f0ef39-0887-45f9-ac88-5163ef29a21d",
+    "name": "Safety",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "c16befba-1ada-4c2c-a21c-8fde51814a46",
+    "name": "Usability Testing",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "19d42b45-6a98-48e8-8d2c-0d672df04125",
+    "name": "Test Methods",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "5d791735-31cb-427e-ad6f-5ba4a36d2b6c",
+    "name": "Buck Converter",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "4c57011f-90ca-47b2-bae7-0622c5a9f918",
+    "name": "Buck-Boost",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "529ad7d5-dbdf-4e75-b0a5-3baf48ff1f7d",
+    "name": "AC-DC",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "aa2fd9f9-fd7a-493e-82ea-9bac54757f67",
+    "name": "Analog Signal",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "1a285c39-0708-4235-9391-234afad545c0",
+    "name": "Digital Signal",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "04ed1260-25ce-46a2-8093-5a199768214b",
+    "name": "Business Model Canvas",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "ce4709e9-430c-4b2c-a5bf-ec4b98d3f7f4",
+    "name": "Strategy Diamond",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "944bbc3b-1e3f-4822-b796-73f3455793a2",
+    "name": "Requirements Analysis",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "21f0f8a5-ebe3-44fd-8324-6fcf9db834d8",
+    "name": "Planning Fundamentals",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "a6deed36-f284-4dfc-b081-9be66c3a303a",
+    "name": "Assertiveness",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "81d940a7-cec5-4ba7-99ec-305ce8a14a97",
+    "name": "Communication Skills",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "e85c8225-0266-4e33-8583-01bf39d4e955",
+    "name": "Priority Management",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "8743fecb-4519-4153-8a20-213875179556",
+    "name": "Collaboration",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "b0efe79a-8047-4fc6-b18c-aa83783317d0",
+    "name": "Time Management",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "dce82f61-2f65-40a3-a74f-3e7eca87ce91",
+    "name": "Personal Leadership",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "c7d228a1-b6d1-4ac7-8f0c-c843a437ae55",
+    "name": "Attitude/ Mindset",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "ddcf170f-ae72-43c5-afa4-0c2e80282ba4",
+    "name": "Proactiveness",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "2f299b1a-6e6b-4b02-a73d-87b198d3c451",
+    "name": "Discipline",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "e381b073-9733-4a98-a417-12820c559c3c",
+    "name": "Teamwork",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "e9ab71c4-4262-4eba-bb71-faff44aaa1cc",
+    "name": "Creativity",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "b52b08d2-3224-4488-bc36-02af80ae9e05",
+    "name": "Problem Solving",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "812e215f-c01a-4c55-bd87-dbe4a6b443fe",
+    "name": "Market Analysis",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "11bccf94-ce7a-49f6-97b4-74f3dcea0b72",
+    "name": "Elevator Pitch",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "2a5ab586-8789-4839-a63f-ba880baf8e92",
+    "name": "Idea Pitch",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "572957f4-7142-472f-adb5-03db81da4f4c",
+    "name": "Circuit Analysis",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "baa6893c-0819-4bed-8533-63f17979ee40",
+    "name": "Mathematical design",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "eed1649c-84bd-447b-a267-991672d63212",
+    "name": "uc clock configuration",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "5f4dad70-76b3-4be0-96ac-da1329f11341",
+    "name": "Emulation",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "e9c3d7a5-7e52-4f1a-a3b9-4b26f0103b10",
+    "name": "Code review",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "5c26f95a-ca19-4996-ab48-4e39eeda6542",
+    "name": "Git hub",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "62287e88-7771-4db1-a8c7-f8a97b0129e9",
+    "name": "Documentation",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "72d489cf-b78f-458f-8c8b-fa99a654c865",
+    "name": "OTA",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "ab01b6f6-2ae5-4d58-917e-ad67ea3c1ee9",
+    "name": "Programming",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "a859e172-5158-417c-b9cf-377aac74db94",
+    "name": "Memory Map",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "2e6e87ea-7eee-4641-9cd4-a3f93694463f",
+    "name": "Testing and Scaleability",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "ef871fae-5376-494d-b6c6-c9ce875f0beb",
+    "name": "PWM",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "031aae97-2f56-4d82-b521-de29a3caaffa",
+    "name": "Power Supply",
+    "created_at": "2026-04-14T10:11:06.040278+00:00",
+    "category_id": null,
+    "details": null
+  },
+  {
+    "id": "d6f900ec-4b07-4460-8b90-582ba34d2b08",
+    "name": "UI/ UX",
+    "created_at": "2026-04-21T20:16:57.097552+00:00",
+    "category_id": null,
+    "details": null
+  }
+]

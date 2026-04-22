@@ -3,7 +3,7 @@
  * ║  CiPD ERP — iPD CP Review Sheet Excel Import                        ║
  * ║  Reads "Data/Copy of iPD CP Review Sheet.xlsx" and populates:       ║
  * ║    • courses (domains)           • session_types                     ║
- * ║    • users + faculty (29 real)   • sessions (692 rows)              ║
+ * ║    • users + faculty (29 real)   • sessions (up to 20 Apr 2026)     ║
  * ║    • skills + session_skills                                         ║
  * ║                                                                      ║
  * ║  Usage (from repo root):                                             ║
@@ -37,6 +37,9 @@ const step = (msg) => console.log(`\n▶ ${msg}`);
 
 // ── Excel file path (relative to repo root when run from client-next/) ────────
 const EXCEL_PATH = path.resolve(__dirname, '../../Data/Copy of iPD CP Review Sheet.xlsx');
+
+// ── Import filters ────────────────────────────────────────────────────────────
+const CUTOFF_DATE = '2026-04-20'; // Only import sessions on or before this date
 
 // ── Experience bucket normalisation ──────────────────────────────────────────
 function parseExp(expStr) {
@@ -331,7 +334,7 @@ async function main() {
   // ════════════════════════════════════════════════════════════════════════════
   // STEP 5 — Import sessions from Excel main sheet
   // ════════════════════════════════════════════════════════════════════════════
-  step('Step 5 — Importing 692 sessions from Excel...');
+  step('Step 5 — Importing sessions from Excel (up to 20 Apr 2026, no Holidays)...');
 
   // Find admin user for created_by
   const { data: adminUser } = await supabase
@@ -361,6 +364,9 @@ async function main() {
     }
     if (!sessionDate || sessionDate < '2020-01-01') continue; // skip if date is garbage
 
+    // ── FILTER 1: Skip anything after April 20, 2026 ──────────────────────────
+    if (sessionDate > CUTOFF_DATE) continue;
+
     const instructor  = String(row['Instructor'] || '').trim();
     const domain      = String(row['Domain'] || '').trim();
     const topic       = String(row['Topic / Module'] || '').trim();
@@ -368,14 +374,13 @@ async function main() {
     const durationRaw = row['Duration'];
     const duration    = durationRaw && !isNaN(Number(durationRaw)) ? Number(durationRaw) : 90;
     const typeRaw     = String(row['Type'] || '').trim();
-    const avgRating   = row['Avg. Student Rating'];
     const expRaw      = String(row['Instructor Experience'] || '').trim();
 
-    // Session status: past dates = completed, future = scheduled
-    const today     = new Date().toISOString().split('T')[0];
-    const isPast    = sessionDate < today;
-    const isHoliday = instructor === 'Holiday' || typeRaw === 'Holiday';
-    const status    = isHoliday ? 'cancelled' : (isPast ? 'completed' : 'scheduled');
+    // ── FILTER 2: Skip Holiday sessions entirely ──────────────────────────────
+    if (instructor === 'Holiday' || typeRaw === 'Holiday') continue;
+
+    // All imported sessions are historical — mark as completed
+    const status = 'completed';
 
     // Faculty ID lookup
     let facultyId = null;

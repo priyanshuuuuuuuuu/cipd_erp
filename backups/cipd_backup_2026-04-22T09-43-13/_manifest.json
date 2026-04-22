@@ -1,0 +1,29 @@
+{
+  "backup_time": "2026-04-22T09:43:20.060Z",
+  "project": "pvqxzbabstyhskhydbvl",
+  "tables": {
+    "users": 82,
+    "students": 21,
+    "faculty": 60,
+    "courses": 13,
+    "course_enrollments": 273,
+    "sessions": 693,
+    "session_types": 9,
+    "categories": 46,
+    "skills": 130,
+    "session_skills": 306,
+    "venues": 6,
+    "attendance_records": 54,
+    "attendance_ping_logs": 0,
+    "assignments": 0,
+    "assignment_submissions": 0,
+    "feedback_questions": 21,
+    "feedback_responses": 0,
+    "feedback_sessions": 0,
+    "notifications": 0,
+    "session_materials": 0,
+    "student_performance_snapshots": 0,
+    "system_settings": 1
+  },
+  "total_rows": 1715
+}
