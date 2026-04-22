@@ -616,41 +616,151 @@ export default function AdminReportsPage() {
                     {/* ══════════════════════════════════════════════════════
                         TAB: SKILLS MATRIX
                     ══════════════════════════════════════════════════════ */}
-                    {activeTab === 'skills' && (
-                        <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e8e8e8', borderTop: '2px solid #111', overflow: 'hidden' }}>
-                            <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid #f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                <div><div style={{ fontSize: '0.9rem', fontWeight: 700 }}>Skills Coverage Matrix</div><div style={{ fontSize: '0.72rem', color: '#999', marginTop: 2 }}>Which skills from the curriculum have been addressed in class</div></div>
-                                <span style={{ padding: '3px 10px', borderRadius: 6, background: '#f5f5f5', fontSize: '0.72rem', fontWeight: 600, color: '#666' }}>
-                                    {data?.skillsCoverage?.filter(s => s.covered).length || 0} / {data?.skillsCoverage?.length || 0} covered
-                                </span>
-                            </div>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
-                                <thead>
-                                    <tr style={{ background: '#fafafa' }}>
-                                        {['Domain', 'Category', 'Skill', 'Details', 'Covered?', 'Session Dates'].map(h => (
-                                            <th key={h} style={{ padding: '9px 14px', textAlign: 'left', fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#aaa', borderBottom: '1.5px solid #f0f0f0', whiteSpace: 'nowrap' }}>{h}</th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {(data?.skillsCoverage || []).length === 0 ? (
-                                        <tr><td colSpan={6} style={{ padding: '3rem', textAlign: 'center', color: '#aaa' }}>No skills defined yet. Add skills via Supabase after running the migration.</td></tr>
-                                    ) : data.skillsCoverage.map((sk, i) => (
-                                        <tr key={sk.skill_id} style={{ borderBottom: '1px solid #f5f5f5', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
-                                            <td style={{ padding: '9px 14px' }}><span style={{ padding: '2px 8px', borderRadius: 5, fontSize: '0.68rem', fontWeight: 600, background: '#f5f5f5', color: '#333' }}>{sk.domain}</span></td>
-                                            <td style={{ padding: '9px 14px', color: '#555' }}>{sk.category}</td>
-                                            <td style={{ padding: '9px 14px', fontWeight: 600, color: '#111' }}>{sk.skill_name}</td>
-                                            <td style={{ padding: '9px 14px', color: '#777', maxWidth: 200 }}><div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sk.details}</div></td>
-                                            <td style={{ padding: '9px 14px' }}><span style={{ padding: '2px 10px', borderRadius: 6, fontSize: '0.7rem', fontWeight: 700, background: sk.covered ? '#ecfdf5' : '#fef2f2', color: sk.covered ? '#166534' : '#991b1b' }}>{sk.covered ? 'YES' : 'NO'}</span></td>
-                                            <td style={{ padding: '9px 14px', fontFamily: 'monospace', fontSize: '0.72rem', color: '#555' }}>
-                                                {sk.session_dates.length > 0 ? sk.session_dates.map(d => fmtDate(d)).join(', ') : <span style={{ color: '#ccc' }}>—</span>}
-                                            </td>
-                                        </tr>
+                    {activeTab === 'skills' && (() => {
+                        const allSkills    = data?.skillsCoverage || [];
+                        const covered      = allSkills.filter(s => s.covered).length;
+                        const notCovered   = allSkills.length - covered;
+                        const pct          = allSkills.length ? Math.round((covered / allSkills.length) * 100) : 0;
+
+                        // Donut data
+                        const donutData = [
+                            { name: 'Covered',     value: covered,    color: '#10b981' },
+                            { name: 'Not Covered', value: notCovered, color: '#f43f5e' },
+                        ];
+
+                        // Per-domain coverage bar data
+                        const domainMap = {};
+                        for (const sk of allSkills) {
+                            const d = sk.domain || 'Uncategorised';
+                            if (!domainMap[d]) domainMap[d] = { domain: d, covered: 0, notCovered: 0 };
+                            if (sk.covered) domainMap[d].covered++;
+                            else domainMap[d].notCovered++;
+                        }
+                        const domainData = Object.values(domainMap).sort((a, b) => (b.covered + b.notCovered) - (a.covered + a.notCovered));
+
+                        return (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+
+                                {/* Stat cards row */}
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+                                    {[
+                                        { label: 'Total Skills',  val: allSkills.length, bg: '#f8f9fa', color: '#111' },
+                                        { label: 'Covered',       val: covered,           bg: '#ecfdf5', color: '#166534' },
+                                        { label: 'Not Covered',   val: notCovered,        bg: '#fef2f2', color: '#991b1b' },
+                                    ].map(s => (
+                                        <div key={s.label} style={{ background: s.bg, borderRadius: 10, padding: '1rem 1.25rem', textAlign: 'center', border: '1px solid #e8e8e8' }}>
+                                            <div style={{ fontSize: '1.8rem', fontWeight: 800, color: s.color }}>{s.val}</div>
+                                            <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#999', textTransform: 'uppercase', letterSpacing: '0.5px', marginTop: 4 }}>{s.label}</div>
+                                        </div>
                                     ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
+                                </div>
+
+                                {/* Charts row */}
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1.5rem' }}>
+
+                                    {/* Donut: covered vs not */}
+                                    <ChartCard title="Coverage Overview" subtitle="Covered vs Not Covered skills" accentColor="#10b981">
+                                        {allSkills.length === 0 ? EMPTY : (
+                                            <div style={{ position: 'relative' }}>
+                                                <ResponsiveContainer width="100%" height={220}>
+                                                    <PieChart>
+                                                        <Pie
+                                                            data={donutData}
+                                                            dataKey="value"
+                                                            nameKey="name"
+                                                            cx="50%" cy="50%"
+                                                            innerRadius={60}
+                                                            outerRadius={88}
+                                                            paddingAngle={3}
+                                                            startAngle={90}
+                                                            endAngle={-270}
+                                                        >
+                                                            {donutData.map((d, i) => (
+                                                                <Cell key={i} fill={d.color} />
+                                                            ))}
+                                                        </Pie>
+                                                        <Tooltip formatter={(val, name) => [`${val} skills`, name]} />
+                                                        <Legend formatter={v => <span style={{ fontSize: '0.72rem', color: '#555' }}>{v}</span>} />
+                                                    </PieChart>
+                                                </ResponsiveContainer>
+                                                {/* Centre label */}
+                                                <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -70%)', textAlign: 'center', pointerEvents: 'none' }}>
+                                                    <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#111' }}>{pct}%</div>
+                                                    <div style={{ fontSize: '0.65rem', color: '#999', fontWeight: 600 }}>covered</div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </ChartCard>
+
+                                    {/* Bar: per-domain coverage */}
+                                    <ChartCard title="Coverage by Domain" subtitle="How many skills are covered vs pending per subject domain" accentColor="#6366f1">
+                                        {domainData.length === 0 ? EMPTY : (
+                                            <ResponsiveContainer width="100%" height={220}>
+                                                <BarChart
+                                                    data={domainData}
+                                                    layout="vertical"
+                                                    margin={{ top: 4, right: 50, left: 10, bottom: 4 }}
+                                                >
+                                                    <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" horizontal={false} />
+                                                    <XAxis type="number" tick={{ fontSize: 11, fill: '#888' }} allowDecimals={false} />
+                                                    <YAxis type="category" dataKey="domain" tick={{ fontSize: 10, fill: '#555' }} width={140} />
+                                                    <Tooltip
+                                                        formatter={(val, name) => [`${val} skills`, name]}
+                                                        contentStyle={{ fontSize: '0.78rem', borderRadius: 8 }}
+                                                    />
+                                                    <Legend formatter={v => <span style={{ fontSize: '0.72rem', color: '#555' }}>{v}</span>} />
+                                                    <Bar dataKey="covered"    name="Covered"     stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} maxBarSize={22}
+                                                        label={{ position: 'right', style: { fontSize: '0.68rem', fill: '#10b981' }, formatter: v => v > 0 ? v : '' }} />
+                                                    <Bar dataKey="notCovered" name="Not Covered" stackId="a" fill="#f43f5e" radius={[0, 4, 4, 0]} maxBarSize={22} />
+                                                </BarChart>
+                                            </ResponsiveContainer>
+                                        )}
+                                    </ChartCard>
+                                </div>
+
+                                {/* Existing skills table */}
+                                <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e8e8e8', borderTop: '2px solid #111', overflow: 'hidden' }}>
+                                    <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid #f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                        <div><div style={{ fontSize: '0.9rem', fontWeight: 700 }}>Skills Coverage Matrix</div><div style={{ fontSize: '0.72rem', color: '#999', marginTop: 2 }}>Which skills from the curriculum have been addressed in class</div></div>
+                                        <span style={{ padding: '3px 10px', borderRadius: 6, background: '#f5f5f5', fontSize: '0.72rem', fontWeight: 600, color: '#666' }}>
+                                            {covered} / {allSkills.length} covered
+                                        </span>
+                                    </div>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
+                                        <thead>
+                                            <tr style={{ background: '#fafafa' }}>
+                                                {['Domain', 'Category', 'Skill', 'Details', 'Covered?', 'Session Dates'].map(h => (
+                                                    <th key={h} style={{ padding: '9px 14px', textAlign: 'left', fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#aaa', borderBottom: '1.5px solid #f0f0f0', whiteSpace: 'nowrap' }}>{h}</th>
+                                                ))}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {allSkills.length === 0 ? (
+                                                <tr><td colSpan={6} style={{ padding: '3rem', textAlign: 'center', color: '#aaa' }}>No skills defined yet.</td></tr>
+                                            ) : allSkills.map((sk, i) => (
+                                                <tr key={sk.skill_id} style={{ borderBottom: '1px solid #f5f5f5', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                                                    <td style={{ padding: '9px 14px' }}><span style={{ padding: '2px 8px', borderRadius: 5, fontSize: '0.68rem', fontWeight: 600, background: '#f5f5f5', color: '#333' }}>{sk.domain}</span></td>
+                                                    <td style={{ padding: '9px 14px', color: '#555' }}>{sk.category}</td>
+                                                    <td style={{ padding: '9px 14px', fontWeight: 600, color: '#111' }}>{sk.skill_name}</td>
+                                                    <td style={{ padding: '9px 14px', color: '#777', maxWidth: 200 }}><div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sk.details}</div></td>
+                                                    <td style={{ padding: '9px 14px' }}>
+                                                        <span style={{ padding: '2px 10px', borderRadius: 6, fontSize: '0.7rem', fontWeight: 700, background: sk.covered ? '#ecfdf5' : '#fef2f2', color: sk.covered ? '#166534' : '#991b1b' }}>
+                                                            {sk.covered ? '✓ YES' : '✗ NO'}
+                                                        </span>
+                                                    </td>
+                                                    <td style={{ padding: '9px 14px', fontFamily: 'monospace', fontSize: '0.72rem', color: '#555' }}>
+                                                        {sk.session_dates.length > 0 ? sk.session_dates.map(d => fmtDate(d)).join(', ') : <span style={{ color: '#ccc' }}>—</span>}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                            </div>
+                        );
+                    })()}
+
 
                 </div>
             </div>
