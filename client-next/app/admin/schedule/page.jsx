@@ -428,7 +428,7 @@ export default function AdminSchedulePage() {
         const d = new Date(weekStart);
         d.setDate(d.getDate() + i);
         calendarDays.push({
-            label: d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' }),
+            label: d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }),
             dateKey: d.toISOString().split('T')[0],
         });
     }
