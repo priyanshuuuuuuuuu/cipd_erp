@@ -1,101 +1,80 @@
 [
   {
-    "indexdef": "CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id)"
+    "create_table": "CREATE TABLE admin_dashboard_summary (\n  total_faculty bigint,\n  total_students bigint,\n  total_sessions bigint\n);"
   },
   {
-    "indexdef": "CREATE UNIQUE INDEX users_email_key ON public.users USING btree (email)"
+    "create_table": "CREATE TABLE assignment_submissions (\n  file_url text,\n  grade numeric,\n  feedback text,\n  id uuid NOT NULL DEFAULT uuid_generate_v4(),\n  assignment_id uuid,\n  student_id uuid,\n  submitted_at timestamp without time zone DEFAULT now()\n);"
   },
   {
-    "indexdef": "CREATE INDEX idx_users_role ON public.users USING btree (role)"
+    "create_table": "CREATE TABLE assignments (\n  faculty_id uuid,\n  course_id uuid,\n  id uuid NOT NULL DEFAULT uuid_generate_v4(),\n  description text,\n  title text,\n  total_marks numeric DEFAULT 100,\n  created_at timestamp without time zone DEFAULT now(),\n  due_date timestamp without time zone\n);"
   },
   {
-    "indexdef": "CREATE UNIQUE INDEX students_pkey ON public.students USING btree (id)"
+    "create_table": "CREATE TABLE attendance_ping_logs (\n  bssid text,\n  student_id uuid,\n  session_id uuid,\n  id bigint NOT NULL DEFAULT nextval('attendance_ping_logs_id_seq'::regclass),\n  ping_time timestamp with time zone DEFAULT now(),\n  signal_strength integer,\n  device_hash text\n);"
   },
   {
-    "indexdef": "CREATE UNIQUE INDEX students_enrollment_no_key ON public.students USING btree (enrollment_no)"
+    "create_table": "CREATE TABLE attendance_records (\n  status attendance_status,\n  student_id uuid,\n  session_id uuid,\n  id uuid NOT NULL DEFAULT uuid_generate_v4(),\n  penalty_reason text,\n  override_by text,\n  penalty boolean DEFAULT false,\n  admin_override boolean DEFAULT false,\n  points numeric,\n  avg_signal_strength numeric,\n  duration_minutes numeric DEFAULT 0,\n  last_seen_at timestamp without time zone,\n  first_seen_at timestamp without time zone,\n  calculated_at timestamp without time zone DEFAULT now(),\n  ping_count integer DEFAULT 0\n);"
   },
   {
-    "indexdef": "CREATE UNIQUE INDEX faculty_pkey ON public.faculty USING btree (id)"
+    "create_table": "CREATE TABLE categories (\n  name text NOT NULL,\n  id uuid NOT NULL DEFAULT uuid_generate_v4(),\n  course_id uuid,\n  created_at timestamp without time zone DEFAULT now()\n);"
   },
   {
-    "indexdef": "CREATE UNIQUE INDEX courses_pkey ON public.courses USING btree (id)"
+    "create_table": "CREATE TABLE course_enrollments (\n  id uuid NOT NULL DEFAULT uuid_generate_v4(),\n  enrolled_at timestamp without time zone DEFAULT now(),\n  student_id uuid,\n  course_id uuid\n);"
   },
   {
-    "indexdef": "CREATE UNIQUE INDEX course_enrollments_pkey ON public.course_enrollments USING btree (id)"
+    "create_table": "CREATE TABLE courses (\n  name text NOT NULL,\n  code text,\n  description text,\n  id uuid NOT NULL DEFAULT uuid_generate_v4(),\n  created_at timestamp without time zone DEFAULT now()\n);"
   },
   {
-    "indexdef": "CREATE UNIQUE INDEX course_enrollments_course_id_student_id_key ON public.course_enrollments USING btree (course_id, student_id)"
+    "create_table": "CREATE TABLE faculty (\n  photo_url text,\n  designation text,\n  honorarium_rate_per_hour numeric,\n  created_at timestamp without time zone DEFAULT now(),\n  years_experience integer,\n  department text,\n  id uuid NOT NULL\n);"
   },
   {
-    "indexdef": "CREATE UNIQUE INDEX sessions_pkey ON public.sessions USING btree (id)"
+    "create_table": "CREATE TABLE faculty_monthly_hours (\n  hours numeric,\n  faculty_id uuid,\n  sessions bigint,\n  month timestamp with time zone\n);"
   },
   {
-    "indexdef": "CREATE INDEX idx_sessions_date ON public.sessions USING btree (session_date)"
+    "create_table": "CREATE TABLE feedback_questions (\n  active boolean DEFAULT true,\n  id uuid NOT NULL DEFAULT uuid_generate_v4(),\n  created_at timestamp without time zone DEFAULT now(),\n  category text,\n  question text NOT NULL,\n  type feedback_question_type\n);"
   },
   {
-    "indexdef": "CREATE INDEX idx_sessions_faculty ON public.sessions USING btree (faculty_id)"
+    "create_table": "CREATE TABLE feedback_responses (\n  yes_no boolean,\n  rating integer,\n  question_id uuid,\n  student_id uuid,\n  session_id uuid,\n  id uuid NOT NULL DEFAULT uuid_generate_v4(),\n  text_answer text,\n  submitted_at timestamp without time zone DEFAULT now()\n);"
   },
   {
-    "indexdef": "CREATE INDEX idx_sessions_course ON public.sessions USING btree (course_id)"
+    "create_table": "CREATE TABLE google_tokens (\n  created_at timestamp without time zone DEFAULT now(),\n  refresh_token text NOT NULL,\n  user_id uuid NOT NULL,\n  updated_at timestamp without time zone DEFAULT now(),\n  access_token text,\n  expiry_time bigint,\n  role text DEFAULT 'student'::text\n);"
   },
   {
-    "indexdef": "CREATE UNIQUE INDEX unique_venue_schedule ON public.sessions USING btree (venue_id, session_date, start_time, end_time) WHERE (status <> 'cancelled'::session_status)"
+    "create_table": "CREATE TABLE notifications (\n  type text NOT NULL DEFAULT 'general'::text,\n  title text NOT NULL,\n  created_at timestamp without time zone DEFAULT now(),\n  sent_by uuid,\n  is_read boolean DEFAULT false,\n  session_id uuid,\n  course_id uuid,\n  recipient_id uuid,\n  id uuid NOT NULL DEFAULT uuid_generate_v4(),\n  message text NOT NULL\n);"
   },
   {
-    "indexdef": "CREATE UNIQUE INDEX attendance_records_pkey ON public.attendance_records USING btree (id)"
+    "create_table": "CREATE TABLE session_materials (\n  id uuid NOT NULL DEFAULT uuid_generate_v4(),\n  faculty_id uuid,\n  title text,\n  session_id uuid,\n  uploaded_by uuid,\n  created_at timestamp without time zone DEFAULT now(),\n  course_id uuid,\n  file_type text DEFAULT 'pdf'::text,\n  content text,\n  file_url text\n);"
   },
   {
-    "indexdef": "CREATE UNIQUE INDEX attendance_records_session_id_student_id_key ON public.attendance_records USING btree (session_id, student_id)"
+    "create_table": "CREATE TABLE session_skills (\n  session_id uuid NOT NULL,\n  skill_id uuid NOT NULL\n);"
   },
   {
-    "indexdef": "CREATE INDEX idx_attendance_student ON public.attendance_records USING btree (student_id)"
+    "create_table": "CREATE TABLE session_types (\n  id uuid NOT NULL DEFAULT gen_random_uuid(),\n  name text NOT NULL,\n  created_at timestamp without time zone DEFAULT now()\n);"
   },
   {
-    "indexdef": "CREATE INDEX idx_attendance_session ON public.attendance_records USING btree (session_id)"
+    "create_table": "CREATE TABLE sessions (\n  session_type_id uuid,\n  created_at timestamp without time zone DEFAULT now(),\n  created_by uuid,\n  status session_status DEFAULT 'scheduled'::session_status,\n  end_time time without time zone NOT NULL,\n  start_time time without time zone NOT NULL,\n  title text NOT NULL,\n  session_date date NOT NULL,\n  venue_id uuid,\n  faculty_id uuid,\n  course_id uuid,\n  id uuid NOT NULL DEFAULT uuid_generate_v4(),\n  category_id uuid,\n  feedback_deadline timestamp with time zone\n);"
   },
   {
-    "indexdef": "CREATE UNIQUE INDEX feedback_responses_pkey ON public.feedback_responses USING btree (id)"
+    "create_table": "CREATE TABLE skills (\n  name text NOT NULL,\n  id uuid NOT NULL DEFAULT gen_random_uuid(),\n  created_at timestamp with time zone DEFAULT now(),\n  details text,\n  category_id uuid\n);"
   },
   {
-    "indexdef": "CREATE INDEX idx_feedback_session ON public.feedback_responses USING btree (session_id)"
+    "create_table": "CREATE TABLE student_attendance_summary (\n  student_id uuid,\n  attendance_percentage numeric\n);"
   },
   {
-    "indexdef": "CREATE INDEX idx_feedback_student ON public.feedback_responses USING btree (student_id)"
+    "create_table": "CREATE TABLE student_course_attendance (\n  updated_at timestamp with time zone DEFAULT now(),\n  course_id uuid NOT NULL,\n  attendance_percentage numeric NOT NULL,\n  id uuid NOT NULL DEFAULT gen_random_uuid(),\n  student_id uuid NOT NULL\n);"
   },
   {
-    "indexdef": "CREATE UNIQUE INDEX feedback_questions_pkey ON public.feedback_questions USING btree (id)"
+    "create_table": "CREATE TABLE students (\n  id uuid NOT NULL,\n  mac_verified boolean DEFAULT false,\n  created_at timestamp without time zone DEFAULT now(),\n  enrollment_no text,\n  program_name text,\n  device_hash text,\n  mac_address text,\n  photo_url text\n);"
   },
   {
-    "indexdef": "CREATE UNIQUE INDEX assignments_pkey ON public.assignments USING btree (id)"
+    "create_table": "CREATE TABLE system_settings (\n  scanner_interval_minutes integer DEFAULT 6,\n  id integer NOT NULL DEFAULT 1,\n  ping_interval integer DEFAULT 10,\n  pings_per_session integer DEFAULT 6,\n  presence_threshold integer DEFAULT 3,\n  attendance_window integer DEFAULT 60,\n  updated_at timestamp without time zone DEFAULT now(),\n  min_signal integer DEFAULT 2\n);"
   },
   {
-    "indexdef": "CREATE UNIQUE INDEX session_materials_pkey ON public.session_materials USING btree (id)"
+    "create_table": "CREATE TABLE users (\n  email text NOT NULL,\n  is_active boolean DEFAULT true,\n  first_name text,\n  last_name text,\n  role user_role NOT NULL,\n  id uuid NOT NULL DEFAULT uuid_generate_v4(),\n  preferences jsonb DEFAULT '{}'::jsonb,\n  updated_at timestamp without time zone DEFAULT now(),\n  created_at timestamp without time zone DEFAULT now(),\n  password_hash text NOT NULL\n);"
   },
   {
-    "indexdef": "CREATE INDEX idx_session_materials_course_id ON public.session_materials USING btree (course_id)"
+    "create_table": "CREATE TABLE venues (\n  building text,\n  created_at timestamp without time zone DEFAULT now(),\n  is_active boolean DEFAULT true,\n  router_bssid text,\n  name text NOT NULL,\n  id uuid NOT NULL DEFAULT uuid_generate_v4()\n);"
   },
   {
-    "indexdef": "CREATE UNIQUE INDEX assignment_submissions_pkey ON public.assignment_submissions USING btree (id)"
-  },
-  {
-    "indexdef": "CREATE UNIQUE INDEX wifi_snapshots_pkey ON public.wifi_snapshots USING btree (id)"
-  },
-  {
-    "indexdef": "CREATE UNIQUE INDEX notifications_pkey ON public.notifications USING btree (id)"
-  },
-  {
-    "indexdef": "CREATE INDEX idx_notifications_recipient ON public.notifications USING btree (recipient_id)"
-  },
-  {
-    "indexdef": "CREATE INDEX idx_notifications_read ON public.notifications USING btree (recipient_id, is_read)"
-  },
-  {
-    "indexdef": "CREATE UNIQUE INDEX venues_pkey ON public.venues USING btree (id)"
-  },
-  {
-    "indexdef": "CREATE UNIQUE INDEX venues_router_bssid_key ON public.venues USING btree (router_bssid)"
-  },
-  {
-    "indexdef": "CREATE UNIQUE INDEX system_settings_pkey ON public.system_settings USING btree (id)"
+    "create_table": "CREATE TABLE wifi_snapshots (\n  id bigint NOT NULL DEFAULT nextval('wifi_snapshots_id_seq'::regclass),\n  captured_at timestamp with time zone NOT NULL,\n  iw_dump jsonb NOT NULL,\n  error text\n);"
   }
 ]
