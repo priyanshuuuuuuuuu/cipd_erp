@@ -1,0 +1,1164 @@
+[
+  {
+    "table_name": "admin_dashboard_summary",
+    "attributes": [
+      {
+        "column_name": "total_students",
+        "data_type": "bigint",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "total_faculty",
+        "data_type": "bigint",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "total_sessions",
+        "data_type": "bigint",
+        "is_nullable": "YES",
+        "default_value": null
+      }
+    ]
+  },
+  {
+    "table_name": "assignment_submissions",
+    "attributes": [
+      {
+        "column_name": "id",
+        "data_type": "uuid",
+        "is_nullable": "NO",
+        "default_value": "uuid_generate_v4()"
+      },
+      {
+        "column_name": "assignment_id",
+        "data_type": "uuid",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "student_id",
+        "data_type": "uuid",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "file_url",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "submitted_at",
+        "data_type": "timestamp without time zone",
+        "is_nullable": "YES",
+        "default_value": "now()"
+      },
+      {
+        "column_name": "grade",
+        "data_type": "numeric",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "feedback",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "default_value": null
+      }
+    ]
+  },
+  {
+    "table_name": "assignments",
+    "attributes": [
+      {
+        "column_name": "id",
+        "data_type": "uuid",
+        "is_nullable": "NO",
+        "default_value": "uuid_generate_v4()"
+      },
+      {
+        "column_name": "course_id",
+        "data_type": "uuid",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "faculty_id",
+        "data_type": "uuid",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "title",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "description",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "due_date",
+        "data_type": "timestamp without time zone",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "created_at",
+        "data_type": "timestamp without time zone",
+        "is_nullable": "YES",
+        "default_value": "now()"
+      },
+      {
+        "column_name": "total_marks",
+        "data_type": "numeric",
+        "is_nullable": "YES",
+        "default_value": "100"
+      }
+    ]
+  },
+  {
+    "table_name": "attendance_ping_logs",
+    "attributes": [
+      {
+        "column_name": "id",
+        "data_type": "bigint",
+        "is_nullable": "NO",
+        "default_value": "nextval('attendance_ping_logs_id_seq'::regclass)"
+      },
+      {
+        "column_name": "session_id",
+        "data_type": "uuid",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "student_id",
+        "data_type": "uuid",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "device_hash",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "bssid",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "signal_strength",
+        "data_type": "integer",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "ping_time",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "YES",
+        "default_value": "now()"
+      }
+    ]
+  },
+  {
+    "table_name": "attendance_records",
+    "attributes": [
+      {
+        "column_name": "id",
+        "data_type": "uuid",
+        "is_nullable": "NO",
+        "default_value": "uuid_generate_v4()"
+      },
+      {
+        "column_name": "session_id",
+        "data_type": "uuid",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "student_id",
+        "data_type": "uuid",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "ping_count",
+        "data_type": "integer",
+        "is_nullable": "YES",
+        "default_value": "0"
+      },
+      {
+        "column_name": "status",
+        "data_type": "attendance_status",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "calculated_at",
+        "data_type": "timestamp without time zone",
+        "is_nullable": "YES",
+        "default_value": "now()"
+      },
+      {
+        "column_name": "first_seen_at",
+        "data_type": "timestamp without time zone",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "last_seen_at",
+        "data_type": "timestamp without time zone",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "duration_minutes",
+        "data_type": "numeric",
+        "is_nullable": "YES",
+        "default_value": "0"
+      },
+      {
+        "column_name": "avg_signal_strength",
+        "data_type": "numeric",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "points",
+        "data_type": "numeric",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "admin_override",
+        "data_type": "boolean",
+        "is_nullable": "YES",
+        "default_value": "false"
+      },
+      {
+        "column_name": "override_by",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "penalty",
+        "data_type": "boolean",
+        "is_nullable": "YES",
+        "default_value": "false"
+      },
+      {
+        "column_name": "penalty_reason",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "default_value": null
+      }
+    ]
+  },
+  {
+    "table_name": "categories",
+    "attributes": [
+      {
+        "column_name": "id",
+        "data_type": "uuid",
+        "is_nullable": "NO",
+        "default_value": "uuid_generate_v4()"
+      },
+      {
+        "column_name": "course_id",
+        "data_type": "uuid",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "name",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "default_value": null
+      },
+      {
+        "column_name": "created_at",
+        "data_type": "timestamp without time zone",
+        "is_nullable": "YES",
+        "default_value": "now()"
+      }
+    ]
+  },
+  {
+    "table_name": "course_enrollments",
+    "attributes": [
+      {
+        "column_name": "id",
+        "data_type": "uuid",
+        "is_nullable": "NO",
+        "default_value": "uuid_generate_v4()"
+      },
+      {
+        "column_name": "course_id",
+        "data_type": "uuid",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "student_id",
+        "data_type": "uuid",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "enrolled_at",
+        "data_type": "timestamp without time zone",
+        "is_nullable": "YES",
+        "default_value": "now()"
+      }
+    ]
+  },
+  {
+    "table_name": "courses",
+    "attributes": [
+      {
+        "column_name": "id",
+        "data_type": "uuid",
+        "is_nullable": "NO",
+        "default_value": "uuid_generate_v4()"
+      },
+      {
+        "column_name": "name",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "default_value": null
+      },
+      {
+        "column_name": "description",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "created_at",
+        "data_type": "timestamp without time zone",
+        "is_nullable": "YES",
+        "default_value": "now()"
+      },
+      {
+        "column_name": "code",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "default_value": null
+      }
+    ]
+  },
+  {
+    "table_name": "faculty",
+    "attributes": [
+      {
+        "column_name": "id",
+        "data_type": "uuid",
+        "is_nullable": "NO",
+        "default_value": null
+      },
+      {
+        "column_name": "designation",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "years_experience",
+        "data_type": "integer",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "honorarium_rate_per_hour",
+        "data_type": "numeric",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "created_at",
+        "data_type": "timestamp without time zone",
+        "is_nullable": "YES",
+        "default_value": "now()"
+      },
+      {
+        "column_name": "department",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "photo_url",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "default_value": null
+      }
+    ]
+  },
+  {
+    "table_name": "faculty_monthly_hours",
+    "attributes": [
+      {
+        "column_name": "faculty_id",
+        "data_type": "uuid",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "month",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "sessions",
+        "data_type": "bigint",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "hours",
+        "data_type": "numeric",
+        "is_nullable": "YES",
+        "default_value": null
+      }
+    ]
+  },
+  {
+    "table_name": "feedback_questions",
+    "attributes": [
+      {
+        "column_name": "id",
+        "data_type": "uuid",
+        "is_nullable": "NO",
+        "default_value": "uuid_generate_v4()"
+      },
+      {
+        "column_name": "question",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "default_value": null
+      },
+      {
+        "column_name": "category",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "type",
+        "data_type": "feedback_question_type",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "active",
+        "data_type": "boolean",
+        "is_nullable": "YES",
+        "default_value": "true"
+      },
+      {
+        "column_name": "created_at",
+        "data_type": "timestamp without time zone",
+        "is_nullable": "YES",
+        "default_value": "now()"
+      }
+    ]
+  },
+  {
+    "table_name": "feedback_responses",
+    "attributes": [
+      {
+        "column_name": "id",
+        "data_type": "uuid",
+        "is_nullable": "NO",
+        "default_value": "uuid_generate_v4()"
+      },
+      {
+        "column_name": "session_id",
+        "data_type": "uuid",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "student_id",
+        "data_type": "uuid",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "question_id",
+        "data_type": "uuid",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "rating",
+        "data_type": "integer",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "yes_no",
+        "data_type": "boolean",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "text_answer",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "submitted_at",
+        "data_type": "timestamp without time zone",
+        "is_nullable": "YES",
+        "default_value": "now()"
+      }
+    ]
+  },
+  {
+    "table_name": "google_tokens",
+    "attributes": [
+      {
+        "column_name": "user_id",
+        "data_type": "uuid",
+        "is_nullable": "NO",
+        "default_value": null
+      },
+      {
+        "column_name": "access_token",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "refresh_token",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "default_value": null
+      },
+      {
+        "column_name": "expiry_time",
+        "data_type": "bigint",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "created_at",
+        "data_type": "timestamp without time zone",
+        "is_nullable": "YES",
+        "default_value": "now()"
+      },
+      {
+        "column_name": "updated_at",
+        "data_type": "timestamp without time zone",
+        "is_nullable": "YES",
+        "default_value": "now()"
+      },
+      {
+        "column_name": "role",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "default_value": "'student'::text"
+      }
+    ]
+  },
+  {
+    "table_name": "notifications",
+    "attributes": [
+      {
+        "column_name": "id",
+        "data_type": "uuid",
+        "is_nullable": "NO",
+        "default_value": "uuid_generate_v4()"
+      },
+      {
+        "column_name": "recipient_id",
+        "data_type": "uuid",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "type",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "default_value": "'general'::text"
+      },
+      {
+        "column_name": "title",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "default_value": null
+      },
+      {
+        "column_name": "message",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "default_value": null
+      },
+      {
+        "column_name": "course_id",
+        "data_type": "uuid",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "session_id",
+        "data_type": "uuid",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "is_read",
+        "data_type": "boolean",
+        "is_nullable": "YES",
+        "default_value": "false"
+      },
+      {
+        "column_name": "sent_by",
+        "data_type": "uuid",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "created_at",
+        "data_type": "timestamp without time zone",
+        "is_nullable": "YES",
+        "default_value": "now()"
+      }
+    ]
+  },
+  {
+    "table_name": "session_materials",
+    "attributes": [
+      {
+        "column_name": "id",
+        "data_type": "uuid",
+        "is_nullable": "NO",
+        "default_value": "uuid_generate_v4()"
+      },
+      {
+        "column_name": "session_id",
+        "data_type": "uuid",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "uploaded_by",
+        "data_type": "uuid",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "title",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "file_url",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "created_at",
+        "data_type": "timestamp without time zone",
+        "is_nullable": "YES",
+        "default_value": "now()"
+      },
+      {
+        "column_name": "content",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "file_type",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "default_value": "'pdf'::text"
+      },
+      {
+        "column_name": "course_id",
+        "data_type": "uuid",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "faculty_id",
+        "data_type": "uuid",
+        "is_nullable": "YES",
+        "default_value": null
+      }
+    ]
+  },
+  {
+    "table_name": "session_skills",
+    "attributes": [
+      {
+        "column_name": "session_id",
+        "data_type": "uuid",
+        "is_nullable": "NO",
+        "default_value": null
+      },
+      {
+        "column_name": "skill_id",
+        "data_type": "uuid",
+        "is_nullable": "NO",
+        "default_value": null
+      }
+    ]
+  },
+  {
+    "table_name": "session_types",
+    "attributes": [
+      {
+        "column_name": "id",
+        "data_type": "uuid",
+        "is_nullable": "NO",
+        "default_value": "gen_random_uuid()"
+      },
+      {
+        "column_name": "name",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "default_value": null
+      },
+      {
+        "column_name": "created_at",
+        "data_type": "timestamp without time zone",
+        "is_nullable": "YES",
+        "default_value": "now()"
+      }
+    ]
+  },
+  {
+    "table_name": "sessions",
+    "attributes": [
+      {
+        "column_name": "id",
+        "data_type": "uuid",
+        "is_nullable": "NO",
+        "default_value": "uuid_generate_v4()"
+      },
+      {
+        "column_name": "course_id",
+        "data_type": "uuid",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "faculty_id",
+        "data_type": "uuid",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "title",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "default_value": null
+      },
+      {
+        "column_name": "venue_id",
+        "data_type": "uuid",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "session_date",
+        "data_type": "date",
+        "is_nullable": "NO",
+        "default_value": null
+      },
+      {
+        "column_name": "start_time",
+        "data_type": "time without time zone",
+        "is_nullable": "NO",
+        "default_value": null
+      },
+      {
+        "column_name": "end_time",
+        "data_type": "time without time zone",
+        "is_nullable": "NO",
+        "default_value": null
+      },
+      {
+        "column_name": "status",
+        "data_type": "session_status",
+        "is_nullable": "YES",
+        "default_value": "'scheduled'::session_status"
+      },
+      {
+        "column_name": "created_by",
+        "data_type": "uuid",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "created_at",
+        "data_type": "timestamp without time zone",
+        "is_nullable": "YES",
+        "default_value": "now()"
+      },
+      {
+        "column_name": "feedback_deadline",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "session_type_id",
+        "data_type": "uuid",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "category_id",
+        "data_type": "uuid",
+        "is_nullable": "YES",
+        "default_value": null
+      }
+    ]
+  },
+  {
+    "table_name": "skills",
+    "attributes": [
+      {
+        "column_name": "id",
+        "data_type": "uuid",
+        "is_nullable": "NO",
+        "default_value": "gen_random_uuid()"
+      },
+      {
+        "column_name": "name",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "default_value": null
+      },
+      {
+        "column_name": "created_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "YES",
+        "default_value": "now()"
+      },
+      {
+        "column_name": "category_id",
+        "data_type": "uuid",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "details",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "default_value": null
+      }
+    ]
+  },
+  {
+    "table_name": "student_attendance_summary",
+    "attributes": [
+      {
+        "column_name": "student_id",
+        "data_type": "uuid",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "attendance_percentage",
+        "data_type": "numeric",
+        "is_nullable": "YES",
+        "default_value": null
+      }
+    ]
+  },
+  {
+    "table_name": "student_course_attendance",
+    "attributes": [
+      {
+        "column_name": "id",
+        "data_type": "uuid",
+        "is_nullable": "NO",
+        "default_value": "gen_random_uuid()"
+      },
+      {
+        "column_name": "student_id",
+        "data_type": "uuid",
+        "is_nullable": "NO",
+        "default_value": null
+      },
+      {
+        "column_name": "course_id",
+        "data_type": "uuid",
+        "is_nullable": "NO",
+        "default_value": null
+      },
+      {
+        "column_name": "attendance_percentage",
+        "data_type": "numeric",
+        "is_nullable": "NO",
+        "default_value": null
+      },
+      {
+        "column_name": "updated_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "YES",
+        "default_value": "now()"
+      }
+    ]
+  },
+  {
+    "table_name": "students",
+    "attributes": [
+      {
+        "column_name": "id",
+        "data_type": "uuid",
+        "is_nullable": "NO",
+        "default_value": null
+      },
+      {
+        "column_name": "enrollment_no",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "program_name",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "device_hash",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "mac_address",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "mac_verified",
+        "data_type": "boolean",
+        "is_nullable": "YES",
+        "default_value": "false"
+      },
+      {
+        "column_name": "created_at",
+        "data_type": "timestamp without time zone",
+        "is_nullable": "YES",
+        "default_value": "now()"
+      },
+      {
+        "column_name": "photo_url",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "default_value": null
+      }
+    ]
+  },
+  {
+    "table_name": "system_settings",
+    "attributes": [
+      {
+        "column_name": "id",
+        "data_type": "integer",
+        "is_nullable": "NO",
+        "default_value": "1"
+      },
+      {
+        "column_name": "ping_interval",
+        "data_type": "integer",
+        "is_nullable": "YES",
+        "default_value": "10"
+      },
+      {
+        "column_name": "pings_per_session",
+        "data_type": "integer",
+        "is_nullable": "YES",
+        "default_value": "6"
+      },
+      {
+        "column_name": "presence_threshold",
+        "data_type": "integer",
+        "is_nullable": "YES",
+        "default_value": "3"
+      },
+      {
+        "column_name": "attendance_window",
+        "data_type": "integer",
+        "is_nullable": "YES",
+        "default_value": "60"
+      },
+      {
+        "column_name": "updated_at",
+        "data_type": "timestamp without time zone",
+        "is_nullable": "YES",
+        "default_value": "now()"
+      },
+      {
+        "column_name": "scanner_interval_minutes",
+        "data_type": "integer",
+        "is_nullable": "YES",
+        "default_value": "6"
+      },
+      {
+        "column_name": "min_signal",
+        "data_type": "integer",
+        "is_nullable": "YES",
+        "default_value": "2"
+      }
+    ]
+  },
+  {
+    "table_name": "users",
+    "attributes": [
+      {
+        "column_name": "id",
+        "data_type": "uuid",
+        "is_nullable": "NO",
+        "default_value": "uuid_generate_v4()"
+      },
+      {
+        "column_name": "email",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "default_value": null
+      },
+      {
+        "column_name": "password_hash",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "default_value": null
+      },
+      {
+        "column_name": "role",
+        "data_type": "user_role",
+        "is_nullable": "NO",
+        "default_value": null
+      },
+      {
+        "column_name": "first_name",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "last_name",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "is_active",
+        "data_type": "boolean",
+        "is_nullable": "YES",
+        "default_value": "true"
+      },
+      {
+        "column_name": "created_at",
+        "data_type": "timestamp without time zone",
+        "is_nullable": "YES",
+        "default_value": "now()"
+      },
+      {
+        "column_name": "updated_at",
+        "data_type": "timestamp without time zone",
+        "is_nullable": "YES",
+        "default_value": "now()"
+      },
+      {
+        "column_name": "preferences",
+        "data_type": "jsonb",
+        "is_nullable": "YES",
+        "default_value": "'{}'::jsonb"
+      }
+    ]
+  },
+  {
+    "table_name": "venues",
+    "attributes": [
+      {
+        "column_name": "id",
+        "data_type": "uuid",
+        "is_nullable": "NO",
+        "default_value": "uuid_generate_v4()"
+      },
+      {
+        "column_name": "name",
+        "data_type": "text",
+        "is_nullable": "NO",
+        "default_value": null
+      },
+      {
+        "column_name": "building",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "router_bssid",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "default_value": null
+      },
+      {
+        "column_name": "created_at",
+        "data_type": "timestamp without time zone",
+        "is_nullable": "YES",
+        "default_value": "now()"
+      },
+      {
+        "column_name": "is_active",
+        "data_type": "boolean",
+        "is_nullable": "YES",
+        "default_value": "true"
+      }
+    ]
+  },
+  {
+    "table_name": "wifi_snapshots",
+    "attributes": [
+      {
+        "column_name": "id",
+        "data_type": "bigint",
+        "is_nullable": "NO",
+        "default_value": "nextval('wifi_snapshots_id_seq'::regclass)"
+      },
+      {
+        "column_name": "captured_at",
+        "data_type": "timestamp with time zone",
+        "is_nullable": "NO",
+        "default_value": null
+      },
+      {
+        "column_name": "iw_dump",
+        "data_type": "jsonb",
+        "is_nullable": "NO",
+        "default_value": null
+      },
+      {
+        "column_name": "error",
+        "data_type": "text",
+        "is_nullable": "YES",
+        "default_value": null
+      }
+    ]
+  }
+]

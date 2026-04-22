@@ -1,12 +1,9 @@
 [
   {
-    "?column?": "ALTER TABLE assignment_submissions ADD CONSTRAINT assignment_submissions_pkey PRIMARY KEY (id);"
+    "?column?": "ALTER TABLE students ADD CONSTRAINT students_pkey PRIMARY KEY (id);"
   },
   {
-    "?column?": "ALTER TABLE assignments ADD CONSTRAINT assignments_pkey PRIMARY KEY (id);"
-  },
-  {
-    "?column?": "ALTER TABLE attendance_records ADD CONSTRAINT attendance_records_pkey PRIMARY KEY (id);"
+    "?column?": "ALTER TABLE faculty ADD CONSTRAINT faculty_pkey PRIMARY KEY (id);"
   },
   {
     "?column?": "ALTER TABLE course_enrollments ADD CONSTRAINT course_enrollments_pkey PRIMARY KEY (id);"
@@ -15,7 +12,13 @@
     "?column?": "ALTER TABLE courses ADD CONSTRAINT courses_pkey PRIMARY KEY (id);"
   },
   {
-    "?column?": "ALTER TABLE faculty ADD CONSTRAINT faculty_pkey PRIMARY KEY (id);"
+    "?column?": "ALTER TABLE users ADD CONSTRAINT users_pkey PRIMARY KEY (id);"
+  },
+  {
+    "?column?": "ALTER TABLE sessions ADD CONSTRAINT sessions_pkey PRIMARY KEY (id);"
+  },
+  {
+    "?column?": "ALTER TABLE attendance_records ADD CONSTRAINT attendance_records_pkey PRIMARY KEY (id);"
   },
   {
     "?column?": "ALTER TABLE feedback_questions ADD CONSTRAINT feedback_questions_pkey PRIMARY KEY (id);"
@@ -24,27 +27,45 @@
     "?column?": "ALTER TABLE feedback_responses ADD CONSTRAINT feedback_responses_pkey PRIMARY KEY (id);"
   },
   {
-    "?column?": "ALTER TABLE notifications ADD CONSTRAINT notifications_pkey PRIMARY KEY (id);"
-  },
-  {
     "?column?": "ALTER TABLE session_materials ADD CONSTRAINT session_materials_pkey PRIMARY KEY (id);"
   },
   {
-    "?column?": "ALTER TABLE sessions ADD CONSTRAINT sessions_pkey PRIMARY KEY (id, id);"
+    "?column?": "ALTER TABLE assignments ADD CONSTRAINT assignments_pkey PRIMARY KEY (id);"
   },
   {
-    "?column?": "ALTER TABLE students ADD CONSTRAINT students_pkey PRIMARY KEY (id);"
+    "?column?": "ALTER TABLE assignment_submissions ADD CONSTRAINT assignment_submissions_pkey PRIMARY KEY (id);"
   },
   {
-    "?column?": "ALTER TABLE system_settings ADD CONSTRAINT system_settings_pkey PRIMARY KEY (id);"
+    "?column?": "ALTER TABLE attendance_ping_logs ADD CONSTRAINT attendance_ping_logs_pkey PRIMARY KEY (id);"
   },
   {
-    "?column?": "ALTER TABLE users ADD CONSTRAINT users_pkey PRIMARY KEY (id, id);"
+    "?column?": "ALTER TABLE session_types ADD CONSTRAINT session_types_pkey PRIMARY KEY (id);"
+  },
+  {
+    "?column?": "ALTER TABLE skills ADD CONSTRAINT skills_pkey PRIMARY KEY (id);"
+  },
+  {
+    "?column?": "ALTER TABLE google_tokens ADD CONSTRAINT google_tokens_pkey PRIMARY KEY (user_id);"
+  },
+  {
+    "?column?": "ALTER TABLE wifi_snapshots ADD CONSTRAINT wifi_snapshots_pkey PRIMARY KEY (id);"
+  },
+  {
+    "?column?": "ALTER TABLE session_skills ADD CONSTRAINT session_skills_pkey PRIMARY KEY (session_id, skill_id);"
+  },
+  {
+    "?column?": "ALTER TABLE notifications ADD CONSTRAINT notifications_pkey PRIMARY KEY (id);"
+  },
+  {
+    "?column?": "ALTER TABLE categories ADD CONSTRAINT categories_pkey PRIMARY KEY (id);"
+  },
+  {
+    "?column?": "ALTER TABLE student_course_attendance ADD CONSTRAINT student_course_attendance_pkey PRIMARY KEY (id);"
   },
   {
     "?column?": "ALTER TABLE venues ADD CONSTRAINT venues_pkey PRIMARY KEY (id);"
   },
   {
-    "?column?": "ALTER TABLE wifi_snapshots ADD CONSTRAINT wifi_snapshots_pkey PRIMARY KEY (id);"
+    "?column?": "ALTER TABLE system_settings ADD CONSTRAINT system_settings_pkey PRIMARY KEY (id);"
   }
 ]
