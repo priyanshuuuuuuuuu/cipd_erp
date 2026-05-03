@@ -5,7 +5,7 @@ import {
     LayoutGrid, Calendar, MessageSquare, Settings, LogOut, Bell, Menu,
     ChevronLeft, ChevronRight, Wifi, Clock, FileBarChart, CheckCircle,
     Download, RefreshCw, AlertCircle, Users, BookOpen, BarChart3,
-    TrendingUp, Search, X, Tag, Trophy,
+    TrendingUp, Search, X, Tag, Trophy, Star
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
@@ -129,6 +129,172 @@ const EMPTY = (
     </div>
 );
 
+// ── Instructor Drill-Down Modal ───────────────────────────────────────────
+function InstructorModal({ instructor, sessions, onClose }) {
+    const rows = (sessions || []).filter(r => r.instructor === instructor);
+    const totalHrs = rows.reduce((a, r) => a + (r.duration_mins || 0), 0);
+    const completed = rows.filter(r => r.status === 'completed').length;
+    const ratings = rows.filter(r => r.avg_rating !== null).map(r => r.avg_rating);
+    const avgRating = ratings.length > 0
+        ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1)
+        : null;
+
+    const initials = instructor !== 'TBA' ? instructor.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'TB';
+
+    // Close on Escape key
+    React.useEffect(() => {
+        const onKey = e => e.key === 'Escape' && onClose();
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [onClose]);
+
+    return (
+        <>
+            {/* Backdrop */}
+            <div onClick={onClose} style={{
+                position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.4)',
+                zIndex: 1000, backdropFilter: 'blur(6px)', transition: 'all 0.3s ease'
+            }} />
+            
+            {/* Panel */}
+            <div style={{
+                position: 'fixed', top: 0, right: 0, bottom: 0, width: 'min(850px, 100vw)',
+                background: '#f8fafc', zIndex: 1001, display: 'flex', flexDirection: 'column',
+                boxShadow: '-10px 0 50px rgba(0,0,0,0.25)',
+                animation: 'slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+            }}>
+                {/* Header (Vibrant Gradient) */}
+                <div style={{
+                    background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #db2777 100%)',
+                    padding: '2.5rem 2rem 2.5rem',
+                    color: '#fff',
+                    position: 'relative',
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
+                }}>
+                    <button onClick={onClose} style={{ 
+                        position: 'absolute', top: 20, right: 20, 
+                        background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.2)', 
+                        cursor: 'pointer', color: '#fff', padding: 8, borderRadius: '50%', backdropFilter: 'blur(4px)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s'
+                    }}
+                    onMouseOver={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.25)'; e.currentTarget.style.transform = 'scale(1.05)'; }}
+                    onMouseOut={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; e.currentTarget.style.transform = 'scale(1)'; }}
+                    >
+                        <X size={18} strokeWidth={2.5} />
+                    </button>
+                    
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                        <div style={{
+                            width: 84, height: 84, borderRadius: '50%', background: '#fff', color: '#7c3aed',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: '2.2rem', fontWeight: 900, boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+                            border: '4px solid rgba(255,255,255,0.3)', letterSpacing: '-1px'
+                        }}>
+                            {initials}
+                        </div>
+                        <div>
+                            <div style={{ fontSize: '2.2rem', fontWeight: 800, letterSpacing: '-0.5px', textShadow: '0 2px 10px rgba(0,0,0,0.2)', lineHeight: 1.1 }}>{instructor}</div>
+                            <div style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.9)', marginTop: 8, display: 'flex', alignItems: 'center', gap: 6, fontWeight: 500 }}>
+                                <BookOpen size={16} /> <span>Lectures &amp; Sessions Report</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Stats Bento Strip */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', padding: '2rem 2rem 1.5rem' }}>
+                    {[
+                        { label: 'Total Sessions',  val: rows.length, icon: Calendar, color: '#3b82f6', bg: '#eff6ff', border: '#bfdbfe' },
+                        { label: 'Completed',        val: completed, icon: CheckCircle, color: '#10b981', bg: '#ecfdf5', border: '#a7f3d0' },
+                        { label: 'Teaching Hrs',     val: `${(totalHrs / 60).toFixed(1)}h`, icon: Clock, color: '#f59e0b', bg: '#fffbeb', border: '#fde68a' },
+                        { label: 'Avg Rating',       val: avgRating ? `${avgRating}/5` : '—', icon: Star, color: '#ec4899', bg: '#fdf2f8', border: '#fbcfe8' },
+                    ].map((item) => {
+                        const Icon = item.icon;
+                        return (
+                            <div key={item.label} style={{
+                                background: '#fff', padding: '1.25rem', borderRadius: 16,
+                                border: `1px solid ${item.border}`, boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+                                display: 'flex', flexDirection: 'column', gap: 12, transition: 'transform 0.2s',
+                                cursor: 'default'
+                            }}
+                            onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+                            onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}
+                            >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <div style={{ background: item.bg, color: item.color, padding: 8, borderRadius: 10, display: 'flex' }}>
+                                        <Icon size={18} strokeWidth={2.5} />
+                                    </div>
+                                    <div style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{item.label}</div>
+                                </div>
+                                <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#0f172a', lineHeight: 1 }}>{item.val}</div>
+                            </div>
+                        );
+                    })}
+                </div>
+
+                {/* Table Section */}
+                <div style={{ flex: 1, padding: '0 2rem 2rem', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                    <div style={{ 
+                        background: '#fff', flex: 1, borderRadius: 16, border: '1px solid #e2e8f0', 
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)', overflow: 'hidden',
+                        display: 'flex', flexDirection: 'column'
+                    }}>
+                        <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #f1f5f9', background: '#fff' }}>
+                            <div style={{ fontSize: '1rem', fontWeight: 800, color: '#0f172a' }}>Session History</div>
+                        </div>
+                        
+                        <div style={{ flex: 1, overflowY: 'auto' }}>
+                            {rows.length === 0 ? (
+                                <div style={{ padding: '4rem', textAlign: 'center', color: '#94a3b8', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                                    <BookOpen size={48} color="#cbd5e1" strokeWidth={1.5} />
+                                    <div style={{ fontSize: '1rem', fontWeight: 600 }}>No sessions found for this instructor.</div>
+                                </div>
+                            ) : (
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                                    <thead style={{ position: 'sticky', top: 0, zIndex: 1, background: '#f8fafc' }}>
+                                        <tr>
+                                            {['Date', 'Domain', 'Title / Topic', 'Type', 'Duration', 'Skills', 'Rating', 'Status'].map(h => (
+                                                <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>{h}</th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {rows.map((r, i) => (
+                                            <tr key={r.session_id} style={{ borderBottom: '1px solid #f1f5f9', background: '#fff', transition: 'background 0.2s' }}
+                                                onMouseOver={e => e.currentTarget.style.background = '#f8fafc'}
+                                                onMouseOut={e => e.currentTarget.style.background = '#fff'}
+                                            >
+                                                <td style={{ padding: '14px 16px', fontFamily: 'monospace', color: '#475569', whiteSpace: 'nowrap', fontWeight: 600 }}>{fmtDate(r.date)}</td>
+                                                <td style={{ padding: '14px 16px' }}>
+                                                    <span style={{ padding: '4px 10px', borderRadius: 6, fontSize: '0.7rem', fontWeight: 700, background: '#f1f5f9', color: '#334155', whiteSpace: 'nowrap' }}>{r.domain}</span>
+                                                </td>
+                                                <td style={{ padding: '14px 16px', fontWeight: 700, color: '#0f172a', maxWidth: 220 }}>
+                                                    <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.title}>{r.title}</div>
+                                                </td>
+                                                <td style={{ padding: '14px 16px', color: '#475569', whiteSpace: 'nowrap', fontWeight: 500 }}>{r.session_type}</td>
+                                                <td style={{ padding: '14px 16px', fontFamily: 'monospace', color: '#475569', whiteSpace: 'nowrap', fontWeight: 600 }}>{fmtHrs(r.duration_mins)}</td>
+                                                <td style={{ padding: '14px 16px', color: '#475569', maxWidth: 160, fontWeight: 500 }}>
+                                                    <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.skills}>{r.skills || <span style={{ color: '#cbd5e1' }}>—</span>}</div>
+                                                </td>
+                                                <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                                                    {r.avg_rating ? <span style={{ fontWeight: 800, color: '#f59e0b' }}>{r.avg_rating}<span style={{ color: '#cbd5e1', fontWeight: 600 }}>/5</span></span> : <span style={{ color: '#cbd5e1' }}>—</span>}
+                                                </td>
+                                                <td style={{ padding: '14px 16px' }}>
+                                                    <span style={{ padding: '4px 10px', borderRadius: 8, fontSize: '0.7rem', fontWeight: 700, background: r.status === 'completed' ? '#ecfdf5' : r.status === 'cancelled' ? '#fef2f2' : '#fffbeb', color: r.status === 'completed' ? '#10b981' : r.status === 'cancelled' ? '#ef4444' : '#f59e0b' }}>{r.status}</span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </>
+    );
+}
+
 export default function AdminReportsPage() {
     const router = useRouter();
     const { logout } = useAuth();
@@ -139,6 +305,9 @@ export default function AdminReportsPage() {
     const [data,    setData]    = useState(null);
     const [loading, setLoading] = useState(true);
     const [error,   setError]   = useState(null);
+
+    // Instructor drill-down
+    const [selectedInstructor, setSelectedInstructor] = useState(null);
 
     // Master sheet filters
     const [domainFilter,     setDomainFilter]     = useState('all');
@@ -453,17 +622,19 @@ export default function AdminReportsPage() {
                             </div>
 
                             {/* Row 4: Instructor Workload Bar */}
-                            <ChartCard title="Instructor Workload Distribution" subtitle="Teaching hours per instructor (sorted highest to lowest)" accentColor="#8b5cf6">
+                            <ChartCard title="Instructor Workload Distribution" subtitle="Click a name to view their lectures · Teaching hours per instructor (sorted highest to lowest)" accentColor="#8b5cf6">
                                 {!(data?.instructors?.filter(i => i.name !== 'TBA')?.length) ? EMPTY : (
                                     <ResponsiveContainer width="100%" height={Math.max(240, data.instructors.filter(i => i.name !== 'TBA').slice(0, 15).length * 40)}>
                                         <BarChart
                                             data={data.instructors.filter(i => i.name !== 'TBA').slice(0, 15)}
                                             layout="vertical"
                                             margin={{ top: 4, right: 70, left: 10, bottom: 4 }}
+                                            onClick={e => e?.activePayload?.[0] && setSelectedInstructor(e.activePayload[0].payload.name)}
+                                            style={{ cursor: 'pointer' }}
                                         >
                                             <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" horizontal={false} />
                                             <XAxis type="number" tick={{ fontSize: 11, fill: '#888' }} unit="h" />
-                                            <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: '#555' }} width={130} />
+                                            <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: '#555', cursor: 'pointer' }} width={130} />
                                             <Tooltip content={<InstrTip />} />
                                             <Bar dataKey="hours" name="Hours" radius={[0, 4, 4, 0]} maxBarSize={24}
                                                 label={{ position: 'right', style: { fontSize: '0.7rem', fill: '#777' }, formatter: v => `${v}h` }}>
@@ -592,7 +763,13 @@ export default function AdminReportsPage() {
                                         <tr><td colSpan={8} style={{ padding: '3rem', textAlign: 'center', color: '#aaa' }}>No instructor data yet.</td></tr>
                                     ) : data.instructors.map((inst, i) => (
                                         <tr key={inst.name} style={{ borderBottom: '1px solid #f5f5f5', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
-                                            <td style={{ padding: '10px 14px', fontWeight: 700, color: '#111' }}>{inst.name}</td>
+                                            <td style={{ padding: '10px 14px' }}>
+                                                <button
+                                                    onClick={() => setSelectedInstructor(inst.name)}
+                                                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontWeight: 700, color: '#111', fontSize: '0.8rem', fontFamily: 'inherit', textDecoration: 'underline', textDecorationColor: '#d1d5db', textUnderlineOffset: 3 }}
+                                                    title={`View ${inst.name}'s sessions`}
+                                                >{inst.name}</button>
+                                            </td>
                                             <td style={{ padding: '10px 14px', color: '#555' }}>{inst.experience != null ? `${inst.experience} yrs` : '—'}</td>
                                             <td style={{ padding: '10px 14px' }}><span style={{ padding: '2px 9px', borderRadius: 6, fontSize: '0.7rem', fontWeight: 600, background: '#f0f0f0', color: '#444' }}>{inst.exp_bucket}</span></td>
                                             <td style={{ padding: '10px 14px', fontWeight: 600, color: '#111' }}>{inst.sessions}</td>
@@ -764,9 +941,20 @@ export default function AdminReportsPage() {
 
                 </div>
             </div>
+
+            {/* ── Instructor drill-down modal ─────────────────────────── */}
+            {selectedInstructor && (
+                <InstructorModal
+                    instructor={selectedInstructor}
+                    sessions={data?.masterRows}
+                    onClose={() => setSelectedInstructor(null)}
+                />
+            )}
+
             <style>{`
                 @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
                 @keyframes shimmer { 0%{opacity:.4} 50%{opacity:1} 100%{opacity:.4} }
+                @keyframes slideIn { from{transform:translateX(100%)} to{transform:translateX(0)} }
             `}</style>
         </div>
     );
