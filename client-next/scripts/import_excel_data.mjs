@@ -35,11 +35,11 @@ const warn = (msg) => console.log('  WARN ' + msg);
 const step = (msg) => console.log('\n>> ' + msg);
 
 // Excel file path
-const EXCEL_PATH  = path.resolve(__dirname, '../../Data/Copy of iPD CP Review Sheet.xlsx');
+const EXCEL_PATH  = path.resolve(__dirname, '../../Data/iPD CP Review Sheet.xlsx');
 
 // Only import sessions on or before this date (past historical data)
 // Change this if you want to extend the cutoff date
-const CUTOFF_DATE = '2026-04-20';
+const CUTOFF_DATE = '2026-05-03';
 
 // Slot time mapping
 const SLOT_TIMES = {
