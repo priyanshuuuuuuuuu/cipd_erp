@@ -471,202 +471,190 @@ export default function FeedbackPage() {
                     {/* ═══════════════════ LEADERBOARD ═══════════════════ */}
                     {activeTab === 'leaderboard' && (() => {
                         const myEntry = leaderboard.find(e => e.student_id === user?.id);
-                        const top3 = leaderboard.slice(0, 3);
                         const medalEmoji = ['🥇', '🥈', '🥉'];
-                        const medalGradient = [
-                            'linear-gradient(135deg, #fef3c7 0%, #fde68a 50%, #fbbf24 100%)',
-                            'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 50%, #cbd5e1 100%)',
-                            'linear-gradient(135deg, #fed7aa 0%, #fdba74 50%, #fb923c 100%)',
-                        ];
-                        const medalBorder = ['#f59e0b', '#94a3b8', '#ea580c'];
-                        const medalShadow = [
-                            '0 4px 20px rgba(245,158,11,0.25)',
-                            '0 4px 20px rgba(148,163,184,0.25)',
-                            '0 4px 20px rgba(234,88,12,0.25)',
-                        ];
-                        // Olympic podium order: 2nd (silver) | 1st (gold, center+taller) | 3rd (bronze)
-                        const podiumOrder = top3.length >= 3 ? [top3[1], top3[0], top3[2]] : top3;
-                        const podiumStyleIdx = top3.length >= 3 ? [1, 0, 2] : top3.map((_, i) => i);
-
+                        
                         return (
-                        <>
-                            {/* ── Your Rank Card ── */}
-                            {myEntry && (
-                                <div style={{
-                                    background: 'linear-gradient(135deg, #6355F1 0%, #7c6cf5 50%, #9b8afb 100%)',
-                                    borderRadius: '12px', padding: '18px 22px', marginBottom: '16px',
-                                    color: '#fff', boxShadow: '0 4px 20px rgba(99,85,241,0.3)',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px'
+                            <div className="leaderboard-container" style={{ animation: 'fadeIn 0.5s ease-out' }}>
+                                {/* ── Premium Header ── */}
+                                <div style={{ 
+                                    background: 'linear-gradient(135deg, #111 0%, #2a2a2a 100%)', 
+                                    borderRadius: '16px', padding: '24px 30px', marginBottom: '24px', 
+                                    color: '#fff', boxShadow: '0 10px 30px rgba(0,0,0,0.15)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px',
+                                    position: 'relative', overflow: 'hidden'
                                 }}>
-                                    <div>
-                                        <div style={{ fontSize: '0.68rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', opacity: 0.8, marginBottom: '4px' }}>Your Rank</div>
-                                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                                            <span style={{ fontSize: '2rem', fontWeight: 900, fontFamily: 'monospace', lineHeight: 1 }}>#{myEntry.rank}</span>
-                                            <span style={{ fontSize: '0.85rem', fontWeight: 500, opacity: 0.85 }}>of {leaderboard.length} students</span>
+                                    <div style={{ position: 'absolute', top: '-50%', right: '-10%', width: '300px', height: '300px', background: 'radial-gradient(circle, rgba(99,85,241,0.2) 0%, transparent 70%)', borderRadius: '50%', filter: 'blur(30px)' }}></div>
+                                    <div style={{ position: 'relative', zIndex: 1 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                                            <div style={{ background: 'rgba(255,255,255,0.1)', padding: '10px', borderRadius: '12px', backdropFilter: 'blur(10px)' }}>
+                                                <Trophy size={24} color="#a78bfa" />
+                                            </div>
+                                            <div>
+                                                <h2 style={{ margin: 0, fontSize: '1.4rem', fontWeight: 800, letterSpacing: '-0.5px' }}>Global Rankings</h2>
+                                                <div style={{ fontSize: '0.8rem', color: '#a1a1aa', marginTop: '2px' }}>Overall student engagement & performance</div>
+                                            </div>
                                         </div>
                                     </div>
-                                    <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-                                        {[
-                                            { label: 'Total', value: myEntry.totalPoints },
-                                            { label: 'Attendance', value: myEntry.attendancePoints },
-                                            { label: 'Bonus', value: myEntry.bonusPoints },
-                                            { label: 'Feedback', value: myEntry.feedbackPoints },
-                                        ].map(s => (
-                                            <div key={s.label} style={{ textAlign: 'center' }}>
-                                                <div style={{ fontSize: '1.3rem', fontWeight: 800, fontFamily: 'monospace', lineHeight: 1 }}>{s.value}</div>
-                                                <div style={{ fontSize: '0.62rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', opacity: 0.7, marginTop: '2px' }}>{s.label}</div>
+                                    
+                                    <div style={{ display: 'flex', gap: '20px', position: 'relative', zIndex: 1 }}>
+                                        <div style={{ background: 'rgba(255,255,255,0.05)', padding: '12px 20px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                                            <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '1px', color: '#a1a1aa', marginBottom: '4px' }}>Top Score</div>
+                                            <div style={{ fontSize: '1.4rem', fontWeight: 800, fontFamily: 'monospace', color: '#fbbf24', lineHeight: 1 }}>
+                                                {leaderboard.length > 0 ? leaderboard[0]?.totalPoints : '—'}
                                             </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* ── Top 3 Podium (Olympic: Silver | Gold center+tall | Bronze) ── */}
-                            {top3.length > 0 && (
-                                <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', alignItems: 'flex-end' }}>
-                                    {podiumOrder.map((entry, idx) => {
-                                        const styleI = podiumStyleIdx[idx];
-                                        const isGold = styleI === 0;
-                                        return (
-                                            <div key={entry.rank} style={{
-                                                flex: 1, background: medalGradient[styleI], borderRadius: '12px',
-                                                border: `1.5px solid ${medalBorder[styleI]}`,
-                                                padding: isGold ? '24px 16px' : '16px',
-                                                boxShadow: medalShadow[styleI], textAlign: 'center',
-                                                transition: 'transform 0.2s', cursor: 'default',
-                                                transform: isGold ? 'scale(1.04)' : 'none',
-                                                zIndex: isGold ? 1 : 0,
-                                            }}
-                                            onMouseOver={e => e.currentTarget.style.transform = isGold ? 'scale(1.06)' : 'translateY(-3px)'}
-                                            onMouseOut={e => e.currentTarget.style.transform = isGold ? 'scale(1.04)' : 'none'}
-                                            >
-                                                <div style={{ fontSize: isGold ? '2.2rem' : '1.8rem', marginBottom: '4px' }}>{medalEmoji[styleI]}</div>
-                                                <div style={{ fontSize: isGold ? '0.95rem' : '0.88rem', fontWeight: 800, color: '#111', marginBottom: '2px' }}>{entry.name}</div>
-                                                <div style={{ fontSize: '0.68rem', color: '#666', marginBottom: '8px' }}>{entry.enrollment_no || '—'}</div>
-                                                <div style={{ fontSize: isGold ? '1.8rem' : '1.5rem', fontWeight: 900, color: '#111', fontFamily: 'monospace', marginBottom: '4px' }}>{entry.totalPoints}</div>
-                                                <div style={{ fontSize: '0.62rem', fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: '0.5px' }}>points</div>
-                                                <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginTop: '8px', fontSize: '0.62rem', color: '#777' }}>
-                                                    <span title="Attendance">📋 {entry.attendancePoints}</span>
-                                                    <span title="Bonus">⚡ {entry.bonusPoints}</span>
-                                                    <span title="Feedback">💬 {entry.feedbackPoints}</span>
+                                        </div>
+                                        {myEntry && (
+                                            <div style={{ background: 'linear-gradient(135deg, rgba(99,85,241,0.2) 0%, rgba(99,85,241,0.05) 100%)', padding: '12px 20px', borderRadius: '12px', border: '1px solid rgba(99,85,241,0.3)' }}>
+                                                <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '1px', color: '#a78bfa', marginBottom: '4px' }}>Your Rank</div>
+                                                <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+                                                    <span style={{ fontSize: '1.4rem', fontWeight: 800, fontFamily: 'monospace', color: '#fff', lineHeight: 1 }}>#{myEntry.rank}</span>
+                                                    <span style={{ fontSize: '0.75rem', color: '#a1a1aa' }}>/ {leaderboard.length}</span>
                                                 </div>
                                             </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
-
-                            {/* ── Full Leaderboard Table ── */}
-                            <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', boxShadow: '0 1px 4px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 1.2rem', borderBottom: '1px solid #f0f0f0' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <Trophy size={15} color="#6355F1" />
-                                        <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#111' }}>Global Engagement Rankings</span>
+                                        )}
                                     </div>
-                                    <span style={{ fontSize: '0.68rem', color: '#bbb' }}>
-                                        {leaderboard.length} students • {leaderboard.length > 0 ? `${leaderboard[0]?.totalPoints || 0} top score` : '—'}
-                                    </span>
                                 </div>
 
-                                {loading ? (
-                                    <div style={{ padding: '3rem', textAlign: 'center', color: '#aaa' }}>Loading leaderboard...</div>
-                                ) : leaderboard.length === 0 ? (
-                                    <div style={{ padding: '3rem', textAlign: 'center', color: '#aaa' }}>
-                                        <Trophy size={40} color="#e8e8e8" style={{ marginBottom: '12px' }} />
-                                        <p style={{ fontSize: '0.88rem', fontWeight: 600, color: '#999' }}>No engagement data yet</p>
-                                        <p style={{ fontSize: '0.78rem' }}>Points will appear once sessions are completed.</p>
-                                    </div>
-                                ) : (
-                                    <div style={{ overflowX: 'auto' }}>
-                                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
-                                            <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
-                                                <tr style={{ background: '#fafafa' }}>
-                                                    {['#', 'Student', 'Total', 'Attendance', 'Bonus', 'Feedback', 'Sessions'].map(h => (
-                                                        <th key={h} style={{
-                                                            padding: '10px 14px', textAlign: h === '#' ? 'center' : 'left',
-                                                            fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase',
-                                                            letterSpacing: '0.5px', color: '#999', borderBottom: '1px solid #f0f0f0',
-                                                        }}>{h}</th>
-                                                    ))}
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {leaderboard.map(entry => {
-                                                    const isMe = entry.student_id === user?.id;
-                                                    const progressPct = entry.maxPossible > 0 ? Math.round((entry.totalPoints / entry.maxPossible) * 100) : 0;
+                                {/* ── Sleek Table ── */}
+                                <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid #f0f0f0', boxShadow: '0 4px 20px rgba(0,0,0,0.03)', overflow: 'hidden' }}>
+                                    {loading ? (
+                                        <div style={{ padding: '4rem', textAlign: 'center', color: '#a1a1aa' }}>
+                                            <div style={{ width: '40px', height: '40px', border: '3px solid #f3f3f3', borderTop: '3px solid #6355F1', borderRadius: '50%', margin: '0 auto 16px', animation: 'spin 1s linear infinite' }}></div>
+                                            Loading spectacular rankings...
+                                        </div>
+                                    ) : leaderboard.length === 0 ? (
+                                        <div style={{ padding: '4rem', textAlign: 'center', color: '#a1a1aa' }}>
+                                            <Trophy size={48} color="#f4f4f5" style={{ marginBottom: '16px' }} />
+                                            <p style={{ fontSize: '1rem', fontWeight: 600, color: '#71717a', margin: '0 0 8px' }}>No engagement data yet</p>
+                                            <p style={{ fontSize: '0.85rem' }}>Points will appear once sessions are completed.</p>
+                                        </div>
+                                    ) : (
+                                        <div style={{ overflowX: 'auto' }}>
+                                            <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0', fontSize: '0.85rem' }}>
+                                                <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
+                                                    <tr style={{ background: '#fafafa' }}>
+                                                        {['Rank', 'Student', 'Total Points', 'Attendance', 'Bonus', 'Feedback', 'Sessions'].map((h, i) => (
+                                                            <th key={h} style={{
+                                                                padding: '16px 20px', textAlign: i === 0 ? 'center' : 'left',
+                                                                fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase',
+                                                                letterSpacing: '0.5px', color: '#71717a', borderBottom: '1px solid #f0f0f0',
+                                                            }}>{h}</th>
+                                                        ))}
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {leaderboard.map((entry, idx) => {
+                                                        const isMe = entry.student_id === user?.id;
+                                                        const isTop3 = entry.rank <= 3;
+                                                        const progressPct = entry.maxPossible > 0 ? Math.round((entry.totalPoints / entry.maxPossible) * 100) : 0;
+                                                        
+                                                        const bgStyle = isMe 
+                                                            ? 'linear-gradient(90deg, rgba(99,85,241,0.08) 0%, rgba(99,85,241,0.02) 100%)' 
+                                                            : isTop3 ? 'linear-gradient(90deg, rgba(255,255,255,1) 0%, rgba(250,250,250,1) 100%)' : '#fff';
+                                                        
+                                                        const rankColors = ['#f59e0b', '#94a3b8', '#ea580c']; 
+                                                        const rankColor = isTop3 ? rankColors[entry.rank - 1] : '#a1a1aa';
 
-                                                    return (
-                                                        <tr key={entry.student_id} style={{
-                                                            borderBottom: '1px solid #f5f5f5',
-                                                            background: isMe ? '#f5f3ff' : 'transparent',
-                                                            transition: 'background 0.15s',
-                                                        }}
-                                                        onMouseOver={e => { if (!isMe) e.currentTarget.style.background = '#fafafa'; }}
-                                                        onMouseOut={e => { if (!isMe) e.currentTarget.style.background = 'transparent'; }}
-                                                        >
-                                                            <td style={{ padding: '10px 14px', textAlign: 'center', width: '50px' }}>
-                                                                {entry.rank <= 3 ? (
-                                                                    <span style={{ fontSize: '1.1rem' }}>{medalEmoji[entry.rank - 1]}</span>
-                                                                ) : (
-                                                                    <span style={{
-                                                                        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                                                                        width: '26px', height: '26px', borderRadius: '6px',
-                                                                        fontWeight: 700, fontFamily: 'monospace', fontSize: '0.78rem',
-                                                                        background: isMe ? '#6355F1' : '#f5f5f5',
-                                                                        color: isMe ? '#fff' : '#666',
-                                                                    }}>{entry.rank}</span>
-                                                                )}
-                                                            </td>
-                                                            <td style={{ padding: '10px 14px' }}>
-                                                                <div style={{ fontWeight: isMe ? 700 : 500, color: isMe ? '#6355F1' : '#333', fontSize: '0.85rem' }}>
-                                                                    {entry.name} {isMe && <span style={{ fontSize: '0.65rem', background: '#6355F1', color: '#fff', padding: '1px 6px', borderRadius: '4px', marginLeft: '6px', fontWeight: 600 }}>YOU</span>}
-                                                                </div>
-                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
-                                                                    <div style={{ flex: 1, maxWidth: '120px', height: '4px', borderRadius: '2px', background: '#f0f0f0', overflow: 'hidden' }}>
-                                                                        <div style={{
-                                                                            width: `${progressPct}%`, height: '100%', borderRadius: '2px',
-                                                                            background: progressPct >= 80 ? '#16a34a' : progressPct >= 50 ? '#d97706' : '#dc2626',
-                                                                            transition: 'width 0.5s ease',
-                                                                        }} />
+                                                        const animDelay = (idx * 0.03).toFixed(2) + 's';
+                                                        return (
+                                                            <tr key={entry.student_id} style={{
+                                                                background: bgStyle,
+                                                                transition: 'all 0.2s ease',
+                                                                animationName: 'slideUp',
+                                                                animationDuration: '0.4s',
+                                                                animationTimingFunction: 'ease',
+                                                                animationFillMode: 'forwards',
+                                                                animationDelay: animDelay,
+                                                                opacity: 0,
+                                                                transform: 'translateY(10px)',
+                                                                position: 'relative',
+                                                                cursor: 'default'
+                                                            }}
+                                                            onMouseOver={e => { 
+                                                                e.currentTarget.style.transform = 'translateY(-2px)';
+                                                                e.currentTarget.style.boxShadow = '0 10px 25px rgba(0,0,0,0.05)';
+                                                                e.currentTarget.style.zIndex = 2;
+                                                            }}
+                                                            onMouseOut={e => { 
+                                                                e.currentTarget.style.transform = 'translateY(0)';
+                                                                e.currentTarget.style.boxShadow = 'none';
+                                                                e.currentTarget.style.zIndex = 1;
+                                                            }}
+                                                            >
+                                                                {isMe && <td style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '4px', background: '#6355F1', borderTopRightRadius: '4px', borderBottomRightRadius: '4px' }}></td>}
+                                                                
+                                                                <td style={{ padding: '16px 20px', textAlign: 'center', width: '70px', borderBottom: '1px solid #f4f4f5' }}>
+                                                                    {isTop3 ? (
+                                                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                                                                            <span style={{ fontSize: '1.4rem' }}>{medalEmoji[entry.rank - 1]}</span>
+                                                                        </div>
+                                                                    ) : (
+                                                                        <span style={{
+                                                                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                                                            width: '32px', height: '32px', borderRadius: '50%',
+                                                                            fontWeight: 700, fontFamily: 'monospace', fontSize: '0.9rem',
+                                                                            background: '#f4f4f5', color: '#71717a',
+                                                                        }}>{entry.rank}</span>
+                                                                    )}
+                                                                </td>
+                                                                <td style={{ padding: '16px 20px', borderBottom: '1px solid #f4f4f5' }}>
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                                        <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: isTop3 ? rankColor : '#e4e4e7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: '0.9rem', textShadow: '0 1px 2px rgba(0,0,0,0.1)' }}>
+                                                                            {entry.name.charAt(0)}
+                                                                        </div>
+                                                                        <div>
+                                                                            <div style={{ fontWeight: isMe || isTop3 ? 700 : 500, color: isMe ? '#6355F1' : '#27272a', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                                {entry.name} 
+                                                                                {isMe && <span style={{ fontSize: '0.6rem', background: '#6355F1', color: '#fff', padding: '2px 6px', borderRadius: '4px', fontWeight: 700, letterSpacing: '0.5px' }}>YOU</span>}
+                                                                            </div>
+                                                                            <div style={{ fontSize: '0.75rem', color: '#a1a1aa' }}>{entry.enrollment_no || 'Student'}</div>
+                                                                        </div>
                                                                     </div>
-                                                                    <span style={{ fontSize: '0.62rem', color: '#bbb', fontFamily: 'monospace' }}>{progressPct}%</span>
-                                                                </div>
-                                                            </td>
-                                                            <td style={{ padding: '10px 14px' }}>
-                                                                <span style={{
-                                                                    fontWeight: 800, fontFamily: 'monospace', fontSize: '1rem',
-                                                                    color: entry.rank <= 3 ? '#111' : '#444',
-                                                                }}>{entry.totalPoints}</span>
-                                                            </td>
-                                                            <td style={{ padding: '10px 14px' }}>
-                                                                <span style={{ fontWeight: 600, fontFamily: 'monospace', color: '#6355F1', fontSize: '0.85rem' }}>{entry.attendancePoints}</span>
-                                                            </td>
-                                                            <td style={{ padding: '10px 14px' }}>
-                                                                <span style={{
-                                                                    fontWeight: 600, fontFamily: 'monospace', fontSize: '0.85rem',
-                                                                    color: entry.bonusPoints > 0 ? '#059669' : '#ccc',
-                                                                }}>{entry.bonusPoints}</span>
-                                                            </td>
-                                                            <td style={{ padding: '10px 14px' }}>
-                                                                <span style={{
-                                                                    fontWeight: 600, fontFamily: 'monospace', fontSize: '0.85rem',
-                                                                    color: entry.feedbackPoints > 0 ? '#d97706' : '#ccc',
-                                                                }}>{entry.feedbackPoints}</span>
-                                                            </td>
-                                                            <td style={{ padding: '10px 14px' }}>
-                                                                <span style={{ fontFamily: 'monospace', fontSize: '0.78rem', color: '#777' }}>
-                                                                    {entry.sessionsAttended}/{entry.sessionsEnrolled}
-                                                                </span>
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                })}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                )}
+                                                                </td>
+                                                                <td style={{ padding: '16px 20px', borderBottom: '1px solid #f4f4f5' }}>
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                                                        <span style={{
+                                                                            fontWeight: 800, fontFamily: 'monospace', fontSize: '1.2rem',
+                                                                            color: isTop3 ? rankColor : isMe ? '#6355F1' : '#27272a',
+                                                                        }}>{entry.totalPoints}</span>
+                                                                        <div style={{ width: '60px', height: '6px', borderRadius: '3px', background: '#f4f4f5', overflow: 'hidden' }}>
+                                                                            <div style={{
+                                                                                width: `${progressPct}%`, height: '100%', borderRadius: '3px',
+                                                                                background: isTop3 ? rankColor : isMe ? '#6355F1' : '#a1a1aa',
+                                                                                transition: 'width 1s cubic-bezier(0.4, 0, 0.2, 1)',
+                                                                            }} />
+                                                                        </div>
+                                                                    </div>
+                                                                </td>
+                                                                <td style={{ padding: '16px 20px', borderBottom: '1px solid #f4f4f5' }}>
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                        <div style={{ padding: '4px 8px', borderRadius: '6px', background: '#f0fdf4', color: '#16a34a', fontWeight: 600, fontFamily: 'monospace', fontSize: '0.85rem' }}>{entry.attendancePoints}</div>
+                                                                    </div>
+                                                                </td>
+                                                                <td style={{ padding: '16px 20px', borderBottom: '1px solid #f4f4f5' }}>
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                        <div style={{ padding: '4px 8px', borderRadius: '6px', background: entry.bonusPoints > 0 ? '#fffbeb' : '#f4f4f5', color: entry.bonusPoints > 0 ? '#d97706' : '#a1a1aa', fontWeight: 600, fontFamily: 'monospace', fontSize: '0.85rem' }}>{entry.bonusPoints}</div>
+                                                                    </div>
+                                                                </td>
+                                                                <td style={{ padding: '16px 20px', borderBottom: '1px solid #f4f4f5' }}>
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                                        <div style={{ padding: '4px 8px', borderRadius: '6px', background: entry.feedbackPoints > 0 ? '#eff6ff' : '#f4f4f5', color: entry.feedbackPoints > 0 ? '#2563eb' : '#a1a1aa', fontWeight: 600, fontFamily: 'monospace', fontSize: '0.85rem' }}>{entry.feedbackPoints}</div>
+                                                                    </div>
+                                                                </td>
+                                                                <td style={{ padding: '16px 20px', borderBottom: '1px solid #f4f4f5' }}>
+                                                                    <span style={{ fontFamily: 'monospace', fontSize: '0.85rem', color: '#71717a', fontWeight: 500 }}>
+                                                                        {entry.sessionsAttended} / {entry.sessionsEnrolled}
+                                                                    </span>
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        </>
                         );
                     })()}
                 </div>
@@ -757,7 +745,12 @@ export default function FeedbackPage() {
                 </div>
             )}
 
-            <style>{`@keyframes shimmer { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }`}</style>
+            <style>{`
+                @keyframes shimmer { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }
+                @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+                @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+                @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+            `}</style>
         </div>
     );
 }
