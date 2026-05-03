@@ -6,219 +6,130 @@ import { withAuth } from '@/lib/middleware';
 /**
  * Global Engagement Leaderboard
  *
+ * Built from student_attendance_marks (the authoritative attendance table).
+ *
  * Points per session:
- *   Attendance : 0–5 (based on ping presence %)
- *   Bonus      : 0–1 (present in first 8 min)
- *   Feedback   : 0–3 (submitted feedback form for session)
+ *   Attendance : P/PO/C = 5 pts, H = 3 pts, A/L = 0 pts
+ *   Bonus      : 1 pt  (P/PO/C mark — full presence)
+ *   Feedback   : 3 pts (submitted feedback for that session)
  *   Max/session: 9
  *
- * Leaderboard aggregates ALL session points globally.
+ * This implementation uses 4 bulk queries (no per-session loops).
  */
-
-const normalizeMac = (mac) => {
-  if (!mac) return '';
-  return mac.trim().toUpperCase().replace(/[-.\s]/g, ':').replace(/:+/g, ':').replace(/^:|:$/g, '');
-};
-const isValidMac = (mac) => /^([A-F0-9]{2}:){5}[A-F0-9]{2}$/.test(mac);
 
 async function handler(req) {
   try {
-    // 1. Fetch all completed sessions
-    const { data: sessions } = await supabaseAdmin
-      .from('sessions')
-      .select('id, course_id, session_date, start_time, end_time, status')
-      .eq('status', 'completed')
-      .order('session_date', { ascending: true });
+    // ── 1. Fetch ALL attendance marks (paginated to bypass Supabase 1000-row cap) ──
+    // With 18 students × ~237 sessions ≈ 4,000+ rows, a single query would be truncated.
+    const PAGE_SIZE = 1000;
+    let allMarks = [];
+    let from = 0;
+    while (true) {
+      const { data: page, error: marksError } = await supabaseAdmin
+        .from('student_attendance_marks')
+        .select('student_id, session_id, session_date, session_slot, status, course_id')
+        .not('session_id', 'is', null)
+        .range(from, from + PAGE_SIZE - 1);
 
-    if (!sessions || sessions.length === 0) {
+      if (marksError) throw new Error('student_attendance_marks: ' + marksError.message);
+      if (!page || page.length === 0) break;
+      allMarks = allMarks.concat(page);
+      if (page.length < PAGE_SIZE) break;
+      from += PAGE_SIZE;
+    }
+
+    const marks = allMarks;
+
+    if (marks.length === 0) {
       return NextResponse.json({ leaderboard: [], meta: { totalSessions: 0 } });
     }
 
-    // 2. Fetch all students
-    const { data: allStudents } = await supabaseAdmin
+    // ── 2. Fetch all students ────────────────────────────────────────────────
+    const { data: allStudents, error: studentsError } = await supabaseAdmin
       .from('students')
-      .select('id, enrollment_no, mac_address, users ( first_name, last_name )');
+      .select('id, enrollment_no, users ( first_name, last_name )');
+
+    if (studentsError) throw new Error('students: ' + studentsError.message);
 
     const studentMap = {};
-    const macToStudentId = {};
     (allStudents || []).forEach(s => {
       studentMap[s.id] = {
         name: `${s.users?.first_name || ''} ${s.users?.last_name || ''}`.trim() || 'Unknown',
         enrollment_no: s.enrollment_no || '',
-        mac: s.mac_address ? normalizeMac(s.mac_address) : '',
       };
-      if (s.mac_address) {
-        macToStudentId[normalizeMac(s.mac_address)] = s.id;
-      }
     });
 
-    // 3. Fetch all enrollments (to know which students belong to which course)
-    const { data: enrollments } = await supabaseAdmin
-      .from('course_enrollments')
-      .select('student_id, course_id');
-
-    const enrollmentMap = {};  // courseId -> Set of studentIds
-    (enrollments || []).forEach(e => {
-      if (!enrollmentMap[e.course_id]) enrollmentMap[e.course_id] = new Set();
-      enrollmentMap[e.course_id].add(e.student_id);
-    });
-
-    // 4. Fetch all feedback responses (to know who submitted feedback for which session)
-    const { data: feedbackResponses } = await supabaseAdmin
+    // ── 3. Fetch all feedback responses ─────────────────────────────────────
+    const { data: feedbackResponses, error: fbError } = await supabaseAdmin
       .from('feedback_responses')
       .select('student_id, session_id')
       .not('rating', 'is', null);
 
-    // Build set of "studentId:sessionId" for quick lookup
+    if (fbError) throw new Error('feedback_responses: ' + fbError.message);
+
+    // Build set of "studentId:sessionId" for O(1) lookup
     const feedbackSet = new Set();
     (feedbackResponses || []).forEach(r => {
       feedbackSet.add(`${r.student_id}:${r.session_id}`);
     });
 
-    // 5. Fetch scanner settings
-    const { data: settings } = await supabaseAdmin
-      .from('system_settings')
-      .select('scanner_interval_minutes, min_signal, ping_interval, presence_threshold')
-      .eq('id', 1)
-      .single();
+    // ── 4. Count total distinct completed sessions for meta ──────────────────
+    const distinctSessions = new Set(marks.map(m => m.session_id));
+    const totalSessions = distinctSessions.size;
 
-    const SCANNER_INTERVAL_MIN = settings?.scanner_interval_minutes || settings?.ping_interval || 6;
-    const MIN_SIGNAL = settings?.min_signal ?? settings?.presence_threshold ?? 2;
-
-    // 5b. Fetch ALL attendance_records as a fallback source
-    const { data: attendanceRecords } = await supabaseAdmin
-      .from('attendance_records')
-      .select('student_id, session_id, status');
-
-    // Build lookup: "studentId:sessionId" -> status
-    const attendanceMap = {};
-    (attendanceRecords || []).forEach(r => {
-      attendanceMap[`${r.student_id}:${r.session_id}`] = r.status;
-    });
-
-    // 6. Process each session
-    // Accumulate points: studentId -> { attendance, bonus, feedback, sessions }
+    // ── 5. Aggregate points per student ─────────────────────────────────────
+    //
+    // Status → attendance points mapping:
+    //   P / PO / C  →  5 pts  (full presence, earns bonus too)
+    //   H           →  3 pts  (partial presence, no bonus)
+    //   A / L / other → 0 pts
+    //
     const pointsMap = {};
 
-    for (const session of sessions) {
-      const courseId = session.course_id;
-      const enrolledStudents = enrollmentMap[courseId];
-      if (!enrolledStudents || enrolledStudents.size === 0) continue;
+    for (const mark of marks) {
+      const { student_id: studentId, session_id: sessionId, status } = mark;
+      const student = studentMap[studentId];
+      if (!student) continue;
 
-      // Build time window
-      const date = session.session_date;
-      const [sh, sm] = (session.start_time || '00:00:00').split(':').map(Number);
-      const [eh, em] = (session.end_time || '23:59:00').split(':').map(Number);
-      const sessionStartDate = new Date(`${date}T${session.start_time}+05:30`);
-      const sessionEndDate = new Date(`${date}T${session.end_time}+05:30`);
-      const sessionDurationMin = (eh * 60 + em) - (sh * 60 + sm);
-      const expectedTotalSnapshots = Math.floor(sessionDurationMin / SCANNER_INTERVAL_MIN);
-      sessionEndDate.setMinutes(sessionEndDate.getMinutes() + 2);
+      if (!pointsMap[studentId]) {
+        pointsMap[studentId] = {
+          name: student.name,
+          enrollment_no: student.enrollment_no,
+          attendancePoints: 0,
+          bonusPoints: 0,
+          feedbackPoints: 0,
+          totalPoints: 0,
+          sessionsEnrolled: 0,
+          sessionsAttended: 0,
+        };
+      }
 
-      // Fetch wifi snapshots for this session's time window
-      const { data: snapshots } = await supabaseAdmin
-        .from('wifi_snapshots')
-        .select('id, iw_dump, captured_at')
-        .gte('captured_at', sessionStartDate.toISOString())
-        .lte('captured_at', sessionEndDate.toISOString())
-        .order('captured_at', { ascending: true });
+      pointsMap[studentId].sessionsEnrolled++;
 
-      const orderedSnapshotIds = (snapshots || []).map(s => s.id);
-      const totalSnapshots = Math.max(orderedSnapshotIds.length, expectedTotalSnapshots);
-      const hasWifiData = (snapshots || []).length > 0;
+      // Attendance points
+      let attendancePoints = 0;
+      let bonusPoints = 0;
 
-      // Parse snapshots to build MAC -> snapshot presence
-      const macToSnapshots = {};  // mac -> Set of snapshot IDs
-      (snapshots || []).forEach(snap => {
-        let clients = [];
-        try {
-          let dump = snap.iw_dump;
-          if (typeof dump === 'string') dump = JSON.parse(dump);
-          if (typeof dump === 'string') dump = JSON.parse(dump);
-          clients = Array.isArray(dump) ? dump : [];
-        } catch (e) { clients = []; }
+      if (status === 'P' || status === 'PO' || status === 'C') {
+        attendancePoints = 5;
+        bonusPoints = 1;  // full presence bonus
+        pointsMap[studentId].sessionsAttended++;
+      } else if (status === 'H') {
+        attendancePoints = 3;
+        pointsMap[studentId].sessionsAttended++;
+      }
+      // A, L → 0 points, not counted as attended
 
-        clients.forEach(c => {
-          if (!c.mac || c.mac.trim() === '') return;
-          const mac = normalizeMac(c.mac);
-          if (!isValidMac(mac)) return;
-          const sig = parseInt(c.signal) || 0;
-          if (sig <= MIN_SIGNAL) return;
+      // Feedback points
+      const feedbackPoints = feedbackSet.has(`${studentId}:${sessionId}`) ? 3 : 0;
 
-          if (!macToSnapshots[mac]) macToSnapshots[mac] = new Set();
-          macToSnapshots[mac].add(snap.id);
-        });
-      });
-
-      // Calculate points for each enrolled student
-      enrolledStudents.forEach(studentId => {
-        const student = studentMap[studentId];
-        if (!student) return;
-
-        if (!pointsMap[studentId]) {
-          pointsMap[studentId] = {
-            name: student.name,
-            enrollment_no: student.enrollment_no,
-            attendancePoints: 0,
-            bonusPoints: 0,
-            feedbackPoints: 0,
-            totalPoints: 0,
-            sessionsEnrolled: 0,
-            sessionsAttended: 0,
-          };
-        }
-        pointsMap[studentId].sessionsEnrolled++;
-
-        let attendancePoints = 0;
-        let bonusPoints = 0;
-
-        if (hasWifiData) {
-          // ── PRIMARY: Wi-Fi ping-based scoring ──
-          const mac = student.mac;
-          const studentSnapshots = mac ? (macToSnapshots[mac] || new Set()) : new Set();
-          const pingCount = studentSnapshots.size;
-
-          if (totalSnapshots > 0 && pingCount > 0) {
-            const presencePercent = (pingCount / totalSnapshots) * 100;
-
-            if (presencePercent >= 85) attendancePoints = 5;
-            else if (presencePercent >= 70) attendancePoints = 4;
-            else if (presencePercent >= 45) attendancePoints = 3;
-
-            // Bonus: present in first 2 snapshots
-            if (attendancePoints > 0) {
-              const first2 = orderedSnapshotIds.slice(0, 2);
-              const earlyPresent = first2.some(id => studentSnapshots.has(id));
-              if (earlyPresent) bonusPoints = 1;
-              pointsMap[studentId].sessionsAttended++;
-            }
-          }
-        } else {
-          // ── FALLBACK: attendance_records table (CSV import) ──
-          const recordStatus = attendanceMap[`${studentId}:${session.id}`];
-          if (recordStatus === 'present') {
-            attendancePoints = 5;
-            bonusPoints = 1; // full credit when admin-verified present
-            pointsMap[studentId].sessionsAttended++;
-          } else if (recordStatus === 'partial') {
-            attendancePoints = 3;
-            pointsMap[studentId].sessionsAttended++;
-          }
-          // 'absent' or undefined -> 0 points
-        }
-
-        // ── Feedback ──
-        const hasFeedback = feedbackSet.has(`${studentId}:${session.id}`);
-        const feedbackPoints = hasFeedback ? 3 : 0;
-
-        pointsMap[studentId].attendancePoints += attendancePoints;
-        pointsMap[studentId].bonusPoints += bonusPoints;
-        pointsMap[studentId].feedbackPoints += feedbackPoints;
-        pointsMap[studentId].totalPoints += attendancePoints + bonusPoints + feedbackPoints;
-      });
+      pointsMap[studentId].attendancePoints += attendancePoints;
+      pointsMap[studentId].bonusPoints += bonusPoints;
+      pointsMap[studentId].feedbackPoints += feedbackPoints;
+      pointsMap[studentId].totalPoints += attendancePoints + bonusPoints + feedbackPoints;
     }
 
-    // 7. Build and sort leaderboard
+    // ── 6. Build and sort leaderboard ────────────────────────────────────────
     const leaderboard = Object.entries(pointsMap)
       .map(([studentId, data]) => ({
         student_id: studentId,
@@ -227,7 +138,6 @@ async function handler(req) {
       }))
       .filter(s => s.sessionsEnrolled > 0)
       .sort((a, b) => {
-        // Sort by total points desc, then by attendance rate desc
         if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
         return b.sessionsAttended - a.sessionsAttended;
       })
@@ -239,9 +149,10 @@ async function handler(req) {
     return NextResponse.json({
       leaderboard,
       meta: {
-        totalSessions: sessions.length,
+        totalSessions,
         maxPerSession: 9,
         breakdown: '5 attendance + 1 bonus + 3 feedback',
+        source: 'student_attendance_marks',
       },
     });
   } catch (err) {

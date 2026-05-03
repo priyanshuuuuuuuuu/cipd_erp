@@ -6,7 +6,7 @@ import {
     LayoutGrid, Calendar, BookOpen, Users, MessageSquare, Settings,
     LogOut, Search, Menu, ChevronLeft, ChevronRight, FileText, Link as LinkIcon,
     Download, Upload, Clock, CheckCircle, AlertCircle, XCircle, ArrowLeft,
-    Paperclip, X, User, MapPin, Send
+    Paperclip, X, User, MapPin, Send, Trophy
 } from 'lucide-react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
@@ -143,6 +143,7 @@ export default function CourseDetailPage() {
                         <div onClick={() => navTo('/grades')} className="nav-item" style={{ cursor: 'pointer' }}><BookOpen size={18} /> <span>Grades</span></div>
                         <div onClick={() => navTo('/teachers')} className="nav-item" style={{ cursor: 'pointer' }}><Users size={18} /> <span>Teachers</span></div>
                         <div onClick={() => navTo('/feedback')} className="nav-item" style={{ cursor: 'pointer' }}><MessageSquare size={18} /> <span>Feedback</span></div>
+                        <div onClick={() => navTo('/leaderboard')} className="nav-item" style={{ cursor: 'pointer' }}><Trophy size={18} /> <span>Leaderboard</span></div>
                         <div className="nav-item active"><BookOpen size={18} /> <span>Courses</span></div>
                         <div onClick={() => navTo('/calendar')} className="nav-item" style={{ cursor: 'pointer' }}><Calendar size={18} /> <span>Calendar</span></div>
                     </nav>

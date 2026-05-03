@@ -5,7 +5,7 @@ import '../Dashboard.css';
 import {
     LayoutGrid, Calendar, BookOpen, Users, MessageSquare, Settings,
     LogOut, Bell, Search, Menu, ChevronLeft, ChevronRight,
-    CheckCircle, XCircle, Clock, AlertCircle, Filter, Flame, Wifi, WifiOff, TrendingUp
+    CheckCircle, XCircle, Clock, AlertCircle, Filter, Flame, Wifi, WifiOff, TrendingUp, Trophy
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { useRouter } from 'next/navigation';
@@ -164,6 +164,7 @@ export default function AttendancePage() {
                     <div onClick={() => router.push('/grades')} className="nav-item" style={{ cursor: 'pointer' }}><BookOpen size={18} /> <span>Grades</span></div>
                     <div onClick={() => router.push('/teachers')} className="nav-item" style={{ cursor: 'pointer' }}><Users size={18} /> <span>Teachers</span></div>
                     <div onClick={() => router.push('/feedback')} className="nav-item" style={{ cursor: 'pointer' }}><MessageSquare size={18} /> <span>Feedback</span></div>
+                    <div onClick={() => router.push('/leaderboard')} className="nav-item" style={{ cursor: 'pointer' }}><Trophy size={18} /> <span>Leaderboard</span></div>
                     <div onClick={() => router.push('/courses')} className="nav-item" style={{ cursor: 'pointer' }}><BookOpen size={18} /> <span>Courses</span></div>
                     <div onClick={() => router.push('/calendar')} className="nav-item" style={{ cursor: 'pointer' }}><Calendar size={18} /> <span>Calendar</span></div>
                 </nav>
