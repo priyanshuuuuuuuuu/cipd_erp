@@ -7,42 +7,71 @@ async function handler(req) {
   try {
     const { searchParams } = new URL(req.url);
     const courseFilter = searchParams.get('course');
-    const dateFilter = searchParams.get('date'); // YYYY-MM-DD
-    const page = parseInt(searchParams.get('page') || '1');
+    const dateFilter   = searchParams.get('date'); // YYYY-MM-DD
+    const page  = parseInt(searchParams.get('page')  || '1');
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = (page - 1) * limit;
 
+    // Build query against student_attendance_marks joined to sessions
     let query = supabaseAdmin
-      .from('attendance_records')
+      .from('student_attendance_marks')
       .select(`
-        id, ping_count, status, points, calculated_at,
+        id, status, session_date, session_slot, source_domain, iso_week,
         sessions (
           id, title, session_date, start_time, end_time,
           courses ( id, name )
         )
       `, { count: 'exact' })
       .eq('student_id', req.user.id)
-      .order('calculated_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+      .not('session_id', 'is', null) // only linked marks
+      .order('session_date', { ascending: false })
+      .order('session_slot', { ascending: true });
 
-    const { data: records, error, count } = await query;
+    if (dateFilter) {
+      query = query.eq('session_date', dateFilter);
+    }
+
+    if (courseFilter && courseFilter !== 'all') {
+      // Filter will be applied post-fetch via sessions.courses
+    }
+
+    const { data: marks, error, count } = await query
+      .range(offset, offset + limit - 1);
 
     if (error) {
       console.error('Attendance sessions error:', JSON.stringify(error));
       return NextResponse.json({ error: 'Failed to fetch sessions', detail: error.message }, { status: 500 });
     }
 
-    // Post-filter by date and course
-    let filtered = records || [];
-    if (dateFilter) {
-      filtered = filtered.filter(r => r.sessions?.session_date === dateFilter);
-    }
+    let filtered = marks || [];
+
+    // Post-filter by course if needed
     if (courseFilter && courseFilter !== 'all') {
-      filtered = filtered.filter(r => r.sessions?.courses?.id === courseFilter || r.sessions?.courses?.name === courseFilter);
+      filtered = filtered.filter(m =>
+        m.sessions?.courses?.id   === courseFilter ||
+        m.sessions?.courses?.name === courseFilter
+      );
     }
 
+    // Map to the shape the frontend expects (same as old attendance_records shape)
+    const sessions = filtered.map(m => ({
+      id:           m.id,
+      status:       mapStatusForDisplay(m.status),
+      points:       statusToPoints(m.status),
+      ping_count:   null,
+      calculated_at: m.session_date,
+      sessions: m.sessions ? {
+        id:           m.sessions.id,
+        title:        m.sessions.title || `Session ${m.session_slot} — ${m.source_domain || ''}`,
+        session_date: m.session_date,
+        start_time:   m.sessions.start_time,
+        end_time:     m.sessions.end_time,
+        courses:      m.sessions.courses,
+      } : null,
+    }));
+
     return NextResponse.json({
-      sessions: filtered,
+      sessions,
       pagination: {
         page,
         limit,
@@ -53,6 +82,28 @@ async function handler(req) {
   } catch (err) {
     console.error('Attendance sessions error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+/** Map our status codes to the display strings the frontend expects */
+function mapStatusForDisplay(s) {
+  switch (s) {
+    case 'P':  return 'present';
+    case 'PO': return 'present_online';
+    case 'H':  return 'half';
+    case 'A':  return 'absent';
+    case 'L':  return 'leave';
+    case 'C':  return 'present'; // C within limit = present
+    default:   return s;
+  }
+}
+
+function statusToPoints(s) {
+  switch (s) {
+    case 'P':  case 'PO': case 'C': return 1.0;
+    case 'H':  return 0.5;
+    case 'A':  return -1.0;
+    default:   return 0.0;
   }
 }
 
