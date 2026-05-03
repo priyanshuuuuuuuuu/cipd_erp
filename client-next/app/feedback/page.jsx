@@ -202,6 +202,7 @@ export default function FeedbackPage() {
                         <div className="nav-item" onClick={() => navTo('/grades')} style={{ cursor: 'pointer' }}><BookOpen size={18} /> <span>Grades</span></div>
                         <div className="nav-item" onClick={() => navTo('/teachers')} style={{ cursor: 'pointer' }}><Users size={18} /> <span>Teachers</span></div>
                         <div className="nav-item active"><MessageSquare size={18} /> <span>Feedback</span></div>
+                        <div className="nav-item" onClick={() => navTo('/leaderboard')} style={{ cursor: 'pointer' }}><Trophy size={18} /> <span>Leaderboard</span></div>
                         <div className="nav-item" onClick={() => navTo('/courses')} style={{ cursor: 'pointer' }}><FileText size={18} /> <span>Courses</span></div>
                         <div className="nav-item" onClick={() => navTo('/calendar')} style={{ cursor: 'pointer' }}><Calendar size={18} /> <span>Calendar</span></div>
                     </nav>
