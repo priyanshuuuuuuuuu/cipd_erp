@@ -5,8 +5,9 @@ import '../Dashboard.css';
 import {
     LayoutGrid, Calendar, BookOpen, Users, MessageSquare, Settings,
     LogOut, Bell, Search, Menu, ChevronLeft, ChevronRight,
-    CheckCircle, XCircle, Clock, AlertCircle, Filter, Flame, Wifi, WifiOff
+    CheckCircle, XCircle, Clock, AlertCircle, Filter, Flame, Wifi, WifiOff, TrendingUp
 } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '@/lib/api';
@@ -45,6 +46,7 @@ export default function AttendancePage() {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [selectedCourse, setSelectedCourse] = useState('all');
     const [currentCalendarMonth, setCurrentCalendarMonth] = useState(null);
+    const [weeklyPage, setWeeklyPage] = useState(0);
 
     // Live data
     const [summaryData, setSummaryData] = useState(null);
@@ -54,16 +56,13 @@ export default function AttendancePage() {
     // Presence indicator
     const [presence, setPresence] = useState({ present: false, signal: 0, lastUpdated: null });
 
-    // Date filter for session history — defer to useEffect to avoid hydration mismatch
-    const [sessionDate, setSessionDate] = useState('');
-
     const displayName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Student' : 'Student';
 
     const fetchData = useCallback(async () => {
         try {
             const [sumRes, sesRes, presRes] = await Promise.allSettled([
                 api.get('/api/students/attendance/summary'),
-                api.get(`/api/students/attendance/sessions?date=${sessionDate}`),
+                api.get(`/api/students/attendance/sessions?limit=300`),
                 api.get('/api/students/attendance/presence'),
             ]);
             if (sumRes.status === 'fulfilled') setSummaryData(sumRes.value);
@@ -72,15 +71,12 @@ export default function AttendancePage() {
         } finally {
             setLoading(false);
         }
-    }, [sessionDate]);
+    }, []);
 
-    useEffect(() => { if (authReady && sessionDate) fetchData(); }, [fetchData, authReady, sessionDate]);
+    useEffect(() => { if (authReady) fetchData(); }, [fetchData, authReady]);
 
-    // Set today's date on mount (avoids SSR hydration mismatch)
+    // Set today's date on mount for calendar
     useEffect(() => {
-        const now = new Date();
-        const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
-        setSessionDate(today);
         setCurrentCalendarMonth(new Date());
     }, []);
 
@@ -88,7 +84,8 @@ export default function AttendancePage() {
     const overall = {
         total: summaryData?.overall?.total || 0,
         attended: summaryData?.overall?.attended || 0,
-        missed: summaryData?.overall?.missed || 0,
+        absent: summaryData?.overall?.absent || 0,
+        leave: summaryData?.overall?.leave || 0,
         pct: summaryData?.overall?.pct || 0,
     };
     const streak = summaryData?.streak || 0;
@@ -98,16 +95,18 @@ export default function AttendancePage() {
         faculty: c.faculty || '',
         total: c.total || 0,
         attended: c.attended || 0,
+        absent:   c.absent  || 0,
+        leave:    c.leave   || 0,
         pct: c.pct || 0,
         color: ['#66d9e8', '#a78bfa', '#93c5fd', '#f9a8d4', '#fdba74'][i % 5],
     }));
 
-    // Sessions for selected date
+    // Sessions from API
     const sessions = sessionHistory.map((s, i) => {
         const sess = s.sessions || {};
         const sessionDate = sess.session_date ? new Date(sess.session_date + 'T00:00:00') : null;
         const courseName = sess.courses?.name || '';
-        const courseCode = courseName ? courseName.split(' ').map(w => w[0]).join('').slice(0, 4).toUpperCase() : `C${i + 1}`;
+        const courseCode = courseName ? courseName.split(/[\s&]+/).filter(Boolean).map(w => w[0]).join('').slice(0, 4).toUpperCase() : `C${i + 1}`;
         return {
             date: sessionDate ? sessionDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : 'N/A',
             day: sessionDate ? sessionDate.toLocaleDateString('en-GB', { weekday: 'short' }) : '',
@@ -204,28 +203,76 @@ export default function AttendancePage() {
                     </header>
 
                     <div className="att-top-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
-                        <div className="stat-card att-donut-section" style={{ padding: '2rem', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '2.5rem' }}>
-                            <div className="att-donut-wrap" style={{ position: 'relative', flexShrink: 0 }}>
-                                <Donut pct={overall.pct} size={140} stroke={12} color="#66d9e8" bg="#e8f9fb" />
-                                <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
-                                    <div style={{ fontSize: '1.7rem', fontWeight: 800, color: '#003366', letterSpacing: '-1px', lineHeight: 1 }}>{Math.round(overall.pct)}%</div>
-                                    <div style={{ fontSize: '0.6rem', color: '#aaa', marginTop: '3px' }}>overall</div>
+                        {/* BENTO BOX REDESIGN - Left Side */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            {/* Main Hero Card */}
+                            <div style={{ 
+                                background: 'linear-gradient(135deg, #0f172a 0%, #334155 100%)', 
+                                borderRadius: '24px', 
+                                padding: '2rem', 
+                                color: 'white',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                boxShadow: '0 10px 30px -5px rgba(15, 23, 42, 0.4)',
+                                position: 'relative',
+                                overflow: 'hidden'
+                            }}>
+                                {/* Decorative elements */}
+                                <div style={{ position: 'absolute', top: '-20px', right: '-20px', width: '150px', height: '150px', background: 'rgba(255,255,255,0.05)', borderRadius: '50%', filter: 'blur(20px)' }}></div>
+                                <div style={{ position: 'absolute', bottom: '-40px', left: '10%', width: '200px', height: '200px', background: 'rgba(56, 189, 248, 0.15)', borderRadius: '50%', filter: 'blur(30px)' }}></div>
+
+                                <div style={{ position: 'relative', zIndex: 1 }}>
+                                    <div style={{ fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 600, color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>Semester Overview</div>
+                                    <div style={{ fontSize: '3.2rem', fontWeight: 800, letterSpacing: '-1px', lineHeight: 1 }}>{Math.round(overall.pct)}%</div>
+                                    <div style={{ fontSize: '1rem', fontWeight: 500, color: '#38bdf8', marginTop: '4px' }}>Overall Attendance</div>
+                                    <div style={{ marginTop: '1.5rem', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                                        <div style={{ background: 'rgba(255,255,255,0.1)', padding: '6px 14px', borderRadius: '12px', backdropFilter: 'blur(10px)', fontSize: '0.8rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                            <Flame size={14} color="#fbbf24" /> {streak} Day Streak
+                                        </div>
+                                        <div style={{ background: 'rgba(255,255,255,0.1)', padding: '6px 14px', borderRadius: '12px', backdropFilter: 'blur(10px)', fontSize: '0.8rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                            <BookOpen size={14} color="#94a3b8" /> {overall.total} Total
+                                        </div>
+                                    </div>
+                                </div>
+                                <div style={{ position: 'relative', zIndex: 1, filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.2))' }}>
+                                    <Donut pct={overall.pct} size={120} stroke={12} color="#38bdf8" bg="rgba(255,255,255,0.1)" />
                                 </div>
                             </div>
-                            <div style={{ flex: 1 }}>
-                                <div style={{ fontSize: '1rem', fontWeight: 700, color: '#000', marginBottom: '14px' }}>Semester Overview</div>
-                                <div className="att-stats-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                                    {[['#ecfccb','#365314','#4d7c0f',overall.attended,'Attended'],['#ffe4e6','#9f1239','#be123c',overall.missed,'Missed'],['#e0e7ff','#3730a3','#4338ca',overall.total,'Total Classes'],['#fef9c3','#854d0e','#a16207',streak,'Day Streak']].map(([bg,tc,sc,val,label],i)=>(
-                                        <div key={i} style={{ background: bg, borderRadius: '14px', padding: '12px 14px' }}>
-                                            <div style={{ fontSize: '1.35rem', fontWeight: 700, color: tc }}>{val}</div>
-                                            <div style={{ fontSize: '0.68rem', color: sc, fontWeight: 500 }}>{label}</div>
-                                        </div>
-                                    ))}
+
+                            {/* Stats Bento Grid */}
+                            <div className="att-stats-bento" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+                                <div style={{ background: '#fff', borderRadius: '20px', padding: '1.2rem', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', border: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', gap: '12px', transition: 'transform 0.2s ease', cursor: 'default' }} onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}>
+                                    <div style={{ width: '36px', height: '36px', borderRadius: '12px', background: '#dcfce7', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <CheckCircle size={18} strokeWidth={2.5} />
+                                    </div>
+                                    <div>
+                                        <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#0f172a', lineHeight: 1 }}>{overall.attended}</div>
+                                        <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#16a34a', marginTop: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Attended</div>
+                                    </div>
+                                </div>
+                                <div style={{ background: '#fff', borderRadius: '20px', padding: '1.2rem', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', border: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', gap: '12px', transition: 'transform 0.2s ease', cursor: 'default' }} onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}>
+                                    <div style={{ width: '36px', height: '36px', borderRadius: '12px', background: '#fee2e2', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <XCircle size={18} strokeWidth={2.5} />
+                                    </div>
+                                    <div>
+                                        <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#0f172a', lineHeight: 1 }}>{overall.absent}</div>
+                                        <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#ef4444', marginTop: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Absent</div>
+                                    </div>
+                                </div>
+                                <div style={{ background: '#fff', borderRadius: '20px', padding: '1.2rem', boxShadow: '0 4px 15px rgba(0,0,0,0.03)', border: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', gap: '12px', transition: 'transform 0.2s ease', cursor: 'default' }} onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}>
+                                    <div style={{ width: '36px', height: '36px', borderRadius: '12px', background: '#fef3c7', color: '#d97706', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <Clock size={18} strokeWidth={2.5} />
+                                    </div>
+                                    <div>
+                                        <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#0f172a', lineHeight: 1 }}>{overall.leave}</div>
+                                        <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#d97706', marginTop: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Leave</div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="stat-card att-calendar-card" style={{ padding: '1.5rem 2rem', borderRadius: '20px' }}>
+                        <div className="stat-card att-calendar-card" style={{ padding: '1.5rem 2rem', borderRadius: '24px', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px rgba(0,0,0,0.02)' }}>
                             <div className="att-cal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <button onClick={prevCalMonth} style={{ background: 'none', border: '1px solid #eee', borderRadius: '8px', width: '26px', height: '26px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888', fontSize: '0.8rem' }}>
@@ -270,7 +317,66 @@ export default function AttendancePage() {
                         </div>
                     </div>
 
-                    {/* Course-wise Attendance as Donut Circles */}
+                    {/* Weekly Attendance Trend */}
+                    {!loading && summaryData?.weeklyData && summaryData.weeklyData.length > 0 && (
+                        <div style={{ marginBottom: '1.5rem', background: '#fff', borderRadius: '24px', padding: '1.5rem 2rem', border: '1px solid #f1f5f9', boxShadow: '0 4px 20px rgba(0,0,0,0.02)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                                <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <div style={{ background: '#e0f2fe', padding: '6px', borderRadius: '8px', color: '#0284c7', display: 'flex' }}><TrendingUp size={16} /></div> 
+                                    Weekly Attendance Trend
+                                </div>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                    <button 
+                                        disabled={weeklyPage >= Math.ceil((summaryData.weeklyData.length || 1) / 10) - 1} 
+                                        onClick={() => setWeeklyPage(p => p + 1)} 
+                                        style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '6px 12px', fontSize: '0.8rem', fontWeight: 600, cursor: weeklyPage >= Math.ceil((summaryData.weeklyData.length || 1) / 10) - 1 ? 'not-allowed' : 'pointer', color: weeklyPage >= Math.ceil((summaryData.weeklyData.length || 1) / 10) - 1 ? '#cbd5e1' : '#64748b', transition: 'all 0.2s' }}>
+                                        Older
+                                    </button>
+                                    <button 
+                                        disabled={weeklyPage === 0} 
+                                        onClick={() => setWeeklyPage(p => Math.max(0, p - 1))} 
+                                        style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '6px 12px', fontSize: '0.8rem', fontWeight: 600, cursor: weeklyPage === 0 ? 'not-allowed' : 'pointer', color: weeklyPage === 0 ? '#cbd5e1' : '#64748b', transition: 'all 0.2s' }}>
+                                        Newer
+                                    </button>
+                                </div>
+                            </div>
+                            <div style={{ width: '100%', height: '240px' }}>
+                                {(() => {
+                                    const allWeeks = summaryData.weeklyData;
+                                    const total = allWeeks.length;
+                                    const start = Math.max(0, total - (weeklyPage + 1) * 10);
+                                    const end = Math.max(0, total - weeklyPage * 10);
+                                    const visibleData = allWeeks.slice(start, end);
+                                    
+                                    return (
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <AreaChart data={visibleData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                                <defs>
+                                                    <linearGradient id="colorPct" x1="0" y1="0" x2="0" y2="1">
+                                                        <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.3}/>
+                                                        <stop offset="95%" stopColor="#38bdf8" stopOpacity={0}/>
+                                                    </linearGradient>
+                                                </defs>
+                                                <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#f1f5f9" />
+                                                <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b', fontWeight: 500 }} dy={10} />
+                                                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b', fontWeight: 500 }} domain={[0, 100]} />
+                                                <Tooltip 
+                                                    contentStyle={{ borderRadius: '16px', border: '1px solid #f1f5f9', boxShadow: '0 10px 25px rgba(0,0,0,0.05)', padding: '12px 16px' }}
+                                                    itemStyle={{ color: '#0f172a', fontWeight: 700, fontSize: '1.1rem' }}
+                                                    labelStyle={{ color: '#64748b', fontSize: '0.8rem', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}
+                                                    labelFormatter={(label, payload) => payload && payload.length ? payload[0].payload.dateRange : label}
+                                                    formatter={(value) => [`${value}%`, 'Attendance']}
+                                                />
+                                                <Area type="monotone" dataKey="pct" stroke="#0ea5e9" strokeWidth={3} fillOpacity={1} fill="url(#colorPct)" activeDot={{ r: 6, fill: '#0ea5e9', stroke: '#fff', strokeWidth: 3, boxShadow: '0 0 10px rgba(14,165,233,0.5)' }} />
+                                            </AreaChart>
+                                        </ResponsiveContainer>
+                                    );
+                                })()}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Course-wise Attendance */}
                     <div style={{ marginBottom: '1.5rem' }}>
                         <div style={{ fontSize: '1rem', fontWeight: 700, color: '#000', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}><BookOpen size={16} /> Course-wise Attendance</div>
                         {loading ? (
@@ -284,19 +390,39 @@ export default function AttendancePage() {
                         ) : courses.length === 0 ? (
                             <div style={{ color: '#aaa', fontSize: '0.82rem' }}>No courses found.</div>
                         ) : (
-                            <div className="att-course-grid" style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(courses.length, 5)}, 1fr)`, gap: '12px' }}>
+                            <div className="att-course-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
                                 {courses.map((c,i)=>(
-                                    <div key={i} className="stat-card" style={{ padding: '1.2rem 1rem', borderRadius: '20px', textAlign: 'center', cursor: 'pointer', border: selectedCourse===c.code?`2px solid ${c.color}`:'1px solid #eee' }}
-                                        onClick={()=>setSelectedCourse(c.code===selectedCourse?'all':c.code)}>
-                                        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10px', position: 'relative' }}>
-                                            <MiniDonut pct={c.pct} size={52} stroke={5} color={c.color} />
-                                            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '0.68rem', fontWeight: 700, color: '#333' }}>{Math.round(c.pct)}</div>
+                                    <div key={i} className="course-bento-card" style={{ 
+                                        background: '#fff', 
+                                        borderRadius: '20px', 
+                                        padding: '1.2rem', 
+                                        border: selectedCourse === c.code ? `2px solid ${c.color}` : '1px solid #f1f5f9', 
+                                        boxShadow: '0 4px 15px rgba(0,0,0,0.02)',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '1rem'
+                                    }}
+                                    onClick={()=>setSelectedCourse(c.code===selectedCourse?'all':c.code)}
+                                    onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 10px 25px rgba(0,0,0,0.05)'; }}
+                                    onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.02)'; }}
+                                    >
+                                        <div style={{ flexShrink: 0, position: 'relative' }}>
+                                            <MiniDonut pct={c.pct} size={64} stroke={6} color={c.color} />
+                                            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '0.8rem', fontWeight: 800, color: '#0f172a' }}>{Math.round(c.pct)}</div>
                                         </div>
-                                        <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#000', marginBottom: '2px' }}>{c.code}</div>
-                                        <div style={{ fontSize: '0.68rem', color: '#888', marginBottom: '8px' }}>{c.name}</div>
-                                        <div style={{ display: 'flex', justifyContent: 'center', gap: '6px', fontSize: '0.65rem' }}>
-                                            <span style={{ padding: '2px 8px', borderRadius: '8px', background: '#ecfccb', color: '#365314', fontWeight: 600 }}>{c.attended}</span>
-                                            <span style={{ padding: '2px 8px', borderRadius: '8px', background: '#ffe4e6', color: '#9f1239', fontWeight: 600 }}>{c.total-c.attended}</span>
+                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+                                                <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0f172a' }}>{c.code}</div>
+                                                <div style={{ fontSize: '0.65rem', padding: '2px 8px', borderRadius: '6px', background: '#f8fafc', color: '#64748b', fontWeight: 600, border: '1px solid #e2e8f0' }}>{c.total} T</div>
+                                            </div>
+                                            <div style={{ fontSize: '0.75rem', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: '10px' }}>{c.name}</div>
+                                            <div style={{ display: 'flex', gap: '6px' }}>
+                                                <span style={{ fontSize: '0.65rem', padding: '4px 8px', borderRadius: '8px', background: '#dcfce7', color: '#16a34a', fontWeight: 700 }}>{c.attended} P</span>
+                                                <span style={{ fontSize: '0.65rem', padding: '4px 8px', borderRadius: '8px', background: '#fee2e2', color: '#ef4444', fontWeight: 700 }}>{c.absent} A</span>
+                                                {c.leave > 0 && <span style={{ fontSize: '0.65rem', padding: '4px 8px', borderRadius: '8px', background: '#fef3c7', color: '#d97706', fontWeight: 700 }}>{c.leave} L</span>}
+                                            </div>
                                         </div>
                                     </div>
                                 ))}
@@ -304,13 +430,11 @@ export default function AttendancePage() {
                         )}
                     </div>
 
-                    {/* Session History with Date Filter */}
+                    {/* Session History */}
                     <div className="stat-card" style={{ padding: '0', borderRadius: '20px', overflow: 'hidden' }}>
                         <div className="att-session-header" style={{ padding: '1rem 1.5rem', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <span style={{ fontSize: '1rem', fontWeight: 700, color: '#000', display: 'flex', alignItems: 'center', gap: '8px' }}><Calendar size={15} /> Session History</span>
                             <div className="att-session-controls" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <input type="date" value={sessionDate} onChange={e => setSessionDate(e.target.value)}
-                                    style={{ padding: '5px 10px', borderRadius: '10px', border: '1px solid #eee', fontSize: '0.78rem', color: '#555', fontFamily: 'inherit', cursor: 'pointer' }} />
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <Filter size={13} color="#aaa" />
                                     <select value={selectedCourse} onChange={e=>setSelectedCourse(e.target.value)} style={{ padding: '5px 12px', borderRadius: '12px', border: '1px solid #eee', fontSize: '0.78rem', color: '#555', background: '#fff', fontFamily: 'inherit', cursor: 'pointer' }}>
@@ -320,41 +444,40 @@ export default function AttendancePage() {
                                 </div>
                             </div>
                         </div>
-                        <div style={{ padding: '6px 0' }}>
+                        <div style={{ padding: '1.5rem', background: '#f8fafc', borderRadius: '0 0 24px 24px' }}>
                             {loading ? (
                                 <div>{[1,2,3].map(i => (
-                                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '12px 1.5rem', borderBottom: '1px solid #f5f5f5' }}>
-                                        <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.1}s` }} />
-                                        <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.15}s` }} />
+                                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '16px', background: '#fff', borderRadius: '16px', marginBottom: '12px' }}>
+                                        <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#f1f5f9', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.15}s` }} />
                                         <div style={{ flex: 1 }}>
-                                            <div style={{ width: `${50 + i * 10}%`, height: '12px', borderRadius: '4px', background: '#f0f0f0', marginBottom: '6px', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.2}s` }} />
-                                            <div style={{ width: `${30 + i * 8}%`, height: '9px', borderRadius: '3px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.25}s` }} />
+                                            <div style={{ width: `${40 + i * 10}%`, height: '14px', borderRadius: '4px', background: '#f1f5f9', marginBottom: '8px', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.2}s` }} />
+                                            <div style={{ width: `${20 + i * 8}%`, height: '10px', borderRadius: '3px', background: '#f8fafc', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.25}s` }} />
                                         </div>
-                                        <div style={{ width: '70px', height: '24px', borderRadius: '12px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.12}s` }} />
+                                        <div style={{ width: '80px', height: '30px', borderRadius: '10px', background: '#f8fafc', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.12}s` }} />
                                     </div>
                                 ))}</div>
                             ) : filtered.length === 0 ? (
-                                <div style={{ padding: '1.5rem', color: '#aaa', fontSize: '0.82rem', textAlign: 'center' }}>No sessions found for this date.</div>
+                                <div style={{ padding: '2.5rem', color: '#94a3b8', fontSize: '0.9rem', textAlign: 'center', background: '#fff', borderRadius: '16px', border: '1px dashed #e2e8f0' }}>No sessions found for this date.</div>
                             ) : filtered.map((s,i)=>{
                                 const cd=courses.find(c=>c.code===s.course);
                                 return(
-                                    <div key={i} style={{ display:'flex', alignItems:'stretch', padding:'0 1.5rem' }}>
-                                        <div style={{ width:'24px', display:'flex', flexDirection:'column', alignItems:'center', flexShrink:0 }}>
-                                            <div style={{ width:'10px', height:'10px', borderRadius:'50%', background:s.status==='Present'?'#86efac':'#fda4af', border:`2.5px solid ${s.status==='Present'?'#dcfce7':'#ffe4e6'}`, marginTop:'18px', zIndex:1 }} />
-                                            {i<filtered.length-1&&<div style={{ width:'1.5px', flex:1, background:'#f0f0f0' }} />}
+                                    <div key={i} style={{ display:'flex', alignItems:'stretch', marginBottom: i < filtered.length - 1 ? '16px' : '0' }}>
+                                        <div style={{ width:'32px', display:'flex', flexDirection:'column', alignItems:'center', flexShrink:0 }}>
+                                            <div style={{ width:'14px', height:'14px', borderRadius:'50%', background:s.status==='Present'?'#10b981':'#f43f5e', border:`3px solid ${s.status==='Present'?'#d1fae5':'#ffe4e6'}`, marginTop:'22px', zIndex:1, boxShadow: '0 0 0 4px #f8fafc' }} />
+                                            {i<filtered.length-1&&<div style={{ width:'2px', flex:1, background:'#e2e8f0', marginTop:'4px' }} />}
                                         </div>
-                                        <div className="att-session-row-inner" style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 0 12px 14px', borderBottom:i<filtered.length-1?'1px solid #fafafa':'none' }}>
-                                            <div className="att-session-row-left" style={{ display:'flex', alignItems:'center', gap:'14px', flex:1 }}>
-                                                <div className="att-course-badge" style={{ width:'40px', height:'40px', borderRadius:'12px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.55rem', fontWeight:700, background:cd?`${cd.color}20`:'#f5f5f5', color:'#555', border:'1px solid #eee' }}>{s.course}</div>
+                                        <div className="att-session-row-inner" style={{ flex:1, background:'#fff', borderRadius:'16px', padding:'16px 20px', border:'1px solid #f1f5f9', boxShadow:'0 2px 10px rgba(0,0,0,0.01)', display:'flex', alignItems:'center', justifyContent:'space-between', marginLeft:'12px', transition: 'transform 0.1s ease', cursor: 'default' }} onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.005)'} onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}>
+                                            <div className="att-session-row-left" style={{ display:'flex', alignItems:'center', gap:'16px', flex:1 }}>
+                                                <div className="att-course-badge" style={{ width:'48px', height:'48px', borderRadius:'14px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.75rem', fontWeight:800, background:cd?`${cd.color}20`:'#f1f5f9', color:cd?cd.color:'#64748b', border:`1px solid ${cd?`${cd.color}40`:'#e2e8f0'}` }}>{s.course}</div>
                                                 <div>
-                                                    <div style={{ fontSize:'0.84rem', fontWeight:600, color:'#111' }}>{s.topic}</div>
-                                                    <div style={{ fontSize:'0.7rem', color:'#bbb' }}>{s.startTime} – {s.endTime} · {s.courseName}</div>
+                                                    <div style={{ fontSize:'0.95rem', fontWeight:700, color:'#0f172a', marginBottom: '4px' }}>{s.topic}</div>
+                                                    <div style={{ fontSize:'0.75rem', color:'#64748b', fontWeight: 500 }}>{s.date} {s.day} <span style={{ margin: '0 6px', color: '#cbd5e1' }}>•</span> {s.startTime} – {s.endTime} <span style={{ margin: '0 6px', color: '#cbd5e1' }}>•</span> {s.courseName}</div>
                                                 </div>
                                             </div>
-                                            <div className="att-session-row-right" style={{ display:'flex', alignItems:'center', gap:'12px' }}>
-                                                <span style={{ fontFamily:'monospace', fontSize:'0.75rem', color: s.pings >= 3 ? '#4d7c0f' : '#be123c' }}>{s.pings} pings</span>
-                                                <span style={{ display:'inline-flex', alignItems:'center', gap:'4px', padding:'4px 12px', borderRadius:'12px', fontSize:'0.72rem', fontWeight:600, background:s.status==='Present'?'#ecfccb':'#ffe4e6', color:s.status==='Present'?'#365314':'#9f1239' }}>
-                                                    {s.status==='Present'?<CheckCircle size={12}/>:<XCircle size={12}/>}{s.status}
+                                            <div className="att-session-row-right" style={{ display:'flex', alignItems:'center', gap:'16px' }}>
+                                                <span style={{ fontFamily:'monospace', fontSize:'0.8rem', fontWeight: 600, color: s.pings >= 3 ? '#16a34a' : '#e11d48', background: s.pings >= 3 ? '#dcfce7' : '#ffe4e6', padding: '4px 10px', borderRadius: '8px' }}>{s.pings} pings</span>
+                                                <span style={{ display:'inline-flex', alignItems:'center', gap:'6px', padding:'6px 14px', borderRadius:'10px', fontSize:'0.8rem', fontWeight:700, background:s.status==='Present'?'#ecfccb':'#ffe4e6', color:s.status==='Present'?'#365314':'#9f1239' }}>
+                                                    {s.status==='Present'?<CheckCircle size={14}/>:<XCircle size={14}/>}{s.status}
                                                 </span>
                                             </div>
                                         </div>
@@ -370,24 +493,17 @@ export default function AttendancePage() {
 
                 /* ── Attendance Page Mobile Responsive ── */
                 @media (max-width: 768px) {
-                    /* Top grid: stack donut & calendar */
+                    /* Top grid: stack left side & calendar */
                     .att-top-grid {
                         grid-template-columns: 1fr !important;
                         gap: 1rem !important;
                     }
-                    /* Donut section: stack vertically */
-                    .att-donut-section {
-                        flex-direction: column !important;
-                        gap: 1.2rem !important;
-                        padding: 1.2rem !important;
-                        align-items: center !important;
-                    }
-                    .att-donut-section .att-donut-wrap {
-                        margin: 0 auto;
-                    }
-                    .att-stats-grid {
-                        grid-template-columns: 1fr 1fr !important;
+                    .att-stats-bento {
+                        grid-template-columns: 1fr 1fr 1fr !important;
                         gap: 8px !important;
+                    }
+                    .att-stats-bento > div {
+                        padding: 1rem 0.8rem !important;
                     }
                     /* Calendar card */
                     .att-calendar-card {
@@ -454,8 +570,8 @@ export default function AttendancePage() {
                     .att-course-grid {
                         grid-template-columns: 1fr 1fr !important;
                     }
-                    .att-stats-grid {
-                        grid-template-columns: 1fr 1fr !important;
+                    .att-stats-bento {
+                        grid-template-columns: 1fr !important;
                     }
                     .att-session-row-left .att-course-badge {
                         display: none !important;
