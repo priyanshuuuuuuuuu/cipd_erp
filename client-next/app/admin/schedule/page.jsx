@@ -351,6 +351,18 @@ export default function AdminSchedulePage() {
         }
     };
 
+    // ── Delete Session ───────────────────────────────────────────────────────
+    const handleDeleteSession = async (sessionId) => {
+        if (!confirm('Are you sure you want to delete this class?')) return;
+        try {
+            await api.delete(`/api/admin/sessions/${sessionId}`);
+            fetchSessions();
+        } catch (err) {
+            console.error('Failed to delete session:', err);
+            alert(err.message || 'Failed to delete session');
+        }
+    };
+
     // ── Helpers ──────────────────────────────────────────────────────────────
     const formatDate = d => {
         const dt = new Date(d + 'T00:00:00');
@@ -742,7 +754,7 @@ export default function AdminSchedulePage() {
                                                                      {rollingOutId === s.id ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Send size={13} />}
                                                                  </button>
                                                              )}
-                                                            <button className="change-status-btn" style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', color: '#ccc' }}><Trash2 size={13} /></button>
+                                                            <button onClick={() => handleDeleteSession(s.id)} className="change-status-btn" style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', color: '#dc2626' }} title="Delete session"><Trash2 size={13} /></button>
                                                         </div>
                                                     </td>
                                                 </tr>

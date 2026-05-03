@@ -150,3 +150,27 @@ async function handler(req, { params }) {
 }
 
 export const PATCH = withRole(handler, ['admin']);
+
+// DELETE /api/admin/sessions/[id]
+async function deleteHandler(req, { params }) {
+  try {
+    const { id } = params;
+
+    const { error } = await supabaseAdmin
+      .from('sessions')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Delete session error:', error);
+      return NextResponse.json({ error: 'Failed to delete session' }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error('Session DELETE error:', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
+export const DELETE = withRole(deleteHandler, ['admin']);
