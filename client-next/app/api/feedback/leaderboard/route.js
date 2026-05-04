@@ -59,11 +59,12 @@ async function handler(req) {
       };
     });
 
-    // ── 3. Fetch all feedback responses ─────────────────────────────────────
+    // ── 3. Fetch all feedback responses (any type counts as submitted) ─────────
+    // Previously filtered .not('rating', 'is', null) which excluded yes_no/text
+    // responses — those have rating=null but are still valid submissions.
     const { data: feedbackResponses, error: fbError } = await supabaseAdmin
       .from('feedback_responses')
-      .select('student_id, session_id')
-      .not('rating', 'is', null);
+      .select('student_id, session_id');
 
     if (fbError) throw new Error('feedback_responses: ' + fbError.message);
 

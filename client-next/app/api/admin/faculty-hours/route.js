@@ -4,6 +4,8 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { withRole } from '@/lib/middleware';
 import { hashPassword } from '@/lib/auth';
 
+const DEFAULT_RATE = 2000;
+
 async function handler(request) {
     try {
         // Fetch all faculty members with user details
@@ -20,7 +22,7 @@ async function handler(request) {
 
         if (facErr) throw facErr;
 
-        // Fetch completed sessions with course + venue info
+        // Fetch ALL sessions (all statuses) with course + venue info
         const { data: sessions, error: sessErr } = await supabaseAdmin
             .from('sessions')
             .select(`
@@ -30,51 +32,82 @@ async function handler(request) {
                 end_time,
                 session_date,
                 status,
+                title,
                 courses ( name ),
                 venues ( name )
-            `)
-            .eq('status', 'completed');
+            `);
 
         if (sessErr) throw sessErr;
+
+        // Fetch all feedback ratings grouped by session
+        const { data: feedbackRows, error: fbErr } = await supabaseAdmin
+            .from('feedback_responses')
+            .select('session_id, rating')
+            .not('rating', 'is', null);
+
+        if (fbErr) throw fbErr;
+
+        // Build a map: session_id -> avg_rating
+        const ratingMap = {};
+        (feedbackRows || []).forEach(fb => {
+            if (!ratingMap[fb.session_id]) ratingMap[fb.session_id] = [];
+            ratingMap[fb.session_id].push(fb.rating);
+        });
+        const avgRatingMap = {};
+        for (const [sid, ratings] of Object.entries(ratingMap)) {
+            avgRatingMap[sid] = (ratings.reduce((a, b) => a + b, 0) / ratings.length);
+        }
 
         // Map data to calculate hours and honorarium
         const facultyData = (facultyList || []).map(fac => {
             const facSessions = (sessions || []).filter(s => s.faculty_id === fac.id);
+            const completedSessions = facSessions.filter(s => s.status === 'completed');
             let totalHours = 0;
 
             const detailedSessions = facSessions.map(s => {
-                // Calculate duration in hours — use abs() to guard against bad data where end < start
+                // Calculate duration in hours
                 const start = new Date(`1970-01-01T${s.start_time}Z`);
                 const end = new Date(`1970-01-01T${s.end_time}Z`);
                 const durationHrs = Math.abs((end - start) / (1000 * 60 * 60));
-                totalHours += durationHrs;
+                const durationMins = durationHrs * 60;
 
-                // Format date for display (safe parsing to avoid timezone issues)
+                if (s.status === 'completed') totalHours += durationHrs;
+
+                // Format date safely (avoid timezone issues)
                 const [y, m, d] = s.session_date.split('-');
                 const dObj = new Date(Number(y), Number(m) - 1, Number(d));
-                const dateStr = dObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+                const dateStr = dObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
                 return {
+                    session_id: s.id,
                     date: dateStr,
+                    date_raw: s.session_date,
+                    title: s.title || 'Untitled Session',
                     course: s.courses?.name || 'Unknown',
-                    duration: `${durationHrs.toFixed(1)}h`,
                     venue: s.venues?.name || 'Unknown',
+                    duration: `${durationHrs.toFixed(1)}h`,
+                    duration_mins: durationMins,
+                    status: s.status,
+                    avg_rating: avgRatingMap[s.id] ? Math.round(avgRatingMap[s.id] * 10) / 10 : null,
                 };
-            }).sort((a, b) => new Date(b.date) - new Date(a.date));
+            }).sort((a, b) => b.date_raw.localeCompare(a.date_raw));
+
+            const rate = fac.honorarium_rate_per_hour || DEFAULT_RATE;
 
             return {
                 id: fac.id,
                 firstName: fac.users?.first_name || '',
                 lastName: fac.users?.last_name || '',
                 name: `Prof. ${fac.users?.first_name} ${fac.users?.last_name}`,
-                // Use designation as dept label until a real `department` column exists
                 dept: fac.department || fac.designation || 'Faculty',
                 designation: fac.designation || '',
                 department: fac.department || '',
                 yearsExperience: fac.years_experience ?? '',
-                sessions: facSessions.length,
+                sessions: completedSessions.length,
+                totalSessionCount: facSessions.length,
                 hours: totalHours,
-                rate: fac.honorarium_rate_per_hour || 1500,
+                rate,
+                honorarium: Math.round(totalHours * rate),
                 status: 'Pending',
                 sessionDetails: detailedSessions,
             };
@@ -137,6 +170,7 @@ async function createFacultyHandler(request) {
                 id: newUser.id,
                 designation: designation?.trim() || null,
                 years_experience: yearsExperience ? parseInt(yearsExperience, 10) : null,
+                honorarium_rate_per_hour: DEFAULT_RATE,
             });
 
         if (facErr) {

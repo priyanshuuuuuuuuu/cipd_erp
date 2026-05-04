@@ -4,19 +4,149 @@ import '../../Dashboard.css';
 import {
     LayoutGrid, Calendar, MessageSquare, Settings, LogOut, Bell, Search, Menu,
     ChevronLeft, ChevronRight, Wifi, Clock, FileBarChart, CheckCircle, Download,
-    Eye, IndianRupee, Users, Filter, UserPlus, ChevronDown, ChevronUp, X, Loader2, Pencil, Trophy
+    Eye, IndianRupee, Users, Filter, UserPlus, ChevronDown, ChevronUp, X, Loader2, Pencil, Trophy,
+    BookOpen, Star
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 
+// ── Faculty Session Modal ─────────────────────────────────────────────────
+function FacultySessionModal({ faculty, onClose }) {
+    const rows = faculty.sessionDetails || [];
+    const completed = rows.filter(r => r.status === 'completed').length;
+    const totalHrs = (faculty.hours || 0);
+    const ratings = rows.filter(r => r.avg_rating !== null && r.avg_rating !== undefined).map(r => r.avg_rating);
+    const avgRating = ratings.length > 0 ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1) : null;
+    const initials = faculty.name.split(' ').filter(Boolean).slice(1, 3).map(n => n[0]).join('').toUpperCase() || 'FA';
+
+    React.useEffect(() => {
+        const onKey = e => e.key === 'Escape' && onClose();
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [onClose]);
+
+    return (
+        <>
+            <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.4)', zIndex: 1000, backdropFilter: 'blur(6px)' }} />
+            <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 'min(860px, 100vw)', background: '#f8fafc', zIndex: 1001, display: 'flex', flexDirection: 'column', boxShadow: '-10px 0 50px rgba(0,0,0,0.25)', animation: 'slideIn 0.3s cubic-bezier(0.16,1,0.3,1)' }}>
+                {/* Gradient Header */}
+                <div style={{ background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #db2777 100%)', padding: '2.5rem 2rem', color: '#fff', position: 'relative' }}>
+                    <button onClick={onClose} style={{ position: 'absolute', top: 20, right: 20, background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.2)', cursor: 'pointer', color: '#fff', padding: 8, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+                        onMouseOver={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.25)'; }} onMouseOut={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; }}>
+                        <X size={18} strokeWidth={2.5} />
+                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                        <div style={{ width: 84, height: 84, borderRadius: '50%', background: '#fff', color: '#7c3aed', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem', fontWeight: 900, boxShadow: '0 8px 24px rgba(0,0,0,0.2)', border: '4px solid rgba(255,255,255,0.3)' }}>{initials}</div>
+                        <div>
+                            <div style={{ fontSize: '2rem', fontWeight: 800, letterSpacing: '-0.5px', lineHeight: 1.1 }}>{faculty.name}</div>
+                            <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.85)', marginTop: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <BookOpen size={15} /> {faculty.dept || 'Faculty'} &nbsp;·&nbsp; ₹{faculty.rate?.toLocaleString()}/hr
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Bento Stats */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', padding: '2rem 2rem 1.5rem' }}>
+                    {[
+                        { label: 'All Sessions', val: rows.length, icon: Calendar, color: '#3b82f6', bg: '#eff6ff', border: '#bfdbfe' },
+                        { label: 'Completed', val: completed, icon: CheckCircle, color: '#10b981', bg: '#ecfdf5', border: '#a7f3d0' },
+                        { label: 'Teaching Hrs', val: `${totalHrs.toFixed(1)}h`, icon: Clock, color: '#f59e0b', bg: '#fffbeb', border: '#fde68a' },
+                        { label: 'Honorarium', val: `₹${(faculty.honorarium || 0).toLocaleString()}`, icon: IndianRupee, color: '#ec4899', bg: '#fdf2f8', border: '#fbcfe8' },
+                    ].map(item => {
+                        const Icon = item.icon;
+                        return (
+                            <div key={item.label} style={{ background: '#fff', padding: '1.25rem', borderRadius: 16, border: `1px solid ${item.border}`, boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', gap: 12, transition: 'transform 0.2s' }}
+                                onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <div style={{ background: item.bg, color: item.color, padding: 8, borderRadius: 10, display: 'flex' }}><Icon size={18} strokeWidth={2.5} /></div>
+                                    <div style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{item.label}</div>
+                                </div>
+                                <div style={{ fontSize: '1.7rem', fontWeight: 800, color: '#0f172a', lineHeight: 1 }}>{item.val}</div>
+                            </div>
+                        );
+                    })}
+                </div>
+
+                {/* Session Table */}
+                <div style={{ flex: 1, padding: '0 2rem 2rem', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                    <div style={{ background: '#fff', flex: 1, borderRadius: 16, border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                        <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid #f1f5f9' }}>
+                            <div style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0f172a' }}>Session History <span style={{ fontSize: '0.72rem', fontWeight: 500, color: '#94a3b8', marginLeft: 6 }}>{rows.length} total</span></div>
+                        </div>
+                        <div style={{ flex: 1, overflowY: 'auto' }}>
+                            {rows.length === 0 ? (
+                                <div style={{ padding: '4rem', textAlign: 'center', color: '#94a3b8', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                                    <BookOpen size={48} color="#cbd5e1" strokeWidth={1.5} />
+                                    <div style={{ fontWeight: 600 }}>No sessions found for this faculty member.</div>
+                                </div>
+                            ) : (
+                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                                    <thead style={{ position: 'sticky', top: 0, zIndex: 1, background: '#f8fafc' }}>
+                                        <tr>
+                                            {['Date', 'Title', 'Course', 'Duration', 'Venue', 'Rating', 'Status'].map(h => (
+                                                <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>{h}</th>
+                                            ))}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {rows.map((r, i) => (
+                                            <tr key={r.session_id || i} style={{ borderBottom: '1px solid #f1f5f9', background: '#fff', transition: 'background 0.15s' }}
+                                                onMouseOver={e => e.currentTarget.style.background = '#f8fafc'} onMouseOut={e => e.currentTarget.style.background = '#fff'}>
+                                                <td style={{ padding: '13px 16px', fontFamily: 'monospace', color: '#475569', whiteSpace: 'nowrap', fontWeight: 600 }}>{r.date}</td>
+                                                <td style={{ padding: '13px 16px', fontWeight: 700, color: '#0f172a', maxWidth: 200 }}>
+                                                    <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.title}>{r.title}</div>
+                                                </td>
+                                                <td style={{ padding: '13px 16px' }}>
+                                                    <span style={{ padding: '3px 10px', borderRadius: 6, fontSize: '0.7rem', fontWeight: 700, background: '#f1f5f9', color: '#334155', whiteSpace: 'nowrap' }}>{r.course}</span>
+                                                </td>
+                                                <td style={{ padding: '13px 16px', fontFamily: 'monospace', color: '#475569', whiteSpace: 'nowrap', fontWeight: 600 }}>{r.duration}</td>
+                                                <td style={{ padding: '13px 16px', color: '#475569', whiteSpace: 'nowrap' }}>{r.venue}</td>
+                                                <td style={{ padding: '13px 16px', textAlign: 'center' }}>
+                                                    {r.avg_rating ? <span style={{ fontWeight: 800, color: '#f59e0b' }}>{r.avg_rating}<span style={{ color: '#cbd5e1', fontWeight: 500 }}>/5</span></span> : <span style={{ color: '#cbd5e1' }}>—</span>}
+                                                </td>
+                                                <td style={{ padding: '13px 16px' }}>
+                                                    <span style={{ padding: '3px 10px', borderRadius: 8, fontSize: '0.7rem', fontWeight: 700, background: r.status === 'completed' ? '#ecfdf5' : r.status === 'cancelled' ? '#fef2f2' : '#fffbeb', color: r.status === 'completed' ? '#10b981' : r.status === 'cancelled' ? '#ef4444' : '#f59e0b' }}>{r.status}</span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </>
+    );
+}
+
 export default function AdminFacultyHoursPage() {
+
     const router = useRouter();
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [selectedMonth, setSelectedMonth] = useState('2026-03');
     const [viewingSessions, setViewingSessions] = useState(null);
+    const [modalFaculty, setModalFaculty] = useState(null);
     const [facultyData, setFacultyData] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [sortField, setSortField] = useState('name');
+    const [sortDir, setSortDir] = useState('asc');
+
+    const toggleSort = (field) => {
+        if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+        else { setSortField(field); setSortDir('asc'); }
+    };
+
+    const sortedFaculty = React.useMemo(() => {
+        return [...facultyData].sort((a, b) => {
+            let av = a[sortField], bv = b[sortField];
+            if (sortField === 'yearsExperience') { av = av === '' ? -1 : Number(av); bv = bv === '' ? -1 : Number(bv); }
+            if (typeof av === 'string') return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+            return sortDir === 'asc' ? av - bv : bv - av;
+        });
+    }, [facultyData, sortField, sortDir]);
 
     // ── Add Faculty panel ──────────────────────────────────────────────────────
     const [showManagePanel, setShowManagePanel] = useState(false);
@@ -259,9 +389,37 @@ export default function AdminFacultyHoursPage() {
                             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
                                 <thead>
                                     <tr style={{ background: '#fafafa' }}>
-                                        {['Faculty', 'Department', 'Exp.', 'Sessions', 'Total Hours', 'Rate/Hr', 'Honorarium', 'Status', ''].map(h => (
-                                            <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: '0.68rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#aaa', borderBottom: '1px solid #f0f0f0' }}>{h}</th>
-                                        ))}
+                                        {[
+                                            { label: 'Faculty',     field: 'name' },
+                                            { label: 'Department',  field: 'dept' },
+                                            { label: 'Exp.',        field: 'yearsExperience' },
+                                            { label: 'Sessions',    field: 'sessions' },
+                                            { label: 'Total Hours', field: 'hours' },
+                                            { label: 'Rate/Hr',     field: 'rate' },
+                                            { label: 'Honorarium',  field: 'honorarium' },
+                                            { label: 'Status',      field: 'status' },
+                                            { label: '',            field: null },
+                                        ].map(({ label, field }) => {
+                                            const active = field && sortField === field;
+                                            return (
+                                                <th key={label}
+                                                    onClick={field ? () => toggleSort(field) : undefined}
+                                                    style={{ padding: '10px 16px', textAlign: 'left', fontSize: '0.68rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: active ? '#3B2D82' : '#aaa', borderBottom: '1px solid #f0f0f0', cursor: field ? 'pointer' : 'default', userSelect: 'none', whiteSpace: 'nowrap', transition: 'color 0.15s' }}
+                                                    onMouseOver={e => { if (field) e.currentTarget.style.color = '#3B2D82'; }}
+                                                    onMouseOut={e => { if (!active) e.currentTarget.style.color = '#aaa'; }}
+                                                >
+                                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                                        {label}
+                                                        {field && (
+                                                            <span style={{ display: 'inline-flex', flexDirection: 'column', lineHeight: 1, opacity: active ? 1 : 0.3, fontSize: '0.6rem' }}>
+                                                                <span style={{ color: active && sortDir === 'asc' ? '#3B2D82' : '#aaa', lineHeight: 0.9 }}>▲</span>
+                                                                <span style={{ color: active && sortDir === 'desc' ? '#3B2D82' : '#aaa', lineHeight: 0.9 }}>▼</span>
+                                                            </span>
+                                                        )}
+                                                    </span>
+                                                </th>
+                                            );
+                                        })}
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -273,7 +431,7 @@ export default function AdminFacultyHoursPage() {
                                                 ))}
                                             </tr>
                                         ))}</>
-                                    ) : facultyData.map(f => (
+                                    ) : sortedFaculty.map(f => (
                                         <tr key={f.id} className="attendance-row" style={{ borderBottom: '1px solid #f5f5f5' }}>
                                             <td style={{ padding: '12px 16px', fontWeight: 600, color: '#111' }}>{f.name}</td>
                                             <td style={{ padding: '12px 16px' }}>
@@ -292,7 +450,7 @@ export default function AdminFacultyHoursPage() {
                                             <td style={{ padding: '12px 16px' }}>
                                                 <div style={{ display: 'flex', gap: '6px' }}>
                                                     <button
-                                                        onClick={() => setViewingSessions(viewingSessions === f.id ? null : f.id)}
+                                                        onClick={() => setModalFaculty(f)}
                                                         className="change-status-btn"
                                                         style={{ padding: '4px 10px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', fontSize: '0.72rem', color: '#555', display: 'flex', alignItems: 'center', gap: '4px' }}
                                                     ><Eye size={12} /> Sessions</button>
@@ -315,35 +473,7 @@ export default function AdminFacultyHoursPage() {
                             </table>
                         </div>
 
-                        {/* Expandable session details */}
-                        {viewingSessions && (
-                            <div style={{ borderTop: '2px solid #e8e8e8', padding: '1rem 1.5rem', background: '#fafafa' }}>
-                                <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#111', marginBottom: '10px' }}>Session Details — {facultyData.find(f => f.id === viewingSessions)?.name}</div>
-                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
-                                    <thead>
-                                        <tr>
-                                            {['Date', 'Course', 'Duration', 'Venue'].map(h => (
-                                                <th key={h} style={{ padding: '6px 12px', textAlign: 'left', fontSize: '0.65rem', fontWeight: 600, textTransform: 'uppercase', color: '#aaa', borderBottom: '1px solid #e8e8e8' }}>{h}</th>
-                                            ))}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {(facultyData.find(f => f.id === viewingSessions)?.sessionDetails || []).length > 0 ? (
-                                            facultyData.find(f => f.id === viewingSessions).sessionDetails.map((s, i) => (
-                                                <tr key={i} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                                                    <td style={{ padding: '6px 12px', fontFamily: 'monospace', color: '#555' }}>{s.date}</td>
-                                                    <td style={{ padding: '6px 12px', fontWeight: 500, color: '#333' }}>{s.course}</td>
-                                                    <td style={{ padding: '6px 12px', fontFamily: 'monospace', color: '#555' }}>{s.duration}</td>
-                                                    <td style={{ padding: '6px 12px', color: '#888' }}>{s.venue}</td>
-                                                </tr>
-                                            ))
-                                        ) : (
-                                            <tr><td colSpan="4" style={{ padding: '10px 12px', color: '#888', textAlign: 'center' }}>No completed sessions found for this faculty member.</td></tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
+                        {/* Modal rendered outside the table */}
                     </div>
 
                     {/* Summary footer */}
@@ -435,7 +565,10 @@ export default function AdminFacultyHoursPage() {
                 </div>
             )}
 
-            <style>{`@keyframes shimmer { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } } @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+            <style>{`@keyframes shimmer { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } } @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } } @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }`}</style>
+
+            {/* ══ Faculty Session Modal ══════════════════════════════════════════ */}
+            {modalFaculty && <FacultySessionModal faculty={modalFaculty} onClose={() => setModalFaculty(null)} />}
         </div>
     );
 }
