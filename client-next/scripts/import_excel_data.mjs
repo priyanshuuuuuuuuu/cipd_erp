@@ -41,12 +41,13 @@ const EXCEL_PATH  = path.resolve(__dirname, '../../Data/iPD CP Review Sheet.xlsx
 // Change this if you want to extend the cutoff date
 const CUTOFF_DATE = '2026-05-03';
 
-// Slot time mapping
+// Slot time mapping — standard iPD-CP default times
+// (specific weeks may differ; those are corrected by fix_session_times.mjs after import)
 const SLOT_TIMES = {
-  'Slot 1': { start: '09:00', end: '10:30' },
-  'Slot 2': { start: '10:45', end: '12:15' },
-  'Slot 3': { start: '13:30', end: '15:00' },
-  'Slot 4': { start: '15:15', end: '16:45' },
+  'Slot 1': { start: '09:30', end: '11:00' },
+  'Slot 2': { start: '11:15', end: '13:00' },
+  'Slot 3': { start: '14:00', end: '15:30' },
+  'Slot 4': { start: '15:45', end: '17:30' },
 };
 
 function getSlotTimes(slot, durationMins) {
@@ -285,9 +286,9 @@ async function main() {
 
   // --------------------------------------------------------------------------
   // STEP 5 - Upsert sessions from Excel
-  //   Natural key = session_date + start_time + course_id
-  //   If session exists with this key -> UPDATE it
-  //   If not -> INSERT new
+  //   Natural key = session_date + slot_rank (1-4) + course_id
+  //   Slot rank = position within the day (1st session = 1, 2nd = 2, etc.)
+  //   This key is stable regardless of time changes by fix_session_times.mjs
   // --------------------------------------------------------------------------
   step('Step 5 - Upserting sessions (up to ' + CUTOFF_DATE + ', Holidays excluded)...');
 
@@ -295,22 +296,33 @@ async function main() {
     .from('users').select('id').eq('role', 'admin').limit(1).single();
   const adminId = adminUser?.id || null;
 
-  // Load all existing sessions for matching
+  // Load all existing sessions, rank them per day by start_time order
   const { data: existingSessions } = await supabase
-    .from('sessions').select('id, session_date, start_time, course_id');
+    .from('sessions').select('id, session_date, start_time, course_id')
+    .order('session_date').order('start_time');
 
-  const sessionByKey = {}; // "date::HH:MM::courseId" -> session id
+  // Group by date, rank all sessions per day sorted by start_time
+  const sessionsByDateGroup = {};
   for (const s of (existingSessions || [])) {
-    // DB stores start_time as "HH:MM:SS" - slice to "HH:MM" for comparison
-    const startHHMM = (s.start_time || '').slice(0, 5);
-    const key = s.session_date + '::' + startHHMM + '::' + s.course_id;
-    sessionByKey[key] = s.id;
+    if (!sessionsByDateGroup[s.session_date]) sessionsByDateGroup[s.session_date] = [];
+    sessionsByDateGroup[s.session_date].push(s);
   }
-  log('Existing sessions loaded: ' + Object.keys(sessionByKey).length);
+  // Build key map: "date::globalRank" -> session id
+  // globalRank = position of session within the day, sorted by start_time (1-based)
+  const sessionByKey = {};
+  for (const [date, arr] of Object.entries(sessionsByDateGroup)) {
+    arr.sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''));
+    arr.forEach((s, i) => {
+      const key = date + '::' + (i + 1);
+      sessionByKey[key] = s.id;
+    });
+  }
+  log('Existing sessions loaded: ' + (existingSessions || []).length);
 
   const toInsert = [];
   const toUpdate = [];
   const skillsToProcess = []; // { sessionId, skills[] }
+  const daySlotCount = {};    // "date::courseId" -> count of sessions seen so far (slot rank)
 
   for (const row of mainData) {
     // Parse date
@@ -360,14 +372,23 @@ async function main() {
     const title         = (topic || domain || instructor || 'Session') + (topic ? '' : ' - ' + sessionDate);
     const { start, end } = getSlotTimes(slot, duration);
 
-    // Upsert key
-    const naturalKey = sessionDate + '::' + start + '::' + courseId;
+    // Count ALL sessions on this date (global rank, regardless of course)
+    const dayKey = sessionDate;
+    if (!daySlotCount[dayKey]) daySlotCount[dayKey] = 0;
+    daySlotCount[dayKey]++;
+    const slotRank = daySlotCount[dayKey]; // global position within the day
+
+    // Stable natural key: date + global slot rank
+    // This matches how fix_session_times.mjs orders sessions (by start_time within day)
+    const naturalKey = sessionDate + '::' + slotRank;
     const existingId = sessionByKey[naturalKey];
 
+    // Build payload — do NOT overwrite times here; fix_session_times.mjs owns that
+    // We still store the standard slot times for NEW sessions (no PDF schedule yet)
     const payload = {
       title:        title.slice(0, 500),
       session_date: sessionDate,
-      start_time:   start,
+      start_time:   start,   // standard default; overridden by fix_session_times.mjs
       end_time:     end,
       status:       'completed',
       faculty_id:   facultyId,
@@ -377,14 +398,15 @@ async function main() {
 
     let sessionId;
     if (existingId) {
-      // Session already in DB - update it
+      // Session already in DB - update everything EXCEPT times
+      // (times are owned by fix_session_times.mjs to preserve PDF corrections)
       sessionId = existingId;
-      toUpdate.push({ id: existingId, ...payload });
+      const { start_time: _s, end_time: _e, ...payloadNoTimes } = payload;
+      toUpdate.push({ id: existingId, ...payloadNoTimes });
     } else {
-      // New session - insert it
+      // New session - insert it with standard slot times
       sessionId = uuid();
       toInsert.push({ id: sessionId, ...payload, created_by: adminId });
-      sessionByKey[naturalKey] = sessionId; // prevent duplicate within same Excel
     }
 
     // Collect skills
