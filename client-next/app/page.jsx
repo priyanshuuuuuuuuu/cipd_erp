@@ -59,17 +59,9 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [demoVisible, setDemoVisible] = useState(false);
 
   const router = useRouter();
   const { login } = useAuth();
-
-  // Demo credentials (hint only — actual auth goes through the API)
-  const demoCredentials = [
-    { role: 'Student', email: 'mayank.chauhan@cipd.com', password: '23456789', hint: 'Use email or enrollment no.', color: '#16a34a', bg: '#ecfdf5' },
-    { role: 'Faculty', email: 'anuj.grover@cipd.edu', password: 'faculty123', hint: '', color: '#b45309', bg: '#fef9c3' },
-    { role: 'Admin', email: 'admin@cipd.edu', password: 'admin123', hint: '', color: '#2563eb', bg: '#eff6ff' },
-  ];
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -78,26 +70,6 @@ const Login = () => {
 
     try {
       const user = await login(identifier.trim(), password);
-      if (user.role === 'admin') {
-        router.push('/admin');
-      } else {
-        router.push('/dashboard');
-      }
-    } catch (err) {
-      setError(err.message || 'Invalid credentials. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const autoFillAndLogin = async (cred) => {
-    setIdentifier(cred.email);
-    setPassword(cred.password);
-    setError('');
-    setIsLoading(true);
-
-    try {
-      const user = await login(cred.email.trim(), cred.password);
       if (user.role === 'admin') {
         router.push('/admin');
       } else {
@@ -206,160 +178,6 @@ const Login = () => {
           </form>
         </div>
       </CardContainer>
-
-      {/* Demo Access Button / Panel — floating top-right */}
-      <div
-        style={{
-          position: 'fixed',
-          top: '20px',
-          right: '20px',
-          zIndex: 1000,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'flex-end',
-          gap: '10px',
-        }}
-      >
-        {!demoVisible && (
-          <button
-            type="button"
-            onClick={() => {
-              const pwd = window.prompt("Enter demo password:");
-              if (pwd === "[REMOVED-ROTATED]") {
-                setDemoVisible(true);
-              } else if (pwd !== null) {
-                alert("Incorrect password!");
-              }
-            }}
-            style={{
-              padding: '8px 16px',
-              borderRadius: '8px',
-              background: 'rgba(255,255,255,0.95)',
-              border: '1px solid #e8e8e8',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
-              backdropFilter: 'blur(8px)',
-              cursor: 'pointer',
-              fontSize: '0.75rem',
-              fontWeight: 700,
-              color: '#555',
-            }}
-          >
-            Demo Access
-          </button>
-        )}
-
-        {demoVisible && (
-          <div
-            className="demo-credentials-panel"
-            style={{
-              padding: '14px 16px',
-              borderRadius: '12px',
-              background: 'rgba(255,255,255,0.95)',
-              border: '1px solid #e8e8e8',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
-              backdropFilter: 'blur(8px)',
-              maxWidth: '260px',
-            }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '10px',
-              }}
-            >
-              <div
-                style={{
-                  fontSize: '0.68rem',
-                  fontWeight: 700,
-                  color: '#888',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.5px',
-                }}
-              >
-                Demo Credentials
-              </div>
-              <button
-                type="button"
-                onClick={() => setDemoVisible(false)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontSize: '1.2rem',
-                  color: '#888',
-                  padding: '0 4px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                &times;
-              </button>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {demoCredentials.map((cred, i) => (
-                <div
-                  key={i}
-                  onClick={() => autoFillAndLogin(cred)}
-                  style={{
-                    padding: '10px 12px',
-                    borderRadius: '10px',
-                    border: `1px solid ${cred.bg}`,
-                    background: '#fff',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = cred.bg;
-                    e.currentTarget.style.transform = 'translateY(-1px)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = '#fff';
-                    e.currentTarget.style.transform = 'translateY(0)';
-                  }}
-                >
-                  <div
-                    style={{
-                      width: '32px',
-                      height: '32px',
-                      borderRadius: '8px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      background: cred.bg,
-                      color: cred.color,
-                      fontSize: '0.7rem',
-                      fontWeight: 800,
-                      flexShrink: 0,
-                    }}
-                  >
-                    {cred.role[0]}
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: cred.color }}>
-                      {cred.role}
-                    </div>
-                    <div style={{ fontSize: '0.62rem', color: '#888', fontFamily: "'Roboto Mono', monospace" }}>
-                      {cred.email}
-                    </div>
-                    <div style={{ fontSize: '0.58rem', color: '#bbb' }}>
-                      pw: {cred.password}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div style={{ fontSize: '0.55rem', color: '#ccc', textAlign: 'center', marginTop: '8px' }}>
-              Click to auto-login
-            </div>
-          </div>
-        )}
-      </div>
     </div>
   );
 };

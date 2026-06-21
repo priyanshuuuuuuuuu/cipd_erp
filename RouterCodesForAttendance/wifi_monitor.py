@@ -14,6 +14,13 @@ from datetime import datetime
 from pathlib import Path
 import ctypes
 
+# ── Load .env from the same directory as this script ────────────────────────
+try:
+    from dotenv import load_dotenv
+    load_dotenv(dotenv_path=Path(__file__).parent / ".env")
+except ImportError:
+    pass  # python-dotenv not installed — rely on real env vars (e.g. Windows Service env)
+
 # ── Optional Windows imports ─────────────────────────────────────────────────
 try:
     import win32api, win32con
@@ -37,22 +44,29 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import WebDriverException
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# CONFIG
+# CONFIG — All secrets loaded from environment / .env file (never hard-code here)
 # ═══════════════════════════════════════════════════════════════════════════════
-ROUTER_URL    = "http://192.168.0.1"
-PASSWORD      = "[REMOVED-ROTATED]"
-NETWORK_CIDR  = "192.168.0.0/24"
-SCAN_INTERVAL = 180          # seconds between scans
+ROUTER_URL    = os.environ.get("ROUTER_URL", "http://192.168.0.1")
+PASSWORD      = os.environ.get("ROUTER_PASSWORD", "")
+NETWORK_CIDR  = os.environ.get("NETWORK_CIDR", "192.168.0.0/24")
+SCAN_INTERVAL = int(os.environ.get("SCAN_INTERVAL", "180"))  # seconds between scans
 DEVICE_FILE   = "connected_devices.json"
 LOG_FILE      = "wifi_monitor.log"
 
-SUPABASE_URL  = "https://pvqxzbabstyhskhydbvl.supabase.co/rest/v1/wifi_snapshots"
-SUPABASE_KEY  = (
-    "[REMOVED-ROTATED]"
-    "[REMOVED-ROTATED]"
-    "[REMOVED-ROTATED]"
-    "[REMOVED-ROTATED]"
-)
+SUPABASE_URL  = os.environ.get("SUPABASE_SNAPSHOTS_URL", "")
+SUPABASE_KEY  = os.environ.get("SUPABASE_SERVICE_KEY", "")
+
+# Fail fast at startup if required secrets are missing
+_MISSING = [name for name, val in [
+    ("ROUTER_PASSWORD",    PASSWORD),
+    ("SUPABASE_SNAPSHOTS_URL", SUPABASE_URL),
+    ("SUPABASE_SERVICE_KEY",   SUPABASE_KEY),
+] if not val]
+if _MISSING:
+    raise EnvironmentError(
+        f"Missing required environment variables: {', '.join(_MISSING)}\n"
+        f"Set them in RouterCodesForAttendance/.env or as Windows Service env vars."
+    )
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # LOGGING

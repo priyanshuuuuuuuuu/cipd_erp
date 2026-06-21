@@ -1,7 +1,10 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || '[REMOVED-ROTATED]';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is not set. Set it in .env before starting the server.');
+}
 const TOKEN_EXPIRY = '7d';
 
 export async function hashPassword(password) {
