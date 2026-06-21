@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { withAuth } from '@/lib/middleware';
+import { createHmac } from 'crypto';
 
 const SCOPES = [
   'https://www.googleapis.com/auth/classroom.courses.readonly',
@@ -17,6 +18,18 @@ function getOAuth2Client() {
 }
 
 /**
+ * Signs the OAuth state payload with HMAC-SHA256 so the callback can
+ * verify it hasn't been tampered with (prevents CSRF / account takeover).
+ */
+function buildSignedState(payload) {
+  const data = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const sig  = createHmac('sha256', process.env.JWT_SECRET)
+                 .update(data)
+                 .digest('hex');
+  return `${data}.${sig}`;
+}
+
+/**
  * GET /api/auth/google/connect
  *
  * Uses withAuth (Authorization: Bearer header via api helper).
@@ -26,10 +39,8 @@ function getOAuth2Client() {
 async function handler(req) {
   const oauth2Client = getOAuth2Client();
 
-  // Encode user_id + role into state so callback knows who connected
-  const state = Buffer.from(
-    JSON.stringify({ userId: req.user.id, role: req.user.role })
-  ).toString('base64');
+  // Build a signed state — verified in the callback to prevent CSRF
+  const state = buildSignedState({ userId: req.user.id, role: req.user.role });
 
   const authUrl = oauth2Client.generateAuthUrl({
     access_type: 'offline',

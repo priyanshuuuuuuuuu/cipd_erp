@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { supabaseAdmin } from '@/lib/supabase';
+import { createHmac, timingSafeEqual } from 'crypto';
 
 function getOAuth2Client() {
   return new google.auth.OAuth2(
@@ -8,6 +9,34 @@ function getOAuth2Client() {
     process.env.GOOGLE_CLIENT_SECRET,
     `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/google/callback`
   );
+}
+
+/**
+ * Verifies and decodes the HMAC-signed OAuth state.
+ * Returns the decoded payload, or null if the signature is invalid.
+ */
+function verifySignedState(state) {
+  try {
+    const dotIndex = state.lastIndexOf('.');
+    if (dotIndex === -1) return null;
+
+    const data = state.slice(0, dotIndex);
+    const sig  = state.slice(dotIndex + 1);
+
+    const expectedSig = createHmac('sha256', process.env.JWT_SECRET)
+                          .update(data)
+                          .digest('hex');
+
+    // Constant-time comparison prevents timing attacks
+    const sigBuf      = Buffer.from(sig, 'hex');
+    const expectedBuf = Buffer.from(expectedSig, 'hex');
+    if (sigBuf.length !== expectedBuf.length) return null;
+    if (!timingSafeEqual(sigBuf, expectedBuf)) return null;
+
+    return JSON.parse(Buffer.from(data, 'base64url').toString('utf-8'));
+  } catch {
+    return null;
+  }
 }
 
 export async function GET(req) {
@@ -29,23 +58,16 @@ export async function GET(req) {
     );
   }
 
-  // Decode state to get ERP user_id
+  // Verify the signed state — rejects forged / tampered state parameters
   let userId, role;
-  try {
-    const decoded = JSON.parse(Buffer.from(state, 'base64').toString('utf-8'));
-    userId = decoded.userId;
-    role   = decoded.role || 'student';
-  } catch {
+  const decoded = verifySignedState(state);
+  if (!decoded || !decoded.userId) {
     return NextResponse.redirect(
       new URL('/dashboard?gc_error=invalid_state', process.env.NEXT_PUBLIC_APP_URL)
     );
   }
-
-  if (!userId) {
-    return NextResponse.redirect(
-      new URL('/dashboard?gc_error=no_user', process.env.NEXT_PUBLIC_APP_URL)
-    );
-  }
+  userId = decoded.userId;
+  role   = decoded.role || 'student';
 
   try {
     const oauth2Client = getOAuth2Client();
