@@ -1,129 +1,193 @@
 /**
  * Attendance Points Calculator
- * 
- * NEW SYSTEM (0–6 scale):
- *   Attendance (normal): 0–5 points based on ping presence %
- *     - ≥ 85% → 5 points
- *     - ≥ 70% → 4 points
- *     - ≥ 45% → 3 points
- *     - < 45% → 0 points (absent)
  *
- *   Bonus: 0–1 point
- *     - +1 if present in first 2 snapshots (within ~8 min of class start, pings every 4 min)
+ * Base score from first-ping timing vs session start (0–5):
+ *   ≤ 6.1 min after start (or before start) → 5
+ *   6.1 – 12.1 min  → 4
+ *   12.1 – 18.1 min → 3
+ *   18.1 – 30.1 min → 2
+ *   30.1 min – half-time → 1
+ *   after half-time → 0.5
  *
- *   Total per session: max 6 (5 attendance + 1 bonus)
+ * Ping-% deduction from base (monotonic):
+ *   ≥ 80% → no loss
+ *   ≥ 70% → −1
+ *   ≥ 45% → −2
+ *   < 45% → −2
+ *
+ * Final: max(0, base − deduction)
+ * No-show without approved leave: −2
+ * No-show with approved leave: 0 (status: leave)
  */
+
+const MS_PER_MIN = 60 * 1000;
+/** Small buffer for cron/scanner lag (6 seconds) */
+export const CRON_TIMING_BUFFER_MS = 6 * 1000;
 
 /**
- * @param {Set} studentSnapshotIds  - Set of snapshot IDs this student was seen in
- * @param {string[]} orderedSnapshotIds - All snapshot IDs in session, ordered by time
- * @param {number} [expectedTotalSnapshots] - Expected snapshots from session duration / scanner interval
- * @returns {{ points: number, bonusPoints: number, attendancePoints: number, status: string, breakdown: object }}
+ * @param {number} minutesAfterStart - minutes from session start (negative = early)
+ * @param {number} sessionDurationMin - total session length in minutes
  */
-export function calculatePoints(studentSnapshotIds, orderedSnapshotIds, expectedTotalSnapshots = 0) {
-  const actualSnapshots = orderedSnapshotIds.length;
-  // Use the larger of actual vs expected so scanner downtime can't inflate %
-  const totalSnapshots = Math.max(actualSnapshots, expectedTotalSnapshots || 0);
-  const pingCount = studentSnapshotIds.size;
+export function calculateLateEntryBasePoints(minutesAfterStart, sessionDurationMin) {
+  const halfTimeMin = sessionDurationMin / 2;
 
-  // No snapshots in session yet — can't calculate
-  if (totalSnapshots === 0) {
+  if (minutesAfterStart <= 6.1) return 5;
+  if (minutesAfterStart <= 12.1) return 4;
+  if (minutesAfterStart <= 18.1) return 3;
+  if (minutesAfterStart <= 30.1) return 2;
+  if (minutesAfterStart <= halfTimeMin) return 1;
+  return 0.5;
+}
+
+/**
+ * @param {number} presencePercent
+ * @returns {number} points to deduct
+ */
+export function calculatePingDeduction(presencePercent) {
+  if (presencePercent >= 80) return 0;
+  if (presencePercent >= 70) return 1;
+  return 2;
+}
+
+/**
+ * @param {object} params
+ * @param {Date|null} params.firstSeenAt
+ * @param {Date} params.sessionStartAt
+ * @param {Date} params.sessionEndAt
+ * @param {number} params.pingCount
+ * @param {string[]} params.orderedSnapshotIds
+ * @param {number} [params.expectedTotalSnapshots]
+ * @param {boolean} [params.leaveApproved]
+ * @param {boolean} [params.detected]
+ * @param {boolean} [params.finalizeAbsent]
+ * @returns {{ points: number, basePoints: number, pingDeduction: number, status: string, breakdown: object }}
+ */
+export function calculatePoints({
+  firstSeenAt,
+  sessionStartAt,
+  sessionEndAt,
+  pingCount,
+  orderedSnapshotIds,
+  expectedTotalSnapshots = 0,
+  leaveApproved = false,
+  detected = true,
+  finalizeAbsent = false,
+}) {
+  const sessionDurationMin = Math.max(
+    1,
+    (sessionEndAt.getTime() - sessionStartAt.getTime()) / MS_PER_MIN
+  );
+
+  if (!detected) {
+    if (!finalizeAbsent) {
+      return {
+        points: 0,
+        basePoints: 0,
+        pingDeduction: 0,
+        status: 'absent',
+        breakdown: {
+          reason: 'Not yet detected',
+          tier: 'pending',
+          presencePercent: 0,
+        },
+      };
+    }
+
+    if (leaveApproved) {
+      return {
+        points: 0,
+        basePoints: 0,
+        pingDeduction: 0,
+        status: 'leave',
+        breakdown: {
+          reason: 'Approved leave — no penalty',
+          tier: 'leave',
+          presencePercent: 0,
+        },
+      };
+    }
+
     return {
-      points: 0,
-      attendancePoints: 0,
-      bonusPoints: 0,
+      points: -2,
+      basePoints: 0,
+      pingDeduction: 0,
       status: 'absent',
       breakdown: {
+        reason: 'Absent without approved leave → −2 pts',
+        tier: 'absent',
         presencePercent: 0,
-        attendancePoints: 0,
-        bonusPoints: 0,
-        tier: 'none',
-        reason: 'No snapshots in session',
       },
     };
   }
 
-  // Student not seen at all
-  if (pingCount === 0) {
-    return {
-      points: 0,
-      attendancePoints: 0,
-      bonusPoints: 0,
-      status: 'absent',
-      breakdown: {
-        presencePercent: 0,
-        attendancePoints: 0,
-        bonusPoints: 0,
-        tier: 'none',
-        reason: 'Not detected',
-      },
-    };
+  const actualSnapshots = orderedSnapshotIds.length;
+  const totalSnapshots = Math.max(actualSnapshots, expectedTotalSnapshots || 0);
+
+  if (totalSnapshots === 0 || pingCount === 0) {
+    return calculatePoints({
+      firstSeenAt: null,
+      sessionStartAt,
+      sessionEndAt,
+      pingCount: 0,
+      orderedSnapshotIds,
+      expectedTotalSnapshots,
+      leaveApproved,
+      detected: false,
+      finalizeAbsent,
+    });
   }
 
   const presencePercent = (pingCount / totalSnapshots) * 100;
+  const msAfterStart =
+    firstSeenAt.getTime() - sessionStartAt.getTime() + CRON_TIMING_BUFFER_MS;
+  const minutesAfterStart = msAfterStart / MS_PER_MIN;
 
-  // ── Attendance points (0–5) based on presence % ──
-  let attendancePoints = 0;
-  let tier = '';
+  const basePoints = calculateLateEntryBasePoints(minutesAfterStart, sessionDurationMin);
+  const pingDeduction = calculatePingDeduction(presencePercent);
+  const points = Math.max(0, basePoints - pingDeduction);
 
-  if (presencePercent >= 85) {
-    attendancePoints = 5;
-    tier = '≥85%';
-  } else if (presencePercent >= 70) {
-    attendancePoints = 4;
-    tier = '≥70%';
-  } else if (presencePercent >= 45) {
-    attendancePoints = 3;
-    tier = '≥45%';
-  } else {
-    attendancePoints = 0;
-    tier = '<45%';
-  }
+  let tier = `late ${minutesAfterStart.toFixed(1)}min → base ${basePoints}`;
+  if (pingDeduction > 0) tier += `, ping ${Math.round(presencePercent)}% −${pingDeduction}`;
 
-  // If attendance is 0, mark absent
-  if (attendancePoints === 0) {
-    return {
-      points: 0,
-      attendancePoints: 0,
-      bonusPoints: 0,
-      status: 'absent',
-      breakdown: {
-        presencePercent: Math.round(presencePercent),
-        attendancePoints: 0,
-        bonusPoints: 0,
-        tier,
-        reason: `Presence ${Math.round(presencePercent)}% (< 45%) → Absent`,
-      },
-    };
-  }
-
-  // ── Bonus point (+1 for early arrival) ──
-  // Present in any of the first 2 snapshots = within first ~8 minutes
-  const first2 = orderedSnapshotIds.slice(0, 2);
-  const presentInFirst2 = first2.some(id => studentSnapshotIds.has(id));
-  const bonusPoints = presentInFirst2 ? 1 : 0;
-
-  const totalPoints = attendancePoints + bonusPoints;
-  const status = 'present';
-
-  let reason = `Presence ${Math.round(presencePercent)}% → ${attendancePoints} pts`;
-  if (bonusPoints > 0) {
-    reason += ' + 1 early bonus';
-  } else {
-    reason += ' (no early bonus)';
-  }
+  const status = points > 0 ? 'present' : 'absent';
 
   return {
-    points: totalPoints,
-    attendancePoints,
-    bonusPoints,
+    points,
+    basePoints,
+    pingDeduction,
     status,
     breakdown: {
       presencePercent: Math.round(presencePercent),
-      attendancePoints,
-      bonusPoints,
+      basePoints,
+      pingDeduction,
+      minutesAfterStart: Math.round(minutesAfterStart * 10) / 10,
       tier,
-      reason,
+      reason: `${tier} → ${points} pts`,
     },
   };
+}
+
+/**
+ * Apply ongoing-session partial override (fewer than min pings).
+ * @param {string} status
+ * @param {number} pingCount
+ * @param {boolean} isOngoing
+ * @param {number} [minPingsPresent]
+ */
+export function applyOngoingPartialStatus(
+  status,
+  pingCount,
+  isOngoing,
+  minPingsPresent = 3
+) {
+  if (
+    isOngoing &&
+    pingCount > 0 &&
+    pingCount < minPingsPresent &&
+    status !== 'absent' &&
+    status !== 'leave'
+  ) {
+    return 'partial';
+  }
+  return status;
 }

@@ -3,6 +3,10 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { withRole } from '@/lib/middleware';
 import { rolloutFeedbackForSession } from '@/lib/feedback-rollout';
+import {
+  fetchSessionForProcessing,
+  processSessionAttendance,
+} from '@/lib/process-session-attendance';
 
 // PATCH /api/admin/sessions/[id]
 // Supports two modes:
@@ -38,12 +42,18 @@ async function handler(req, { params }) {
       }
       if (!data) return NextResponse.json({ error: 'Session not found' }, { status: 404 });
 
-      // Trigger attendance calculation + feedback rollout when marked completed
       if (status === 'completed') {
-        const { error: calcError } = await supabaseAdmin.rpc('calculate_attendance', { p_session: id });
-        if (calcError) console.error('Attendance calculation error:', calcError);
+        const session = await fetchSessionForProcessing(id);
+        if (session) {
+          processSessionAttendance(session, {
+            isOngoing: false,
+            finalizeAbsent: true,
+            upsert: true,
+          }).catch((err) =>
+            console.error('Wi-Fi attendance on mark-complete:', err.message)
+          );
+        }
 
-        // Fire feedback rollout asynchronously (non-blocking)
         rolloutFeedbackForSession(id).catch((err) =>
           console.error('Feedback rollout error after admin mark-complete:', err.message)
         );

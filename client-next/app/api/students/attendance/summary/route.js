@@ -7,7 +7,7 @@ function makeCode(name = '') {
   return name
     .split(/[\s&]+/)
     .filter(Boolean)
-    .map(w => w[0].toUpperCase())
+    .map((w) => w[0].toUpperCase())
     .join('')
     .slice(0, 4);
 }
@@ -16,7 +16,6 @@ async function handler(req) {
   try {
     const studentId = req.user.id;
 
-    // 1. Get all courses the student is enrolled in
     const { data: enrollments, error: enrollErr } = await supabaseAdmin
       .from('course_enrollments')
       .select('course_id, courses ( id, name )')
@@ -24,168 +23,202 @@ async function handler(req) {
 
     if (enrollErr) console.error('Enrollment fetch error:', enrollErr.message);
 
-    const enrolledCourses = (enrollments || []).map(e => ({
+    const enrolledCourses = (enrollments || []).map((e) => ({
       id: e.courses?.id || e.course_id,
       name: e.courses?.name || 'Unknown',
     }));
 
-    // 2. Get pre-computed course attendance from student_course_attendance
-    const enrolledCourseIds = enrolledCourses.map(c => c.id);
-    const { data: courseAttendance, error: caErr } = await supabaseAdmin
-      .from('student_course_attendance')
-      .select('course_id, attendance_percentage')
-      .eq('student_id', studentId)
-      .in('course_id', enrolledCourseIds.length > 0 ? enrolledCourseIds : ['00000000-0000-0000-0000-000000000000']);
+    const enrolledCourseIds = enrolledCourses.map((c) => c.id);
 
-    if (caErr) console.error('Course attendance fetch error:', caErr.message);
+    let records = [];
+    if (enrolledCourseIds.length > 0) {
+      const { data: recs, error: recErr } = await supabaseAdmin
+        .from('attendance_records')
+        .select(`
+          status, points, session_id,
+          sessions!inner (
+            id, session_date, course_id, status
+          )
+        `)
+        .eq('student_id', studentId)
+        .in('sessions.course_id', enrolledCourseIds)
+        .eq('sessions.status', 'completed');
 
-    const pctByCourse = {};
-    for (const ca of courseAttendance || []) {
-      pctByCourse[ca.course_id] = ca.attendance_percentage;
+      if (recErr) console.error('Attendance records fetch error:', recErr.message);
+      records = recs || [];
     }
 
-    // 3. Get all marks for this student to compute overall stats & calendar
-    const { data: marks, error: marksErr } = await supabaseAdmin
-      .from('student_attendance_marks')
-      .select('status, session_date, course_id, session_slot')
-      .eq('student_id', studentId)
-      .not('course_id', 'is', null); // only linked marks count
-
-    if (marksErr) console.error('Marks fetch error:', marksErr.message);
-
-    const allMarks = marks || [];
-
-    // 4. Build per-course counts from attendance marks
     const countsByCourse = {};
-    for (const m of allMarks) {
-      const cid = m.course_id;
+    for (const r of records) {
+      const cid = r.sessions?.course_id;
       if (!cid) continue;
-      if (!countsByCourse[cid]) countsByCourse[cid] = { attended: 0, absent: 0, leave: 0, total: 0 };
+      if (!countsByCourse[cid]) {
+        countsByCourse[cid] = { attended: 0, absent: 0, leave: 0, total: 0, points: 0 };
+      }
       countsByCourse[cid].total++;
-      const s = m.status;
-      if (s === 'P' || s === 'PO' || s === 'H' || s === 'C') {
-        countsByCourse[cid].attended++;   // C within limit = attended
-      } else if (s === 'A') {
-        countsByCourse[cid].absent++;     // penalised absence
-      } else if (s === 'L') {
-        countsByCourse[cid].leave++;      // official leave
+      countsByCourse[cid].points += Number(r.points) || 0;
+
+      if (r.status === 'present' || r.status === 'partial') {
+        countsByCourse[cid].attended++;
+      } else if (r.status === 'leave') {
+        countsByCourse[cid].leave++;
+      } else {
+        countsByCourse[cid].absent++;
       }
     }
 
-    // 5. Build courses array — use pre-computed % from student_course_attendance
-    const courses = enrolledCourses.map(c => {
-      const counts = countsByCourse[c.id] || { attended: 0, absent: 0, leave: 0, total: 0 };
-      const rawPct = pctByCourse[c.id] ?? 0;
-      // Floor at 0 for display; keep actual value for logic
-      const pct = Math.max(0, Math.round(rawPct * 10) / 10);
-      return {
-        course_code: makeCode(c.name),
-        course_name: c.name,
-        faculty: '',
-        attended: counts.attended,
-        absent:   counts.absent,
-        leave:    counts.leave,
-        total:    counts.total,
-        pct,
-      };
-    }).sort((a, b) => a.course_name.localeCompare(b.course_name));
+    const courses = enrolledCourses
+      .map((c) => {
+        const counts = countsByCourse[c.id] || {
+          attended: 0,
+          absent: 0,
+          leave: 0,
+          total: 0,
+          points: 0,
+        };
+        const maxPoints = counts.total * 5;
+        const pct =
+          maxPoints > 0
+            ? Math.max(0, Math.round((counts.points / maxPoints) * 1000) / 10)
+            : 0;
+        return {
+          course_code: makeCode(c.name),
+          course_name: c.name,
+          faculty: '',
+          attended: counts.attended,
+          absent: counts.absent,
+          leave: counts.leave,
+          total: counts.total,
+          pct,
+        };
+      })
+      .sort((a, b) => a.course_name.localeCompare(b.course_name));
 
-    // 6. Overall stats (across all linked marks)
-    let totalAttended = 0, totalAbsent = 0, totalLeave = 0, overallPoints = 0, overallTotal = 0;
-    for (const m of allMarks) {
+    let totalAttended = 0;
+    let totalAbsent = 0;
+    let totalLeave = 0;
+    let overallPoints = 0;
+    let overallTotal = 0;
+
+    for (const r of records) {
       overallTotal++;
-      const s = m.status;
-      if (s === 'P' || s === 'PO') { totalAttended++; overallPoints += 1.0; }
-      else if (s === 'H')           { totalAttended++; overallPoints += 0.5; }
-      else if (s === 'A')           { totalAbsent++;   overallPoints -= 1.0; }
-      else if (s === 'C')           { totalAttended++; overallPoints += 1.0; }
-      else if (s === 'L')           { totalLeave++;    }
+      overallPoints += Number(r.points) || 0;
+      if (r.status === 'present' || r.status === 'partial') totalAttended++;
+      else if (r.status === 'leave') totalLeave++;
+      else totalAbsent++;
     }
-    const overallPct = overallTotal > 0
-      ? Math.max(0, Math.round((overallPoints / overallTotal) * 1000) / 10)
-      : 0;
 
-    // 7. Streak — consecutive days where all marks were attended
+    const overallPct =
+      overallTotal > 0
+        ? Math.max(
+            0,
+            Math.round((overallPoints / (overallTotal * 5)) * 1000) / 10
+          )
+        : 0;
+
     const byDate = {};
-    for (const m of allMarks) {
-      if (!m.session_date) continue;
-      if (!byDate[m.session_date]) byDate[m.session_date] = [];
-      byDate[m.session_date].push(m.status);
+    for (const r of records) {
+      const date = r.sessions?.session_date;
+      if (!date) continue;
+      if (!byDate[date]) byDate[date] = [];
+      byDate[date].push(r.status);
     }
+
     const sortedDates = Object.keys(byDate).sort((a, b) => b.localeCompare(a));
     let streak = 0;
     for (const date of sortedDates) {
       const statuses = byDate[date];
-      const allPresent = statuses.every(s => s === 'P' || s === 'PO' || s === 'H' || s === 'C');
+      const allPresent = statuses.every(
+        (s) => s === 'present' || s === 'partial' || s === 'leave'
+      );
       if (allPresent) streak++;
       else break;
     }
 
-    // 8. Calendar data
     const calByDate = {};
-    for (const m of allMarks) {
-      if (!m.session_date) continue;
-      if (!calByDate[m.session_date]) calByDate[m.session_date] = { present: 0, absent: 0 };
-      const s = m.status;
-      if (s === 'P' || s === 'PO' || s === 'H' || s === 'C') calByDate[m.session_date].present++;
-      else if (s === 'A') calByDate[m.session_date].absent++;
+    for (const r of records) {
+      const date = r.sessions?.session_date;
+      if (!date) continue;
+      if (!calByDate[date]) calByDate[date] = { present: 0, absent: 0 };
+      if (r.status === 'present' || r.status === 'partial' || r.status === 'leave') {
+        calByDate[date].present++;
+      } else {
+        calByDate[date].absent++;
+      }
     }
+
     const calendarData = {};
     for (const [date, { present, absent }] of Object.entries(calByDate)) {
       if (present > 0 && absent === 0) calendarData[date] = 'full';
-      else if (present > 0)            calendarData[date] = 'partial';
-      else                             calendarData[date] = 'absent';
+      else if (present > 0) calendarData[date] = 'partial';
+      else calendarData[date] = 'absent';
     }
 
-    // 9. Weekly data
     const weeklyMap = {};
-    for (const m of allMarks) {
-      if (!m.session_date) continue;
-      const d = new Date(m.session_date);
-      // Get Monday of the week
+    for (const r of records) {
+      const dateStr = r.sessions?.session_date;
+      if (!dateStr) continue;
+      const d = new Date(`${dateStr}T12:00:00`);
       const day = d.getDay();
       const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-      const monday = new Date(d.setDate(diff));
-      const weekStr = `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`;
-      
+      const monday = new Date(d);
+      monday.setDate(diff);
+      const weekStr = monday.toISOString().split('T')[0];
+
       if (!weeklyMap[weekStr]) {
-        weeklyMap[weekStr] = { weekStart: weekStr, attended: 0, absent: 0, leave: 0, total: 0, points: 0 };
+        weeklyMap[weekStr] = {
+          weekStart: weekStr,
+          attended: 0,
+          absent: 0,
+          leave: 0,
+          total: 0,
+          points: 0,
+        };
       }
       weeklyMap[weekStr].total++;
-      const s = m.status;
-      if (s === 'P' || s === 'PO' || s === 'C') { weeklyMap[weekStr].attended++; weeklyMap[weekStr].points += 1.0; }
-      else if (s === 'H')                       { weeklyMap[weekStr].attended++; weeklyMap[weekStr].points += 0.5; }
-      else if (s === 'A')                       { weeklyMap[weekStr].absent++;   weeklyMap[weekStr].points -= 1.0; }
-      else if (s === 'L')                       { weeklyMap[weekStr].leave++;    }
+      weeklyMap[weekStr].points += Number(r.points) || 0;
+      if (r.status === 'present' || r.status === 'partial') {
+        weeklyMap[weekStr].attended++;
+      } else if (r.status === 'leave') {
+        weeklyMap[weekStr].leave++;
+      } else {
+        weeklyMap[weekStr].absent++;
+      }
     }
-    const weeklyData = Object.values(weeklyMap).sort((a, b) => a.weekStart.localeCompare(b.weekStart)).map((w, index) => {
-      w.pct = w.total > 0 ? Math.max(0, Math.round((w.points / w.total) * 100)) : 0;
-      const md = new Date(w.weekStart);
-      const ed = new Date(w.weekStart);
-      ed.setDate(ed.getDate() + 6);
-      
-      const startStr = md.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-      const endStr = ed.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-      
-      w.label = `Week ${index + 1}`;
-      w.dateRange = `${startStr} - ${endStr}`;
-      return w;
-    });
+
+    const weeklyData = Object.values(weeklyMap)
+      .sort((a, b) => a.weekStart.localeCompare(b.weekStart))
+      .map((w, index) => {
+        const pct =
+          w.total > 0
+            ? Math.max(0, Math.round((w.points / (w.total * 5)) * 100))
+            : 0;
+        const md = new Date(w.weekStart);
+        const ed = new Date(w.weekStart);
+        ed.setDate(ed.getDate() + 6);
+        return {
+          ...w,
+          pct,
+          label: `Week ${index + 1}`,
+          dateRange: `${md.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} - ${ed.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`,
+        };
+      });
 
     return NextResponse.json({
       overall: {
-        total:    overallTotal,
+        total: overallTotal,
         attended: totalAttended,
-        absent:   totalAbsent,
-        leave:    totalLeave,
-        pct:      overallPct,
+        absent: totalAbsent,
+        leave: totalLeave,
+        pct: overallPct,
+        points: Math.round(overallPoints * 10) / 10,
       },
       streak,
       courses,
       calendarData,
       weeklyData,
+      source: 'attendance_records',
     });
-
   } catch (err) {
     console.error('Attendance summary error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

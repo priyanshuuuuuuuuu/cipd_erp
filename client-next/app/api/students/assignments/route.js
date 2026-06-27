@@ -5,13 +5,23 @@ import { withAuth } from '@/lib/middleware';
 
 async function handler(req) {
   try {
+    const { searchParams } = new URL(req.url);
+    const courseIdFilter = searchParams.get('course_id');
+
     // Get enrolled courses
     const { data: enrollments } = await supabaseAdmin
       .from('course_enrollments')
       .select('course_id')
       .eq('student_id', req.user.id);
 
-    const courseIds = (enrollments || []).map(e => e.course_id);
+    let courseIds = (enrollments || []).map(e => e.course_id);
+
+    if (courseIdFilter) {
+      if (!courseIds.includes(courseIdFilter)) {
+        return NextResponse.json({ assignments: [] });
+      }
+      courseIds = [courseIdFilter];
+    }
 
     if (courseIds.length === 0) {
       return NextResponse.json({ assignments: [] });
@@ -21,7 +31,7 @@ async function handler(req) {
     const { data: assignments, error } = await supabaseAdmin
       .from('assignments')
       .select(`
-        id, title, description, due_date, created_at, total_marks,
+        id, title, description, due_date, created_at, total_marks, course_id,
         courses ( id, name ),
         faculty ( id, users ( first_name, last_name ) )
       `)
@@ -48,11 +58,20 @@ async function handler(req) {
     // Merge assignments with submissions
     const merged = (assignments || []).map(a => {
       const sub = submissions.find(s => s.assignment_id === a.id);
+      const submission_status = sub?.grade != null
+        ? 'graded'
+        : sub
+          ? 'submitted'
+          : 'pending';
+
       return {
         ...a,
         submission: sub || null,
         is_submitted: !!sub,
         is_overdue: !sub && new Date(a.due_date) < new Date(),
+        submission_status,
+        marks: sub?.grade ?? null,
+        feedback: sub?.feedback ?? null,
       };
     });
 

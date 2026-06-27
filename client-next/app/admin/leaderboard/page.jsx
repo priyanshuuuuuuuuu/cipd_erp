@@ -226,7 +226,7 @@ export default function AdminLeaderboardPage() {
                                     <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0 }}>
                                         <thead>
                                             <tr>
-                                                {['Rank', 'Student', 'ID', 'Total Score', 'Attendance', 'Bonus', 'Feedback', 'Progress'].map((h, i) => (
+                                                {['Rank', 'Student', 'ID', 'Total Score', 'Attendance', 'Feedback', 'Progress'].map((h, i) => (
                                                     <th key={h} style={{ 
                                                         padding: '16px 24px', 
                                                         textAlign: i === 0 ? 'center' : 'left', 
@@ -268,9 +268,6 @@ export default function AdminLeaderboardPage() {
                                                         </td>
                                                         <td style={{ padding: '16px 24px', borderBottom: '1px solid #f1f5f9' }}>
                                                             <span style={{ fontWeight: 600, color: '#3b82f6', fontSize: '0.9rem' }}>{entry.attendancePoints}</span>
-                                                        </td>
-                                                        <td style={{ padding: '16px 24px', borderBottom: '1px solid #f1f5f9' }}>
-                                                            <span style={{ fontWeight: 600, fontSize: '0.9rem', color: entry.bonusPoints > 0 ? '#10b981' : '#94a3b8' }}>{entry.bonusPoints}</span>
                                                         </td>
                                                         <td style={{ padding: '16px 24px', borderBottom: '1px solid #f1f5f9' }}>
                                                             <span style={{ fontWeight: 600, fontSize: '0.9rem', color: entry.feedbackPoints > 0 ? '#f59e0b' : '#94a3b8' }}>{entry.feedbackPoints}</span>

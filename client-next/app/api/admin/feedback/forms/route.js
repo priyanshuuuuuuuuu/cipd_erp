@@ -2,6 +2,8 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { withRole } from '@/lib/middleware';
+import { getFeedbackDeadline, getFeedbackHoursLeft, isFeedbackExpired } from '@/lib/feedback-deadline';
+import { getAttendedCountBySession } from '@/lib/feedback-eligibility';
 
 // GET — list all feedback forms (sessions with completed status) + stats
 async function getHandler(req) {
@@ -9,7 +11,6 @@ async function getHandler(req) {
     const { searchParams } = new URL(req.url);
     const status = searchParams.get('status'); // active, expired, all
 
-    // Get all completed sessions
     const { data: sessions } = await supabaseAdmin
       .from('sessions')
       .select(`
@@ -20,43 +21,39 @@ async function getHandler(req) {
       .eq('status', 'completed')
       .order('session_date', { ascending: false });
 
-    // Get all feedback responses for stats
-    const { data: allResponses } = await supabaseAdmin
-      .from('feedback_responses')
-      .select('session_id, student_id, rating');
+    const sessionIds = (sessions || []).map((s) => s.id);
 
-    // Get enrollments per course
-    const { data: enrollments } = await supabaseAdmin
-      .from('course_enrollments')
-      .select('course_id, student_id');
+    const { data: allResponses } =
+      sessionIds.length > 0
+        ? await supabaseAdmin
+            .from('feedback_responses')
+            .select('session_id, student_id, rating')
+            .in('session_id', sessionIds)
+        : { data: [] };
 
-    const enrollmentMap = {};
-    (enrollments || []).forEach(e => {
-      enrollmentMap[e.course_id] = (enrollmentMap[e.course_id] || 0) + 1;
+    const attendedCountMap = await getAttendedCountBySession(
+      supabaseAdmin,
+      sessionIds.length > 0 ? sessionIds : null
+    );
+
+    const responsesBySession = {};
+    (allResponses || []).forEach((r) => {
+      if (!responsesBySession[r.session_id]) responsesBySession[r.session_id] = [];
+      responsesBySession[r.session_id].push(r);
     });
 
-    const now = new Date();
+    const forms = (sessions || []).map((s) => {
+      const deadline = getFeedbackDeadline(s);
+      const expired = isFeedbackExpired(s);
 
-    const forms = (sessions || []).map(s => {
-      // Compute deadline
-      let deadline;
-      if (s.feedback_deadline) {
-        deadline = new Date(s.feedback_deadline);
-      } else {
-        deadline = new Date(`${s.session_date}T${s.end_time || '23:59:00'}+05:30`);
-        deadline.setHours(deadline.getHours() + 24);
-      }
-      const expired = now > deadline;
-      const hoursLeft = Math.max(0, Math.round((deadline - now) / 3600000 * 10) / 10);
-
-      // Count submissions
-      const sessionResponses = (allResponses || []).filter(r => r.session_id === s.id);
-      const uniqueStudents = new Set(sessionResponses.map(r => r.student_id)).size;
-      const enrolled = enrollmentMap[s.courses?.id] || 0;
-      const ratings = sessionResponses.filter(r => r.rating != null).map(r => r.rating);
-      const avgRating = ratings.length > 0
-        ? Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 10) / 10
-        : null;
+      const sessionResponses = responsesBySession[s.id] || [];
+      const uniqueStudents = new Set(sessionResponses.map((r) => r.student_id)).size;
+      const attended = attendedCountMap[s.id] || 0;
+      const ratings = sessionResponses.filter((r) => r.rating != null).map((r) => r.rating);
+      const avgRating =
+        ratings.length > 0
+          ? Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 10) / 10
+          : null;
 
       return {
         session_id: s.id,
@@ -65,31 +62,35 @@ async function getHandler(req) {
         start_time: s.start_time,
         end_time: s.end_time,
         course: s.courses,
-        faculty: s.faculty ? {
-          name: s.faculty.users ? `${s.faculty.users.first_name} ${s.faculty.users.last_name}` : 'TBA'
-        } : null,
+        faculty: s.faculty
+          ? {
+              name: s.faculty.users
+                ? `${s.faculty.users.first_name} ${s.faculty.users.last_name}`
+                : 'TBA',
+            }
+          : null,
         deadline: deadline.toISOString(),
         expired,
-        hoursLeft,
+        hoursLeft: getFeedbackHoursLeft(s),
         submissions: uniqueStudents,
-        enrolled,
+        attended,
+        enrolled: attended,
         avgRating,
         formStatus: expired ? 'expired' : 'active',
       };
     });
 
-    // Filter by status if requested
     let filtered = forms;
-    if (status === 'active') filtered = forms.filter(f => !f.expired);
-    if (status === 'expired') filtered = forms.filter(f => f.expired);
+    if (status === 'active') filtered = forms.filter((f) => !f.expired);
+    if (status === 'expired') filtered = forms.filter((f) => f.expired);
 
     return NextResponse.json({
       forms: filtered,
       stats: {
         total: forms.length,
-        active: forms.filter(f => !f.expired).length,
-        expired: forms.filter(f => f.expired).length,
-        totalSubmissions: new Set((allResponses || []).map(r => `${r.session_id}::${r.student_id}`)).size,
+        active: forms.filter((f) => !f.expired).length,
+        expired: forms.filter((f) => f.expired).length,
+        totalSubmissions: new Set((allResponses || []).map((r) => `${r.session_id}::${r.student_id}`)).size,
       },
     });
   } catch (err) {

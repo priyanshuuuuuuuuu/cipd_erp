@@ -72,6 +72,8 @@ const Login = () => {
       const user = await login(identifier.trim(), password);
       if (user.role === 'admin') {
         router.push('/admin');
+      } else if (user.role === 'faculty') {
+        router.push('/faculty/dashboard');
       } else {
         router.push('/dashboard');
       }

@@ -266,6 +266,13 @@ ON feedback_responses(session_id);
 CREATE INDEX idx_feedback_student
 ON feedback_responses(student_id);
 
+CREATE INDEX idx_feedback_student_session
+ON feedback_responses(student_id, session_id);
+
+ALTER TABLE feedback_responses
+  ADD CONSTRAINT feedback_responses_session_student_question_unique
+  UNIQUE (session_id, student_id, question_id);
+
 --------------------------------------------------
 -- SESSION MATERIALS
 --------------------------------------------------

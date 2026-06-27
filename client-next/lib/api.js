@@ -64,10 +64,45 @@ export async function apiFetch(path, options = {}) {
   return data;
 }
 
+/**
+ * Multipart upload — do not set Content-Type (browser sets boundary).
+ * @param {string} path
+ * @param {FormData} formData
+ */
+export async function apiUpload(path, formData) {
+  const token = getToken();
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+    cache: 'no-store',
+  });
+
+  if (res.status === 401) {
+    if (typeof window !== 'undefined') {
+      ['student', 'admin', 'faculty'].forEach((role) => {
+        localStorage.removeItem(`${role}_token`);
+        localStorage.removeItem(`${role}_user`);
+      });
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/';
+    }
+    throw new Error('Unauthorized');
+  }
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || `Upload failed with status ${res.status}`);
+  }
+  return data;
+}
+
 export const api = {
   get: (path) => apiFetch(path),
   post: (path, body) => apiFetch(path, { method: 'POST', body: JSON.stringify(body) }),
   put: (path, body) => apiFetch(path, { method: 'PUT', body: JSON.stringify(body) }),
   patch: (path, body) => apiFetch(path, { method: 'PATCH', body: JSON.stringify(body) }),
   delete: (path) => apiFetch(path, { method: 'DELETE' }),
+  upload: apiUpload,
 };

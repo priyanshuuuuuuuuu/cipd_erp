@@ -2,7 +2,8 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { sendFeedbackReminderEmail } from '@/lib/emailer';
-
+import { getFeedbackDeadline } from '@/lib/feedback-deadline';
+import { fetchPreferencesMap, shouldNotifyUser } from '@/lib/should-notify';
 /**
  * GET /api/cron/feedback-reminder
  * Runs periodically — finds feedback forms where deadline is ~4 hours away,
@@ -36,14 +37,7 @@ export async function GET(req) {
     const errors = [];
 
     for (const session of sessions) {
-      // Compute deadline
-      let deadline;
-      if (session.feedback_deadline) {
-        deadline = new Date(session.feedback_deadline);
-      } else {
-        deadline = new Date(`${session.session_date}T${session.end_time || '23:59:00'}+05:30`);
-        deadline.setHours(deadline.getHours() + 24);
-      }
+      const deadline = getFeedbackDeadline(session);
 
       // Check if deadline is 3-5 hours away (4-hour reminder window)
       const hoursLeft = (deadline - now) / 3600000;
@@ -86,7 +80,14 @@ export async function GET(req) {
         .in('id', pendingIds)
         .eq('is_active', true);
 
+      const prefMap = await fetchPreferencesMap(
+        supabaseAdmin,
+        (students || []).map((s) => s.id)
+      );
+
       for (const student of (students || [])) {
+        if (!shouldNotifyUser(prefMap, student.id, 'feedback_deadline_reminder')) continue;
+
         try {
           const name = `${student.first_name || ''} ${student.last_name || ''}`.trim() || 'Student';
 

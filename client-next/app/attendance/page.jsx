@@ -56,18 +56,28 @@ export default function AttendancePage() {
     // Presence indicator
     const [presence, setPresence] = useState({ present: false, signal: 0, lastUpdated: null });
 
+    // Leave requests
+    const [leaveRequests, setLeaveRequests] = useState([]);
+    const [leaveDate, setLeaveDate] = useState('');
+    const [leaveReason, setLeaveReason] = useState('');
+    const [leaveSubmitting, setLeaveSubmitting] = useState(false);
+    const [leaveMsg, setLeaveMsg] = useState(null);
+    const [showLeaveForm, setShowLeaveForm] = useState(false);
+
     const displayName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Student' : 'Student';
 
     const fetchData = useCallback(async () => {
         try {
-            const [sumRes, sesRes, presRes] = await Promise.allSettled([
+            const [sumRes, sesRes, presRes, leaveRes] = await Promise.allSettled([
                 api.get('/api/students/attendance/summary'),
                 api.get(`/api/students/attendance/sessions?limit=300`),
                 api.get('/api/students/attendance/presence'),
+                api.get('/api/students/leave-requests'),
             ]);
             if (sumRes.status === 'fulfilled') setSummaryData(sumRes.value);
             if (sesRes.status === 'fulfilled') setSessionHistory(sesRes.value.sessions || []);
             if (presRes.status === 'fulfilled') setPresence(presRes.value);
+            if (leaveRes.status === 'fulfilled') setLeaveRequests(leaveRes.value.requests || []);
         } finally {
             setLoading(false);
         }
@@ -102,6 +112,12 @@ export default function AttendancePage() {
     }));
 
     // Sessions from API
+    const statusLabel = (st) => {
+        if (st === 'present' || st === 'partial') return 'Present';
+        if (st === 'leave') return 'Leave';
+        return 'Absent';
+    };
+
     const sessions = sessionHistory.map((s, i) => {
         const sess = s.sessions || {};
         const sessionDate = sess.session_date ? new Date(sess.session_date + 'T00:00:00') : null;
@@ -115,11 +131,37 @@ export default function AttendancePage() {
             course: courseCode,
             courseName: courseName,
             topic: sess.title || courseName || 'Session',
-            status: s.status === 'present' || s.status === 'present_online' || s.status === 'half' ? 'Present' : 'Absent',
+            rawStatus: s.status,
+            status: statusLabel(s.status),
             pings: s.ping_count != null ? s.ping_count : 0,
             points: s.points != null ? s.points : null,
         };
     });
+
+    const submitLeaveRequest = async () => {
+        if (!leaveDate || leaveReason.trim().length < 5) {
+            setLeaveMsg({ type: 'error', text: 'Pick a date and enter a reason (min 5 characters).' });
+            return;
+        }
+        setLeaveSubmitting(true);
+        setLeaveMsg(null);
+        try {
+            await api.post('/api/students/leave-requests', {
+                leave_date: leaveDate,
+                reason: leaveReason.trim(),
+            });
+            setLeaveMsg({ type: 'success', text: 'Leave request submitted. Admins have been notified.' });
+            setLeaveReason('');
+            setLeaveDate('');
+            setShowLeaveForm(false);
+            const res = await api.get('/api/students/leave-requests');
+            setLeaveRequests(res.requests || []);
+        } catch (e) {
+            setLeaveMsg({ type: 'error', text: e.message || 'Failed to submit leave request' });
+        } finally {
+            setLeaveSubmitting(false);
+        }
+    };
 
     const filtered = selectedCourse === 'all' ? sessions : sessions.filter(s => s.course === selectedCourse);
     const statusTextColor = (p) => p >= 85 ? '#166534' : p >= 75 ? '#854d0e' : '#9f1239';
@@ -431,6 +473,54 @@ export default function AttendancePage() {
                         )}
                     </div>
 
+                    {/* Leave Requests */}
+                    <div className="stat-card" style={{ padding: '1.25rem 1.5rem', borderRadius: '20px', marginBottom: '1rem', border: '1px solid #e8e8e8' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: showLeaveForm || leaveRequests.length ? '1rem' : 0 }}>
+                            <div>
+                                <div style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>Leave Requests</div>
+                                <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px' }}>Request leave before class to avoid the −2 absent penalty</div>
+                            </div>
+                            <button onClick={() => setShowLeaveForm(!showLeaveForm)} style={{ padding: '8px 16px', borderRadius: '10px', border: 'none', background: '#111', color: '#fff', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer' }}>
+                                {showLeaveForm ? 'Cancel' : 'Request Leave'}
+                            </button>
+                        </div>
+                        {leaveMsg && (
+                            <div style={{ padding: '10px 14px', borderRadius: '10px', marginBottom: '12px', fontSize: '0.78rem', background: leaveMsg.type === 'success' ? '#ecfdf5' : '#fef2f2', color: leaveMsg.type === 'success' ? '#166534' : '#991b1b' }}>
+                                {leaveMsg.text}
+                            </div>
+                        )}
+                        {showLeaveForm && (
+                            <div style={{ display: 'grid', gap: '12px', marginBottom: '1rem', padding: '1rem', background: '#f8fafc', borderRadius: '12px' }}>
+                                <div>
+                                    <label style={{ fontSize: '0.72rem', fontWeight: 600, color: '#64748b', display: 'block', marginBottom: '6px' }}>Leave date</label>
+                                    <input type="date" value={leaveDate} onChange={e => setLeaveDate(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.85rem' }} />
+                                </div>
+                                <div>
+                                    <label style={{ fontSize: '0.72rem', fontWeight: 600, color: '#64748b', display: 'block', marginBottom: '6px' }}>Reason</label>
+                                    <textarea value={leaveReason} onChange={e => setLeaveReason(e.target.value)} rows={3} placeholder="Explain why you cannot attend..." style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.85rem', resize: 'vertical' }} />
+                                </div>
+                                <button onClick={submitLeaveRequest} disabled={leaveSubmitting} style={{ padding: '10px 16px', borderRadius: '10px', border: 'none', background: '#111', color: '#fff', fontWeight: 700, cursor: leaveSubmitting ? 'wait' : 'pointer', opacity: leaveSubmitting ? 0.7 : 1 }}>
+                                    {leaveSubmitting ? 'Submitting…' : 'Submit Leave Request'}
+                                </button>
+                            </div>
+                        )}
+                        {leaveRequests.length > 0 && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                {leaveRequests.slice(0, 5).map((lr) => (
+                                    <div key={lr.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: '#fff', borderRadius: '10px', border: '1px solid #f1f5f9' }}>
+                                        <div>
+                                            <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#0f172a' }}>{lr.leave_date}</div>
+                                            <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '2px' }}>{lr.reason}</div>
+                                        </div>
+                                        <span style={{ fontSize: '0.68rem', fontWeight: 700, padding: '4px 10px', borderRadius: '8px', background: lr.status === 'approved' ? '#ecfdf5' : lr.status === 'rejected' ? '#fef2f2' : '#fffbeb', color: lr.status === 'approved' ? '#166534' : lr.status === 'rejected' ? '#991b1b' : '#b45309' }}>
+                                            {lr.status}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
                     {/* Session History */}
                     <div className="stat-card" style={{ padding: '0', borderRadius: '20px', overflow: 'hidden' }}>
                         <div className="att-session-header" style={{ padding: '1rem 1.5rem', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -477,8 +567,11 @@ export default function AttendancePage() {
                                             </div>
                                             <div className="att-session-row-right" style={{ display:'flex', alignItems:'center', gap:'16px' }}>
                                                 <span style={{ fontFamily:'monospace', fontSize:'0.8rem', fontWeight: 600, color: s.pings >= 3 ? '#16a34a' : '#e11d48', background: s.pings >= 3 ? '#dcfce7' : '#ffe4e6', padding: '4px 10px', borderRadius: '8px' }}>{s.pings} pings</span>
-                                                <span style={{ display:'inline-flex', alignItems:'center', gap:'6px', padding:'6px 14px', borderRadius:'10px', fontSize:'0.8rem', fontWeight:700, background:s.status==='Present'?'#ecfccb':'#ffe4e6', color:s.status==='Present'?'#365314':'#9f1239' }}>
-                                                    {s.status==='Present'?<CheckCircle size={14}/>:<XCircle size={14}/>}{s.status}
+                                                {s.points != null && (
+                                                    <span style={{ fontFamily:'monospace', fontSize:'0.8rem', fontWeight: 700, color: s.points >= 3 ? '#166534' : s.points < 0 ? '#991b1b' : '#64748b', background: '#f8fafc', padding: '4px 10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>{s.points} pts</span>
+                                                )}
+                                                <span style={{ display:'inline-flex', alignItems:'center', gap:'6px', padding:'6px 14px', borderRadius:'10px', fontSize:'0.8rem', fontWeight:700, background: s.rawStatus === 'leave' ? '#fef3c7' : s.status === 'Present' ? '#ecfccb' : '#ffe4e6', color: s.rawStatus === 'leave' ? '#b45309' : s.status === 'Present' ? '#365314' : '#9f1239' }}>
+                                                    {s.status === 'Present' ? <CheckCircle size={14}/> : s.rawStatus === 'leave' ? <Clock size={14}/> : <XCircle size={14}/>}{s.status}
                                                 </span>
                                             </div>
                                         </div>

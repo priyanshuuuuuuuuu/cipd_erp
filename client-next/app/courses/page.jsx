@@ -160,9 +160,29 @@ export default function CoursesPage() {
                                             </div>
 
                                             <div style={{ display: 'flex', gap: '1rem', paddingTop: '0.8rem', borderTop: '1px solid #f5f5f5' }}>
-                                                {course.sessions_count != null && <span style={{ fontSize: '0.75rem', color: '#888' }}><strong style={{ color: '#333' }}>{course.sessions_count}</strong> sessions</span>}
-                                                {course.materials_count != null && <span style={{ fontSize: '0.75rem', color: '#888' }}><strong style={{ color: '#333' }}>{course.materials_count}</strong> materials</span>}
-                                                {course.assignments_count != null && <span style={{ fontSize: '0.75rem', color: '#888' }}><strong style={{ color: '#333' }}>{course.assignments_count}</strong> assignments</span>}
+                                                {course.sessions_count != null && (
+                                                    <span style={{ fontSize: '0.75rem', color: '#888' }}><strong style={{ color: '#333' }}>{course.sessions_count}</strong> sessions</span>
+                                                )}
+                                                {course.materials_count != null && (
+                                                    <span 
+                                                        onClick={(e) => { e.stopPropagation(); navTo(`/courses/${course.id}?tab=Materials`); }}
+                                                        style={{ fontSize: '0.75rem', color: '#888', cursor: 'pointer', transition: 'color 0.2s' }}
+                                                        onMouseEnter={e => e.currentTarget.style.color = '#111'}
+                                                        onMouseLeave={e => e.currentTarget.style.color = '#888'}
+                                                    >
+                                                        <strong style={{ color: '#333' }}>{course.materials_count}</strong> materials
+                                                    </span>
+                                                )}
+                                                {course.assignments_count != null && (
+                                                    <span 
+                                                        onClick={(e) => { e.stopPropagation(); navTo(`/courses/${course.id}?tab=Assignments`); }}
+                                                        style={{ fontSize: '0.75rem', color: '#888', cursor: 'pointer', transition: 'color 0.2s' }}
+                                                        onMouseEnter={e => e.currentTarget.style.color = '#111'}
+                                                        onMouseLeave={e => e.currentTarget.style.color = '#888'}
+                                                    >
+                                                        <strong style={{ color: '#333' }}>{course.assignments_count}</strong> assignments
+                                                    </span>
+                                                )}
                                             </div>
                                         </div>
                                     );
