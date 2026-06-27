@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import '../Dashboard.css';
 import {
-    LayoutGrid, Calendar, BookOpen, Users, MessageSquare, Settings, LogOut, Bell, Search,
+    LayoutGrid, Calendar, BookOpen, Users, MessageSquare, Settings, LogOut, Search,
     ChevronDown, Clock, FileText, AlertCircle, CheckCircle, XCircle, Menu, ChevronLeft,
     ChevronRight, Wifi, X, Fingerprint, ExternalLink, RefreshCw, Trophy
 } from 'lucide-react';
@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Cell } from 'recharts';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '@/lib/api';
+import NotificationBell from '../components/NotificationBell';
 
 const DAY_KEYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -175,7 +176,7 @@ const StudentDashboard = () => {
                         </div>
                         <div className="header-actions">
                             <div className="search-bar"><Search size={16} color="#aaa" /><input type="text" placeholder="Search" className="search-input" /></div>
-                            <Bell size={20} color="#555" />
+                            <NotificationBell />
                             <MessageSquare size={20} color="#555" />
                         </div>
                     </header>

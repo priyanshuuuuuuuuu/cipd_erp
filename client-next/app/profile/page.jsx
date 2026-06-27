@@ -190,7 +190,7 @@ export default function ProfilePage() {
                                         { label: 'Email', value: user?.email },
                                         { label: 'Enrollment No.', value: profile?.enrollment_no },
                                         { label: 'Department', value: profile?.department },
-                                        { label: 'Program', value: profile?.program },
+                                        { label: 'Program', value: profile?.program_name },
                                         { label: 'Semester', value: profile?.semester ? `Semester ${profile.semester}` : undefined },
                                         { label: 'Phone', value: profile?.phone },
                                         { label: 'Batch', value: profile?.batch },
@@ -341,7 +341,7 @@ export default function ProfilePage() {
                                             </div>
                                             {assignments.map((asn, i) => {
                                                 const hasSub = !!asn.submission;
-                                                const isGraded = hasSub && asn.submission.grade != null;
+                                                const isGraded = asn.submission_status === 'graded' || asn.marks != null;
                                                 const status = isGraded ? 'graded' : (hasSub ? 'submitted' : (asn.is_overdue ? 'late' : 'pending'));
                                                 const statusStyles = {
                                                     submitted: { bg: '#dcfce7', color: '#16a34a', label: 'Submitted' },
@@ -350,7 +350,8 @@ export default function ProfilePage() {
                                                     late: { bg: '#fee2e2', color: '#dc2626', label: 'Late' },
                                                 };
                                                 const st = statusStyles[status] || statusStyles['pending'];
-                                                const total = 20; // Defaulting to 20 based on seed
+                                                const total = asn.total_marks ?? '—';
+                                                const grade = asn.marks ?? asn.submission?.grade;
                                                 return (
                                                     <div key={asn.id || i} style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', padding: '12px 1.5rem', borderBottom: i < assignments.length - 1 ? '1px solid #f8f8f8' : 'none', alignItems: 'center', gap: '1rem' }}>
                                                         <div>
@@ -361,7 +362,7 @@ export default function ProfilePage() {
                                                             {asn.due_date ? new Date(asn.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '—'}
                                                         </div>
                                                         <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#111', textAlign: 'center' }}>
-                                                            {isGraded ? `${asn.submission.grade}/${total}` : '—'}
+                                                            {isGraded ? `${grade}/${total}` : '—'}
                                                         </div>
                                                         <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '0.68rem', fontWeight: 600, background: st.bg, color: st.color, whiteSpace: 'nowrap', textAlign: 'center' }}>
                                                             {st.label}

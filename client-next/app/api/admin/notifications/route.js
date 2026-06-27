@@ -3,6 +3,11 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { withRole } from '@/lib/middleware';
 import { sendWeeklyScheduleEmail, sendGeneralNotificationEmail } from '@/lib/emailer';
+import {
+  fetchPreferencesMap,
+  filterNotificationsByPrefs,
+  shouldNotifyUser,
+} from '@/lib/should-notify';
 
 
 // POST - Send notifications (supports feedback reminders, class reminders, general)
@@ -109,6 +114,11 @@ async function postHandler(req) {
     }
     // commit
 
+    const notifType = type || 'general';
+    const recipientIds = notificationsToInsert.map((n) => n.recipient_id).filter(Boolean);
+    const prefMap = await fetchPreferencesMap(supabaseAdmin, recipientIds);
+    notificationsToInsert = filterNotificationsByPrefs(notificationsToInsert, prefMap, notifType);
+
     // Batch insert notifications into DB
     if (notificationsToInsert.length > 0) {
       const { error: insertError } = await supabaseAdmin
@@ -159,6 +169,11 @@ async function postHandler(req) {
             .in('id', studentIds)
             .eq('is_active', true);
 
+          const emailPrefMap = await fetchPreferencesMap(
+            supabaseAdmin,
+            (studentUsers || []).map((s) => s.id)
+          );
+
           // Week date range
           const now = new Date();
           const weekStart = new Date(now);
@@ -201,6 +216,7 @@ async function postHandler(req) {
           await Promise.allSettled(
             (studentUsers || []).map(async (student) => {
               try {
+                if (!shouldNotifyUser(emailPrefMap, student.id, 'class_reminder')) return;
                 const myCourseIds = studentCourseMap[student.id] || [];
                 const mySessions = (weekSessions || []).filter(s => myCourseIds.includes(s.course_id));
                 if (mySessions.length === 0) return;
@@ -249,9 +265,14 @@ async function postHandler(req) {
 
           const notifTitle = body?.title || (type || 'general').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
+          const generalPrefMap = prefMap.size > 0
+            ? prefMap
+            : await fetchPreferencesMap(supabaseAdmin, targetStudents.map((s) => s.id));
+
           await Promise.allSettled(
             targetStudents.map(async (student) => {
               try {
+                if (!shouldNotifyUser(generalPrefMap, student.id, notifType)) return;
                 const name = `${student.first_name || ''} ${student.last_name || ''}`.trim() || 'Student';
                 await sendGeneralNotificationEmail(student.email, name, notifTitle, message, type || 'general');
                 console.log(`✉ General notification email sent to ${student.email}`);

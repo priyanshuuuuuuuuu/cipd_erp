@@ -49,15 +49,11 @@ async function handler(req) {
       const sessionsCount = sessionList.length;
 
       // Calculate materials by getting all session IDs
-      let materialsCount = 0;
-      if (sessionsCount > 0) {
-        const sessionIds = sessionList.map(s => s.id);
-        const { count: matCount } = await supabaseAdmin
-          .from('session_materials')
-          .select('*', { count: 'exact', head: true })
-          .in('session_id', sessionIds);
-        materialsCount = matCount || 0;
-      }
+      const { count: matCount } = await supabaseAdmin
+        .from('session_materials')
+        .select('*', { count: 'exact', head: true })
+        .eq('course_id', course.id);
+      let materialsCount = matCount || 0;
 
       // Extract primary faculty & venue (just pick the first session's details)
       let facultyName = null;

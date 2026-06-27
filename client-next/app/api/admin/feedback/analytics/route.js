@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { withRole } from '@/lib/middleware';
+import { getAttendedCountBySession } from '@/lib/feedback-eligibility';
 
 async function getHandler(req) {
   try {
@@ -24,11 +25,9 @@ async function getHandler(req) {
         return NextResponse.json({ error: 'Session not found' }, { status: 404 });
       }
 
-      // Get enrolled count for this course
-      const { count: enrolled } = await supabaseAdmin
-        .from('course_enrollments')
-        .select('*', { count: 'exact', head: true })
-        .eq('course_id', session.course_id);
+      // Get attended count for this session (eligible students)
+      const attendedCountMap = await getAttendedCountBySession(supabaseAdmin, [sessionId]);
+      const attended = attendedCountMap[sessionId] || 0;
 
       // Get all feedback responses for this session (plain, no joins)
       const { data: responses } = await supabaseAdmin
@@ -123,11 +122,18 @@ async function getHandler(req) {
         ? Math.round((allRatings.reduce((a, b) => a + b, 0) / allRatings.length) * 10) / 10
         : 0;
 
+      const studentRatingMap = {};
+      (responses || []).forEach((r) => {
+        if (r.rating != null && studentRatingMap[r.student_id] == null) {
+          studentRatingMap[r.student_id] = r.rating;
+        }
+      });
+
       const descriptive = (responses || [])
-        .filter(r => r.text_answer && qMap[r.question_id]?.type === 'text')
-        .map(r => ({
+        .filter((r) => r.text_answer && qMap[r.question_id]?.type === 'text')
+        .map((r) => ({
           student: sMap[r.student_id]?.enrollment_no || r.student_id?.slice(0, 8),
-          rating: (responses || []).find(rr => rr.student_id === r.student_id && rr.rating != null)?.rating || null,
+          rating: studentRatingMap[r.student_id] ?? null,
           text: r.text_answer,
         }));
 
@@ -161,7 +167,8 @@ async function getHandler(req) {
         descriptive,
         submittedStudents,
         totalResponses: submittedStudents.length,
-        totalEnrolled: enrolled || 0,
+        totalEnrolled: attended,
+        totalAttended: attended,
       });
     }
 
@@ -178,20 +185,25 @@ async function getHandler(req) {
       .eq('status', 'completed')
       .order('session_date', { ascending: false });
 
-    // Get all feedback responses with columns: rating, yes_no, text_answer
-    const { data: allResponses } = await supabaseAdmin
-      .from('feedback_responses')
-      .select('student_id, session_id, rating, yes_no, text_answer, submitted_at, question_id');
+    const sessionIds = (sessions || []).map((s) => s.id);
 
-    // Get all enrollments for quick lookup
-    const { data: enrollments } = await supabaseAdmin
-      .from('course_enrollments')
-      .select('course_id, student_id');
+    const { data: allResponses } =
+      sessionIds.length > 0
+        ? await supabaseAdmin
+            .from('feedback_responses')
+            .select('student_id, session_id, rating, yes_no, text_answer, submitted_at, question_id')
+            .in('session_id', sessionIds)
+        : { data: [] };
 
-    // Build enrollment count map per course
-    const enrollmentMap = {};
-    (enrollments || []).forEach(e => {
-      enrollmentMap[e.course_id] = (enrollmentMap[e.course_id] || 0) + 1;
+    const attendedCountMap = await getAttendedCountBySession(
+      supabaseAdmin,
+      sessionIds.length > 0 ? sessionIds : null
+    );
+
+    const responsesBySession = {};
+    (allResponses || []).forEach((r) => {
+      if (!responsesBySession[r.session_id]) responsesBySession[r.session_id] = [];
+      responsesBySession[r.session_id].push(r);
     });
 
     // Extract ratings from the rating column
@@ -220,22 +232,22 @@ async function getHandler(req) {
     );
     const totalSubmissions = submissionPairs.size;
 
-    // Total expected submissions (sum of enrollments for each completed session's course)
+    // Total expected submissions (sum of attended students per completed session)
     let totalExpected = 0;
-    (sessions || []).forEach(s => {
-      totalExpected += enrollmentMap[s.course_id] || 0;
+    (sessions || []).forEach((s) => {
+      totalExpected += attendedCountMap[s.id] || 0;
     });
 
     // Submission rate
     const onTimeRate = totalExpected > 0 ? Math.round((totalSubmissions / totalExpected) * 100) : 0;
 
     // Per-lecture breakdown
-    const lectures = (sessions || []).map(s => {
-      const sessionResponses = (allResponses || []).filter(r => r.session_id === s.id);
-      const sessionRatings = sessionResponses.filter(r => r.rating != null).map(r => r.rating);
-      const sessionDesc = sessionResponses.filter(r => r.text_answer).length;
-      const uniqueStudents = new Set(sessionResponses.map(r => r.student_id)).size;
-      const enrolled = enrollmentMap[s.course_id] || 0;
+    const lectures = (sessions || []).map((s) => {
+      const sessionResponses = responsesBySession[s.id] || [];
+      const sessionRatings = sessionResponses.filter((r) => r.rating != null).map((r) => r.rating);
+      const sessionDesc = sessionResponses.filter((r) => r.text_answer).length;
+      const uniqueStudents = new Set(sessionResponses.map((r) => r.student_id)).size;
+      const attended = attendedCountMap[s.id] || 0;
 
       return {
         id: s.id,
@@ -248,7 +260,8 @@ async function getHandler(req) {
           ? Math.round((sessionRatings.reduce((a, b) => a + b, 0) / sessionRatings.length) * 10) / 10
           : 0,
         submissions: uniqueStudents,
-        totalEnrolled: enrolled,
+        totalEnrolled: attended,
+        totalAttended: attended,
         descCount: sessionDesc,
         topic: s.title,
       };

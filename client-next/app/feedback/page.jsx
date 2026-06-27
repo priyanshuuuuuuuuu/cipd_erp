@@ -629,9 +629,9 @@ export default function FeedbackPage() {
                                     <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', color: '#a1a1aa', marginBottom: '14px' }}>How Points Are Calculated</div>
                                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
                                         {[
-                                            { color: '#16a34a', bg: '#f0fdf4', label: 'Full Attendance (P/PO/C)', pts: '+5 pts', desc: 'Per session marked as fully present' },
-                                            { color: '#71717a', bg: '#f4f4f5', label: 'Partial Attendance (H)', pts: '+3 pts', desc: 'Per session marked as half-present' },
-                                            { color: '#d97706', bg: '#fffbeb', label: 'Punctuality Bonus', pts: '+1 pt', desc: 'Only for full-presence sessions (P/PO/C)' },
+                                            { color: '#16a34a', bg: '#f0fdf4', label: 'Wi-Fi Attendance', pts: '0–5 pts', desc: 'Based on first ping timing + ping % in class' },
+                                            { color: '#991b1b', bg: '#fef2f2', label: 'Unexcused Absence', pts: '−2 pts', desc: 'No approved leave and not detected in class' },
+                                            { color: '#d97706', bg: '#fffbeb', label: 'Approved Leave', pts: '0 pts', desc: 'Submit leave request before class; admin approves' },
                                             { color: '#2563eb', bg: '#eff6ff', label: 'Feedback Submitted', pts: '+3 pts', desc: 'Per session where feedback was submitted' },
                                         ].map(item => (
                                             <div key={item.label} style={{ background: '#fff', borderRadius: '10px', border: '1px solid #efefef', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -644,7 +644,7 @@ export default function FeedbackPage() {
                                         ))}
                                     </div>
                                     <div style={{ marginTop: '10px', fontSize: '0.72rem', color: '#a1a1aa', paddingTop: '10px', borderTop: '1px solid #efefef' }}>
-                                        Max per session: <strong style={{ color: '#27272a' }}>9 pts</strong> &nbsp;&middot;&nbsp; Absence (A/L) earns <strong style={{ color: '#27272a' }}>0 pts</strong> &nbsp;&middot;&nbsp; Points never decrease
+                                        Max per session: <strong style={{ color: '#27272a' }}>8 pts</strong> &nbsp;&middot;&nbsp; Approved leave: <strong style={{ color: '#27272a' }}>0 pts</strong> &nbsp;&middot;&nbsp; Unexcused absence: <strong style={{ color: '#27272a' }}>−2 pts</strong>
                                     </div>
                                 </div>
                             </div>

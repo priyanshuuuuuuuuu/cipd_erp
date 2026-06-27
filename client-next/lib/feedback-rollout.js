@@ -1,5 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase';
 import { sendFeedbackAvailableEmail } from '@/lib/emailer';
+import { getFeedbackDeadline } from '@/lib/feedback-deadline';
+import { fetchPreferencesMap, shouldNotifyUser } from '@/lib/should-notify';
 
 /**
  * Rolls out feedback notifications + emails to all students who attended a session.
@@ -18,7 +20,7 @@ export async function rolloutFeedbackForSession(sessionId, onlyStudentIds = null
     const { data: session, error: sessErr } = await supabaseAdmin
       .from('sessions')
       .select(`
-        id, title, session_date, start_time, end_time, course_id,
+        id, title, session_date, start_time, end_time, feedback_deadline, course_id,
         courses ( id, name ),
         faculty ( id, users ( first_name, last_name ) )
       `)
@@ -59,9 +61,8 @@ export async function rolloutFeedbackForSession(sessionId, onlyStudentIds = null
 
     if (pendingIds.length === 0) return result;
 
-    // 4. Compute deadline (24h from session end)
-    const deadline = new Date(`${session.session_date}T${session.end_time}+05:30`);
-    deadline.setHours(deadline.getHours() + 24);
+    // 4. Compute deadline (admin override or default 24h after session end IST)
+    const deadline = getFeedbackDeadline(session);
 
     // 5. Get student details
     const { data: students } = await supabaseAdmin
@@ -72,8 +73,18 @@ export async function rolloutFeedbackForSession(sessionId, onlyStudentIds = null
 
     if (!students || students.length === 0) return result;
 
+    const prefMap = await fetchPreferencesMap(
+      supabaseAdmin,
+      students.map((s) => s.id)
+    );
+    const eligibleStudents = students.filter((s) =>
+      shouldNotifyUser(prefMap, s.id, 'feedback_available')
+    );
+
+    if (eligibleStudents.length === 0) return result;
+
     // 6. Insert notifications
-    const notifications = students.map((s) => ({
+    const notifications = eligibleStudents.map((s) => ({
       recipient_id: s.id,
       type: 'feedback_available',
       title: `📝 Feedback: ${session.courses?.name || session.title}`,
@@ -91,7 +102,7 @@ export async function rolloutFeedbackForSession(sessionId, onlyStudentIds = null
 
     // 7. Send emails (fire-and-forget, non-blocking)
     Promise.allSettled(
-      students.map(async (student) => {
+      eligibleStudents.map(async (student) => {
         try {
           const name = `${student.first_name || ''} ${student.last_name || ''}`.trim() || 'Student';
           await sendFeedbackAvailableEmail(student.email, name, session, deadline.toISOString());
@@ -102,7 +113,7 @@ export async function rolloutFeedbackForSession(sessionId, onlyStudentIds = null
       })
     );
 
-    result.notified = students.length;
+    result.notified = eligibleStudents.length;
     console.log(
       `Feedback rollout for "${session.title}" — ${result.notified} notified, ${result.skipped} already had notification`
     );

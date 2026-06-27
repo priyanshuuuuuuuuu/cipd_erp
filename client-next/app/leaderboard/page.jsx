@@ -4,12 +4,13 @@ import React, { useState, useEffect, useCallback } from 'react';
 import '../Dashboard.css';
 import {
     LayoutGrid, Calendar, BookOpen, Users, MessageSquare, Settings,
-    LogOut, Bell, Search, Menu, ChevronLeft, ChevronRight,
+    LogOut, Search, Menu, ChevronLeft, ChevronRight,
     Trophy, Award,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '@/lib/api';
+import NotificationBell from '../components/NotificationBell';
 
 export default function LeaderboardPage() {
     const router = useRouter();
@@ -91,7 +92,7 @@ export default function LeaderboardPage() {
                         </div>
                         <div className="header-actions">
                             <div className="search-bar"><Search size={16} color="#aaa" /><input type="text" placeholder="Search" className="search-input" /></div>
-                            <Bell size={20} color="#555" /><MessageSquare size={20} color="#555" />
+                            <NotificationBell /><MessageSquare size={20} color="#555" />
                             <img src="/logo.png" alt="Logo" style={{ height: '30px' }} />
                         </div>
                     </header>
@@ -188,8 +189,8 @@ export default function LeaderboardPage() {
 
                             {/* Grid List */}
                             <div style={{ background: '#fff', borderRadius: '14px', border: '1px solid #efefef', overflow: 'hidden', boxShadow: '0 2px 10px rgba(0,0,0,0.04)' }}>
-                                <div style={{ display: 'grid', gridTemplateColumns: '70px 1fr 100px 100px 70px 80px 80px', padding: '10px 20px', background: '#f9f9f9', borderBottom: '1px solid #efefef', gap: '8px' }}>
-                                    {['Rank', 'Student', 'Total', 'Attendance', 'Bonus', 'Feedback', 'Sessions'].map(h => (
+                                <div style={{ display: 'grid', gridTemplateColumns: '70px 1fr 100px 100px 80px 80px', padding: '10px 20px', background: '#f9f9f9', borderBottom: '1px solid #efefef', gap: '8px' }}>
+                                    {['Rank', 'Student', 'Total', 'Attendance', 'Feedback', 'Sessions'].map(h => (
                                         <div key={h} style={{ fontSize: '0.62rem', fontWeight: 700, color: '#a1a1aa', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{h}</div>
                                     ))}
                                 </div>
@@ -198,7 +199,7 @@ export default function LeaderboardPage() {
                                     const isTop3 = entry.rank <= 3;
                                     const rc = isTop3 ? rankColors[entry.rank - 1] : isMe ? '#6355F1' : '#d4d4d8';
                                     return (
-                                        <div key={entry.student_id} style={{ display: 'grid', gridTemplateColumns: '70px 1fr 100px 100px 70px 80px 80px', padding: '13px 20px', alignItems: 'center', gap: '8px', borderBottom: '1px solid #f5f5f5', background: isMe ? 'rgba(99,85,241,0.04)' : '#fff', borderLeft: isMe ? '3px solid #6355F1' : '3px solid transparent', transition: 'background 0.15s' }}
+                                        <div key={entry.student_id} style={{ display: 'grid', gridTemplateColumns: '70px 1fr 100px 100px 80px 80px', padding: '13px 20px', alignItems: 'center', gap: '8px', borderBottom: '1px solid #f5f5f5', background: isMe ? 'rgba(99,85,241,0.04)' : '#fff', borderLeft: isMe ? '3px solid #6355F1' : '3px solid transparent', transition: 'background 0.15s' }}
                                             onMouseOver={e => { if (!isMe) e.currentTarget.style.background = '#fafafa'; }}
                                             onMouseOut={e => { if (!isMe) e.currentTarget.style.background = '#fff'; }}>
                                             <div style={{ fontSize: isTop3 ? '1.5rem' : '1rem', fontWeight: 900, color: isTop3 ? rankColors[entry.rank - 1] : '#d1d5db', letterSpacing: '-0.5px', lineHeight: 1 }}>{String(entry.rank).padStart(2, '0')}</div>
@@ -214,7 +215,6 @@ export default function LeaderboardPage() {
                                             </div>
                                             <div style={{ fontWeight: 800, fontSize: '0.95rem', color: isTop3 ? rankColors[entry.rank - 1] : isMe ? '#6355F1' : '#27272a', fontFamily: 'monospace' }}>{entry.totalPoints}</div>
                                             <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#16a34a', fontFamily: 'monospace' }}>{entry.attendancePoints}</div>
-                                            <div style={{ fontWeight: 600, fontSize: '0.85rem', color: entry.bonusPoints > 0 ? '#d97706' : '#d1d5db', fontFamily: 'monospace' }}>{entry.bonusPoints}</div>
                                             <div style={{ fontWeight: 600, fontSize: '0.85rem', color: entry.feedbackPoints > 0 ? '#2563eb' : '#d1d5db', fontFamily: 'monospace' }}>{entry.feedbackPoints}</div>
                                             <div style={{ fontSize: '0.8rem', color: '#71717a', fontFamily: 'monospace' }}>{entry.sessionsAttended}/{entry.sessionsEnrolled}</div>
                                         </div>

@@ -5,7 +5,7 @@ import {
     LayoutGrid, Calendar, MessageSquare, Settings, LogOut, Bell, Search, Menu,
     ChevronLeft, ChevronRight, Wifi, Clock, FileBarChart, CheckCircle, Plus,
     MapPin, User, Users, Edit3, Trash2, X, AlertTriangle, RefreshCw, Filter,
-    List, CalendarDays, AlertCircle, Loader2, Tag, ArrowUpDown, ArrowUp, ArrowDown, Info, Send, Trophy
+    List, CalendarDays, AlertCircle, Loader2, Tag, ArrowUpDown, ArrowUp, ArrowDown, Info, Send, Trophy, Upload, FileText
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
@@ -72,6 +72,16 @@ export default function AdminSchedulePage() {
     const [editAddSkillError, setEditAddSkillError] = useState('');
     const [skillSearchText, setSkillSearchText] = useState('');
     const [skillSearchOpen, setSkillSearchOpen] = useState(false);
+
+    // ── Upload material modal state ──────────────────────────────────────────
+    const [uploadSession, setUploadSession] = useState(null);
+    const [uploadTitle, setUploadTitle] = useState('');
+    const [uploadContent, setUploadContent] = useState('');
+    const [uploadFile, setUploadFile] = useState(null);
+    const [uploadLoading, setUploadLoading] = useState(false);
+    const [uploadError, setUploadError] = useState('');
+    const [uploadSuccess, setUploadSuccess] = useState('');
+    const uploadFileRef = React.useRef(null);
 
     const navTo = p => router.push(p);
 
@@ -360,6 +370,52 @@ export default function AdminSchedulePage() {
         } catch (err) {
             console.error('Failed to delete session:', err);
             alert(err.message || 'Failed to delete session');
+        }
+    };
+
+    const openUploadMaterial = (s) => {
+        setUploadSession(s);
+        setUploadTitle(s.title || s.course || '');
+        setUploadContent('');
+        setUploadFile(null);
+        setUploadError('');
+        setUploadSuccess('');
+    };
+
+    const closeUploadMaterial = () => {
+        setUploadSession(null);
+        setUploadError('');
+        setUploadSuccess('');
+    };
+
+    const handleMaterialUpload = async (e) => {
+        e.preventDefault();
+        if (!uploadSession || !uploadFile) {
+            setUploadError('Please select a file.');
+            return;
+        }
+        if (!uploadTitle.trim()) {
+            setUploadError('Title is required.');
+            return;
+        }
+
+        setUploadLoading(true);
+        setUploadError('');
+        try {
+            const formData = new FormData();
+            formData.append('file', uploadFile);
+            formData.append('title', uploadTitle.trim());
+            formData.append('course_id', uploadSession.course_id);
+            formData.append('session_id', uploadSession.id);
+            if (uploadContent.trim()) formData.append('content', uploadContent.trim());
+
+            await api.upload('/api/admin/materials', formData);
+            setUploadSuccess('Material uploaded successfully.');
+            setTimeout(closeUploadMaterial, 1200);
+        } catch (err) {
+            setUploadError(err.message || 'Upload failed');
+        } finally {
+            setUploadLoading(false);
         }
     };
 
@@ -743,6 +799,12 @@ export default function AdminSchedulePage() {
                                                                 style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #3B2D82', background: '#f5f3ff', cursor: 'pointer', color: '#3B2D82' }}
                                                                 title="Edit session"
                                                             ><Edit3 size={13} /></button>
+                                                            <button
+                                                                onClick={() => openUploadMaterial(s)}
+                                                                className="change-status-btn"
+                                                                style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #2563eb', background: '#eff6ff', cursor: 'pointer', color: '#2563eb' }}
+                                                                title="Upload session material"
+                                                            ><Upload size={13} /></button>
                                                              {s.status === 'Completed' && (
                                                                  <button
                                                                      onClick={() => handleRolloutFeedback(s.id, s.course)}
@@ -1255,6 +1317,71 @@ export default function AdminSchedulePage() {
                                     style={{ padding: '8px 20px', borderRadius: '8px', border: 'none', background: editLoading ? '#555' : '#3B2D82', cursor: editLoading ? 'not-allowed' : 'pointer', fontSize: '0.85rem', fontWeight: 600, color: '#fff', display: 'flex', alignItems: 'center', gap: '5px', minWidth: '140px', justifyContent: 'center' }}
                                 >
                                     {editLoading ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Saving...</> : <><Edit3 size={14} /> Save Changes</>}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* ══ Upload Material Modal ═══════════════════════════════════════ */}
+            {uploadSession && (
+                <div
+                    style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
+                    onClick={closeUploadMaterial}
+                >
+                    <div
+                        style={{ background: '#fff', borderRadius: '14px', width: '100%', maxWidth: '480px', padding: '1.5rem', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem' }}>
+                            <div>
+                                <div style={{ fontSize: '0.72rem', fontWeight: 600, color: '#888', textTransform: 'uppercase' }}>Upload Material</div>
+                                <div style={{ fontSize: '1rem', fontWeight: 700, color: '#111' }}>{uploadSession.title || uploadSession.course}</div>
+                            </div>
+                            <button onClick={closeUploadMaterial} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888' }}><X size={18} /></button>
+                        </div>
+
+                        <form onSubmit={handleMaterialUpload}>
+                            <div style={{ marginBottom: '12px' }}>
+                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>Title</label>
+                                <input type="text" value={uploadTitle} onChange={e => setUploadTitle(e.target.value)} style={inp} required />
+                            </div>
+                            <div style={{ marginBottom: '12px' }}>
+                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>Notes (optional)</label>
+                                <textarea value={uploadContent} onChange={e => setUploadContent(e.target.value)} rows={3} style={{ ...inp, resize: 'vertical' }} />
+                            </div>
+                            <div style={{ marginBottom: '16px' }}>
+                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>File</label>
+                                <div
+                                    onClick={() => uploadFileRef.current?.click()}
+                                    style={{ border: '2px dashed #e0e0e0', borderRadius: '10px', padding: '1.2rem', textAlign: 'center', cursor: 'pointer', background: '#fafafa' }}
+                                >
+                                    <FileText size={22} color="#bbb" style={{ marginBottom: '6px' }} />
+                                    <div style={{ fontSize: '0.82rem', color: '#888' }}>
+                                        {uploadFile ? uploadFile.name : 'Click to select file (PDF, DOC, PPT — max 10MB)'}
+                                    </div>
+                                    <input
+                                        ref={uploadFileRef}
+                                        type="file"
+                                        accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg"
+                                        style={{ display: 'none' }}
+                                        onChange={e => setUploadFile(e.target.files?.[0] || null)}
+                                    />
+                                </div>
+                            </div>
+
+                            {uploadError && <div style={{ color: '#dc2626', fontSize: '0.82rem', marginBottom: '10px' }}>{uploadError}</div>}
+                            {uploadSuccess && <div style={{ color: '#16a34a', fontSize: '0.82rem', marginBottom: '10px' }}>{uploadSuccess}</div>}
+
+                            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                                <button type="button" onClick={closeUploadMaterial} style={{ padding: '8px 20px', borderRadius: '8px', border: '1px solid #eee', background: '#fff', cursor: 'pointer', fontSize: '0.85rem' }}>Cancel</button>
+                                <button
+                                    type="submit"
+                                    disabled={uploadLoading}
+                                    style={{ padding: '8px 20px', borderRadius: '8px', border: 'none', background: '#3B2D82', color: '#fff', cursor: uploadLoading ? 'not-allowed' : 'pointer', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}
+                                >
+                                    {uploadLoading ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Uploading...</> : <><Upload size={14} /> Upload</>}
                                 </button>
                             </div>
                         </form>

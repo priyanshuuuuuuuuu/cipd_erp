@@ -2,43 +2,20 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { withAuth } from '@/lib/middleware';
+import { getFeedbackDeadline, getFeedbackHoursLeft, isFeedbackExpired } from '@/lib/feedback-deadline';
+import { getEligibleSessionIdsForStudent } from '@/lib/feedback-eligibility';
 
 /**
- * Returns all feedback forms available to the logged-in student.
- *
- * Source of truth: the `notifications` table (type = 'feedback_available').
- * If a student received a notification for a session → they see the form.
- * This decouples feedback visibility from WiFi attendance status.
- *
- * Fallback: also include sessions where student has present/partial
- * attendance records but no notification yet (edge-case catch).
+ * Returns feedback forms for the logged-in student.
+ * Eligibility: present/partial attendance only. Cancelled sessions excluded.
  */
 async function handler(req) {
   try {
-    const studentId = req.user.id; // this is users.id
+    const studentId = req.user.id;
 
-    // ── 1. Primary: sessions the student was explicitly notified for ──────────
-    const { data: notifRows } = await supabaseAdmin
-      .from('notifications')
-      .select('session_id')
-      .eq('recipient_id', studentId)
-      .eq('type', 'feedback_available');
+    const eligibleSessionIds = await getEligibleSessionIdsForStudent(supabaseAdmin, studentId);
 
-    const notifiedSessionIds = [...new Set((notifRows || []).map((n) => n.session_id).filter(Boolean))];
-
-    // ── 2. Fallback: sessions with present/partial attendance (no notification) ─
-    const { data: attendedRows } = await supabaseAdmin
-      .from('attendance_records')
-      .select('session_id')
-      .eq('student_id', studentId)
-      .in('status', ['present', 'partial']);
-
-    const attendedSessionIds = [...new Set((attendedRows || []).map((a) => a.session_id))];
-
-    // Union of both sources
-    const allEligibleIds = [...new Set([...notifiedSessionIds, ...attendedSessionIds])];
-
-    if (allEligibleIds.length === 0) {
+    if (eligibleSessionIds.length === 0) {
       const { data: questions } = await supabaseAdmin
         .from('feedback_questions')
         .select('id, question, category, type, active')
@@ -52,42 +29,54 @@ async function handler(req) {
       });
     }
 
-    // ── 3. Sessions where feedback already submitted ────────────────────────────
+    const { data: eligibleSessions } = await supabaseAdmin
+      .from('sessions')
+      .select('id')
+      .in('id', eligibleSessionIds)
+      .neq('status', 'cancelled');
+
+    const attendedSessionIds = (eligibleSessions || []).map((s) => s.id);
+
+    if (attendedSessionIds.length === 0) {
+      const { data: questions } = await supabaseAdmin
+        .from('feedback_questions')
+        .select('id, question, category, type, active')
+        .eq('active', true)
+        .order('created_at', { ascending: true });
+
+      return NextResponse.json({
+        forms: [],
+        questions: questions || [],
+        stats: { totalSubmitted: 0, totalPending: 0, totalExpired: 0, totalAttended: 0 },
+      });
+    }
+
     const { data: submittedRows } = await supabaseAdmin
       .from('feedback_responses')
       .select('session_id')
-      .eq('student_id', studentId);
+      .eq('student_id', studentId)
+      .in('session_id', attendedSessionIds);
 
     const submittedSessionIds = [...new Set((submittedRows || []).map((f) => f.session_id))];
+    const pendingSessionIds = attendedSessionIds.filter((id) => !submittedSessionIds.includes(id));
 
-    // ── 4. Pending = eligible but not yet submitted ─────────────────────────────
-    const pendingSessionIds = allEligibleIds.filter((id) => !submittedSessionIds.includes(id));
-
-    // ── 5. Fetch session details for pending forms ─────────────────────────────
     let pendingForms = [];
     if (pendingSessionIds.length > 0) {
       const { data: sessions } = await supabaseAdmin
         .from('sessions')
         .select(`
-          id, title, session_date, start_time, end_time, feedback_deadline,
+          id, title, session_date, start_time, end_time, feedback_deadline, status,
           courses ( id, name ),
           faculty ( id, users ( first_name, last_name ) ),
           venues ( id, name )
         `)
         .in('id', pendingSessionIds)
+        .neq('status', 'cancelled')
         .order('session_date', { ascending: false });
 
       pendingForms = (sessions || []).map((s) => {
-        let deadline;
-        if (s.feedback_deadline) {
-          deadline = new Date(s.feedback_deadline);
-        } else {
-          deadline = new Date(`${s.session_date}T${s.end_time || '23:59:00'}+05:30`);
-          deadline.setHours(deadline.getHours() + 24);
-        }
-        const now = new Date();
-        const expired = now > deadline;
-        const hoursLeft = Math.max(0, Math.round((deadline - now) / 3600000 * 10) / 10);
+        const deadline = getFeedbackDeadline(s);
+        const expired = isFeedbackExpired(s);
 
         return {
           session_id: s.id,
@@ -100,13 +89,12 @@ async function handler(req) {
           venue: s.venues,
           deadline: deadline.toISOString(),
           expired,
-          hoursLeft,
+          hoursLeft: getFeedbackHoursLeft(s),
           submitted: false,
         };
       });
     }
 
-    // ── 6. Fetch session details for submitted forms (history) ─────────────────
     let submittedForms = [];
     if (submittedSessionIds.length > 0) {
       const { data: sessions } = await supabaseAdmin
@@ -130,7 +118,6 @@ async function handler(req) {
       }));
     }
 
-    // ── 7. Fetch active feedback questions ─────────────────────────────────────
     const { data: questions } = await supabaseAdmin
       .from('feedback_questions')
       .select('id, question, category, type, active')
@@ -138,16 +125,16 @@ async function handler(req) {
       .order('created_at', { ascending: true });
 
     const activePending = pendingForms.filter((f) => !f.expired).length;
-    const expiredCount  = pendingForms.filter((f) => f.expired).length;
+    const expiredCount = pendingForms.filter((f) => f.expired).length;
 
     return NextResponse.json({
       forms: [...pendingForms, ...submittedForms],
       questions: questions || [],
       stats: {
         totalSubmitted: submittedSessionIds.length,
-        totalPending:   activePending,
-        totalExpired:   expiredCount,
-        totalAttended:  allEligibleIds.length,
+        totalPending: activePending,
+        totalExpired: expiredCount,
+        totalAttended: attendedSessionIds.length,
       },
     });
   } catch (err) {

@@ -23,6 +23,9 @@ export default function AdminNotificationsPage() {
     const [sending, setSending] = useState(false);
     const [sentSuccess, setSentSuccess] = useState(false);
     const [sendError, setSendError] = useState('');
+    const [sessionId, setSessionId] = useState('');
+    const [sessions, setSessions] = useState([]);
+    const [sessionsLoading, setSessionsLoading] = useState(false);
 
     // Student search state (for "Specific Student" target)
     const [studentSearch, setStudentSearch] = useState('');
@@ -69,9 +72,33 @@ export default function AdminNotificationsPage() {
 
     useEffect(() => { if (authReady) loadHistory(); }, [loadHistory, authReady]);
 
+    const loadSessions = useCallback(async () => {
+        setSessionsLoading(true);
+        try {
+            const data = await api.get('/api/admin/schedule?filter=week');
+            setSessions(data.sessions || []);
+        } catch {
+            setSessions([]);
+        } finally {
+            setSessionsLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (triggerType === 'class_reminder' && authReady) {
+            loadSessions();
+        } else {
+            setSessionId('');
+        }
+    }, [triggerType, authReady, loadSessions]);
+
     // Real send handler
     const handleSend = async () => {
         if (!message.trim()) return;
+        if (triggerType === 'class_reminder' && !sessionId) {
+            setSendError('Please select a session for the class reminder.');
+            return;
+        }
         if (target === 'specific' && !selectedStudent) {
             setSendError('Please select a student first.');
             return;
@@ -87,11 +114,15 @@ export default function AdminNotificationsPage() {
         if (target === 'specific' && selectedStudent) {
             body.recipients = [selectedStudent.id];
         }
+        if (triggerType === 'class_reminder' && sessionId) {
+            body.session_id = sessionId;
+        }
 
         try {
             await api.post('/api/admin/notifications', body);
             setSentSuccess(true);
             setMessage('');
+            setSessionId('');
             setSelectedStudent(null);
             setStudentSearch('');
             loadHistory();
@@ -211,6 +242,25 @@ export default function AdminNotificationsPage() {
                                         <option value="general">📢 Custom / General</option>
                                     </select>
                                 </div>
+
+                                {triggerType === 'class_reminder' && (
+                                    <div style={{ minWidth: '260px', flex: 1 }}>
+                                        <label style={{ fontSize: '0.68rem', fontWeight: 600, color: '#888', display: 'block', marginBottom: '4px' }}>Session (required for weekly schedule email)</label>
+                                        <select
+                                            value={sessionId}
+                                            onChange={e => setSessionId(e.target.value)}
+                                            disabled={sessionsLoading}
+                                            style={{ padding: '8px 10px', borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '0.8rem', fontFamily: 'inherit', background: '#fafafa', outline: 'none', cursor: 'pointer', width: '100%' }}
+                                        >
+                                            <option value="">{sessionsLoading ? 'Loading sessions...' : 'Select a session'}</option>
+                                            {sessions.map(s => (
+                                                <option key={s.id} value={s.id}>
+                                                    {s.course || 'Course'} — {s.title} ({s.date} {s.time})
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Student search (only when "Specific Student") */}

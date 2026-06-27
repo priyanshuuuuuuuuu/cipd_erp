@@ -10,6 +10,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '@/lib/api';
+import { dispatchAppearanceUpdate } from '../contexts/AppearanceContext';
 
 const SETTING_SECTIONS = [
     { id: 'device', label: 'Device & Attendance', icon: Wifi },
@@ -250,11 +251,13 @@ export default function SettingsPage() {
     const handleThemeChange = (value) => {
         setTheme(value);
         savePreference('appearance', 'theme', value);
+        dispatchAppearanceUpdate(value, fontSize);
     };
 
     const handleFontSizeChange = (value) => {
         setFontSize(value);
         savePreference('appearance', 'fontSize', value);
+        dispatchAppearanceUpdate(theme, value);
     };
 
     // Password change handler
@@ -686,11 +689,6 @@ export default function SettingsPage() {
                                     <div style={{ fontSize: '0.8rem', color: '#aaa' }}>Manage your data and security preferences.</div>
                                 </div>
                                 <SectionCard title="Data & Privacy">
-                                    <SettingRow label="Active Sessions" description="You currently have 1 active session">
-                                        <button style={{ padding: '5px 14px', borderRadius: '8px', border: '1px solid #fca5a5', background: '#fef2f2', color: '#dc2626', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600 }}>
-                                            Sign out all
-                                        </button>
-                                    </SettingRow>
                                     <SettingRow label="MAC Address Visibility" description="Only your faculty and admin can see your MAC address">
                                         <span style={{ fontSize: '0.78rem', color: '#888', fontWeight: 500 }}>Faculty & Admin</span>
                                     </SettingRow>

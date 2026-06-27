@@ -8,7 +8,7 @@ import {
     Download, Upload, Clock, CheckCircle, AlertCircle, XCircle, ArrowLeft,
     Paperclip, X, User, MapPin, Send, Trophy
 } from 'lucide-react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '@/lib/api';
 
@@ -32,10 +32,19 @@ const StatusBadge = ({ status }) => {
 export default function CourseDetailPage() {
     const router = useRouter();
     const { courseId } = useParams();
+    const searchParams = useSearchParams();
+    const tabParam = searchParams.get('tab');
+    
     const { user, logout, authReady } = useAuth();
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-    const [activeTab, setActiveTab] = useState('Materials');
+    const [activeTab, setActiveTab] = useState(tabParam === 'Assignments' ? 'Assignments' : 'Materials');
+
+    useEffect(() => {
+        if (tabParam === 'Assignments' || tabParam === 'Materials') {
+            setActiveTab(tabParam);
+        }
+    }, [tabParam]);
     const [course, setCourse] = useState(null);
     const [materials, setMaterials] = useState([]);
     const [assignments, setAssignments] = useState([]);
@@ -46,6 +55,7 @@ export default function CourseDetailPage() {
     const [isDragging, setIsDragging] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [submitSuccess, setSubmitSuccess] = useState(false);
+    const [submitError, setSubmitError] = useState('');
     const fileInputRef = useRef(null);
 
     const navTo = (p) => router.push(p);
@@ -85,16 +95,17 @@ export default function CourseDetailPage() {
     const handleSubmit = async () => {
         if (!selectedAssignment || uploadFiles.length === 0) return;
         setSubmitting(true);
+        setSubmitError('');
         try {
             const formData = new FormData();
-            uploadFiles.forEach(f => formData.append('files', f));
-            await api.post(`/api/assignments/${selectedAssignment.id}/submit`, formData);
+            formData.append('file', uploadFiles[0]);
+            await api.upload(`/api/students/assignments/${selectedAssignment.id}/submit`, formData);
             setSubmitSuccess(true);
             setUploadFiles([]);
             setTimeout(() => setSubmitSuccess(false), 3000);
             fetchData();
-        } catch {
-            // Handle error gracefully
+        } catch (err) {
+            setSubmitError(err.message || 'Failed to submit assignment');
         } finally {
             setSubmitting(false);
         }
@@ -321,7 +332,9 @@ export default function CourseDetailPage() {
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                                         {materials.map((mat, i) => {
                                             const typeInfo = getFileTypeLabel(mat.file_type);
-                                            const uploaderName = mat.users ? `${mat.users.first_name} ${mat.users.last_name}` : null;
+                                            const uploaderName = mat.faculty?.users
+                                                ? `${mat.faculty.users.first_name} ${mat.faculty.users.last_name}`
+                                                : null;
                                             return (
                                                 <div
                                                     key={mat.id || i}
@@ -480,8 +493,8 @@ export default function CourseDetailPage() {
                                                     <div style={{ fontSize: '0.82rem', color: '#888', fontWeight: 500 }}>
                                                         Drag & drop files here, or <span style={{ color: '#0b6861', textDecoration: 'underline' }}>browse</span>
                                                     </div>
-                                                    <div style={{ fontSize: '0.7rem', color: '#bbb', marginTop: '4px' }}>PDF, DOCX, ZIP up to 20MB</div>
-                                                    <input ref={fileInputRef} type="file" multiple style={{ display: 'none' }} onChange={handleFileSelect} />
+                                                    <div style={{ fontSize: '0.7rem', color: '#bbb', marginTop: '4px' }}>PDF, DOC, DOCX, PPT, PNG up to 10MB</div>
+                                                    <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg" style={{ display: 'none' }} onChange={handleFileSelect} />
                                                 </div>
 
                                                 {uploadFiles.length > 0 && (
@@ -494,6 +507,12 @@ export default function CourseDetailPage() {
                                                                 <button onClick={() => removeFile(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#aaa', padding: 0 }}><X size={13} /></button>
                                                             </div>
                                                         ))}
+                                                    </div>
+                                                )}
+
+                                                {submitError && (
+                                                    <div style={{ background: '#fee2e2', color: '#dc2626', borderRadius: '8px', padding: '10px 14px', fontSize: '0.82rem', fontWeight: 500, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                        <AlertCircle size={14} /> {submitError}
                                                     </div>
                                                 )}
 

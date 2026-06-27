@@ -19,6 +19,54 @@ body {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
+  background: var(--page-bg, #f5f5f5);
+  color: var(--text-primary, #111);
+}
+
+html[data-font-size='small'] body {
+  font-size: 14px;
+}
+
+html[data-font-size='medium'] body {
+  font-size: 16px;
+}
+
+html[data-font-size='large'] body {
+  font-size: 18px;
+}
+
+html[data-theme='dark'] {
+  --page-bg: #0f1117;
+  --text-primary: #f3f4f6;
+  --card-bg: #1a1d27;
+  --card-border: #2d3140;
+  --sidebar-bg: #141720;
+  --muted-text: #9ca3af;
+}
+
+html[data-theme='dark'] body {
+  background: var(--page-bg);
+  color: var(--text-primary);
+}
+
+html[data-theme='dark'] .sidebar {
+  background: var(--sidebar-bg) !important;
+}
+
+html[data-theme='dark'] .main-content,
+html[data-theme='dark'] .content-center {
+  background: var(--page-bg) !important;
+}
+
+html[data-theme='dark'] .dashboard-header h1,
+html[data-theme='dark'] .user-info h3,
+html[data-theme='dark'] .section-title {
+  color: var(--text-primary) !important;
+}
+
+html[data-theme='dark'] .schedule-card,
+html[data-theme='dark'] .sidebar {
+  border-color: var(--card-border) !important;
 }
 
 /* =============================================

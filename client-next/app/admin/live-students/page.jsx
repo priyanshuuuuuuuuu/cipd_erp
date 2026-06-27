@@ -4,7 +4,7 @@ import '../../Dashboard.css';
 import {
     LayoutGrid, Calendar, MessageSquare, Settings, LogOut, Bell, Search, Menu,
     ChevronLeft, ChevronRight, Wifi, Clock, FileBarChart, RefreshCw, Activity,
-    CheckCircle, Signal, Users, Monitor, AlertCircle, AlertTriangle, XCircle, Trophy
+    CheckCircle, Signal, Users, Monitor, AlertCircle, XCircle, Trophy
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
@@ -190,7 +190,7 @@ export default function AdminLiveStudentsPage() {
                         </div>
                     </header>
 
-                    {/* ── Stale / Error Banners ── */}
+                    {/* ── Error Banner ── */}
                     {error && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 18px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', marginBottom: '1rem' }}>
                             <XCircle size={18} color="#dc2626" style={{ flexShrink: 0 }} />
@@ -200,33 +200,6 @@ export default function AdminLiveStudentsPage() {
                             </div>
                             <button onClick={fetchData} style={{ marginLeft: 'auto', padding: '5px 14px', borderRadius: '8px', border: '1px solid #fecaca', background: '#fff', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600, color: '#dc2626', display: 'flex', alignItems: 'center', gap: '4px' }}>
                                 <RefreshCw size={12} /> Retry
-                            </button>
-                        </div>
-                    )}
-
-                    {(data.isStale || data.isUnchanged || unchangedCount >= 2) && !error && (
-                        <div className="ls-banner" style={{
-                            display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 18px',
-                            background: data.isStale ? '#fef2f2' : '#fffbeb',
-                            border: `1px solid ${data.isStale ? '#fecaca' : '#fde68a'}`,
-                            borderRadius: '10px', marginBottom: '1rem',
-                        }}>
-                            <AlertTriangle size={18} color={data.isStale ? '#dc2626' : '#b45309'} style={{ flexShrink: 0 }} />
-                            <div style={{ flex: 1 }}>
-                                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: data.isStale ? '#dc2626' : '#b45309' }}>
-                                    {data.isStale ? 'Scanner Data is Stale' : 'Scanner Data Unchanged'}
-                                </div>
-                                <div style={{ fontSize: '0.75rem', color: data.isStale ? '#991b1b' : '#92400e', marginTop: '2px' }}>
-                                    {data.staleMessage || (unchangedCount >= 2 ? `Snapshot data has been identical for the last ${unchangedCount + 1} refreshes — the scanner may have stopped updating.` : '')}
-                                </div>
-                            </div>
-                            <button onClick={fetchData} style={{
-                                padding: '5px 14px', borderRadius: '8px',
-                                border: `1px solid ${data.isStale ? '#fecaca' : '#fde68a'}`,
-                                background: '#fff', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600,
-                                color: data.isStale ? '#dc2626' : '#b45309', display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0,
-                            }}>
-                                <RefreshCw size={12} /> Refresh
                             </button>
                         </div>
                     )}

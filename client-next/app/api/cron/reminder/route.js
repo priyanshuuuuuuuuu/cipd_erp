@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { sendDayBeforeReminderEmail } from '@/lib/emailer';
+import { fetchPreferencesMap, shouldNotifyUser } from '@/lib/should-notify';
 
 /**
  * GET /api/cron/reminder
@@ -59,7 +60,14 @@ export async function GET(req) {
         .in('id', studentIds)
         .eq('is_active', true);
 
+      const prefMap = await fetchPreferencesMap(
+        supabaseAdmin,
+        (students || []).map((s) => s.id)
+      );
+
       for (const student of (students || [])) {
+        if (!shouldNotifyUser(prefMap, student.id, 'class_reminder')) continue;
+
         try {
           const name = `${student.first_name || ''} ${student.last_name || ''}`.trim() || 'Student';
           await sendDayBeforeReminderEmail(student.email, name, session);
