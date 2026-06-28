@@ -33,7 +33,7 @@ async function getHandler(req) {
 async function postHandler(req) {
   try {
     const body = await req.json();
-    const { leave_date, session_id, reason } = body;
+    const { leave_date, session_ids, reason } = body;
 
     if (!leave_date || !DATE_RE.test(leave_date)) {
       return NextResponse.json(
@@ -49,58 +49,79 @@ async function postHandler(req) {
       );
     }
 
-    if (session_id) {
-      const { data: session } = await supabaseAdmin
-        .from('sessions')
-        .select('id, session_date, title')
-        .eq('id', session_id)
-        .single();
+    const ids = Array.isArray(session_ids)
+      ? [...new Set(session_ids.filter(Boolean))]
+      : [];
 
-      if (!session) {
-        return NextResponse.json({ error: 'Session not found' }, { status: 404 });
-      }
+    if (ids.length === 0) {
+      return NextResponse.json(
+        { error: 'Select at least one session for leave' },
+        { status: 400 }
+      );
+    }
 
-      if (session.session_date !== leave_date) {
+    const { data: enrollments } = await supabaseAdmin
+      .from('course_enrollments')
+      .select('course_id')
+      .eq('student_id', req.user.id);
+
+    const enrolledCourseIds = new Set(
+      (enrollments || []).map((e) => e.course_id)
+    );
+
+    const { data: sessions } = await supabaseAdmin
+      .from('sessions')
+      .select('id, title, session_date, course_id, start_time')
+      .in('id', ids);
+
+    if (!sessions?.length || sessions.length !== ids.length) {
+      return NextResponse.json({ error: 'One or more sessions not found' }, { status: 404 });
+    }
+
+    for (const s of sessions) {
+      if (s.session_date !== leave_date) {
         return NextResponse.json(
-          { error: 'leave_date must match the selected session date' },
+          { error: 'All selected sessions must be on the chosen leave date' },
           { status: 400 }
+        );
+      }
+      if (!enrolledCourseIds.has(s.course_id)) {
+        return NextResponse.json(
+          { error: 'You are not enrolled in one of the selected sessions' },
+          { status: 403 }
         );
       }
     }
 
-    let dupQuery = supabaseAdmin
+    const { data: existing } = await supabaseAdmin
       .from('leave_requests')
-      .select('id, status')
+      .select('session_id, status')
       .eq('student_id', req.user.id)
       .eq('leave_date', leave_date)
+      .in('session_id', ids)
       .in('status', ['pending', 'approved']);
 
-    if (session_id) {
-      dupQuery = dupQuery.eq('session_id', session_id);
-    } else {
-      dupQuery = dupQuery.is('session_id', null);
-    }
-
-    const { data: existing } = await dupQuery.maybeSingle();
-
-    if (existing) {
+    if (existing?.length) {
       return NextResponse.json(
-        { error: `A ${existing.status} leave request already exists for this date/session` },
+        {
+          error: `Leave already ${existing[0].status} for one or more selected sessions`,
+        },
         { status: 409 }
       );
     }
 
+    const rows = ids.map((sessionId) => ({
+      student_id: req.user.id,
+      leave_date,
+      session_id: sessionId,
+      reason: reason.trim(),
+      status: 'pending',
+    }));
+
     const { data: inserted, error: insertErr } = await supabaseAdmin
       .from('leave_requests')
-      .insert({
-        student_id: req.user.id,
-        leave_date,
-        session_id: session_id || null,
-        reason: reason.trim(),
-        status: 'pending',
-      })
-      .select('id, leave_date, session_id, reason, status, created_at')
-      .single();
+      .insert(rows)
+      .select('id, leave_date, session_id, reason, status, created_at');
 
     if (insertErr) {
       console.error('Leave request insert error:', insertErr.message);
@@ -116,28 +137,20 @@ async function postHandler(req) {
     const studentName =
       `${userRow?.first_name || ''} ${userRow?.last_name || ''}`.trim() || 'Student';
 
-    let sessionTitle = null;
-    if (session_id) {
-      const { data: sess } = await supabaseAdmin
-        .from('sessions')
-        .select('title')
-        .eq('id', session_id)
-        .single();
-      sessionTitle = sess?.title || null;
-    }
+    const sessionTitles = sessions.map((s) => s.title).join(', ');
 
     await notifyAdminsOfLeaveRequest({
-      leaveRequestId: inserted.id,
+      leaveRequestId: inserted[0]?.id,
       studentId: req.user.id,
       studentName,
       leaveDate: leave_date,
-      sessionTitle,
+      sessionTitle: sessionTitles,
       reason: reason.trim(),
     });
 
     return NextResponse.json({
-      message: 'Leave request submitted. Admins have been notified.',
-      request: inserted,
+      message: `Leave request submitted for ${ids.length} session(s). Admins have been notified.`,
+      requests: inserted,
     });
   } catch (err) {
     console.error('Leave request POST error:', err);

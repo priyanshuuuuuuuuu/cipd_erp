@@ -149,13 +149,11 @@ export function calculatePoints({
   let tier = `late ${minutesAfterStart.toFixed(1)}min → base ${basePoints}`;
   if (pingDeduction > 0) tier += `, ping ${Math.round(presencePercent)}% −${pingDeduction}`;
 
-  const status = points > 0 ? 'present' : 'absent';
-
   return {
     points,
     basePoints,
     pingDeduction,
-    status,
+    presencePercent: Math.round(presencePercent),
     breakdown: {
       presencePercent: Math.round(presencePercent),
       basePoints,
@@ -167,27 +165,47 @@ export function calculatePoints({
   };
 }
 
+/** Minimum ping % to count as present (below this → absent). */
+export const MIN_PRESENCE_PERCENT = 45;
+
 /**
- * Apply ongoing-session partial override (fewer than min pings).
- * @param {string} status
- * @param {number} pingCount
- * @param {boolean} isOngoing
- * @param {number} [minPingsPresent]
+ * Attendance status is separate from points.
+ * Present/absent is driven by ping %; points use entry time + deductions.
+ *
+ * @returns {'present'|'partial'|'absent'|'leave'|'missing'}
  */
-export function applyOngoingPartialStatus(
-  status,
-  pingCount,
-  isOngoing,
-  minPingsPresent = 3
-) {
-  if (
-    isOngoing &&
-    pingCount > 0 &&
-    pingCount < minPingsPresent &&
-    status !== 'absent' &&
-    status !== 'leave'
-  ) {
+export function resolveAttendanceStatus({
+  presencePercent = 0,
+  detected = false,
+  leaveApproved = false,
+  finalizeAbsent = false,
+  isOngoing = false,
+}) {
+  if (isOngoing) {
+    if (leaveApproved) return 'leave';
+    if (!detected) return 'missing';
     return 'partial';
   }
-  return status;
+
+  if (!detected) {
+    if (leaveApproved) return 'leave';
+    return finalizeAbsent ? 'absent' : 'missing';
+  }
+
+  if (presencePercent < MIN_PRESENCE_PERCENT) return 'absent';
+  return 'present';
+}
+
+/**
+ * Map DB/live status to student-facing label on /attendance.
+ */
+export function liveStatusLabel(status, isOngoing) {
+  if (!isOngoing) {
+    if (status === 'present' || status === 'partial') return 'Present';
+    if (status === 'leave') return 'Leave';
+    return 'Absent';
+  }
+  if (status === 'leave') return 'On Leave';
+  if (status === 'partial' || status === 'present') return 'Attending';
+  return 'Missing';
 }

@@ -1,8 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase';
 import { normalizeMac, isValidMac } from '@/lib/attendance-mac';
-import { calculatePoints, applyOngoingPartialStatus } from '@/lib/attendance-points';
-
-const MIN_PINGS_PRESENT = 3;
+import { calculatePoints, resolveAttendanceStatus } from '@/lib/attendance-points';
 
 /**
  * Load system settings for attendance processing.
@@ -226,6 +224,11 @@ export async function processSessionAttendance(session, options = {}) {
         ) / 10;
     }
 
+    const actualSnapshots = orderedSnapshotIds.length;
+    const totalSnapshots = Math.max(actualSnapshots, expectedTotalSnapshots || 0);
+    const presencePercent =
+      totalSnapshots > 0 ? (pingCount / totalSnapshots) * 100 : 0;
+
     const scoring = calculatePoints({
       firstSeenAt: firstSeen,
       sessionStartAt: sessionStartDate,
@@ -238,23 +241,26 @@ export async function processSessionAttendance(session, options = {}) {
       finalizeAbsent,
     });
 
-    const status = applyOngoingPartialStatus(
-      scoring.status,
-      pingCount,
+    const status = resolveAttendanceStatus({
+      presencePercent: scoring.presencePercent ?? presencePercent,
+      detected,
+      leaveApproved,
+      finalizeAbsent,
       isOngoing,
-      MIN_PINGS_PRESENT
-    );
+    });
 
-    if (!detected && !finalizeAbsent) {
+    if (status === 'missing') {
       continue;
     }
+
+    const finalPoints = isOngoing ? 0 : scoring.points;
 
     records.push({
       session_id: session.id,
       student_id: student.id,
       ping_count: pingCount,
-      points: scoring.points,
-      status,
+      points: finalPoints,
+      status: status === 'missing' ? 'absent' : status,
       calculated_at: now.toISOString(),
       first_seen_at: firstSeen ? firstSeen.toISOString() : null,
       last_seen_at: lastSeen ? lastSeen.toISOString() : null,
