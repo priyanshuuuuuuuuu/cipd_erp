@@ -166,7 +166,7 @@ export default function AttendancePage() {
     const filtered = selectedCourse === 'all' ? sessions : sessions.filter(s => s.course === selectedCourse);
     const statusTextColor = (p) => p >= 85 ? '#166534' : p >= 75 ? '#854d0e' : '#9f1239';
     const statusBg = (p) => p >= 85 ? '#ecfccb' : p >= 75 ? '#fef9c3' : '#fce7f3';
-    const statusLabel = (p) => p >= 85 ? 'On Track' : p >= 75 ? 'Needs Attention' : 'At Risk';
+    const trackingLabel = (p) => p >= 85 ? 'On Track' : p >= 75 ? 'Needs Attention' : 'At Risk';
 
     // Calendar
     const calYear = currentCalendarMonth ? currentCalendarMonth.getFullYear() : 2026;
