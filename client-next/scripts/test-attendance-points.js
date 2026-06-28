@@ -7,6 +7,8 @@ import {
   calculatePoints,
   calculateLateEntryBasePoints,
   calculatePingDeduction,
+  resolveAttendanceStatus,
+  MIN_PRESENCE_PERCENT,
 } from '../lib/attendance-points.js';
 
 let passed = 0;
@@ -85,7 +87,13 @@ console.log('\n=== Full scoring ===');
     detected: false,
     finalizeAbsent: true,
   });
-  assert(r.points === 0 && r.status === 'leave', 'Leave → 0', `got ${r.points} ${r.status}`);
+  const st = resolveAttendanceStatus({
+    presencePercent: 0,
+    detected: false,
+    leaveApproved: true,
+    finalizeAbsent: true,
+  });
+  assert(r.points === 0 && st === 'leave', 'Leave → 0', `got ${r.points} ${st}`);
 }
 
 {
@@ -100,8 +108,49 @@ console.log('\n=== Full scoring ===');
     detected: false,
     finalizeAbsent: true,
   });
-  assert(r.points === -2 && r.status === 'absent', 'No-show → -2', `got ${r.points}`);
+  const st = resolveAttendanceStatus({
+    presencePercent: 0,
+    detected: false,
+    leaveApproved: false,
+    finalizeAbsent: true,
+    isOngoing: false,
+  });
+  assert(r.points === -2 && st === 'absent', 'No-show → −2 pts, absent', `got ${r.points} ${st}`);
 }
+
+console.log('\n=== Status vs points (separate) ===');
+{
+  const firstSeen = new Date('2026-06-01T10:05:00+05:30');
+  const r = calculatePoints({
+    firstSeenAt: firstSeen,
+    sessionStartAt: sessionStart,
+    sessionEndAt: sessionEnd,
+    pingCount: 4,
+    orderedSnapshotIds: snaps,
+    expectedTotalSnapshots: 10,
+    detected: true,
+    finalizeAbsent: true,
+  });
+  const st = resolveAttendanceStatus({
+    presencePercent: 40,
+    detected: true,
+    finalizeAbsent: true,
+    isOngoing: false,
+  });
+  assert(st === 'absent', '40% pings → absent status');
+  assert(r.points > 0, '40% pings can still earn points from entry time', `got ${r.points}`);
+}
+
+console.log('\n=== Ongoing live status ===');
+assert(
+  resolveAttendanceStatus({ detected: true, isOngoing: true }) === 'partial',
+  'Ongoing + detected → partial (Attending)'
+);
+assert(
+  resolveAttendanceStatus({ detected: false, isOngoing: true }) === 'missing',
+  'Ongoing + not detected → missing'
+);
+assert(MIN_PRESENCE_PERCENT === 45, 'Min presence is 45%');
 
 console.log('\n' + '═'.repeat(50));
 console.log(`Results: ${passed} passed, ${failed} failed`);

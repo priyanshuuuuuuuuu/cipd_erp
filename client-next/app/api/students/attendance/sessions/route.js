@@ -26,6 +26,7 @@ async function handler(req) {
         { count: 'exact' }
       )
       .eq('student_id', req.user.id)
+      .eq('sessions.status', 'completed')
       .order('calculated_at', { ascending: false });
 
     if (dateFilter) {

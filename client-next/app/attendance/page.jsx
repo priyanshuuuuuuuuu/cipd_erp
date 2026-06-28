@@ -63,27 +63,64 @@ export default function AttendancePage() {
     const [leaveSubmitting, setLeaveSubmitting] = useState(false);
     const [leaveMsg, setLeaveMsg] = useState(null);
     const [showLeaveForm, setShowLeaveForm] = useState(false);
+    const [liveSessions, setLiveSessions] = useState([]);
+    const [leaveDaySessions, setLeaveDaySessions] = useState([]);
+    const [selectedLeaveSessions, setSelectedLeaveSessions] = useState([]);
+    const [loadingLeaveSessions, setLoadingLeaveSessions] = useState(false);
 
     const displayName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Student' : 'Student';
 
     const fetchData = useCallback(async () => {
         try {
-            const [sumRes, sesRes, presRes, leaveRes] = await Promise.allSettled([
+            const [sumRes, sesRes, presRes, leaveRes, liveRes] = await Promise.allSettled([
                 api.get('/api/students/attendance/summary'),
                 api.get(`/api/students/attendance/sessions?limit=300`),
                 api.get('/api/students/attendance/presence'),
                 api.get('/api/students/leave-requests'),
+                api.get('/api/students/attendance/live'),
             ]);
             if (sumRes.status === 'fulfilled') setSummaryData(sumRes.value);
             if (sesRes.status === 'fulfilled') setSessionHistory(sesRes.value.sessions || []);
             if (presRes.status === 'fulfilled') setPresence(presRes.value);
             if (leaveRes.status === 'fulfilled') setLeaveRequests(leaveRes.value.requests || []);
+            if (liveRes.status === 'fulfilled') setLiveSessions(liveRes.value.sessions || []);
         } finally {
             setLoading(false);
         }
     }, []);
 
     useEffect(() => { if (authReady) fetchData(); }, [fetchData, authReady]);
+
+    useEffect(() => {
+        if (!authReady || liveSessions.length === 0) return;
+        const t = setInterval(async () => {
+            try {
+                const liveRes = await api.get('/api/students/attendance/live');
+                setLiveSessions(liveRes.sessions || []);
+            } catch { /* ignore */ }
+        }, 60000);
+        return () => clearInterval(t);
+    }, [authReady, liveSessions.length]);
+
+    useEffect(() => {
+        if (!leaveDate) {
+            setLeaveDaySessions([]);
+            setSelectedLeaveSessions([]);
+            return;
+        }
+        setLoadingLeaveSessions(true);
+        api.get(`/api/students/leave-requests/sessions?date=${leaveDate}`)
+            .then((res) => {
+                setLeaveDaySessions(res.sessions || []);
+                setSelectedLeaveSessions(
+                    (res.sessions || [])
+                        .filter((s) => !s.leaveStatus)
+                        .map((s) => s.id)
+                );
+            })
+            .catch(() => setLeaveDaySessions([]))
+            .finally(() => setLoadingLeaveSessions(false));
+    }, [leaveDate]);
 
     // Set today's date on mount for calendar
     useEffect(() => {
@@ -143,16 +180,22 @@ export default function AttendancePage() {
             setLeaveMsg({ type: 'error', text: 'Pick a date and enter a reason (min 5 characters).' });
             return;
         }
+        if (selectedLeaveSessions.length === 0) {
+            setLeaveMsg({ type: 'error', text: 'Select at least one session.' });
+            return;
+        }
         setLeaveSubmitting(true);
         setLeaveMsg(null);
         try {
             await api.post('/api/students/leave-requests', {
                 leave_date: leaveDate,
+                session_ids: selectedLeaveSessions,
                 reason: leaveReason.trim(),
             });
             setLeaveMsg({ type: 'success', text: 'Leave request submitted. Admins have been notified.' });
             setLeaveReason('');
             setLeaveDate('');
+            setSelectedLeaveSessions([]);
             setShowLeaveForm(false);
             const res = await api.get('/api/students/leave-requests');
             setLeaveRequests(res.requests || []);
@@ -161,6 +204,12 @@ export default function AttendancePage() {
         } finally {
             setLeaveSubmitting(false);
         }
+    };
+
+    const toggleLeaveSession = (id) => {
+        setSelectedLeaveSessions((prev) =>
+            prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+        );
     };
 
     const filtered = selectedCourse === 'all' ? sessions : sessions.filter(s => s.course === selectedCourse);
@@ -473,6 +522,38 @@ export default function AttendancePage() {
                         )}
                     </div>
 
+                    {/* Live / Ongoing Classes */}
+                    {liveSessions.length > 0 && (
+                        <div className="stat-card" style={{ padding: '1.25rem 1.5rem', borderRadius: '20px', marginBottom: '1rem', border: '1px solid #bbf7d0', background: 'linear-gradient(135deg, #f0fdf4 0%, #fff 100%)' }}>
+                            <div style={{ fontSize: '1rem', fontWeight: 700, color: '#166534', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <Wifi size={16} /> Live — Ongoing Classes
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                {liveSessions.map((ls) => {
+                                    const isAttending = ls.liveStatus === 'Attending';
+                                    const isLeave = ls.liveStatus === 'On Leave' || ls.liveStatus === 'Leave Pending';
+                                    return (
+                                        <div key={ls.sessionId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: '#fff', borderRadius: '12px', border: '1px solid #dcfce7' }}>
+                                            <div>
+                                                <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#0f172a' }}>{ls.title}</div>
+                                                <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '2px' }}>{ls.courseName} · {ls.startTime} – {ls.endTime}</div>
+                                            </div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                {ls.pingCount != null && (
+                                                    <span style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: '#64748b' }}>{ls.pingCount} pings</span>
+                                                )}
+                                                <span style={{ fontSize: '0.75rem', fontWeight: 700, padding: '5px 12px', borderRadius: '8px', background: isAttending ? '#dcfce7' : isLeave ? '#fef3c7' : '#ffe4e6', color: isAttending ? '#166534' : isLeave ? '#b45309' : '#991b1b' }}>
+                                                    {ls.liveStatus}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            <div style={{ fontSize: '0.68rem', color: '#64748b', marginTop: '10px' }}>Points are calculated after the session ends.</div>
+                        </div>
+                    )}
+
                     {/* Leave Requests */}
                     <div className="stat-card" style={{ padding: '1.25rem 1.5rem', borderRadius: '20px', marginBottom: '1rem', border: '1px solid #e8e8e8' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: showLeaveForm || leaveRequests.length ? '1rem' : 0 }}>
@@ -495,6 +576,36 @@ export default function AttendancePage() {
                                     <label style={{ fontSize: '0.72rem', fontWeight: 600, color: '#64748b', display: 'block', marginBottom: '6px' }}>Leave date</label>
                                     <input type="date" value={leaveDate} onChange={e => setLeaveDate(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.85rem' }} />
                                 </div>
+                                {leaveDate && (
+                                    <div>
+                                        <label style={{ fontSize: '0.72rem', fontWeight: 600, color: '#64748b', display: 'block', marginBottom: '6px' }}>Sessions on this day</label>
+                                        {loadingLeaveSessions ? (
+                                            <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>Loading sessions…</div>
+                                        ) : leaveDaySessions.length === 0 ? (
+                                            <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>No sessions scheduled on this date.</div>
+                                        ) : (
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                {leaveDaySessions.map((s) => (
+                                                    <label key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: '#fff', borderRadius: '10px', border: '1px solid #e2e8f0', cursor: s.leaveStatus ? 'not-allowed' : 'pointer', opacity: s.leaveStatus ? 0.6 : 1 }}>
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedLeaveSessions.includes(s.id)}
+                                                            disabled={!!s.leaveStatus}
+                                                            onChange={() => toggleLeaveSession(s.id)}
+                                                        />
+                                                        <div style={{ flex: 1 }}>
+                                                            <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#0f172a' }}>{s.title}</div>
+                                                            <div style={{ fontSize: '0.7rem', color: '#64748b' }}>{s.courseName} · {s.startTime} – {s.endTime}</div>
+                                                        </div>
+                                                        {s.leaveStatus && (
+                                                            <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#b45309' }}>{s.leaveStatus}</span>
+                                                        )}
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                                 <div>
                                     <label style={{ fontSize: '0.72rem', fontWeight: 600, color: '#64748b', display: 'block', marginBottom: '6px' }}>Reason</label>
                                     <textarea value={leaveReason} onChange={e => setLeaveReason(e.target.value)} rows={3} placeholder="Explain why you cannot attend..." style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', border: '1px solid #e2e8f0', fontSize: '0.85rem', resize: 'vertical' }} />
@@ -510,7 +621,9 @@ export default function AttendancePage() {
                                     <div key={lr.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: '#fff', borderRadius: '10px', border: '1px solid #f1f5f9' }}>
                                         <div>
                                             <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#0f172a' }}>{lr.leave_date}</div>
-                                            <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '2px' }}>{lr.reason}</div>
+                                            <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '2px' }}>
+                                                {lr.sessions?.title ? lr.sessions.title : lr.reason}
+                                            </div>
                                         </div>
                                         <span style={{ fontSize: '0.68rem', fontWeight: 700, padding: '4px 10px', borderRadius: '8px', background: lr.status === 'approved' ? '#ecfdf5' : lr.status === 'rejected' ? '#fef2f2' : '#fffbeb', color: lr.status === 'approved' ? '#166534' : lr.status === 'rejected' ? '#991b1b' : '#b45309' }}>
                                             {lr.status}
@@ -567,8 +680,11 @@ export default function AttendancePage() {
                                             </div>
                                             <div className="att-session-row-right" style={{ display:'flex', alignItems:'center', gap:'16px' }}>
                                                 <span style={{ fontFamily:'monospace', fontSize:'0.8rem', fontWeight: 600, color: s.pings >= 3 ? '#16a34a' : '#e11d48', background: s.pings >= 3 ? '#dcfce7' : '#ffe4e6', padding: '4px 10px', borderRadius: '8px' }}>{s.pings} pings</span>
-                                                {s.points != null && (
+                                                {s.points != null && s.points !== 0 && (
                                                     <span style={{ fontFamily:'monospace', fontSize:'0.8rem', fontWeight: 700, color: s.points >= 3 ? '#166534' : s.points < 0 ? '#991b1b' : '#64748b', background: '#f8fafc', padding: '4px 10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>{s.points} pts</span>
+                                                )}
+                                                {s.points === -2 && (
+                                                    <span style={{ fontFamily:'monospace', fontSize:'0.8rem', fontWeight: 700, color: '#991b1b', background: '#fef2f2', padding: '4px 10px', borderRadius: '8px' }}>−2 pts</span>
                                                 )}
                                                 <span style={{ display:'inline-flex', alignItems:'center', gap:'6px', padding:'6px 14px', borderRadius:'10px', fontSize:'0.8rem', fontWeight:700, background: s.rawStatus === 'leave' ? '#fef3c7' : s.status === 'Present' ? '#ecfccb' : '#ffe4e6', color: s.rawStatus === 'leave' ? '#b45309' : s.status === 'Present' ? '#365314' : '#9f1239' }}>
                                                     {s.status === 'Present' ? <CheckCircle size={14}/> : s.rawStatus === 'leave' ? <Clock size={14}/> : <XCircle size={14}/>}{s.status}

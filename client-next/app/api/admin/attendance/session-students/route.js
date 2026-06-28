@@ -11,7 +11,7 @@ import {
 } from '@/lib/process-session-attendance';
 import {
   calculatePoints,
-  applyOngoingPartialStatus,
+  resolveAttendanceStatus,
 } from '@/lib/attendance-points';
 
 async function handler(req) {
@@ -228,6 +228,13 @@ async function handler(req) {
         latestSignal = timeline[timeline.length - 1].signal;
       }
 
+      const totalSnapshots = Math.max(
+        orderedSnapshotIds.length,
+        expectedTotalSnapshots || 0
+      );
+      const presencePercent =
+        totalSnapshots > 0 ? (pingCount / totalSnapshots) * 100 : 0;
+
       const scoring = calculatePoints({
         firstSeenAt: firstSeen,
         sessionStartAt: sessionStartDate,
@@ -240,11 +247,15 @@ async function handler(req) {
         finalizeAbsent,
       });
 
-      const status = applyOngoingPartialStatus(
-        existing?.status || scoring.status,
-        pingCount,
-        isOngoing
-      );
+      const status = resolveAttendanceStatus({
+        presencePercent: scoring.presencePercent ?? presencePercent,
+        detected,
+        leaveApproved: approvedLeaves.has(student.id),
+        finalizeAbsent,
+        isOngoing,
+      });
+
+      const displayPoints = isOngoing ? 0 : (existing?.points ?? scoring.points);
 
       studentResults.push({
         studentId: student.id,
@@ -260,7 +271,7 @@ async function handler(req) {
         lastSeen: lastSeen ? lastSeen.toISOString() : null,
         durationMinutes,
         pingCount,
-        points: existing?.points ?? scoring.points,
+        points: displayPoints,
         pointsBreakdown: scoring.breakdown,
         status,
         adminOverride: false,
