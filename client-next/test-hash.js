@@ -4,7 +4,6 @@ const bcrypt = require('bcryptjs');
 
 (async () => {
     const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
-    
     const { data: users, error } = await supabase.from('users').select('id, email, password_hash, first_name');
     if (error) { console.log('Error fetching users:', error); return; }
     // hello
