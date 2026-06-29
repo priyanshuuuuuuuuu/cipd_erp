@@ -39,7 +39,7 @@ async function handler(req) {
 
     const courseId = session.courses?.id || session.course_id;
     const date = session.session_date;
-    const { scannerIntervalMin, minSignal } = await loadAttendanceSettings();
+    const { scannerIntervalMin } = await loadAttendanceSettings();
 
     const sessionStartDate = new Date(`${date}T${session.start_time}+05:30`);
     const sessionEndDate = new Date(`${date}T${session.end_time}+05:30`);
@@ -69,10 +69,7 @@ async function handler(req) {
       .lte('captured_at', windowEnd.toISOString())
       .order('captured_at', { ascending: true });
 
-    const { macTimeline, orderedSnapshotIds } = buildMacTimeline(
-      snapshots || [],
-      minSignal
-    );
+    const { macTimeline, orderedSnapshotIds } = buildMacTimeline(snapshots || []);
 
     const { data: enrollments } = await supabaseAdmin
       .from('course_enrollments')

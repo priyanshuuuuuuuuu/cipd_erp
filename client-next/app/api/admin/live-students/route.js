@@ -96,23 +96,16 @@ async function handler(req) {
     });
 
     // 7. Map clients to identified students vs unidentified devices
-    //    Rule: only include devices with signal > 3 (reject weak signals)
-    const MIN_SIGNAL = 2;
+    //    Signal filter intentionally disabled — nmap devices have no signal
+    //    data (null → 0) and would be incorrectly excluded otherwise.
     const identified = [];
     const unidentified = [];
-    let rejectedCount = 0;
 
     validClients.forEach(client => {
       const mac = normalizeMac(client.mac);
       const student = macToStudent[mac];
-      // Signal comes as string like "3 dBm" — extract the integer value directly
+      // Signal comes as string like "3" — extract integer for display only
       const signal = parseInt(client.signal) || 0;
-
-      // Reject devices with signal <= 3
-      if (signal <= MIN_SIGNAL) {
-        rejectedCount++;
-        return;
-      }
 
       if (student) {
         const firstName = student.users?.first_name || '';
@@ -158,7 +151,6 @@ async function handler(req) {
         totalDevices: validClients.length,
         identifiedStudents: identified.length,
         unidentifiedDevices: unidentified.length,
-        rejectedWeakSignal: rejectedCount,
         avgSignal,
       },
       lastSnapshot: latest.captured_at,
