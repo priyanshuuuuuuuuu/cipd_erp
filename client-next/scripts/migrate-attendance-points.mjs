@@ -40,8 +40,7 @@ async function migrate() {
     .single();
 
   const SCANNER_INTERVAL_MIN = settings?.scanner_interval_minutes || settings?.ping_interval || 6;
-  const MIN_SIGNAL = settings?.min_signal ?? settings?.presence_threshold ?? 2;
-  console.log(`⚙️  Scanner interval: ${SCANNER_INTERVAL_MIN} min, Min signal: ${MIN_SIGNAL}\n`);
+  console.log(`⚙️  Scanner interval: ${SCANNER_INTERVAL_MIN} min (signal filter disabled)\n`);
 
   // Fetch all completed sessions
   const { data: sessions, error: sessErr } = await supabase
@@ -133,8 +132,8 @@ async function migrate() {
         if (!c.mac || c.mac.trim() === '') return;
         const mac = normalizeMac(c.mac);
         if (!isValidMac(mac)) return;
-        const sig = parseInt(c.signal) || 0;
-        if (sig <= MIN_SIGNAL) return;
+        // Signal filter intentionally disabled — nmap devices have signal=null
+        // which parses to 0 and would be incorrectly excluded.
 
         if (!macToSnapshots[mac]) macToSnapshots[mac] = new Set();
         macToSnapshots[mac].add(snap.id);

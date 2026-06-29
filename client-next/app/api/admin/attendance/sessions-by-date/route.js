@@ -9,7 +9,6 @@ const normalizeMac = (mac) => {
   return mac.trim().toUpperCase().replace(/[-.\s]/g, ':').replace(/:+/g, ':').replace(/^:|:$/g, '');
 };
 const isValidMac = (mac) => /^([A-F0-9]{2}:){5}[A-F0-9]{2}$/.test(mac);
-const MIN_SIGNAL = 2;
 
 async function handler(req) {
   try {
@@ -81,8 +80,8 @@ async function handler(req) {
 
         parsedClients.forEach(c => {
           if (!c.mac || c.mac.trim() === '') return;
-          const sig = parseInt(c.signal) || 0;
-          if (sig <= MIN_SIGNAL) return; // reject weak signal
+          // Signal filter intentionally disabled — nmap devices have signal=null
+          // which parses to 0 and were incorrectly excluded.
 
           const mac = normalizeMac(c.mac);
           if (!isValidMac(mac)) return;

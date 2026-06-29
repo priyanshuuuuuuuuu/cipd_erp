@@ -21,10 +21,11 @@ export async function loadAttendanceSettings() {
 
 /**
  * Build MAC timeline from wifi snapshots.
+ * Signal strength filtering is intentionally disabled — nmap-sourced devices
+ * have no signal data (null/0) and would be incorrectly dropped otherwise.
  * @param {Array} snapshots
- * @param {number} minSignal
  */
-export function buildMacTimeline(snapshots, minSignal) {
+export function buildMacTimeline(snapshots) {
   const macTimeline = {};
   const orderedSnapshotIds = (snapshots || []).map((s) => s.id);
 
@@ -44,8 +45,9 @@ export function buildMacTimeline(snapshots, minSignal) {
       if (!c.mac || c.mac.trim() === '') return;
       const mac = normalizeMac(c.mac);
       if (!isValidMac(mac)) return;
+      // Signal strength filter intentionally removed:
+      // nmap devices have signal=null which parsed to 0 and were incorrectly excluded.
       const sig = parseInt(c.signal, 10) || 0;
-      if (sig <= minSignal) return;
 
       if (!macTimeline[mac]) macTimeline[mac] = [];
       macTimeline[mac].push({
@@ -111,7 +113,7 @@ export async function processSessionAttendance(session, options = {}) {
     now = new Date(),
   } = options;
 
-  const { scannerIntervalMin, minSignal } = await loadAttendanceSettings();
+  const { scannerIntervalMin } = await loadAttendanceSettings();
   const date = session.session_date;
   const courseId = session.course_id;
 
@@ -144,10 +146,7 @@ export async function processSessionAttendance(session, options = {}) {
     .lte('captured_at', windowEnd.toISOString())
     .order('captured_at', { ascending: true });
 
-  const { macTimeline, orderedSnapshotIds } = buildMacTimeline(
-    snapshots || [],
-    minSignal
-  );
+  const { macTimeline, orderedSnapshotIds } = buildMacTimeline(snapshots || []);
 
   const { data: enrollments } = await supabaseAdmin
     .from('course_enrollments')
