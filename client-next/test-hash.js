@@ -7,7 +7,7 @@ const bcrypt = require('bcryptjs');
     
     const { data: users, error } = await supabase.from('users').select('id, email, password_hash, first_name');
     if (error) { console.log('Error fetching users:', error); return; }
-    
+    // hello
     for (let u of users) {
         if (u.first_name && u.first_name.toLowerCase().includes('mayank')) {
             console.log('Found Mayank:', u.email);
