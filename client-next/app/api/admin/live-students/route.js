@@ -9,7 +9,7 @@ async function handler(req) {
   try {
     // 1. Fetch the latest 2 wifi_snapshot entries to compare timestamps
     const { data: snapshots, error: snapErr } = await supabaseAdmin
-      .from('wifi_snapshots')
+      .schema('public').from('wifi_snapshots')
       .select('id, captured_at, iw_dump')
       .order('captured_at', { ascending: false })
       .limit(2);

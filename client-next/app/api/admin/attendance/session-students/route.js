@@ -63,7 +63,7 @@ async function handler(req) {
     const finalizeAbsent = !isOngoing;
 
     const { data: snapshots } = await supabaseAdmin
-      .from('wifi_snapshots')
+      .schema('public').from('wifi_snapshots')
       .select('id, iw_dump, captured_at')
       .gte('captured_at', sessionStartDate.toISOString())
       .lte('captured_at', windowEnd.toISOString())

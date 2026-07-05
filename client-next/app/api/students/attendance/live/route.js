@@ -74,7 +74,7 @@ async function handler(req) {
       const sessionEnd = new Date(`${today}T${session.end_time}+05:30`);
 
       const { data: snapshots } = await supabaseAdmin
-        .from('wifi_snapshots')
+        .schema('public').from('wifi_snapshots')
         .select('id, iw_dump, captured_at')
         .gte('captured_at', sessionStart.toISOString())
         .lte('captured_at', now.toISOString())

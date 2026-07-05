@@ -164,7 +164,7 @@ export async function GET(req) {
     }
 
     const { data: latestSnap } = await supabaseAdmin
-      .from('wifi_snapshots')
+      .schema('public').from('wifi_snapshots')
       .select('captured_at')
       .order('captured_at', { ascending: false })
       .limit(1)

@@ -34,13 +34,13 @@ async function handler(req) {
 
     // Total snapshot count for stats
     const { count: totalSnapshotCount } = await supabaseAdmin
-      .from('wifi_snapshots')
+      .schema('public').from('wifi_snapshots')
       .select('id', { count: 'exact', head: true });
 
     // Helper: build base query with date filters
     const buildQuery = () => {
       let q = supabaseAdmin
-        .from('wifi_snapshots')
+        .schema('public').from('wifi_snapshots')
         .select('id, captured_at, iw_dump, error')
         .order('captured_at', { ascending: false });
 
