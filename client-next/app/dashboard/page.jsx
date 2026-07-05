@@ -26,6 +26,7 @@ const StudentDashboard = () => {
     const [todaySessions, setTodaySessions] = useState([]);
     const [weekSessions, setWeekSessions] = useState([]);
     const [attendance, setAttendance] = useState(null);
+    const [sessionHistory, setSessionHistory] = useState([]);
     const [assignments, setAssignments] = useState([]);
     const [pendingFeedback, setPendingFeedback] = useState(null);
     const [profile, setProfile] = useState(null);
@@ -50,10 +51,11 @@ const StudentDashboard = () => {
         const now = new Date();
         const localDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
-        const [todayRes, weekRes, attRes, assRes, fbRes, profRes] = await Promise.allSettled([
+        const [todayRes, weekRes, attRes, sesRes, assRes, fbRes, profRes] = await Promise.allSettled([
             api.get(`/api/students/schedule/today?date=${localDate}`),
             api.get('/api/students/schedule/week'),
             api.get('/api/students/attendance/summary'),
+            api.get('/api/students/attendance/sessions?limit=300'),
             api.get('/api/students/assignments'),
             api.get('/api/feedback/pending'),
             api.get('/api/students/profile'),
@@ -61,6 +63,7 @@ const StudentDashboard = () => {
         if (todayRes.status === 'fulfilled') setTodaySessions(todayRes.value.sessions || []);
         if (weekRes.status === 'fulfilled') setWeekSessions(weekRes.value.sessions || []);
         if (attRes.status === 'fulfilled') setAttendance(attRes.value);
+        if (sesRes.status === 'fulfilled') setSessionHistory(sesRes.value.sessions || []);
         if (assRes.status === 'fulfilled') setAssignments((assRes.value.assignments || []).filter(a => !a.is_submitted));
         if (fbRes.status === 'fulfilled') setPendingFeedback(fbRes.value.pending);
         if (profRes.status === 'fulfilled') setProfile(profRes.value.profile);
@@ -94,15 +97,51 @@ const StudentDashboard = () => {
         }
     }, [fetchGcAssignments]);
 
-    // Build bar chart data from weekSessions
+    // Build bar chart data: day-wise attendance % for the current Mon-Sun week
     const weeklyBarData = (() => {
-        const counts = { Sun: 0, Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0 };
-        (weekSessions || []).forEach(s => {
-            const d = new Date(s.session_date);
-            const key = DAY_KEYS[d.getDay()];
-            counts[key] = (counts[key] || 0) + 1;
+        const WEEK_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        // Compute the start (Monday) of the current week
+        const now = new Date();
+        const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon ... 6=Sat
+        const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+        const monday = new Date(now);
+        monday.setDate(now.getDate() + diffToMonday);
+        monday.setHours(0, 0, 0, 0);
+        const sunday = new Date(monday);
+        sunday.setDate(monday.getDate() + 6);
+        sunday.setHours(23, 59, 59, 999);
+
+        // Aggregate by day: { attended, total } for sessions falling in this week
+        const dayStats = {};
+        for (let i = 0; i < 7; i++) {
+            const d = new Date(monday);
+            d.setDate(monday.getDate() + i);
+            const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+            dayStats[key] = { attended: 0, total: 0 };
+        }
+
+        (sessionHistory || []).forEach(s => {
+            const sess = s.sessions || s; // handle both shapes
+            const dateStr = sess.session_date || sess.session_date;
+            if (!dateStr) return;
+            const sessionDate = new Date(`${dateStr}T12:00:00`);
+            if (sessionDate < monday || sessionDate > sunday) return;
+            const key = dateStr.slice(0, 10);
+            if (!dayStats[key]) return;
+            dayStats[key].total++;
+            if (s.status === 'present' || s.status === 'partial') {
+                dayStats[key].attended++;
+            }
         });
-        return DAY_KEYS.map(day => ({ day, val: counts[day] * 20 || 0 }));
+
+        return WEEK_DAYS.map((day, i) => {
+            const d = new Date(monday);
+            d.setDate(monday.getDate() + i);
+            const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+            const stats = dayStats[key] || { attended: 0, total: 0 };
+            const pct = stats.total > 0 ? Math.round((stats.attended / stats.total) * 100) : 0;
+            return { day, val: pct, hasData: stats.total > 0 };
+        });
     })();
 
     const formatMacInput = (value) => {
@@ -258,16 +297,19 @@ const StudentDashboard = () => {
                         <img src="/logo.png" alt="Logo" style={{ height: '30px' }} />
                     </div>
                     <div className="stat-card" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        <div style={{ position: 'relative', cursor: 'default', width: '100%', height: '110px' }}>
+                        <div style={{ position: 'relative', cursor: 'default', width: '100%', height: '130px' }}>
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={weeklyBarData} barSize={10} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+                                <BarChart data={weeklyBarData} barSize={10} margin={{ top: 5, right: 5, left: 5, bottom: 15 }}>
                                     <CartesianGrid vertical={false} stroke="#eee" strokeDasharray="3 3" />
-                                    <XAxis dataKey="day" hide={true} />
+                                    <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#aaa' }} dy={4} />
                                     <YAxis hide={false} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#888' }} domain={[0, 100]} width={25} />
-                                    <Bar dataKey="val" radius={[4, 4, 4, 4]}>
-                                        {weeklyBarData.map((_, index) => (
-                                            <Cell key={`cell-${index}`} fill={index === 6 ? '#003366' : '#66d9e8'} />
-                                        ))}
+                                    <Bar dataKey="val" radius={[4, 4, 4, 4]} minPointSize={3}>
+                                        {weeklyBarData.map((entry, index) => {
+                                            const todayDayIdx = (() => { const d = new Date().getDay(); return d === 0 ? 6 : d - 1; })();
+                                            const isToday = index === todayDayIdx;
+                                            const color = isToday ? '#003366' : entry.hasData ? '#66d9e8' : '#e8e8e8';
+                                            return <Cell key={`cell-${index}`} fill={color} />;
+                                        })}
                                     </Bar>
                                 </BarChart>
                             </ResponsiveContainer>
@@ -279,7 +321,7 @@ const StudentDashboard = () => {
                             </div>
                             <div className="summary-right">
                                 <div className="badge-pill blue">Attended: {attendance?.overall?.attended || 0}</div>
-                                <div className="badge-pill pink">Missed: {attendance?.overall?.missed || 0}</div>
+                                <div className="badge-pill pink">Missed: {attendance?.overall?.absent || 0}</div>
                             </div>
                         </div>
                     </div>
