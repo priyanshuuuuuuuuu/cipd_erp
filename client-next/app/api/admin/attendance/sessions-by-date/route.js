@@ -60,7 +60,7 @@ async function handler(req) {
 
       // Get wifi_snapshots within the session time window
       const { data: snapshots } = await supabaseAdmin
-        .from('wifi_snapshots')
+        .schema('public').from('wifi_snapshots')
         .select('iw_dump, captured_at')
         .gte('captured_at', sessionStartDate.toISOString())
         .lte('captured_at', sessionEndDate.toISOString())

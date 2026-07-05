@@ -108,7 +108,7 @@ async function migrate() {
 
     // Fetch wifi snapshots
     const { data: snapshots } = await supabase
-      .from('wifi_snapshots')
+      .schema('public').from('wifi_snapshots')
       .select('id, iw_dump, captured_at')
       .gte('captured_at', sessionStartDate.toISOString())
       .lte('captured_at', sessionEndDate.toISOString())

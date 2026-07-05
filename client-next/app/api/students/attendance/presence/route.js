@@ -27,7 +27,7 @@ async function handler(req) {
 
     // Get the latest wifi snapshot
     const { data: snapshots } = await supabaseAdmin
-      .from('wifi_snapshots')
+      .schema('public').from('wifi_snapshots')
       .select('iw_dump, captured_at')
       .order('captured_at', { ascending: false })
       .limit(1);
