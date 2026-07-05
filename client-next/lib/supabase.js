@@ -18,6 +18,7 @@ export const supabase = new Proxy({}, {
         throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY');
       }
       _supabase = createClient(supabaseUrl, supabaseAnonKey, {
+        db: { schema: 'july' },
         global: {
           fetch: (url, options) => {
             return fetch(url, { ...options, cache: 'no-store' });
@@ -39,6 +40,7 @@ export const supabaseAdmin = new Proxy({}, {
         throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
       }
       _supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+        db: { schema: 'july' },
         auth: {
           autoRefreshToken: false,
           persistSession: false,
