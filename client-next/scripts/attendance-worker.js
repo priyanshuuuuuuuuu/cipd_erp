@@ -25,7 +25,8 @@
  */
 
 const APP_URL = process.env.APP_URL || 'http://localhost:3000';
-const CRON_SECRET = process.env.CRON_SECRET || 'cipd-attendance-cron-2026';
+const CRON_SECRET = process.env.CRON_SECRET;
+if (!CRON_SECRET) throw new Error('CRON_SECRET env var is not set. Add it to .env before running.');
 const INTERVAL_MS = 6 * 60 * 1000; // 6 minutes
 
 const ALERT_RECIPIENTS = ['aaman23006@iiitd.ac.in'];

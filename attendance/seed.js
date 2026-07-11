@@ -13,8 +13,9 @@ const { parse } = require('csv-parse/sync');
 const { v4: uuidv4 } = require('uuid');
 
 // ─── CONFIG — fill these in ───────────────────────────────────
-const SUPABASE_URL = 'https://pvqxzbabstyhskhydbl.supabase.co';
-const SUPABASE_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2cXh6YmFic3R5aHNraHlkYnZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Mjk4MDk1NiwiZXhwIjoyMDg4NTU2OTU2fQ.pAJKPZSmaKv60YVhtDBGGRg2bSH15ZmgV8hAeLWtMC4';
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://pvqxzbabstyhskhydbvl.supabase.co';
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
+if (!SUPABASE_SERVICE_KEY) throw new Error('SUPABASE_SERVICE_KEY env var is not set. Add it to .env before running.');
 
 // A single fixed course UUID for the iPD-CP course
 const COURSE_ID = uuidv4(); // generated once per run; you can hardcode a UUID after first run
