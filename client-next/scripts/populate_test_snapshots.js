@@ -6,7 +6,7 @@
  */
 
 const SUPABASE_URL = 'https://pvqxzbabstyhskhydbvl.supabase.co';
-const SERVICE_KEY = '[REMOVED-ROTATED]';
+const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 // Student MACs to include in test data
 const STUDENT_MACS = [

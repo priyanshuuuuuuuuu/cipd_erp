@@ -34,7 +34,7 @@
 
 ### 1.2 Router Admin Password Hard-Coded in Python Script
 - **File:** [`RouterCodesForAttendance/wifi_monitor.py`](file:///d:/cipd_erp/RouterCodesForAttendance/wifi_monitor.py#L43)
-- **Finding:** `PASSWORD = "[REMOVED-ROTATED]"` — the physical WiFi router admin password is hard-coded.
+- **Finding:** `PASSWORD = "[REDACTED]"` — the physical WiFi router admin password is hard-coded.
 - **Impact:** If this file leaks, an attacker can log into the router, intercept traffic, redirect DNS, disable monitoring.
 - **Fix:** Read from environment variable: `PASSWORD = os.environ.get("ROUTER_PASSWORD")`.
 
@@ -42,7 +42,7 @@
 
 ### 1.3 Demo Panel Password Hard-Coded in Frontend (Same as Router Password)
 - **File:** [`client-next/app/page.jsx`](file:///d:/cipd_erp/client-next/app/page.jsx#L228)
-- **Finding:** `if (pwd === "[REMOVED-ROTATED]")` — the demo panel unlock password is the same string as the router admin password, embedded in client-side JavaScript that is **served to every visitor**.
+- **Finding:** `if (pwd === "[REDACTED]")` — the demo panel unlock password is the same string as the router admin password, embedded in client-side JavaScript that is **served to every visitor**.
 - **Impact:** Anyone can view page source to get the router password.
 - **Fix:** Remove the demo credentials panel entirely before production, or use a completely separate random string that bears no relation to any real system credential.
 

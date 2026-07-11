@@ -354,7 +354,7 @@ node scripts/import_excel_data.mjs
 | Faculty | `anuj.grover@cipd.edu` | `faculty123` |
 | Student | `mayank.chauhan@cipd.com` | `23456789` |
 
-> Demo panel is accessible on the login page with password: `[REMOVED-ROTATED]`
+> Demo panel is accessible on the login page with password: `*(removed — ask an admin; rotate before reuse)*`
 
 ---
 

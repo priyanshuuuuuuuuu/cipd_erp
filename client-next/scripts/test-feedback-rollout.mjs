@@ -8,7 +8,7 @@
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = 'https://pvqxzbabstyhskhydbvl.supabase.co';
-const SERVICE_KEY  = '[REMOVED-ROTATED]';
+const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const APP_URL     = process.env.APP_URL    || 'http://localhost:3001';
 const CRON_SECRET = process.env.CRON_SECRET || '[REMOVED-ROTATED]';
 const DURATION_MS = 2 * 60 * 1000; // 2 minutes

@@ -14,7 +14,7 @@ const { v4: uuidv4 } = require('uuid');
 
 // ─── CONFIG — fill these in ───────────────────────────────────
 const SUPABASE_URL = 'https://pvqxzbabstyhskhydbl.supabase.co';
-const SUPABASE_SERVICE_KEY = '[REMOVED-ROTATED]';
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 // A single fixed course UUID for the iPD-CP course
 const COURSE_ID = uuidv4(); // generated once per run; you can hardcode a UUID after first run
