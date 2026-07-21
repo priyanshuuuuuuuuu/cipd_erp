@@ -4,7 +4,7 @@
 -- Passwords are hashed using bcryptjs (same as app).
 --------------------------------------------------
 
--- bcrypt hash for 'student123' = $2a$10$XJXZXJXZXJXZXJXZXJXZX.XJXZXJXZXJXZXJXZXJXZXJXZXJXZX
+-- bcrypt hash for 'student123' = $2b$10$xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 -- bcrypt hash for 'faculty123'
 -- bcrypt hash for 'admin123'
 -- We'll use pgcrypto's crypt function since it's available

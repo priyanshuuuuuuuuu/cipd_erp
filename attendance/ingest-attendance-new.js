@@ -36,7 +36,7 @@ const { createClient } = require('@supabase/supabase-js');
 const XLSX_PATH = 'C:\\Users\\parsh\\OneDrive\\Desktop\\BTP\\Attendance _ iPD-CP(Jan-Jun 2026).xlsx';
 
 const SUPABASE_URL         = 'https://pvqxzbabstyhskhydbvl.supabase.co';
-const SUPABASE_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2cXh6YmFic3R5aHNraHlkYnZsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3Mjk4MDk1NiwiZXhwIjoyMDg4NTU2OTU2fQ.pAJKPZSmaKv60YVhtDBGGRg2bSH15ZmgV8hAeLWtMC4';
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const DRY_RUN = process.env.DRY_RUN === '1';
 const DEBUG   = process.env.DEBUG   === '1';
