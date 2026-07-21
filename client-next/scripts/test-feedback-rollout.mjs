@@ -7,19 +7,10 @@
  */
 import { createClient } from '@supabase/supabase-js';
 
-<<<<<<< HEAD
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://pvqxzbabstyhskhydbvl.supabase.co';
-const SERVICE_KEY  = process.env.SUPABASE_SERVICE_KEY;
-if (!SERVICE_KEY) throw new Error('SUPABASE_SERVICE_KEY env var is not set. Add it to .env before running.');
-const APP_URL     = process.env.APP_URL    || 'http://localhost:3001';
-const CRON_SECRET = process.env.CRON_SECRET;
-if (!CRON_SECRET) throw new Error('CRON_SECRET env var is not set. Add it to .env before running.');
-=======
 const SUPABASE_URL = 'https://pvqxzbabstyhskhydbvl.supabase.co';
 const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const APP_URL     = process.env.APP_URL    || 'http://localhost:3001';
 const CRON_SECRET = process.env.CRON_SECRET;
->>>>>>> 7658f2ac563b0494eb5d492cf1cc267b94a33e63
 const DURATION_MS = 2 * 60 * 1000; // 2 minutes
 
 const db = createClient(SUPABASE_URL, SERVICE_KEY, {

@@ -41,6 +41,14 @@ export default function AdminSchedulePage() {
 
     const [newSkillSearchText, setNewSkillSearchText] = useState('');
     const [newSkillSearchOpen, setNewSkillSearchOpen] = useState(false);
+
+    // ── Faculty search state (new-class modal) ───────────────────────────────
+    const [newFacultySearch, setNewFacultySearch] = useState('');
+    const [newFacultyOpen, setNewFacultyOpen] = useState(false);
+
+    // ── Faculty search state (edit modal) ────────────────────────────────────
+    const [editFacultySearch, setEditFacultySearch] = useState('');
+    const [editFacultyOpen, setEditFacultyOpen] = useState(false);
     const [newShowAddSkill, setNewShowAddSkill] = useState(false);
     const [newNewSkillName, setNewNewSkillName] = useState('');
     const [newAddSkillLoading, setNewAddSkillLoading] = useState(false);
@@ -324,6 +332,8 @@ export default function AdminSchedulePage() {
         setEditAddSkillError('');
         setSkillSearchText('');
         setSkillSearchOpen(false);
+        setEditFacultySearch('');
+        setEditFacultyOpen(false);
     };
 
     const closeEdit = () => {
@@ -898,12 +908,64 @@ export default function AdminSchedulePage() {
                                 <input type='text' placeholder='e.g. Lec 15 - AVL Trees' value={newClass.title} onChange={e => setNewClass({ ...newClass, title: e.target.value })} style={inp}
                                     onFocus={e => e.target.style.borderColor = '#111'} onBlur={e => e.target.style.borderColor = '#e5e7eb'} />
                             </div>
-                            <div>
+                            <div style={{ position: 'relative' }}>
                                 <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>Faculty</label>
-                                <select value={newClass.faculty_id} onChange={e => setNewClass({ ...newClass, faculty_id: e.target.value })} style={{ ...inp, cursor: 'pointer', background: '#fff' }}>
-                                    <option value=''>Select faculty...</option>
-                                    {lookupData.faculty.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-                                </select>
+                                {/* Searchable faculty picker */}
+                                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                    <input
+                                        type="text"
+                                        placeholder={newClass.faculty_id
+                                            ? (lookupData.faculty.find(f => f.id === newClass.faculty_id)?.name || 'Select faculty...')
+                                            : 'Search faculty...'}
+                                        value={newFacultySearch}
+                                        onChange={e => { setNewFacultySearch(e.target.value); setNewFacultyOpen(true); }}
+                                        onFocus={() => setNewFacultyOpen(true)}
+                                        onBlur={() => setTimeout(() => setNewFacultyOpen(false), 200)}
+                                        style={{ ...inp, paddingRight: '30px', cursor: 'text' }}
+                                    />
+                                    {newClass.faculty_id && !newFacultyOpen ? (
+                                        <button
+                                            type="button"
+                                            onMouseDown={e => { e.preventDefault(); setNewClass({ ...newClass, faculty_id: '' }); setNewFacultySearch(''); }}
+                                            style={{ position: 'absolute', right: '8px', background: 'none', border: 'none', cursor: 'pointer', color: '#aaa', display: 'flex', alignItems: 'center', padding: 0 }}
+                                        ><X size={14} /></button>
+                                    ) : (
+                                        <Search size={14} color="#aaa" style={{ position: 'absolute', right: '10px', pointerEvents: 'none' }} />
+                                    )}
+                                </div>
+                                {newFacultyOpen && (
+                                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #ddd', borderRadius: '8px', zIndex: 20, maxHeight: '200px', overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.10)', marginTop: '4px' }}>
+                                        {/* Clear selection option */}
+                                        <div
+                                            onMouseDown={e => { e.preventDefault(); setNewClass({ ...newClass, faculty_id: '' }); setNewFacultySearch(''); setNewFacultyOpen(false); }}
+                                            style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #f0f0f0', fontSize: '0.8rem', color: '#aaa', fontStyle: 'italic' }}
+                                            onMouseEnter={e => e.currentTarget.style.background = '#f9f9f9'}
+                                            onMouseLeave={e => e.currentTarget.style.background = '#fff'}
+                                        >— No faculty —</div>
+                                        {lookupData.faculty
+                                            .filter(f => f.name.toLowerCase().includes(newFacultySearch.toLowerCase()))
+                                            .map(f => (
+                                                <div
+                                                    key={f.id}
+                                                    onMouseDown={e => { e.preventDefault(); setNewClass({ ...newClass, faculty_id: f.id }); setNewFacultySearch(''); setNewFacultyOpen(false); }}
+                                                    style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #f9f9f9', fontSize: '0.8rem', color: '#333', background: newClass.faculty_id === f.id ? '#f5f3ff' : '#fff', fontWeight: newClass.faculty_id === f.id ? 600 : 400 }}
+                                                    onMouseEnter={e => e.currentTarget.style.background = '#f5f3ff'}
+                                                    onMouseLeave={e => e.currentTarget.style.background = newClass.faculty_id === f.id ? '#f5f3ff' : '#fff'}
+                                                >
+                                                    {f.name}
+                                                </div>
+                                            ))}
+                                        {lookupData.faculty.filter(f => f.name.toLowerCase().includes(newFacultySearch.toLowerCase())).length === 0 && (
+                                            <div style={{ padding: '8px 12px', fontSize: '0.8rem', color: '#999', textAlign: 'center' }}>No faculty found</div>
+                                        )}
+                                    </div>
+                                )}
+                                {/* Show selected faculty name below when dropdown is closed */}
+                                {newClass.faculty_id && !newFacultyOpen && (
+                                    <div style={{ fontSize: '0.72rem', color: '#3B2D82', marginTop: '4px', fontWeight: 600 }}>
+                                        ✓ {lookupData.faculty.find(f => f.id === newClass.faculty_id)?.name}
+                                    </div>
+                                )}
                             </div>
                             <div>
                                 <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>Date *</label>
@@ -1104,12 +1166,64 @@ export default function AdminSchedulePage() {
                                     <input type='text' value={editForm.title || ''} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} style={inp}
                                         onFocus={e => e.target.style.borderColor = '#3B2D82'} onBlur={e => e.target.style.borderColor = '#e5e7eb'} />
                                 </div>
-                                <div>
+                                <div style={{ position: 'relative' }}>
                                     <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>Faculty</label>
-                                    <select value={editForm.faculty_id || ''} onChange={e => setEditForm(f => ({ ...f, faculty_id: e.target.value }))} style={{ ...inp, cursor: 'pointer', background: '#fff' }}>
-                                        <option value=''>Select faculty...</option>
-                                        {lookupData.faculty.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-                                    </select>
+                                    {/* Searchable faculty picker */}
+                                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                        <input
+                                            type="text"
+                                            placeholder={editForm.faculty_id
+                                                ? (lookupData.faculty.find(f => f.id === editForm.faculty_id)?.name || 'Select faculty...')
+                                                : 'Search faculty...'}
+                                            value={editFacultySearch}
+                                            onChange={e => { setEditFacultySearch(e.target.value); setEditFacultyOpen(true); }}
+                                            onFocus={() => setEditFacultyOpen(true)}
+                                            onBlur={() => setTimeout(() => setEditFacultyOpen(false), 200)}
+                                            style={{ ...inp, paddingRight: '30px', cursor: 'text' }}
+                                        />
+                                        {editForm.faculty_id && !editFacultyOpen ? (
+                                            <button
+                                                type="button"
+                                                onMouseDown={e => { e.preventDefault(); setEditForm(f => ({ ...f, faculty_id: '' })); setEditFacultySearch(''); }}
+                                                style={{ position: 'absolute', right: '8px', background: 'none', border: 'none', cursor: 'pointer', color: '#aaa', display: 'flex', alignItems: 'center', padding: 0 }}
+                                            ><X size={14} /></button>
+                                        ) : (
+                                            <Search size={14} color="#aaa" style={{ position: 'absolute', right: '10px', pointerEvents: 'none' }} />
+                                        )}
+                                    </div>
+                                    {editFacultyOpen && (
+                                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #ddd', borderRadius: '8px', zIndex: 20, maxHeight: '200px', overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.10)', marginTop: '4px' }}>
+                                            {/* Clear selection option */}
+                                            <div
+                                                onMouseDown={e => { e.preventDefault(); setEditForm(f => ({ ...f, faculty_id: '' })); setEditFacultySearch(''); setEditFacultyOpen(false); }}
+                                                style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #f0f0f0', fontSize: '0.8rem', color: '#aaa', fontStyle: 'italic' }}
+                                                onMouseEnter={e => e.currentTarget.style.background = '#f9f9f9'}
+                                                onMouseLeave={e => e.currentTarget.style.background = '#fff'}
+                                            >— No faculty —</div>
+                                            {lookupData.faculty
+                                                .filter(f => f.name.toLowerCase().includes(editFacultySearch.toLowerCase()))
+                                                .map(f => (
+                                                    <div
+                                                        key={f.id}
+                                                        onMouseDown={e => { e.preventDefault(); setEditForm(prev => ({ ...prev, faculty_id: f.id })); setEditFacultySearch(''); setEditFacultyOpen(false); }}
+                                                        style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #f9f9f9', fontSize: '0.8rem', color: '#333', background: editForm.faculty_id === f.id ? '#f5f3ff' : '#fff', fontWeight: editForm.faculty_id === f.id ? 600 : 400 }}
+                                                        onMouseEnter={e => e.currentTarget.style.background = '#f5f3ff'}
+                                                        onMouseLeave={e => e.currentTarget.style.background = editForm.faculty_id === f.id ? '#f5f3ff' : '#fff'}
+                                                    >
+                                                        {f.name}
+                                                    </div>
+                                                ))}
+                                            {lookupData.faculty.filter(f => f.name.toLowerCase().includes(editFacultySearch.toLowerCase())).length === 0 && (
+                                                <div style={{ padding: '8px 12px', fontSize: '0.8rem', color: '#999', textAlign: 'center' }}>No faculty found</div>
+                                            )}
+                                        </div>
+                                    )}
+                                    {/* Show selected faculty name below when dropdown is closed */}
+                                    {editForm.faculty_id && !editFacultyOpen && (
+                                        <div style={{ fontSize: '0.72rem', color: '#3B2D82', marginTop: '4px', fontWeight: 600 }}>
+                                            ✓ {lookupData.faculty.find(f => f.id === editForm.faculty_id)?.name}
+                                        </div>
+                                    )}
                                 </div>
                                 <div>
                                     <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>Date *</label>

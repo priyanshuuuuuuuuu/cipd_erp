@@ -13,26 +13,6 @@ ON CONFLICT (id) DO NOTHING;
 
 -- ── Users & Students ────────────────────────────────────────
 INSERT INTO users (id, email, password_hash, first_name, last_name, role, is_active, created_at, updated_at) VALUES
-<<<<<<< HEAD
-  ('0cf69a9c-dd59-46d2-b3dc-d391ca8bfc40', 'aayush.kumarpatel@dummy.com', '$2b$10$2vcS36q1IwUyaPZJsReEYOYlor2ZMvOjAuUAWeYxiQO.EfxNowOr6', 'Aayush', 'Kumar Patel', 'student', true, NOW(), NOW()),
-  ('61a08943-619e-4804-aa4e-de3acf44c857', 'abhishek.bharti@dummy.com', '$2b$10$2vcS36q1IwUyaPZJsReEYOYlor2ZMvOjAuUAWeYxiQO.EfxNowOr6', 'Abhishek', 'Bharti', 'student', true, NOW(), NOW()),
-  ('6332294f-89fa-4ea2-9206-5e37c0cede80', 'ansh.malhotra@dummy.com', '$2b$10$2vcS36q1IwUyaPZJsReEYOYlor2ZMvOjAuUAWeYxiQO.EfxNowOr6', 'Ansh', 'Malhotra', 'student', true, NOW(), NOW()),
-  ('ded2f909-9253-4db7-a295-ef6013ee9aa4', 'balvinder.kumar@dummy.com', '$2b$10$2vcS36q1IwUyaPZJsReEYOYlor2ZMvOjAuUAWeYxiQO.EfxNowOr6', 'Balvinder', 'Kumar', 'student', true, NOW(), NOW()),
-  ('87249a86-d80e-4134-8f05-ea67d0c379f4', 'bhawna.gautam@dummy.com', '$2b$10$2vcS36q1IwUyaPZJsReEYOYlor2ZMvOjAuUAWeYxiQO.EfxNowOr6', 'Bhawna', 'Gautam', 'student', true, NOW(), NOW()),
-  ('a4fde03d-190e-4a63-acae-3693e9bab67c', 'chaitanya.thakur@dummy.com', '$2b$10$2vcS36q1IwUyaPZJsReEYOYlor2ZMvOjAuUAWeYxiQO.EfxNowOr6', 'Chaitanya', 'Thakur', 'student', true, NOW(), NOW()),
-  ('5c727ace-a665-41f1-8523-1d382d493b94', 'divyansh.singh@dummy.com', '$2b$10$2vcS36q1IwUyaPZJsReEYOYlor2ZMvOjAuUAWeYxiQO.EfxNowOr6', 'Divyansh', 'Singh', 'student', true, NOW(), NOW()),
-  ('59399861-6e86-406a-b5f7-fb38eab6870f', 'divyanshu.mohanmanitripathi@dummy.com', '$2b$10$2vcS36q1IwUyaPZJsReEYOYlor2ZMvOjAuUAWeYxiQO.EfxNowOr6', 'Divyanshu', 'Mohan Mani Tripathi', 'student', true, NOW(), NOW()),
-  ('a47c0dc7-f59c-42b7-bdf1-6b7e9f6cf7e4', 'karanpreet.singh@dummy.com', '$2b$10$2vcS36q1IwUyaPZJsReEYOYlor2ZMvOjAuUAWeYxiQO.EfxNowOr6', 'Karanpreet', 'Singh', 'student', true, NOW(), NOW()),
-  ('f1225e8a-3408-4570-80ee-5bce7f015175', 'mayank.chauhan@dummy.com', '$2b$10$2vcS36q1IwUyaPZJsReEYOYlor2ZMvOjAuUAWeYxiQO.EfxNowOr6', 'Mayank', 'Chauhan', 'student', true, NOW(), NOW()),
-  ('985d201e-3867-4588-b5cc-467cf9d01085', 'nitin.kumar@dummy.com', '$2b$10$2vcS36q1IwUyaPZJsReEYOYlor2ZMvOjAuUAWeYxiQO.EfxNowOr6', 'Nitin', 'Kumar', 'student', true, NOW(), NOW()),
-  ('1d92ec68-c93e-4496-9b01-6815bbd7962f', 'om.kumargupta@dummy.com', '$2b$10$2vcS36q1IwUyaPZJsReEYOYlor2ZMvOjAuUAWeYxiQO.EfxNowOr6', 'Om', 'Kumar Gupta', 'student', true, NOW(), NOW()),
-  ('176938c6-ecaa-4734-aea8-7a523d3ece4c', 'parth.-@dummy.com', '$2b$10$2vcS36q1IwUyaPZJsReEYOYlor2ZMvOjAuUAWeYxiQO.EfxNowOr6', 'Parth', '-', 'student', true, NOW(), NOW()),
-  ('85c0d9a2-a66f-42aa-a4f2-f4b6041c36b8', 'ronak.raj@dummy.com', '$2b$10$2vcS36q1IwUyaPZJsReEYOYlor2ZMvOjAuUAWeYxiQO.EfxNowOr6', 'Ronak', 'Raj', 'student', true, NOW(), NOW()),
-  ('c32ef549-3e11-4285-aac1-d563ecfffc2b', 'sargun.singh@dummy.com', '$2b$10$2vcS36q1IwUyaPZJsReEYOYlor2ZMvOjAuUAWeYxiQO.EfxNowOr6', 'Sargun', 'Singh', 'student', true, NOW(), NOW()),
-  ('4b8c9608-57f0-4f60-a029-549a382959d5', 'sayem.azam@dummy.com', '$2b$10$2vcS36q1IwUyaPZJsReEYOYlor2ZMvOjAuUAWeYxiQO.EfxNowOr6', 'Sayem', 'Azam', 'student', true, NOW(), NOW()),
-  ('955a35b6-75be-482a-a8a4-8c8950083a01', 'shreshth.yadav@dummy.com', '$2b$10$2vcS36q1IwUyaPZJsReEYOYlor2ZMvOjAuUAWeYxiQO.EfxNowOr6', 'Shreshth', 'Yadav', 'student', true, NOW(), NOW()),
-  ('7a179d7b-fdbd-4ed3-9b98-5f78bdecb540', 'siddharth.rai@dummy.com', '$2b$10$2vcS36q1IwUyaPZJsReEYOYlor2ZMvOjAuUAWeYxiQO.EfxNowOr6', 'Siddharth', 'Rai', 'student', true, NOW(), NOW())
-=======
   ('0cf69a9c-dd59-46d2-b3dc-d391ca8bfc40', 'aayush.kumarpatel@dummy.com', '$2b$10$xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', 'Aayush', 'Kumar Patel', 'student', true, NOW(), NOW()),
   ('61a08943-619e-4804-aa4e-de3acf44c857', 'abhishek.bharti@dummy.com', '$2b$10$xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', 'Abhishek', 'Bharti', 'student', true, NOW(), NOW()),
   ('6332294f-89fa-4ea2-9206-5e37c0cede80', 'ansh.malhotra@dummy.com', '$2b$10$xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', 'Ansh', 'Malhotra', 'student', true, NOW(), NOW()),
@@ -51,7 +31,6 @@ INSERT INTO users (id, email, password_hash, first_name, last_name, role, is_act
   ('4b8c9608-57f0-4f60-a029-549a382959d5', 'sayem.azam@dummy.com', '$2b$10$xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', 'Sayem', 'Azam', 'student', true, NOW(), NOW()),
   ('955a35b6-75be-482a-a8a4-8c8950083a01', 'shreshth.yadav@dummy.com', '$2b$10$xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', 'Shreshth', 'Yadav', 'student', true, NOW(), NOW()),
   ('7a179d7b-fdbd-4ed3-9b98-5f78bdecb540', 'siddharth.rai@dummy.com', '$2b$10$xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', 'Siddharth', 'Rai', 'student', true, NOW(), NOW())
->>>>>>> 7658f2ac563b0494eb5d492cf1cc267b94a33e63
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO students (id, enrollment_no, mac_address, mac_verified, program_name, created_at) VALUES

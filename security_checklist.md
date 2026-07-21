@@ -34,11 +34,7 @@
 
 ### 1.2 Router Admin Password Hard-Coded in Python Script
 - **File:** [`RouterCodesForAttendance/wifi_monitor.py`](file:///d:/cipd_erp/RouterCodesForAttendance/wifi_monitor.py#L43)
-<<<<<<< HEAD
-- **Finding:** `PASSWORD = "CiPDCiPD@"` — the physical WiFi router admin password is hard-coded.
-=======
 - **Finding:** `PASSWORD = "[REDACTED]"` — the physical WiFi router admin password is hard-coded.
->>>>>>> 7658f2ac563b0494eb5d492cf1cc267b94a33e63
 - **Impact:** If this file leaks, an attacker can log into the router, intercept traffic, redirect DNS, disable monitoring.
 - **Fix:** Read from environment variable: `PASSWORD = os.environ.get("ROUTER_PASSWORD")`.
 
@@ -46,11 +42,7 @@
 
 ### 1.3 Demo Panel Password Hard-Coded in Frontend (Same as Router Password)
 - **File:** [`client-next/app/page.jsx`](file:///d:/cipd_erp/client-next/app/page.jsx#L228)
-<<<<<<< HEAD
-- **Finding:** `if (pwd === "CiPDCiPD@")` — the demo panel unlock password is the same string as the router admin password, embedded in client-side JavaScript that is **served to every visitor**.
-=======
 - **Finding:** `if (pwd === "[REDACTED]")` — the demo panel unlock password is the same string as the router admin password, embedded in client-side JavaScript that is **served to every visitor**.
->>>>>>> 7658f2ac563b0494eb5d492cf1cc267b94a33e63
 - **Impact:** Anyone can view page source to get the router password.
 - **Fix:** Remove the demo credentials panel entirely before production, or use a completely separate random string that bears no relation to any real system credential.
 
@@ -68,11 +60,7 @@
 - **File:** [`client-next/.env`](file:///d:/cipd_erp/client-next/.env)
 - **Finding:** Contains live Supabase URL, anon key, service role key, and a weak `JWT_SECRET` (`cipd360_erp_jwt_s3cr3t_k3y...`).
 - **File:** [`client-next/.env.local`](file:///d:/cipd_erp/client-next/.env.local)  
-<<<<<<< HEAD
-- **Finding:** Contains Gmail `EMAIL_PASSWORD` (an App Password), `CRON_SECRET=cipd-cron-2026`, and full Google OAuth `CLIENT_SECRET`.
-=======
 - **Finding:** Contains Gmail `EMAIL_PASSWORD` (an App Password), `CRON_SECRET=[REMOVED-ROTATED]`, and full Google OAuth `CLIENT_SECRET`.
->>>>>>> 7658f2ac563b0494eb5d492cf1cc267b94a33e63
 - **Impact:** If these files are ever accidentally committed (check `git log --all` for past commits), all secrets are permanently compromised.
 - **Fix:**
   - Run `git log --all --full-history -- "**/.env*"` to verify no past commits contain these files.
@@ -89,13 +77,8 @@
 
 ### 2.1 JWT Secret Too Weak & Has a Fallback in Code
 - **File:** [`client-next/lib/auth.js`](file:///d:/cipd_erp/client-next/lib/auth.js#L4)
-<<<<<<< HEAD
-- **Finding:** `const JWT_SECRET = process.env.JWT_SECRET || 'fallback-dev-secret';`
-- **Impact:** If `JWT_SECRET` is missing at runtime, any token signed with `'fallback-dev-secret'` is accepted. Attacker can forge admin tokens trivially.
-=======
 - **Finding:** `const JWT_SECRET = process.env.JWT_SECRET || '[REMOVED-ROTATED]';`
 - **Impact:** If `JWT_SECRET` is missing at runtime, any token signed with `'[REMOVED-ROTATED]'` is accepted. Attacker can forge admin tokens trivially.
->>>>>>> 7658f2ac563b0494eb5d492cf1cc267b94a33e63
 - **Fix:** Remove the fallback. Throw on missing secret:
   ```js
   const JWT_SECRET = process.env.JWT_SECRET;
@@ -174,11 +157,7 @@
 
 ### 5.1 Weak & Predictable Cron Secret
 - **File:** [`.env.local`](file:///d:/cipd_erp/client-next/.env.local#L11) + [`process-attendance/route.js`](file:///d:/cipd_erp/client-next/app/api/cron/process-attendance/route.js#L31)
-<<<<<<< HEAD
-- **Finding:** `CRON_SECRET=cipd-cron-2026` is guessable. The process-attendance route also has a **hardcoded fallback**: `const cronSecret = process.env.CRON_SECRET || 'cipd-attendance-cron-2026'` — making the secret useless if the env var is missing.
-=======
 - **Finding:** `CRON_SECRET=[REMOVED-ROTATED]` is guessable. The process-attendance route also has a **hardcoded fallback**: `const cronSecret = process.env.CRON_SECRET || '[REMOVED-ROTATED]'` — making the secret useless if the env var is missing.
->>>>>>> 7658f2ac563b0494eb5d492cf1cc267b94a33e63
 - **Impact:** Anyone can trigger attendance processing, mark sessions completed, and send feedback emails to all students.
 - **Fix:** 
   - Replace `CRON_SECRET` with a cryptographically random 32-byte hex string.
@@ -349,11 +328,7 @@
 | 2 | 🔴 NOW | Remove demo credentials panel from login page | `app/page.jsx` |
 | 3 | 🔴 NOW | Rotate ALL secrets (JWT, Supabase, Gmail, Google OAuth, Cron) | `.env`, `.env.local` |
 | 4 | 🔴 NOW | Fix OAuth `state` parameter CSRF vulnerability | `google/callback/route.js` |
-<<<<<<< HEAD
-| 5 | 🔴 NOW | Remove `fallback-dev-secret` from auth.js | `lib/auth.js` |
-=======
 | 5 | 🔴 NOW | Remove `[REMOVED-ROTATED]` from auth.js | `lib/auth.js` |
->>>>>>> 7658f2ac563b0494eb5d492cf1cc267b94a33e63
 | 6 | 🟠 HIGH | Add rate limiting to login endpoint | `auth/login/route.js` |
 | 7 | 🟠 HIGH | Migrate JWT tokens from localStorage to HttpOnly cookies | `lib/api.js`, `lib/auth.js` |
 | 8 | 🟠 HIGH | Add security headers to `next.config.js` | `next.config.js` |
