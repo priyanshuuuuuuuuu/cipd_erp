@@ -29,3 +29,12 @@ Thumbs.db
 .vscode/
 students_signup_log.json
 client-next/scripts/bulk-signup-from-csv.mjs
+<<<<<<< HEAD
+=======
+
+# security: never commit these
+*.tar.gz
+backups/
+*.pgdump
+*.dump
+>>>>>>> 7658f2ac563b0494eb5d492cf1cc267b94a33e63

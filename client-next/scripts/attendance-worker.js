@@ -19,14 +19,21 @@
  * 
  * Environment:
  *   APP_URL        - Base URL of the Next.js app (default: http://localhost:3000)
+<<<<<<< HEAD
  *   CRON_SECRET    - Must match the server's CRON_SECRET (default: cipd-attendance-cron-2026)
+=======
+ *   CRON_SECRET    - Must match the server's CRON_SECRET
+>>>>>>> 7658f2ac563b0494eb5d492cf1cc267b94a33e63
  *   EMAIL_FROM     - Gmail address for sending alerts
  *   EMAIL_PASSWORD - Gmail app password
  */
 
 const APP_URL = process.env.APP_URL || 'http://localhost:3000';
 const CRON_SECRET = process.env.CRON_SECRET;
+<<<<<<< HEAD
 if (!CRON_SECRET) throw new Error('CRON_SECRET env var is not set. Add it to .env before running.');
+=======
+>>>>>>> 7658f2ac563b0494eb5d492cf1cc267b94a33e63
 const INTERVAL_MS = 6 * 60 * 1000; // 6 minutes
 
 const ALERT_RECIPIENTS = ['aaman23006@iiitd.ac.in'];

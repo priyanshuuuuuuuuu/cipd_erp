@@ -115,8 +115,9 @@ async function postHandler(req) {
     // commit
 
     const notifType = type || 'general';
-    const recipientIds = notificationsToInsert.map((n) => n.recipient_id).filter(Boolean);
-    const prefMap = await fetchPreferencesMap(supabaseAdmin, recipientIds);
+    // Save full recipient list BEFORE preference filtering — the email block needs it
+    const allRecipientIds = notificationsToInsert.map((n) => n.recipient_id).filter(Boolean);
+    const prefMap = await fetchPreferencesMap(supabaseAdmin, allRecipientIds);
     notificationsToInsert = filterNotificationsByPrefs(notificationsToInsert, prefMap, notifType);
 
     // Batch insert notifications into DB
@@ -146,6 +147,7 @@ async function postHandler(req) {
     if (type === 'class_reminder' && session_id) {
       (async () => {
         try {
+          console.log(`[EMAIL DEBUG] class_reminder background started for session_id=${session_id}`);
           const { data: session } = await supabaseAdmin
             .from('sessions')
             .select('course_id')
@@ -153,7 +155,11 @@ async function postHandler(req) {
             .single();
 
           const courseId = session?.course_id;
-          if (!courseId) return;
+          if (!courseId) {
+            console.log('[EMAIL DEBUG] ❌ No course_id found for session — aborting');
+            return;
+          }
+          console.log(`[EMAIL DEBUG] course_id=${courseId}`);
 
           const { data: enrollments } = await supabaseAdmin
             .from('course_enrollments')
@@ -161,7 +167,11 @@ async function postHandler(req) {
             .eq('course_id', courseId);
 
           const studentIds = (enrollments || []).map(e => e.student_id);
-          if (studentIds.length === 0) return;
+          console.log(`[EMAIL DEBUG] enrolled students found: ${studentIds.length}`);
+          if (studentIds.length === 0) {
+            console.log('[EMAIL DEBUG] ❌ 0 students enrolled in this course — no emails sent. Enroll students first!');
+            return;
+          }
 
           const { data: studentUsers } = await supabaseAdmin
             .from('users')
@@ -212,22 +222,44 @@ async function postHandler(req) {
             .order('session_date')
             .order('start_time');
 
-          // Send all emails in parallel (much faster than sequential)
-          await Promise.allSettled(
-            (studentUsers || []).map(async (student) => {
-              try {
-                if (!shouldNotifyUser(emailPrefMap, student.id, 'class_reminder')) return;
-                const myCourseIds = studentCourseMap[student.id] || [];
-                const mySessions = (weekSessions || []).filter(s => myCourseIds.includes(s.course_id));
-                if (mySessions.length === 0) return;
-                const name = `${student.first_name || ''} ${student.last_name || ''}`.trim() || 'Student';
-                await sendWeeklyScheduleEmail(student.email, name, mySessions);
-                console.log(`✉ Weekly schedule email sent to ${student.email}`);
-              } catch (emailErr) {
-                console.error(`Email failed for ${student.email}:`, emailErr.message);
-              }
-            })
-          );
+          console.log(`[EMAIL DEBUG] active student users found: ${(studentUsers || []).length}`);
+          console.log(`[EMAIL DEBUG] week range: ${startStr} → ${endStr}`);
+          console.log(`[EMAIL DEBUG] week sessions found: ${(weekSessions || []).length}`);
+
+          // Send in batches of 5 to avoid Gmail 421 rate-limit errors
+          const BATCH_SIZE = 5;
+          const BATCH_DELAY_MS = 500;
+          const studentList = studentUsers || [];
+          for (let i = 0; i < studentList.length; i += BATCH_SIZE) {
+            const batch = studentList.slice(i, i + BATCH_SIZE);
+            await Promise.allSettled(
+              batch.map(async (student) => {
+                try {
+                  const prefAllowed = shouldNotifyUser(emailPrefMap, student.id, 'class_reminder');
+                  if (!prefAllowed) {
+                    console.log(`[EMAIL DEBUG] ⚠ ${student.email} blocked by notification preferences`);
+                    return;
+                  }
+                  const myCourseIds = studentCourseMap[student.id] || [];
+                  const mySessions = (weekSessions || []).filter(s => myCourseIds.includes(s.course_id));
+                  if (mySessions.length === 0) {
+                    console.log(`[EMAIL DEBUG] ⚠ No sessions this week for ${student.email}`);
+                    return;
+                  }
+                  const name = `${student.first_name || ''} ${student.last_name || ''}`.trim() || 'Student';
+                  await sendWeeklyScheduleEmail(student.email, name, mySessions);
+                  console.log(`✉ Weekly schedule email sent to ${student.email}`);
+                } catch (emailErr) {
+                  console.error(`Email failed for ${student.email}:`, emailErr.message);
+                }
+              })
+            );
+            // Pause between batches to respect Gmail sending limits
+            if (i + BATCH_SIZE < studentList.length) {
+              await new Promise(res => setTimeout(res, BATCH_DELAY_MS));
+            }
+          }
+          console.log('[EMAIL DEBUG] ✅ class_reminder email block complete');
         } catch (bgErr) {
           console.error('Background email error:', bgErr.message);
         }
@@ -238,29 +270,29 @@ async function postHandler(req) {
     if (!session_id) {
       (async () => {
         try {
+          console.log(`[EMAIL DEBUG] general email background started, type=${notifType}`);
           // Collect target student list
           let targetStudents = [];
 
-          if (notificationsToInsert.length > 0) {
-            // Get distinct recipient IDs from what we already inserted
-            const recipientIds = [...new Set(notificationsToInsert.map(n => n.recipient_id).filter(Boolean))];
+          // Use allRecipientIds (pre-filter) so emails are never silently dropped
+          // even if notificationsToInsert was filtered to 0 by prefs
+          const emailRecipientIds = [...new Set(allRecipientIds)];
 
-            if (recipientIds.length > 0) {
-              const { data } = await supabaseAdmin
-                .from('users')
-                .select('id, first_name, last_name, email')
-                .in('id', recipientIds)
-                .eq('is_active', true);
-              targetStudents = data || [];
-            } else {
-              // No specific recipients — sent to all active students
-              const { data } = await supabaseAdmin
-                .from('users')
-                .select('id, first_name, last_name, email')
-                .eq('role', 'student')
-                .eq('is_active', true);
-              targetStudents = data || [];
-            }
+          if (emailRecipientIds.length > 0) {
+            const { data } = await supabaseAdmin
+              .from('users')
+              .select('id, first_name, last_name, email')
+              .in('id', emailRecipientIds)
+              .eq('is_active', true);
+            targetStudents = data || [];
+          } else {
+            // Fallback: send to all active students (broadcast)
+            const { data } = await supabaseAdmin
+              .from('users')
+              .select('id, first_name, last_name, email')
+              .eq('role', 'student')
+              .eq('is_active', true);
+            targetStudents = data || [];
           }
 
           const notifTitle = body?.title || (type || 'general').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
@@ -269,18 +301,27 @@ async function postHandler(req) {
             ? prefMap
             : await fetchPreferencesMap(supabaseAdmin, targetStudents.map((s) => s.id));
 
-          await Promise.allSettled(
-            targetStudents.map(async (student) => {
-              try {
-                if (!shouldNotifyUser(generalPrefMap, student.id, notifType)) return;
-                const name = `${student.first_name || ''} ${student.last_name || ''}`.trim() || 'Student';
-                await sendGeneralNotificationEmail(student.email, name, notifTitle, message, type || 'general');
-                console.log(`✉ General notification email sent to ${student.email}`);
-              } catch (emailErr) {
-                console.error(`Email failed for ${student.email}:`, emailErr.message);
-              }
-            })
-          );
+          // Send in batches of 5 to avoid Gmail 421 rate-limit errors
+          const BATCH_SIZE = 5;
+          const BATCH_DELAY_MS = 500;
+          for (let i = 0; i < targetStudents.length; i += BATCH_SIZE) {
+            const batch = targetStudents.slice(i, i + BATCH_SIZE);
+            await Promise.allSettled(
+              batch.map(async (student) => {
+                try {
+                  if (!shouldNotifyUser(generalPrefMap, student.id, notifType)) return;
+                  const name = `${student.first_name || ''} ${student.last_name || ''}`.trim() || 'Student';
+                  await sendGeneralNotificationEmail(student.email, name, notifTitle, message, type || 'general');
+                  console.log(`✉ General notification email sent to ${student.email}`);
+                } catch (emailErr) {
+                  console.error(`Email failed for ${student.email}:`, emailErr.message);
+                }
+              })
+            );
+            if (i + BATCH_SIZE < targetStudents.length) {
+              await new Promise(res => setTimeout(res, BATCH_DELAY_MS));
+            }
+          }
         } catch (bgErr) {
           console.error('Background general email error:', bgErr.message);
         }

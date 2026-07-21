@@ -5,9 +5,14 @@
  * Usage: node scripts/populate_test_snapshots.js
  */
 
+<<<<<<< HEAD
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://pvqxzbabstyhskhydbvl.supabase.co';
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 if (!SERVICE_KEY) throw new Error('SUPABASE_SERVICE_KEY env var is not set. Add it to .env before running.');
+=======
+const SUPABASE_URL = 'https://pvqxzbabstyhskhydbvl.supabase.co';
+const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+>>>>>>> 7658f2ac563b0494eb5d492cf1cc267b94a33e63
 
 // Student MACs to include in test data
 const STUDENT_MACS = [
