@@ -683,7 +683,7 @@ export default function AdminAttendancePage() {
                                                                             </td>
                                                                             <td className="am-col-pings" style={{ padding: '9px 14px', fontFamily: 'monospace', fontSize: '0.78rem', color: '#888' }}>{s.pingCount || 0}<span style={{ color: '#ccc' }}>/{sessionStudents?.summary?.snapshotsAnalyzed || '?'}</span></td>
                                                                             <td style={{ padding: '9px 14px' }} title={s.pointsBreakdown?.reason || ''}>
-                                                                                {s.points !== undefined ? (
+                                                                                {s.points != null ? (
                                                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                                                         <div style={{
                                                                                             width: '36px', height: '6px', borderRadius: '3px', background: '#f0f0f0', overflow: 'hidden',
