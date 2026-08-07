@@ -1,0 +1,398 @@
+[
+  {
+    "table_name": "assignment_submissions",
+    "conname": "assignment_submissions_assignment_id_fkey",
+    "contype": "f",
+    "pg_get_constraintdef": "FOREIGN KEY (assignment_id) REFERENCES assignments(id)"
+  },
+  {
+    "table_name": "assignment_submissions",
+    "conname": "assignment_submissions_pkey",
+    "contype": "p",
+    "pg_get_constraintdef": "PRIMARY KEY (id)"
+  },
+  {
+    "table_name": "assignment_submissions",
+    "conname": "assignment_submissions_student_id_fkey",
+    "contype": "f",
+    "pg_get_constraintdef": "FOREIGN KEY (student_id) REFERENCES students(id)"
+  },
+  {
+    "table_name": "assignments",
+    "conname": "assignments_pkey",
+    "contype": "p",
+    "pg_get_constraintdef": "PRIMARY KEY (id)"
+  },
+  {
+    "table_name": "assignments",
+    "conname": "assignments_course_id_fkey",
+    "contype": "f",
+    "pg_get_constraintdef": "FOREIGN KEY (course_id) REFERENCES courses(id)"
+  },
+  {
+    "table_name": "assignments",
+    "conname": "assignments_faculty_id_fkey",
+    "contype": "f",
+    "pg_get_constraintdef": "FOREIGN KEY (faculty_id) REFERENCES faculty(id)"
+  },
+  {
+    "table_name": "attendance_ping_logs",
+    "conname": "attendance_ping_logs_pkey",
+    "contype": "p",
+    "pg_get_constraintdef": "PRIMARY KEY (id)"
+  },
+  {
+    "table_name": "attendance_records",
+    "conname": "attendance_records_student_id_fkey",
+    "contype": "f",
+    "pg_get_constraintdef": "FOREIGN KEY (student_id) REFERENCES students(id)"
+  },
+  {
+    "table_name": "attendance_records",
+    "conname": "attendance_records_session_id_fkey",
+    "contype": "f",
+    "pg_get_constraintdef": "FOREIGN KEY (session_id) REFERENCES sessions(id)"
+  },
+  {
+    "table_name": "attendance_records",
+    "conname": "attendance_records_pkey",
+    "contype": "p",
+    "pg_get_constraintdef": "PRIMARY KEY (id)"
+  },
+  {
+    "table_name": "attendance_records",
+    "conname": "attendance_records_session_id_student_id_key",
+    "contype": "u",
+    "pg_get_constraintdef": "UNIQUE (session_id, student_id)"
+  },
+  {
+    "table_name": "categories",
+    "conname": "categories_course_id_name_key",
+    "contype": "u",
+    "pg_get_constraintdef": "UNIQUE (course_id, name)"
+  },
+  {
+    "table_name": "categories",
+    "conname": "categories_pkey",
+    "contype": "p",
+    "pg_get_constraintdef": "PRIMARY KEY (id)"
+  },
+  {
+    "table_name": "course_enrollments",
+    "conname": "course_enrollments_course_id_student_id_key",
+    "contype": "u",
+    "pg_get_constraintdef": "UNIQUE (course_id, student_id)"
+  },
+  {
+    "table_name": "course_enrollments",
+    "conname": "course_enrollments_pkey",
+    "contype": "p",
+    "pg_get_constraintdef": "PRIMARY KEY (id)"
+  },
+  {
+    "table_name": "course_enrollments",
+    "conname": "course_enrollments_course_id_fkey",
+    "contype": "f",
+    "pg_get_constraintdef": "FOREIGN KEY (course_id) REFERENCES courses(id)"
+  },
+  {
+    "table_name": "course_enrollments",
+    "conname": "course_enrollments_student_id_fkey",
+    "contype": "f",
+    "pg_get_constraintdef": "FOREIGN KEY (student_id) REFERENCES students(id)"
+  },
+  {
+    "table_name": "courses",
+    "conname": "courses_pkey",
+    "contype": "p",
+    "pg_get_constraintdef": "PRIMARY KEY (id)"
+  },
+  {
+    "table_name": "courses",
+    "conname": "courses_code_key",
+    "contype": "u",
+    "pg_get_constraintdef": "UNIQUE (code)"
+  },
+  {
+    "table_name": "faculty",
+    "conname": "faculty_id_fkey",
+    "contype": "f",
+    "pg_get_constraintdef": "FOREIGN KEY (id) REFERENCES users(id)"
+  },
+  {
+    "table_name": "faculty",
+    "conname": "faculty_pkey",
+    "contype": "p",
+    "pg_get_constraintdef": "PRIMARY KEY (id)"
+  },
+  {
+    "table_name": "feedback_questions",
+    "conname": "feedback_questions_pkey",
+    "contype": "p",
+    "pg_get_constraintdef": "PRIMARY KEY (id)"
+  },
+  {
+    "table_name": "feedback_responses",
+    "conname": "feedback_responses_pkey",
+    "contype": "p",
+    "pg_get_constraintdef": "PRIMARY KEY (id)"
+  },
+  {
+    "table_name": "feedback_responses",
+    "conname": "feedback_responses_session_id_student_id_question_id_key",
+    "contype": "u",
+    "pg_get_constraintdef": "UNIQUE (session_id, student_id, question_id)"
+  },
+  {
+    "table_name": "feedback_responses",
+    "conname": "feedback_responses_question_id_fkey",
+    "contype": "f",
+    "pg_get_constraintdef": "FOREIGN KEY (question_id) REFERENCES feedback_questions(id)"
+  },
+  {
+    "table_name": "feedback_responses",
+    "conname": "feedback_responses_student_id_fkey",
+    "contype": "f",
+    "pg_get_constraintdef": "FOREIGN KEY (student_id) REFERENCES students(id)"
+  },
+  {
+    "table_name": "feedback_responses",
+    "conname": "feedback_responses_session_id_fkey",
+    "contype": "f",
+    "pg_get_constraintdef": "FOREIGN KEY (session_id) REFERENCES sessions(id)"
+  },
+  {
+    "table_name": "google_tokens",
+    "conname": "google_tokens_pkey",
+    "contype": "p",
+    "pg_get_constraintdef": "PRIMARY KEY (user_id)"
+  },
+  {
+    "table_name": "leave_requests",
+    "conname": "leave_requests_pkey",
+    "contype": "p",
+    "pg_get_constraintdef": "PRIMARY KEY (id)"
+  },
+  {
+    "table_name": "leave_requests",
+    "conname": "leave_requests_status_check",
+    "contype": "c",
+    "pg_get_constraintdef": "CHECK ((status = ANY (ARRAY['pending'::text, 'approved'::text, 'rejected'::text])))"
+  },
+  {
+    "table_name": "notifications",
+    "conname": "notifications_sent_by_fkey",
+    "contype": "f",
+    "pg_get_constraintdef": "FOREIGN KEY (sent_by) REFERENCES users(id)"
+  },
+  {
+    "table_name": "notifications",
+    "conname": "notifications_course_id_fkey",
+    "contype": "f",
+    "pg_get_constraintdef": "FOREIGN KEY (course_id) REFERENCES courses(id)"
+  },
+  {
+    "table_name": "notifications",
+    "conname": "notifications_recipient_id_fkey",
+    "contype": "f",
+    "pg_get_constraintdef": "FOREIGN KEY (recipient_id) REFERENCES users(id)"
+  },
+  {
+    "table_name": "notifications",
+    "conname": "notifications_pkey",
+    "contype": "p",
+    "pg_get_constraintdef": "PRIMARY KEY (id)"
+  },
+  {
+    "table_name": "notifications",
+    "conname": "notifications_session_id_fkey",
+    "contype": "f",
+    "pg_get_constraintdef": "FOREIGN KEY (session_id) REFERENCES sessions(id)"
+  },
+  {
+    "table_name": "session_materials",
+    "conname": "session_materials_uploaded_by_fkey",
+    "contype": "f",
+    "pg_get_constraintdef": "FOREIGN KEY (uploaded_by) REFERENCES users(id)"
+  },
+  {
+    "table_name": "session_materials",
+    "conname": "session_materials_session_id_fkey",
+    "contype": "f",
+    "pg_get_constraintdef": "FOREIGN KEY (session_id) REFERENCES sessions(id)"
+  },
+  {
+    "table_name": "session_materials",
+    "conname": "session_materials_pkey",
+    "contype": "p",
+    "pg_get_constraintdef": "PRIMARY KEY (id)"
+  },
+  {
+    "table_name": "session_materials",
+    "conname": "session_materials_faculty_id_fkey",
+    "contype": "f",
+    "pg_get_constraintdef": "FOREIGN KEY (faculty_id) REFERENCES faculty(id)"
+  },
+  {
+    "table_name": "session_materials",
+    "conname": "session_materials_course_id_fkey",
+    "contype": "f",
+    "pg_get_constraintdef": "FOREIGN KEY (course_id) REFERENCES courses(id)"
+  },
+  {
+    "table_name": "session_skills",
+    "conname": "session_skills_pkey",
+    "contype": "p",
+    "pg_get_constraintdef": "PRIMARY KEY (session_id, skill_id)"
+  },
+  {
+    "table_name": "session_types",
+    "conname": "session_types_name_key",
+    "contype": "u",
+    "pg_get_constraintdef": "UNIQUE (name)"
+  },
+  {
+    "table_name": "session_types",
+    "conname": "session_types_pkey",
+    "contype": "p",
+    "pg_get_constraintdef": "PRIMARY KEY (id)"
+  },
+  {
+    "table_name": "sessions",
+    "conname": "sessions_session_type_id_fkey",
+    "contype": "f",
+    "pg_get_constraintdef": "FOREIGN KEY (session_type_id) REFERENCES session_types(id)"
+  },
+  {
+    "table_name": "sessions",
+    "conname": "sessions_pkey",
+    "contype": "p",
+    "pg_get_constraintdef": "PRIMARY KEY (id)"
+  },
+  {
+    "table_name": "sessions",
+    "conname": "sessions_course_id_fkey",
+    "contype": "f",
+    "pg_get_constraintdef": "FOREIGN KEY (course_id) REFERENCES courses(id) ON DELETE CASCADE"
+  },
+  {
+    "table_name": "sessions",
+    "conname": "sessions_faculty_id_fkey",
+    "contype": "f",
+    "pg_get_constraintdef": "FOREIGN KEY (faculty_id) REFERENCES faculty(id)"
+  },
+  {
+    "table_name": "sessions",
+    "conname": "sessions_venue_id_fkey",
+    "contype": "f",
+    "pg_get_constraintdef": "FOREIGN KEY (venue_id) REFERENCES venues(id)"
+  },
+  {
+    "table_name": "sessions",
+    "conname": "sessions_created_by_fkey",
+    "contype": "f",
+    "pg_get_constraintdef": "FOREIGN KEY (created_by) REFERENCES users(id)"
+  },
+  {
+    "table_name": "skills",
+    "conname": "skills_name_key",
+    "contype": "u",
+    "pg_get_constraintdef": "UNIQUE (name)"
+  },
+  {
+    "table_name": "skills",
+    "conname": "skills_pkey",
+    "contype": "p",
+    "pg_get_constraintdef": "PRIMARY KEY (id)"
+  },
+  {
+    "table_name": "student_attendance_marks",
+    "conname": "student_attendance_marks_student_id_session_date_session_sl_key",
+    "contype": "u",
+    "pg_get_constraintdef": "UNIQUE (student_id, session_date, session_slot)"
+  },
+  {
+    "table_name": "student_attendance_marks",
+    "conname": "student_attendance_marks_pkey",
+    "contype": "p",
+    "pg_get_constraintdef": "PRIMARY KEY (id)"
+  },
+  {
+    "table_name": "student_course_attendance",
+    "conname": "student_course_attendance_student_id_course_id_key1",
+    "contype": "u",
+    "pg_get_constraintdef": "UNIQUE (student_id, course_id)"
+  },
+  {
+    "table_name": "student_course_attendance",
+    "conname": "student_course_attendance_pkey",
+    "contype": "p",
+    "pg_get_constraintdef": "PRIMARY KEY (id)"
+  },
+  {
+    "table_name": "student_course_attendance",
+    "conname": "student_course_attendance_student_id_course_id_key",
+    "contype": "u",
+    "pg_get_constraintdef": "UNIQUE (student_id, course_id)"
+  },
+  {
+    "table_name": "students",
+    "conname": "students_enrollment_no_key",
+    "contype": "u",
+    "pg_get_constraintdef": "UNIQUE (enrollment_no)"
+  },
+  {
+    "table_name": "students",
+    "conname": "students_enrollment_no_key1",
+    "contype": "u",
+    "pg_get_constraintdef": "UNIQUE (enrollment_no)"
+  },
+  {
+    "table_name": "students",
+    "conname": "students_id_fkey",
+    "contype": "f",
+    "pg_get_constraintdef": "FOREIGN KEY (id) REFERENCES users(id) ON DELETE CASCADE"
+  },
+  {
+    "table_name": "students",
+    "conname": "students_pkey",
+    "contype": "p",
+    "pg_get_constraintdef": "PRIMARY KEY (id)"
+  },
+  {
+    "table_name": "system_settings",
+    "conname": "system_settings_pkey",
+    "contype": "p",
+    "pg_get_constraintdef": "PRIMARY KEY (id)"
+  },
+  {
+    "table_name": "users",
+    "conname": "users_pkey",
+    "contype": "p",
+    "pg_get_constraintdef": "PRIMARY KEY (id)"
+  },
+  {
+    "table_name": "users",
+    "conname": "users_email_key",
+    "contype": "u",
+    "pg_get_constraintdef": "UNIQUE (email)"
+  },
+  {
+    "table_name": "venues",
+    "conname": "venues_pkey",
+    "contype": "p",
+    "pg_get_constraintdef": "PRIMARY KEY (id)"
+  },
+  {
+    "table_name": "venues",
+    "conname": "venues_router_bssid_key",
+    "contype": "u",
+    "pg_get_constraintdef": "UNIQUE (router_bssid)"
+  },
+  {
+    "table_name": "wifi_snapshots",
+    "conname": "wifi_snapshots_pkey",
+    "contype": "p",
+    "pg_get_constraintdef": "PRIMARY KEY (id)"
+  }
+]

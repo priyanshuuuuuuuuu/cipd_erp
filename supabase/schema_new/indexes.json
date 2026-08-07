@@ -1,0 +1,352 @@
+[
+  {
+    "tablename": "assignment_submissions",
+    "indexname": "assignment_submissions_pkey",
+    "indexdef": "CREATE UNIQUE INDEX assignment_submissions_pkey ON july.assignment_submissions USING btree (id)"
+  },
+  {
+    "tablename": "assignment_submissions",
+    "indexname": "assignment_submissions_assignment_id_student_id_idx",
+    "indexdef": "CREATE UNIQUE INDEX assignment_submissions_assignment_id_student_id_idx ON july.assignment_submissions USING btree (assignment_id, student_id)"
+  },
+  {
+    "tablename": "assignments",
+    "indexname": "assignments_pkey",
+    "indexdef": "CREATE UNIQUE INDEX assignments_pkey ON july.assignments USING btree (id)"
+  },
+  {
+    "tablename": "attendance_ping_logs",
+    "indexname": "attendance_ping_logs_pkey",
+    "indexdef": "CREATE UNIQUE INDEX attendance_ping_logs_pkey ON july.attendance_ping_logs USING btree (id)"
+  },
+  {
+    "tablename": "attendance_ping_logs",
+    "indexname": "attendance_ping_logs_student_id_idx",
+    "indexdef": "CREATE INDEX attendance_ping_logs_student_id_idx ON july.attendance_ping_logs USING btree (student_id)"
+  },
+  {
+    "tablename": "attendance_ping_logs",
+    "indexname": "attendance_ping_logs_session_id_idx",
+    "indexdef": "CREATE INDEX attendance_ping_logs_session_id_idx ON july.attendance_ping_logs USING btree (session_id)"
+  },
+  {
+    "tablename": "attendance_ping_logs",
+    "indexname": "attendance_ping_logs_ping_time_idx",
+    "indexdef": "CREATE INDEX attendance_ping_logs_ping_time_idx ON july.attendance_ping_logs USING btree (ping_time DESC)"
+  },
+  {
+    "tablename": "attendance_records",
+    "indexname": "attendance_records_session_id_student_id_key",
+    "indexdef": "CREATE UNIQUE INDEX attendance_records_session_id_student_id_key ON july.attendance_records USING btree (session_id, student_id)"
+  },
+  {
+    "tablename": "attendance_records",
+    "indexname": "attendance_records_session_id_idx",
+    "indexdef": "CREATE INDEX attendance_records_session_id_idx ON july.attendance_records USING btree (session_id)"
+  },
+  {
+    "tablename": "attendance_records",
+    "indexname": "attendance_records_pkey",
+    "indexdef": "CREATE UNIQUE INDEX attendance_records_pkey ON july.attendance_records USING btree (id)"
+  },
+  {
+    "tablename": "attendance_records",
+    "indexname": "attendance_records_student_id_idx",
+    "indexdef": "CREATE INDEX attendance_records_student_id_idx ON july.attendance_records USING btree (student_id)"
+  },
+  {
+    "tablename": "categories",
+    "indexname": "categories_course_id_name_key",
+    "indexdef": "CREATE UNIQUE INDEX categories_course_id_name_key ON july.categories USING btree (course_id, name)"
+  },
+  {
+    "tablename": "categories",
+    "indexname": "categories_pkey",
+    "indexdef": "CREATE UNIQUE INDEX categories_pkey ON july.categories USING btree (id)"
+  },
+  {
+    "tablename": "categories",
+    "indexname": "categories_course_id_idx",
+    "indexdef": "CREATE INDEX categories_course_id_idx ON july.categories USING btree (course_id)"
+  },
+  {
+    "tablename": "course_enrollments",
+    "indexname": "course_enrollments_course_id_student_id_key",
+    "indexdef": "CREATE UNIQUE INDEX course_enrollments_course_id_student_id_key ON july.course_enrollments USING btree (course_id, student_id)"
+  },
+  {
+    "tablename": "course_enrollments",
+    "indexname": "course_enrollments_pkey",
+    "indexdef": "CREATE UNIQUE INDEX course_enrollments_pkey ON july.course_enrollments USING btree (id)"
+  },
+  {
+    "tablename": "courses",
+    "indexname": "courses_pkey",
+    "indexdef": "CREATE UNIQUE INDEX courses_pkey ON july.courses USING btree (id)"
+  },
+  {
+    "tablename": "courses",
+    "indexname": "courses_code_key",
+    "indexdef": "CREATE UNIQUE INDEX courses_code_key ON july.courses USING btree (code)"
+  },
+  {
+    "tablename": "faculty",
+    "indexname": "faculty_pkey",
+    "indexdef": "CREATE UNIQUE INDEX faculty_pkey ON july.faculty USING btree (id)"
+  },
+  {
+    "tablename": "feedback_questions",
+    "indexname": "feedback_questions_pkey",
+    "indexdef": "CREATE UNIQUE INDEX feedback_questions_pkey ON july.feedback_questions USING btree (id)"
+  },
+  {
+    "tablename": "feedback_responses",
+    "indexname": "feedback_responses_session_id_idx",
+    "indexdef": "CREATE INDEX feedback_responses_session_id_idx ON july.feedback_responses USING btree (session_id)"
+  },
+  {
+    "tablename": "feedback_responses",
+    "indexname": "feedback_responses_pkey",
+    "indexdef": "CREATE UNIQUE INDEX feedback_responses_pkey ON july.feedback_responses USING btree (id)"
+  },
+  {
+    "tablename": "feedback_responses",
+    "indexname": "feedback_responses_student_id_idx",
+    "indexdef": "CREATE INDEX feedback_responses_student_id_idx ON july.feedback_responses USING btree (student_id)"
+  },
+  {
+    "tablename": "feedback_responses",
+    "indexname": "feedback_responses_student_id_session_id_idx",
+    "indexdef": "CREATE INDEX feedback_responses_student_id_session_id_idx ON july.feedback_responses USING btree (student_id, session_id)"
+  },
+  {
+    "tablename": "feedback_responses",
+    "indexname": "feedback_responses_session_id_student_id_question_id_key",
+    "indexdef": "CREATE UNIQUE INDEX feedback_responses_session_id_student_id_question_id_key ON july.feedback_responses USING btree (session_id, student_id, question_id)"
+  },
+  {
+    "tablename": "google_tokens",
+    "indexname": "google_tokens_pkey",
+    "indexdef": "CREATE UNIQUE INDEX google_tokens_pkey ON july.google_tokens USING btree (user_id)"
+  },
+  {
+    "tablename": "leave_requests",
+    "indexname": "leave_requests_pkey",
+    "indexdef": "CREATE UNIQUE INDEX leave_requests_pkey ON july.leave_requests USING btree (id)"
+  },
+  {
+    "tablename": "leave_requests",
+    "indexname": "leave_requests_session_id_idx",
+    "indexdef": "CREATE INDEX leave_requests_session_id_idx ON july.leave_requests USING btree (session_id)"
+  },
+  {
+    "tablename": "leave_requests",
+    "indexname": "leave_requests_status_idx",
+    "indexdef": "CREATE INDEX leave_requests_status_idx ON july.leave_requests USING btree (status)"
+  },
+  {
+    "tablename": "leave_requests",
+    "indexname": "leave_requests_leave_date_idx",
+    "indexdef": "CREATE INDEX leave_requests_leave_date_idx ON july.leave_requests USING btree (leave_date)"
+  },
+  {
+    "tablename": "leave_requests",
+    "indexname": "leave_requests_student_id_idx",
+    "indexdef": "CREATE INDEX leave_requests_student_id_idx ON july.leave_requests USING btree (student_id)"
+  },
+  {
+    "tablename": "notifications",
+    "indexname": "notifications_recipient_id_is_read_idx",
+    "indexdef": "CREATE INDEX notifications_recipient_id_is_read_idx ON july.notifications USING btree (recipient_id, is_read)"
+  },
+  {
+    "tablename": "notifications",
+    "indexname": "notifications_recipient_id_idx",
+    "indexdef": "CREATE INDEX notifications_recipient_id_idx ON july.notifications USING btree (recipient_id)"
+  },
+  {
+    "tablename": "notifications",
+    "indexname": "notifications_pkey",
+    "indexdef": "CREATE UNIQUE INDEX notifications_pkey ON july.notifications USING btree (id)"
+  },
+  {
+    "tablename": "session_materials",
+    "indexname": "session_materials_course_id_idx",
+    "indexdef": "CREATE INDEX session_materials_course_id_idx ON july.session_materials USING btree (course_id)"
+  },
+  {
+    "tablename": "session_materials",
+    "indexname": "session_materials_pkey",
+    "indexdef": "CREATE UNIQUE INDEX session_materials_pkey ON july.session_materials USING btree (id)"
+  },
+  {
+    "tablename": "session_materials",
+    "indexname": "session_materials_session_id_idx",
+    "indexdef": "CREATE INDEX session_materials_session_id_idx ON july.session_materials USING btree (session_id)"
+  },
+  {
+    "tablename": "session_skills",
+    "indexname": "session_skills_session_id_idx",
+    "indexdef": "CREATE INDEX session_skills_session_id_idx ON july.session_skills USING btree (session_id)"
+  },
+  {
+    "tablename": "session_skills",
+    "indexname": "session_skills_pkey",
+    "indexdef": "CREATE UNIQUE INDEX session_skills_pkey ON july.session_skills USING btree (session_id, skill_id)"
+  },
+  {
+    "tablename": "session_skills",
+    "indexname": "session_skills_skill_id_idx",
+    "indexdef": "CREATE INDEX session_skills_skill_id_idx ON july.session_skills USING btree (skill_id)"
+  },
+  {
+    "tablename": "session_types",
+    "indexname": "session_types_name_key",
+    "indexdef": "CREATE UNIQUE INDEX session_types_name_key ON july.session_types USING btree (name)"
+  },
+  {
+    "tablename": "session_types",
+    "indexname": "session_types_pkey",
+    "indexdef": "CREATE UNIQUE INDEX session_types_pkey ON july.session_types USING btree (id)"
+  },
+  {
+    "tablename": "sessions",
+    "indexname": "sessions_session_date_idx",
+    "indexdef": "CREATE INDEX sessions_session_date_idx ON july.sessions USING btree (session_date)"
+  },
+  {
+    "tablename": "sessions",
+    "indexname": "sessions_pkey",
+    "indexdef": "CREATE UNIQUE INDEX sessions_pkey ON july.sessions USING btree (id)"
+  },
+  {
+    "tablename": "sessions",
+    "indexname": "sessions_faculty_id_idx",
+    "indexdef": "CREATE INDEX sessions_faculty_id_idx ON july.sessions USING btree (faculty_id)"
+  },
+  {
+    "tablename": "sessions",
+    "indexname": "sessions_course_id_idx",
+    "indexdef": "CREATE INDEX sessions_course_id_idx ON july.sessions USING btree (course_id)"
+  },
+  {
+    "tablename": "sessions",
+    "indexname": "sessions_venue_id_session_date_start_time_end_time_idx",
+    "indexdef": "CREATE UNIQUE INDEX sessions_venue_id_session_date_start_time_end_time_idx ON july.sessions USING btree (venue_id, session_date, start_time, end_time) WHERE (status <> 'cancelled'::public.session_status)"
+  },
+  {
+    "tablename": "skills",
+    "indexname": "skills_name_key",
+    "indexdef": "CREATE UNIQUE INDEX skills_name_key ON july.skills USING btree (name)"
+  },
+  {
+    "tablename": "skills",
+    "indexname": "skills_pkey",
+    "indexdef": "CREATE UNIQUE INDEX skills_pkey ON july.skills USING btree (id)"
+  },
+  {
+    "tablename": "skills",
+    "indexname": "skills_category_id_idx",
+    "indexdef": "CREATE INDEX skills_category_id_idx ON july.skills USING btree (category_id)"
+  },
+  {
+    "tablename": "student_attendance_marks",
+    "indexname": "student_attendance_marks_course_id_idx",
+    "indexdef": "CREATE INDEX student_attendance_marks_course_id_idx ON july.student_attendance_marks USING btree (course_id)"
+  },
+  {
+    "tablename": "student_attendance_marks",
+    "indexname": "student_attendance_marks_pkey",
+    "indexdef": "CREATE UNIQUE INDEX student_attendance_marks_pkey ON july.student_attendance_marks USING btree (id)"
+  },
+  {
+    "tablename": "student_attendance_marks",
+    "indexname": "student_attendance_marks_student_id_idx",
+    "indexdef": "CREATE INDEX student_attendance_marks_student_id_idx ON july.student_attendance_marks USING btree (student_id)"
+  },
+  {
+    "tablename": "student_attendance_marks",
+    "indexname": "student_attendance_marks_student_id_session_date_session_sl_key",
+    "indexdef": "CREATE UNIQUE INDEX student_attendance_marks_student_id_session_date_session_sl_key ON july.student_attendance_marks USING btree (student_id, session_date, session_slot)"
+  },
+  {
+    "tablename": "student_attendance_marks",
+    "indexname": "student_attendance_marks_session_date_idx",
+    "indexdef": "CREATE INDEX student_attendance_marks_session_date_idx ON july.student_attendance_marks USING btree (session_date)"
+  },
+  {
+    "tablename": "student_attendance_marks",
+    "indexname": "student_attendance_marks_session_id_idx",
+    "indexdef": "CREATE INDEX student_attendance_marks_session_id_idx ON july.student_attendance_marks USING btree (session_id)"
+  },
+  {
+    "tablename": "student_course_attendance",
+    "indexname": "student_course_attendance_student_id_course_id_key1",
+    "indexdef": "CREATE UNIQUE INDEX student_course_attendance_student_id_course_id_key1 ON july.student_course_attendance USING btree (student_id, course_id)"
+  },
+  {
+    "tablename": "student_course_attendance",
+    "indexname": "student_course_attendance_student_id_idx",
+    "indexdef": "CREATE INDEX student_course_attendance_student_id_idx ON july.student_course_attendance USING btree (student_id)"
+  },
+  {
+    "tablename": "student_course_attendance",
+    "indexname": "student_course_attendance_student_id_course_id_key",
+    "indexdef": "CREATE UNIQUE INDEX student_course_attendance_student_id_course_id_key ON july.student_course_attendance USING btree (student_id, course_id)"
+  },
+  {
+    "tablename": "student_course_attendance",
+    "indexname": "student_course_attendance_pkey",
+    "indexdef": "CREATE UNIQUE INDEX student_course_attendance_pkey ON july.student_course_attendance USING btree (id)"
+  },
+  {
+    "tablename": "students",
+    "indexname": "students_pkey",
+    "indexdef": "CREATE UNIQUE INDEX students_pkey ON july.students USING btree (id)"
+  },
+  {
+    "tablename": "students",
+    "indexname": "students_enrollment_no_key1",
+    "indexdef": "CREATE UNIQUE INDEX students_enrollment_no_key1 ON july.students USING btree (enrollment_no)"
+  },
+  {
+    "tablename": "students",
+    "indexname": "students_enrollment_no_key",
+    "indexdef": "CREATE UNIQUE INDEX students_enrollment_no_key ON july.students USING btree (enrollment_no)"
+  },
+  {
+    "tablename": "system_settings",
+    "indexname": "system_settings_pkey",
+    "indexdef": "CREATE UNIQUE INDEX system_settings_pkey ON july.system_settings USING btree (id)"
+  },
+  {
+    "tablename": "users",
+    "indexname": "users_pkey",
+    "indexdef": "CREATE UNIQUE INDEX users_pkey ON july.users USING btree (id)"
+  },
+  {
+    "tablename": "users",
+    "indexname": "users_role_idx",
+    "indexdef": "CREATE INDEX users_role_idx ON july.users USING btree (role)"
+  },
+  {
+    "tablename": "users",
+    "indexname": "users_email_key",
+    "indexdef": "CREATE UNIQUE INDEX users_email_key ON july.users USING btree (email)"
+  },
+  {
+    "tablename": "venues",
+    "indexname": "venues_pkey",
+    "indexdef": "CREATE UNIQUE INDEX venues_pkey ON july.venues USING btree (id)"
+  },
+  {
+    "tablename": "venues",
+    "indexname": "venues_router_bssid_key",
+    "indexdef": "CREATE UNIQUE INDEX venues_router_bssid_key ON july.venues USING btree (router_bssid)"
+  },
+  {
+    "tablename": "wifi_snapshots",
+    "indexname": "wifi_snapshots_pkey",
+    "indexdef": "CREATE UNIQUE INDEX wifi_snapshots_pkey ON july.wifi_snapshots USING btree (id)"
+  }
+]

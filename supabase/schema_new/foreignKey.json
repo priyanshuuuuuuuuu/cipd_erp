@@ -1,0 +1,702 @@
+[
+  {
+    "source_table": "assignment_submissions",
+    "source_column": "student_id",
+    "target_table": "students",
+    "target_column": "id",
+    "constraint_name": "assignment_submissions_student_id_fkey"
+  },
+  {
+    "source_table": "assignment_submissions",
+    "source_column": "student_id",
+    "target_table": "students",
+    "target_column": "id",
+    "constraint_name": "assignment_submissions_student_id_fkey"
+  },
+  {
+    "source_table": "assignment_submissions",
+    "source_column": "student_id",
+    "target_table": "students",
+    "target_column": "id",
+    "constraint_name": "assignment_submissions_student_id_fkey"
+  },
+  {
+    "source_table": "assignment_submissions",
+    "source_column": "student_id",
+    "target_table": "students",
+    "target_column": "id",
+    "constraint_name": "assignment_submissions_student_id_fkey"
+  },
+  {
+    "source_table": "assignment_submissions",
+    "source_column": "assignment_id",
+    "target_table": "assignments",
+    "target_column": "id",
+    "constraint_name": "assignment_submissions_assignment_id_fkey"
+  },
+  {
+    "source_table": "assignment_submissions",
+    "source_column": "assignment_id",
+    "target_table": "assignments",
+    "target_column": "id",
+    "constraint_name": "assignment_submissions_assignment_id_fkey"
+  },
+  {
+    "source_table": "assignment_submissions",
+    "source_column": "assignment_id",
+    "target_table": "assignments",
+    "target_column": "id",
+    "constraint_name": "assignment_submissions_assignment_id_fkey"
+  },
+  {
+    "source_table": "assignment_submissions",
+    "source_column": "assignment_id",
+    "target_table": "assignments",
+    "target_column": "id",
+    "constraint_name": "assignment_submissions_assignment_id_fkey"
+  },
+  {
+    "source_table": "assignments",
+    "source_column": "faculty_id",
+    "target_table": "faculty",
+    "target_column": "id",
+    "constraint_name": "assignments_faculty_id_fkey"
+  },
+  {
+    "source_table": "assignments",
+    "source_column": "faculty_id",
+    "target_table": "faculty",
+    "target_column": "id",
+    "constraint_name": "assignments_faculty_id_fkey"
+  },
+  {
+    "source_table": "assignments",
+    "source_column": "faculty_id",
+    "target_table": "faculty",
+    "target_column": "id",
+    "constraint_name": "assignments_faculty_id_fkey"
+  },
+  {
+    "source_table": "assignments",
+    "source_column": "faculty_id",
+    "target_table": "faculty",
+    "target_column": "id",
+    "constraint_name": "assignments_faculty_id_fkey"
+  },
+  {
+    "source_table": "assignments",
+    "source_column": "course_id",
+    "target_table": "courses",
+    "target_column": "id",
+    "constraint_name": "assignments_course_id_fkey"
+  },
+  {
+    "source_table": "assignments",
+    "source_column": "course_id",
+    "target_table": "courses",
+    "target_column": "id",
+    "constraint_name": "assignments_course_id_fkey"
+  },
+  {
+    "source_table": "assignments",
+    "source_column": "course_id",
+    "target_table": "courses",
+    "target_column": "id",
+    "constraint_name": "assignments_course_id_fkey"
+  },
+  {
+    "source_table": "assignments",
+    "source_column": "course_id",
+    "target_table": "courses",
+    "target_column": "id",
+    "constraint_name": "assignments_course_id_fkey"
+  },
+  {
+    "source_table": "attendance_records",
+    "source_column": "session_id",
+    "target_table": "sessions",
+    "target_column": "id",
+    "constraint_name": "attendance_records_session_id_fkey"
+  },
+  {
+    "source_table": "attendance_records",
+    "source_column": "student_id",
+    "target_table": "students",
+    "target_column": "id",
+    "constraint_name": "attendance_records_student_id_fkey"
+  },
+  {
+    "source_table": "attendance_records",
+    "source_column": "student_id",
+    "target_table": "students",
+    "target_column": "id",
+    "constraint_name": "attendance_records_student_id_fkey"
+  },
+  {
+    "source_table": "attendance_records",
+    "source_column": "student_id",
+    "target_table": "students",
+    "target_column": "id",
+    "constraint_name": "attendance_records_student_id_fkey"
+  },
+  {
+    "source_table": "attendance_records",
+    "source_column": "session_id",
+    "target_table": "sessions",
+    "target_column": "id",
+    "constraint_name": "attendance_records_session_id_fkey"
+  },
+  {
+    "source_table": "attendance_records",
+    "source_column": "session_id",
+    "target_table": "sessions",
+    "target_column": "id",
+    "constraint_name": "attendance_records_session_id_fkey"
+  },
+  {
+    "source_table": "attendance_records",
+    "source_column": "session_id",
+    "target_table": "sessions",
+    "target_column": "id",
+    "constraint_name": "attendance_records_session_id_fkey"
+  },
+  {
+    "source_table": "attendance_records",
+    "source_column": "student_id",
+    "target_table": "students",
+    "target_column": "id",
+    "constraint_name": "attendance_records_student_id_fkey"
+  },
+  {
+    "source_table": "course_enrollments",
+    "source_column": "course_id",
+    "target_table": "courses",
+    "target_column": "id",
+    "constraint_name": "course_enrollments_course_id_fkey"
+  },
+  {
+    "source_table": "course_enrollments",
+    "source_column": "student_id",
+    "target_table": "students",
+    "target_column": "id",
+    "constraint_name": "course_enrollments_student_id_fkey"
+  },
+  {
+    "source_table": "course_enrollments",
+    "source_column": "student_id",
+    "target_table": "students",
+    "target_column": "id",
+    "constraint_name": "course_enrollments_student_id_fkey"
+  },
+  {
+    "source_table": "course_enrollments",
+    "source_column": "student_id",
+    "target_table": "students",
+    "target_column": "id",
+    "constraint_name": "course_enrollments_student_id_fkey"
+  },
+  {
+    "source_table": "course_enrollments",
+    "source_column": "student_id",
+    "target_table": "students",
+    "target_column": "id",
+    "constraint_name": "course_enrollments_student_id_fkey"
+  },
+  {
+    "source_table": "course_enrollments",
+    "source_column": "course_id",
+    "target_table": "courses",
+    "target_column": "id",
+    "constraint_name": "course_enrollments_course_id_fkey"
+  },
+  {
+    "source_table": "course_enrollments",
+    "source_column": "course_id",
+    "target_table": "courses",
+    "target_column": "id",
+    "constraint_name": "course_enrollments_course_id_fkey"
+  },
+  {
+    "source_table": "course_enrollments",
+    "source_column": "course_id",
+    "target_table": "courses",
+    "target_column": "id",
+    "constraint_name": "course_enrollments_course_id_fkey"
+  },
+  {
+    "source_table": "faculty",
+    "source_column": "id",
+    "target_table": "users",
+    "target_column": "id",
+    "constraint_name": "faculty_id_fkey"
+  },
+  {
+    "source_table": "faculty",
+    "source_column": "id",
+    "target_table": "users",
+    "target_column": "id",
+    "constraint_name": "faculty_id_fkey"
+  },
+  {
+    "source_table": "faculty",
+    "source_column": "id",
+    "target_table": "users",
+    "target_column": "id",
+    "constraint_name": "faculty_id_fkey"
+  },
+  {
+    "source_table": "faculty",
+    "source_column": "id",
+    "target_table": "users",
+    "target_column": "id",
+    "constraint_name": "faculty_id_fkey"
+  },
+  {
+    "source_table": "feedback_responses",
+    "source_column": "question_id",
+    "target_table": "feedback_questions",
+    "target_column": "id",
+    "constraint_name": "feedback_responses_question_id_fkey"
+  },
+  {
+    "source_table": "feedback_responses",
+    "source_column": "student_id",
+    "target_table": "students",
+    "target_column": "id",
+    "constraint_name": "feedback_responses_student_id_fkey"
+  },
+  {
+    "source_table": "feedback_responses",
+    "source_column": "student_id",
+    "target_table": "students",
+    "target_column": "id",
+    "constraint_name": "feedback_responses_student_id_fkey"
+  },
+  {
+    "source_table": "feedback_responses",
+    "source_column": "student_id",
+    "target_table": "students",
+    "target_column": "id",
+    "constraint_name": "feedback_responses_student_id_fkey"
+  },
+  {
+    "source_table": "feedback_responses",
+    "source_column": "student_id",
+    "target_table": "students",
+    "target_column": "id",
+    "constraint_name": "feedback_responses_student_id_fkey"
+  },
+  {
+    "source_table": "feedback_responses",
+    "source_column": "session_id",
+    "target_table": "sessions",
+    "target_column": "id",
+    "constraint_name": "feedback_responses_session_id_fkey"
+  },
+  {
+    "source_table": "feedback_responses",
+    "source_column": "session_id",
+    "target_table": "sessions",
+    "target_column": "id",
+    "constraint_name": "feedback_responses_session_id_fkey"
+  },
+  {
+    "source_table": "feedback_responses",
+    "source_column": "session_id",
+    "target_table": "sessions",
+    "target_column": "id",
+    "constraint_name": "feedback_responses_session_id_fkey"
+  },
+  {
+    "source_table": "feedback_responses",
+    "source_column": "session_id",
+    "target_table": "sessions",
+    "target_column": "id",
+    "constraint_name": "feedback_responses_session_id_fkey"
+  },
+  {
+    "source_table": "feedback_responses",
+    "source_column": "question_id",
+    "target_table": "feedback_questions",
+    "target_column": "id",
+    "constraint_name": "feedback_responses_question_id_fkey"
+  },
+  {
+    "source_table": "feedback_responses",
+    "source_column": "question_id",
+    "target_table": "feedback_questions",
+    "target_column": "id",
+    "constraint_name": "feedback_responses_question_id_fkey"
+  },
+  {
+    "source_table": "feedback_responses",
+    "source_column": "question_id",
+    "target_table": "feedback_questions",
+    "target_column": "id",
+    "constraint_name": "feedback_responses_question_id_fkey"
+  },
+  {
+    "source_table": "notifications",
+    "source_column": "course_id",
+    "target_table": "courses",
+    "target_column": "id",
+    "constraint_name": "notifications_course_id_fkey"
+  },
+  {
+    "source_table": "notifications",
+    "source_column": "sent_by",
+    "target_table": "users",
+    "target_column": "id",
+    "constraint_name": "notifications_sent_by_fkey"
+  },
+  {
+    "source_table": "notifications",
+    "source_column": "sent_by",
+    "target_table": "users",
+    "target_column": "id",
+    "constraint_name": "notifications_sent_by_fkey"
+  },
+  {
+    "source_table": "notifications",
+    "source_column": "sent_by",
+    "target_table": "users",
+    "target_column": "id",
+    "constraint_name": "notifications_sent_by_fkey"
+  },
+  {
+    "source_table": "notifications",
+    "source_column": "sent_by",
+    "target_table": "users",
+    "target_column": "id",
+    "constraint_name": "notifications_sent_by_fkey"
+  },
+  {
+    "source_table": "notifications",
+    "source_column": "session_id",
+    "target_table": "sessions",
+    "target_column": "id",
+    "constraint_name": "notifications_session_id_fkey"
+  },
+  {
+    "source_table": "notifications",
+    "source_column": "session_id",
+    "target_table": "sessions",
+    "target_column": "id",
+    "constraint_name": "notifications_session_id_fkey"
+  },
+  {
+    "source_table": "notifications",
+    "source_column": "session_id",
+    "target_table": "sessions",
+    "target_column": "id",
+    "constraint_name": "notifications_session_id_fkey"
+  },
+  {
+    "source_table": "notifications",
+    "source_column": "session_id",
+    "target_table": "sessions",
+    "target_column": "id",
+    "constraint_name": "notifications_session_id_fkey"
+  },
+  {
+    "source_table": "notifications",
+    "source_column": "course_id",
+    "target_table": "courses",
+    "target_column": "id",
+    "constraint_name": "notifications_course_id_fkey"
+  },
+  {
+    "source_table": "notifications",
+    "source_column": "course_id",
+    "target_table": "courses",
+    "target_column": "id",
+    "constraint_name": "notifications_course_id_fkey"
+  },
+  {
+    "source_table": "notifications",
+    "source_column": "course_id",
+    "target_table": "courses",
+    "target_column": "id",
+    "constraint_name": "notifications_course_id_fkey"
+  },
+  {
+    "source_table": "notifications",
+    "source_column": "recipient_id",
+    "target_table": "users",
+    "target_column": "id",
+    "constraint_name": "notifications_recipient_id_fkey"
+  },
+  {
+    "source_table": "notifications",
+    "source_column": "recipient_id",
+    "target_table": "users",
+    "target_column": "id",
+    "constraint_name": "notifications_recipient_id_fkey"
+  },
+  {
+    "source_table": "notifications",
+    "source_column": "recipient_id",
+    "target_table": "users",
+    "target_column": "id",
+    "constraint_name": "notifications_recipient_id_fkey"
+  },
+  {
+    "source_table": "notifications",
+    "source_column": "recipient_id",
+    "target_table": "users",
+    "target_column": "id",
+    "constraint_name": "notifications_recipient_id_fkey"
+  },
+  {
+    "source_table": "session_materials",
+    "source_column": "session_id",
+    "target_table": "sessions",
+    "target_column": "id",
+    "constraint_name": "session_materials_session_id_fkey"
+  },
+  {
+    "source_table": "session_materials",
+    "source_column": "session_id",
+    "target_table": "sessions",
+    "target_column": "id",
+    "constraint_name": "session_materials_session_id_fkey"
+  },
+  {
+    "source_table": "session_materials",
+    "source_column": "session_id",
+    "target_table": "sessions",
+    "target_column": "id",
+    "constraint_name": "session_materials_session_id_fkey"
+  },
+  {
+    "source_table": "session_materials",
+    "source_column": "uploaded_by",
+    "target_table": "users",
+    "target_column": "id",
+    "constraint_name": "session_materials_uploaded_by_fkey"
+  },
+  {
+    "source_table": "session_materials",
+    "source_column": "uploaded_by",
+    "target_table": "users",
+    "target_column": "id",
+    "constraint_name": "session_materials_uploaded_by_fkey"
+  },
+  {
+    "source_table": "session_materials",
+    "source_column": "uploaded_by",
+    "target_table": "users",
+    "target_column": "id",
+    "constraint_name": "session_materials_uploaded_by_fkey"
+  },
+  {
+    "source_table": "session_materials",
+    "source_column": "uploaded_by",
+    "target_table": "users",
+    "target_column": "id",
+    "constraint_name": "session_materials_uploaded_by_fkey"
+  },
+  {
+    "source_table": "session_materials",
+    "source_column": "course_id",
+    "target_table": "courses",
+    "target_column": "id",
+    "constraint_name": "session_materials_course_id_fkey"
+  },
+  {
+    "source_table": "session_materials",
+    "source_column": "course_id",
+    "target_table": "courses",
+    "target_column": "id",
+    "constraint_name": "session_materials_course_id_fkey"
+  },
+  {
+    "source_table": "session_materials",
+    "source_column": "course_id",
+    "target_table": "courses",
+    "target_column": "id",
+    "constraint_name": "session_materials_course_id_fkey"
+  },
+  {
+    "source_table": "session_materials",
+    "source_column": "course_id",
+    "target_table": "courses",
+    "target_column": "id",
+    "constraint_name": "session_materials_course_id_fkey"
+  },
+  {
+    "source_table": "session_materials",
+    "source_column": "faculty_id",
+    "target_table": "faculty",
+    "target_column": "id",
+    "constraint_name": "session_materials_faculty_id_fkey"
+  },
+  {
+    "source_table": "session_materials",
+    "source_column": "session_id",
+    "target_table": "sessions",
+    "target_column": "id",
+    "constraint_name": "session_materials_session_id_fkey"
+  },
+  {
+    "source_table": "session_materials",
+    "source_column": "faculty_id",
+    "target_table": "faculty",
+    "target_column": "id",
+    "constraint_name": "session_materials_faculty_id_fkey"
+  },
+  {
+    "source_table": "session_materials",
+    "source_column": "faculty_id",
+    "target_table": "faculty",
+    "target_column": "id",
+    "constraint_name": "session_materials_faculty_id_fkey"
+  },
+  {
+    "source_table": "session_materials",
+    "source_column": "faculty_id",
+    "target_table": "faculty",
+    "target_column": "id",
+    "constraint_name": "session_materials_faculty_id_fkey"
+  },
+  {
+    "source_table": "sessions",
+    "source_column": "course_id",
+    "target_table": "courses",
+    "target_column": "id",
+    "constraint_name": "sessions_course_id_fkey"
+  },
+  {
+    "source_table": "sessions",
+    "source_column": "created_by",
+    "target_table": "users",
+    "target_column": "id",
+    "constraint_name": "sessions_created_by_fkey"
+  },
+  {
+    "source_table": "sessions",
+    "source_column": "created_by",
+    "target_table": "users",
+    "target_column": "id",
+    "constraint_name": "sessions_created_by_fkey"
+  },
+  {
+    "source_table": "sessions",
+    "source_column": "created_by",
+    "target_table": "users",
+    "target_column": "id",
+    "constraint_name": "sessions_created_by_fkey"
+  },
+  {
+    "source_table": "sessions",
+    "source_column": "created_by",
+    "target_table": "users",
+    "target_column": "id",
+    "constraint_name": "sessions_created_by_fkey"
+  },
+  {
+    "source_table": "sessions",
+    "source_column": "venue_id",
+    "target_table": "venues",
+    "target_column": "id",
+    "constraint_name": "sessions_venue_id_fkey"
+  },
+  {
+    "source_table": "sessions",
+    "source_column": "venue_id",
+    "target_table": "venues",
+    "target_column": "id",
+    "constraint_name": "sessions_venue_id_fkey"
+  },
+  {
+    "source_table": "sessions",
+    "source_column": "venue_id",
+    "target_table": "venues",
+    "target_column": "id",
+    "constraint_name": "sessions_venue_id_fkey"
+  },
+  {
+    "source_table": "sessions",
+    "source_column": "venue_id",
+    "target_table": "venues",
+    "target_column": "id",
+    "constraint_name": "sessions_venue_id_fkey"
+  },
+  {
+    "source_table": "sessions",
+    "source_column": "faculty_id",
+    "target_table": "faculty",
+    "target_column": "id",
+    "constraint_name": "sessions_faculty_id_fkey"
+  },
+  {
+    "source_table": "sessions",
+    "source_column": "faculty_id",
+    "target_table": "faculty",
+    "target_column": "id",
+    "constraint_name": "sessions_faculty_id_fkey"
+  },
+  {
+    "source_table": "sessions",
+    "source_column": "faculty_id",
+    "target_table": "faculty",
+    "target_column": "id",
+    "constraint_name": "sessions_faculty_id_fkey"
+  },
+  {
+    "source_table": "sessions",
+    "source_column": "faculty_id",
+    "target_table": "faculty",
+    "target_column": "id",
+    "constraint_name": "sessions_faculty_id_fkey"
+  },
+  {
+    "source_table": "sessions",
+    "source_column": "session_type_id",
+    "target_table": "session_types",
+    "target_column": "id",
+    "constraint_name": "sessions_session_type_id_fkey"
+  },
+  {
+    "source_table": "sessions",
+    "source_column": "course_id",
+    "target_table": "courses",
+    "target_column": "id",
+    "constraint_name": "sessions_course_id_fkey"
+  },
+  {
+    "source_table": "sessions",
+    "source_column": "course_id",
+    "target_table": "courses",
+    "target_column": "id",
+    "constraint_name": "sessions_course_id_fkey"
+  },
+  {
+    "source_table": "sessions",
+    "source_column": "course_id",
+    "target_table": "courses",
+    "target_column": "id",
+    "constraint_name": "sessions_course_id_fkey"
+  },
+  {
+    "source_table": "sessions",
+    "source_column": "session_type_id",
+    "target_table": "session_types",
+    "target_column": "id",
+    "constraint_name": "sessions_session_type_id_fkey"
+  },
+  {
+    "source_table": "sessions",
+    "source_column": "session_type_id",
+    "target_table": "session_types",
+    "target_column": "id",
+    "constraint_name": "sessions_session_type_id_fkey"
+  },
+  {
+    "source_table": "sessions",
+    "source_column": "session_type_id",
+    "target_table": "session_types",
+    "target_column": "id",
+    "constraint_name": "sessions_session_type_id_fkey"
+  }
+]

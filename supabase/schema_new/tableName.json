@@ -1,0 +1,102 @@
+[
+  {
+    "table_schema": "july",
+    "table_name": "assignment_submissions"
+  },
+  {
+    "table_schema": "july",
+    "table_name": "assignments"
+  },
+  {
+    "table_schema": "july",
+    "table_name": "attendance_ping_logs"
+  },
+  {
+    "table_schema": "july",
+    "table_name": "attendance_records"
+  },
+  {
+    "table_schema": "july",
+    "table_name": "categories"
+  },
+  {
+    "table_schema": "july",
+    "table_name": "course_enrollments"
+  },
+  {
+    "table_schema": "july",
+    "table_name": "courses"
+  },
+  {
+    "table_schema": "july",
+    "table_name": "faculty"
+  },
+  {
+    "table_schema": "july",
+    "table_name": "feedback_questions"
+  },
+  {
+    "table_schema": "july",
+    "table_name": "feedback_responses"
+  },
+  {
+    "table_schema": "july",
+    "table_name": "google_tokens"
+  },
+  {
+    "table_schema": "july",
+    "table_name": "leave_requests"
+  },
+  {
+    "table_schema": "july",
+    "table_name": "notifications"
+  },
+  {
+    "table_schema": "july",
+    "table_name": "session_materials"
+  },
+  {
+    "table_schema": "july",
+    "table_name": "session_skills"
+  },
+  {
+    "table_schema": "july",
+    "table_name": "session_types"
+  },
+  {
+    "table_schema": "july",
+    "table_name": "sessions"
+  },
+  {
+    "table_schema": "july",
+    "table_name": "skills"
+  },
+  {
+    "table_schema": "july",
+    "table_name": "student_attendance_marks"
+  },
+  {
+    "table_schema": "july",
+    "table_name": "student_course_attendance"
+  },
+  {
+    "table_schema": "july",
+    "table_name": "students"
+  },
+  {
+    "table_schema": "july",
+    "table_name": "system_settings"
+  },
+  {
+    "table_schema": "july",
+    "table_name": "users"
+  },
+  {
+    "table_schema": "july",
+    "table_name": "venues"
+  },
+  {
+    "table_schema": "july",
+    "table_name": "wifi_snapshots"
+  }
+]

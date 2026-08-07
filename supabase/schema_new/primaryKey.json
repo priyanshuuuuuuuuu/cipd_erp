@@ -1,0 +1,106 @@
+[
+  {
+    "table_name": "assignment_submissions",
+    "column_name": "id"
+  },
+  {
+    "table_name": "assignments",
+    "column_name": "id"
+  },
+  {
+    "table_name": "attendance_ping_logs",
+    "column_name": "id"
+  },
+  {
+    "table_name": "attendance_records",
+    "column_name": "id"
+  },
+  {
+    "table_name": "categories",
+    "column_name": "id"
+  },
+  {
+    "table_name": "course_enrollments",
+    "column_name": "id"
+  },
+  {
+    "table_name": "courses",
+    "column_name": "id"
+  },
+  {
+    "table_name": "faculty",
+    "column_name": "id"
+  },
+  {
+    "table_name": "feedback_questions",
+    "column_name": "id"
+  },
+  {
+    "table_name": "feedback_responses",
+    "column_name": "id"
+  },
+  {
+    "table_name": "google_tokens",
+    "column_name": "user_id"
+  },
+  {
+    "table_name": "leave_requests",
+    "column_name": "id"
+  },
+  {
+    "table_name": "notifications",
+    "column_name": "id"
+  },
+  {
+    "table_name": "session_materials",
+    "column_name": "id"
+  },
+  {
+    "table_name": "session_skills",
+    "column_name": "skill_id"
+  },
+  {
+    "table_name": "session_skills",
+    "column_name": "session_id"
+  },
+  {
+    "table_name": "session_types",
+    "column_name": "id"
+  },
+  {
+    "table_name": "sessions",
+    "column_name": "id"
+  },
+  {
+    "table_name": "skills",
+    "column_name": "id"
+  },
+  {
+    "table_name": "student_attendance_marks",
+    "column_name": "id"
+  },
+  {
+    "table_name": "student_course_attendance",
+    "column_name": "id"
+  },
+  {
+    "table_name": "students",
+    "column_name": "id"
+  },
+  {
+    "table_name": "system_settings",
+    "column_name": "id"
+  },
+  {
+    "table_name": "users",
+    "column_name": "id"
+  },
+  {
+    "table_name": "venues",
+    "column_name": "id"
+  },
+  {
+    "table_name": "wifi_snapshots",
+    "column_name": "id"
+  }
+]
