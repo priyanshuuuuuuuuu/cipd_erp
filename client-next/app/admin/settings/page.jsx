@@ -4,7 +4,7 @@ import '../../Dashboard.css';
 import {
     LayoutGrid, Calendar, MessageSquare, Settings as SettingsIcon, LogOut, Bell, Search, Menu,
     ChevronLeft, ChevronRight, Wifi, Clock, FileBarChart, CheckCircle, Save, Users,
-    Plus, Trash2, Edit3, Shield, X, Eye, EyeOff, AlertCircle, ExternalLink, Trophy
+    Plus, Trash2, Edit3, Shield, X, Eye, EyeOff, AlertCircle, ExternalLink, Trophy, GraduationCap
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
@@ -166,6 +166,7 @@ export default function AdminSettingsPage() {
                     <div className="nav-item" onClick={() => navTo('/admin/schedule')} style={{ cursor: 'pointer' }}><Calendar size={18} /> <span>Schedule Management</span></div>
                     <div className="nav-item" onClick={() => navTo('/admin/attendance')} style={{ cursor: 'pointer' }}><CheckCircle size={18} /> <span>Attendance Monitoring</span></div>
                     <div className="nav-item" onClick={() => navTo('/admin/live-students')} style={{ cursor: 'pointer' }}><Users size={18} /> <span>Live Students</span></div>
+                    <div className="nav-item" onClick={() => navTo('/admin/students')} style={{ cursor: 'pointer' }}><GraduationCap size={18} /> <span>Student Management</span></div>
                     <div className="nav-item" onClick={() => navTo('/admin/wifi-logs')} style={{ cursor: 'pointer' }}><Wifi size={18} /> <span>Wi-Fi Logs</span></div>
                     <div style={{ fontSize: '0.6rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', color: '#555', padding: '10px 1rem 4px' }}><span>Analytics</span></div>
                     <div className="nav-item" onClick={() => navTo('/admin/feedback')} style={{ cursor: 'pointer' }}><MessageSquare size={18} /> <span>Feedback Analytics</span></div>

@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import '../../Dashboard.css';
 import {
   LayoutGrid, Calendar, MessageSquare, Settings, LogOut, Bell, Search, Menu,
-  ChevronLeft, ChevronRight, Users, CheckCircle, XCircle, Clock, Trophy,
+  ChevronLeft, ChevronRight, Users, CheckCircle, XCircle, Clock, Trophy, GraduationCap,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
@@ -72,6 +72,7 @@ export default function AdminLeaveRequestsPage() {
             <div className="nav-item active"><Clock size={18} /> <span>Leave Requests</span></div>
             <div className="nav-item" onClick={() => navTo('/admin/leaderboard')} style={{ cursor: 'pointer' }}><Trophy size={18} /> <span>Leaderboard</span></div>
             <div className="nav-item" onClick={() => navTo('/admin/schedule')} style={{ cursor: 'pointer' }}><Calendar size={18} /> <span>Schedule</span></div>
+            <div className="nav-item" onClick={() => navTo('/admin/students')} style={{ cursor: 'pointer' }}><GraduationCap size={18} /> <span>Student Management</span></div>
             <div className="nav-item" onClick={() => navTo('/admin/notifications')} style={{ cursor: 'pointer' }}><Bell size={18} /> <span>Notifications</span></div>
             <div className="nav-item" onClick={() => navTo('/admin/settings')} style={{ cursor: 'pointer' }}><Settings size={18} /> <span>Settings</span></div>
           </nav>
