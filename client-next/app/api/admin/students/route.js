@@ -1,15 +1,32 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { getSchemaClient, getCohortConfig } from '@/lib/supabase';
 import { withRole } from '@/lib/middleware';
 import { hashPassword } from '@/lib/auth';
 
-// ─── GET /api/admin/students ───────────────────────────────────────────────
-// Returns all students with user data, enrollment count, and courses list.
+/** Resolve and validate schema from request. Returns null if invalid. */
+function resolveSchema(req) {
+  const { searchParams } = new URL(req.url);
+  const requested = searchParams.get('schema') || 'july';
+  const { schemas } = getCohortConfig();
+  return schemas.includes(requested) ? requested : null;
+}
+
+/** Same but reads schema from request body (for POST/PATCH/DELETE with JSON body) */
+function resolveSchemaFromBody(body) {
+  const requested = body.schema || 'july';
+  const { schemas } = getCohortConfig();
+  return schemas.includes(requested) ? requested : null;
+}
+
+// ─── GET /api/admin/students?schema=july ─────────────────────────────────
 async function getHandler(req) {
   try {
-    // Fetch all students joined with users
-    const { data: students, error: stuErr } = await supabaseAdmin
+    const schema = resolveSchema(req);
+    if (!schema) return NextResponse.json({ error: 'Invalid schema' }, { status: 400 });
+    const db = getSchemaClient(schema);
+
+    const { data: students, error: stuErr } = await db
       .from('students')
       .select(`
         id,
@@ -32,12 +49,11 @@ async function getHandler(req) {
 
     if (stuErr) throw stuErr;
 
-    // Fetch all course enrollments for these students
     const studentIds = (students || []).map(s => s.id);
-
     let enrollmentMap = {};
+
     if (studentIds.length > 0) {
-      const { data: enrollments } = await supabaseAdmin
+      const { data: enrollments } = await db
         .from('course_enrollments')
         .select(`
           student_id,
@@ -73,131 +89,82 @@ async function getHandler(req) {
       courses: enrollmentMap[s.id] || [],
     }));
 
-    return NextResponse.json({ students: result });
+    return NextResponse.json({ students: result, schema });
   } catch (err) {
     console.error('Students GET error:', err);
     return NextResponse.json({ error: err.message || 'Internal server error' }, { status: 500 });
   }
 }
 
-// ─── POST /api/admin/students ─────────────────────────────────────────────
-// Creates a new student (user + students row). Default password: 12345678
+// ─── POST /api/admin/students — body: { ..., schema? } ───────────────────
 async function postHandler(req) {
   try {
     const body = await req.json();
     const { first_name, last_name, email, enrollment_no, program_name } = body;
+    const schema = resolveSchemaFromBody(body);
+    if (!schema) return NextResponse.json({ error: 'Invalid schema' }, { status: 400 });
+    const db = getSchemaClient(schema);
 
     if (!first_name || !last_name || !email) {
       return NextResponse.json({ error: 'First name, last name, and email are required.' }, { status: 400 });
     }
 
-    // Check for duplicate email
-    const { data: existingUser } = await supabaseAdmin
-      .from('users')
-      .select('id')
-      .eq('email', email.toLowerCase().trim())
-      .maybeSingle();
+    const { data: existingUser } = await db.from('users').select('id').eq('email', email.toLowerCase().trim()).maybeSingle();
+    if (existingUser) return NextResponse.json({ error: 'A user with this email already exists.' }, { status: 409 });
 
-    if (existingUser) {
-      return NextResponse.json({ error: 'A user with this email already exists.' }, { status: 409 });
-    }
-
-    // Check for duplicate enrollment_no if provided
     if (enrollment_no?.trim()) {
-      const { data: existingEnroll } = await supabaseAdmin
-        .from('students')
-        .select('id')
-        .eq('enrollment_no', enrollment_no.trim())
-        .maybeSingle();
-
-      if (existingEnroll) {
-        return NextResponse.json({ error: 'A student with this enrollment number already exists.' }, { status: 409 });
-      }
+      const { data: existingEnroll } = await db.from('students').select('id').eq('enrollment_no', enrollment_no.trim()).maybeSingle();
+      if (existingEnroll) return NextResponse.json({ error: 'A student with this enrollment number already exists.' }, { status: 409 });
     }
 
-    // Hash default password
     const password_hash = await hashPassword('12345678');
 
-    // Insert into users
-    const { data: newUser, error: userErr } = await supabaseAdmin
+    const { data: newUser, error: userErr } = await db
       .from('users')
-      .insert({
-        first_name: first_name.trim(),
-        last_name: last_name.trim(),
-        email: email.toLowerCase().trim(),
-        password_hash,
-        role: 'student',
-        is_active: true,
-      })
+      .insert({ first_name: first_name.trim(), last_name: last_name.trim(), email: email.toLowerCase().trim(), password_hash, role: 'student', is_active: true })
       .select('id')
       .single();
-
     if (userErr) throw userErr;
 
-    // Insert into students
-    const { error: stuErr } = await supabaseAdmin
-      .from('students')
-      .insert({
-        id: newUser.id,
-        enrollment_no: enrollment_no?.trim() || null,
-        program_name: program_name?.trim() || null,
-      });
-
+    const { error: stuErr } = await db.from('students').insert({ id: newUser.id, enrollment_no: enrollment_no?.trim() || null, program_name: program_name?.trim() || null });
     if (stuErr) {
-      // Rollback user if student insert fails
-      await supabaseAdmin.from('users').delete().eq('id', newUser.id);
+      await db.from('users').delete().eq('id', newUser.id);
       throw stuErr;
     }
 
-    return NextResponse.json({
-      success: true,
-      student: { id: newUser.id, first_name, last_name, email },
-    }, { status: 201 });
+    return NextResponse.json({ success: true, student: { id: newUser.id, first_name, last_name, email } }, { status: 201 });
   } catch (err) {
     console.error('Students POST error:', err);
     return NextResponse.json({ error: err.message || 'Internal server error' }, { status: 500 });
   }
 }
 
-// ─── PATCH /api/admin/students ────────────────────────────────────────────
-// Update student details.
-// Body: { student_id, first_name?, last_name?, email?, enrollment_no?, program_name?, mac_verified?, is_active? }
+// ─── PATCH /api/admin/students — body: { ..., schema? } ──────────────────
 async function patchHandler(req) {
   try {
     const body = await req.json();
-    const { student_id, first_name, last_name, email, enrollment_no, program_name, mac_verified, is_active } = body;
+    const { student_id, first_name, last_name, email, enrollment_no, program_name, mac_verified, is_active, mac_address } = body;
+    const schema = resolveSchemaFromBody(body);
+    if (!schema) return NextResponse.json({ error: 'Invalid schema' }, { status: 400 });
+    const db = getSchemaClient(schema);
 
-    if (!student_id) {
-      return NextResponse.json({ error: 'student_id is required.' }, { status: 400 });
+    if (!student_id) return NextResponse.json({ error: 'student_id is required.' }, { status: 400 });
+
+    if (mac_address !== undefined && mac_address !== '' && mac_address !== null) {
+      if (!/^([A-Fa-f0-9]{2}:){5}[A-Fa-f0-9]{2}$/.test(mac_address)) {
+        return NextResponse.json({ error: 'Invalid MAC address format. Use XX:XX:XX:XX:XX:XX' }, { status: 400 });
+      }
     }
 
-    // If email is being changed, check for conflicts
     if (email !== undefined) {
-      const { data: conflict } = await supabaseAdmin
-        .from('users')
-        .select('id')
-        .eq('email', email.toLowerCase().trim())
-        .neq('id', student_id)
-        .maybeSingle();
-      if (conflict) {
-        return NextResponse.json({ error: 'This email is already used by another user.' }, { status: 409 });
-      }
+      const { data: conflict } = await db.from('users').select('id').eq('email', email.toLowerCase().trim()).neq('id', student_id).maybeSingle();
+      if (conflict) return NextResponse.json({ error: 'This email is already used by another user.' }, { status: 409 });
     }
-
-    // If enrollment_no is being changed, check for conflicts
     if (enrollment_no !== undefined && enrollment_no !== '') {
-      const { data: conflict } = await supabaseAdmin
-        .from('students')
-        .select('id')
-        .eq('enrollment_no', enrollment_no.trim())
-        .neq('id', student_id)
-        .maybeSingle();
-      if (conflict) {
-        return NextResponse.json({ error: 'This enrollment number is already taken.' }, { status: 409 });
-      }
+      const { data: conflict } = await db.from('students').select('id').eq('enrollment_no', enrollment_no.trim()).neq('id', student_id).maybeSingle();
+      if (conflict) return NextResponse.json({ error: 'This enrollment number is already taken.' }, { status: 409 });
     }
 
-    // Update users table
     const userUpdates = {};
     if (first_name !== undefined) userUpdates.first_name = first_name.trim();
     if (last_name !== undefined) userUpdates.last_name = last_name.trim();
@@ -205,24 +172,26 @@ async function patchHandler(req) {
     if (is_active !== undefined) userUpdates.is_active = Boolean(is_active);
 
     if (Object.keys(userUpdates).length > 0) {
-      const { error: userErr } = await supabaseAdmin
-        .from('users')
-        .update(userUpdates)
-        .eq('id', student_id);
+      const { error: userErr } = await db.from('users').update(userUpdates).eq('id', student_id);
       if (userErr) throw userErr;
     }
 
-    // Update students table
     const stuUpdates = {};
     if (enrollment_no !== undefined) stuUpdates.enrollment_no = enrollment_no.trim() || null;
     if (program_name !== undefined) stuUpdates.program_name = program_name.trim() || null;
     if (mac_verified !== undefined) stuUpdates.mac_verified = Boolean(mac_verified);
+    if (mac_address !== undefined) {
+      if (mac_address === '' || mac_address === null) {
+        stuUpdates.mac_address = null;
+        stuUpdates.mac_verified = false;
+      } else {
+        stuUpdates.mac_address = mac_address.toUpperCase();
+        stuUpdates.mac_verified = false;
+      }
+    }
 
     if (Object.keys(stuUpdates).length > 0) {
-      const { error: stuErr } = await supabaseAdmin
-        .from('students')
-        .update(stuUpdates)
-        .eq('id', student_id);
+      const { error: stuErr } = await db.from('students').update(stuUpdates).eq('id', student_id);
       if (stuErr) throw stuErr;
     }
 
@@ -233,27 +202,49 @@ async function patchHandler(req) {
   }
 }
 
-// ─── DELETE /api/admin/students ───────────────────────────────────────────
-// Deletes a student. Cascade via users FK removes students row + all related records.
-// Body: { student_id }
+// ─── DELETE /api/admin/students — body: { student_id, schema? } ──────────
+// Manually deletes all child records first because the public schema does not
+// have ON DELETE CASCADE on all FKs (unlike the july schema).
 async function deleteHandler(req) {
   try {
     const body = await req.json();
-    const { student_id } = body;
+    const { student_id, student_ids } = body;
+    const ids = student_ids || (student_id ? [student_id] : []);
+    const schema = resolveSchemaFromBody(body);
+    if (!schema) return NextResponse.json({ error: 'Invalid schema' }, { status: 400 });
+    const db = getSchemaClient(schema);
 
-    if (!student_id) {
-      return NextResponse.json({ error: 'student_id is required.' }, { status: 400 });
-    }
+    if (ids.length === 0) return NextResponse.json({ error: 'student_id or student_ids is required.' }, { status: 400 });
 
-    // Deleting the user cascades to students, attendance_records, etc.
-    const { error } = await supabaseAdmin
-      .from('users')
-      .delete()
-      .eq('id', student_id);
+    // 1. Delete attendance_records (references students.id)
+    const { error: arErr } = await db.from('attendance_records').delete().in('student_id', ids);
+    if (arErr) throw new Error(`attendance_records: ${arErr.message}`);
 
-    if (error) throw error;
+    // 2. Delete feedback_responses (references students.id)
+    const { error: frErr } = await db.from('feedback_responses').delete().in('student_id', ids);
+    if (frErr) throw new Error(`feedback_responses: ${frErr.message}`);
 
-    return NextResponse.json({ success: true });
+    // 3. Delete assignment_submissions (references students.id)
+    const { error: asErr } = await db.from('assignment_submissions').delete().in('student_id', ids);
+    if (asErr) throw new Error(`assignment_submissions: ${asErr.message}`);
+
+    // 4. Delete course_enrollments (references students.id)
+    const { error: ceErr } = await db.from('course_enrollments').delete().in('student_id', ids);
+    if (ceErr) throw new Error(`course_enrollments: ${ceErr.message}`);
+
+    // 5. Delete notifications (references users.id as recipient)
+    const { error: notifErr } = await db.from('notifications').delete().in('recipient_id', ids);
+    if (notifErr) throw new Error(`notifications: ${notifErr.message}`);
+
+    // 6. Delete the students row (references users.id)
+    const { error: stuErr } = await db.from('students').delete().in('id', ids);
+    if (stuErr) throw new Error(`students: ${stuErr.message}`);
+
+    // 7. Finally delete the users row
+    const { error: userErr } = await db.from('users').delete().in('id', ids);
+    if (userErr) throw new Error(`users: ${userErr.message}`);
+
+    return NextResponse.json({ success: true, deleted: ids.length });
   } catch (err) {
     console.error('Students DELETE error:', err);
     return NextResponse.json({ error: err.message || 'Internal server error' }, { status: 500 });

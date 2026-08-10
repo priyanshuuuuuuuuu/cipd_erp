@@ -6,7 +6,7 @@ import {
     ChevronLeft, ChevronRight, Wifi, Clock, FileBarChart, CheckCircle, Users,
     X, Loader2, Pencil, Trash2, Plus, UserPlus, BookOpen, Shield, ShieldCheck,
     ShieldOff, Activity, AlertTriangle, Trophy, GraduationCap, Mail, Hash, UserX,
-    ChevronDown, RefreshCw, BookmarkPlus, BookmarkMinus
+    ChevronDown, ChevronUp, RefreshCw, BookmarkPlus, BookmarkMinus, BarChart2, Flame
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
@@ -69,8 +69,58 @@ function DeleteConfirmModal({ student, onConfirm, onClose, deleting }) {
     );
 }
 
+// ─── Bulk Delete Confirmation Modal ─────────────────────────────────────────────
+function BulkDeleteConfirmModal({ count, onConfirm, onClose, deleting }) {
+    useEffect(() => {
+        const onKey = e => e.key === 'Escape' && onClose();
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [onClose]);
+
+    return (
+        <>
+            <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', zIndex: 1100, backdropFilter: 'blur(4px)' }} />
+            <div style={{
+                position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
+                background: '#fff', borderRadius: '16px', padding: '2rem', width: 'min(440px, 90vw)',
+                zIndex: 1101, boxShadow: '0 25px 50px rgba(0,0,0,0.2)',
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1rem' }}>
+                    <div style={{ width: 44, height: 44, borderRadius: '12px', background: '#fef2f2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <AlertTriangle size={22} color="#dc2626" />
+                    </div>
+                    <div>
+                        <div style={{ fontSize: '1rem', fontWeight: 800, color: '#111' }}>Delete Multiple Students</div>
+                        <div style={{ fontSize: '0.78rem', color: '#888', marginTop: 2 }}>This action cannot be undone</div>
+                    </div>
+                </div>
+
+                <p style={{ fontSize: '0.85rem', color: '#444', lineHeight: 1.6, marginBottom: '1rem' }}>
+                    You are about to permanently delete <strong>{count}</strong> selected student(s).
+                </p>
+
+                <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '10px 14px', marginBottom: '1.5rem' }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#dc2626', marginBottom: 4 }}>⚠ Cascade Deletion Warning</div>
+                    <div style={{ fontSize: '0.75rem', color: '#b91c1c', lineHeight: 1.5 }}>
+                        All related records for these students (attendance, feedback, submissions) will also be permanently deleted.
+                    </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '10px' }}>
+                    <button onClick={onClose} disabled={deleting} style={{ flex: 1, padding: '9px', borderRadius: '8px', border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, color: '#555' }}>
+                        Cancel
+                    </button>
+                    <button onClick={onConfirm} disabled={deleting} style={{ flex: 1, padding: '9px', borderRadius: '8px', border: 'none', background: deleting ? '#f87171' : '#dc2626', color: '#fff', cursor: deleting ? 'not-allowed' : 'pointer', fontSize: '0.85rem', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                        {deleting ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Deleting...</> : <><Trash2 size={14} /> Delete {count}</>}
+                    </button>
+                </div>
+            </div>
+        </>
+    );
+}
+
 // ─── Student Edit / Detail Drawer ──────────────────────────────────────────
-function StudentDrawer({ student, courses, onClose, onSaved }) {
+function StudentDrawer({ student, courses, onClose, onSaved, schema = 'july' }) {
     const [tab, setTab] = useState('details'); // 'details' | 'enrollments'
     const [form, setForm] = useState({
         first_name: student.first_name,
@@ -78,6 +128,7 @@ function StudentDrawer({ student, courses, onClose, onSaved }) {
         email: student.email,
         enrollment_no: student.enrollment_no,
         program_name: student.program_name,
+        mac_address: student.mac_address || '',
         mac_verified: student.mac_verified,
         is_active: student.is_active,
     });
@@ -102,8 +153,14 @@ function StudentDrawer({ student, courses, onClose, onSaved }) {
     const handleSave = async (e) => {
         e.preventDefault();
         setSaveError(''); setSaveSuccess(''); setSaving(true);
+        // Client-side MAC validation (same regex as student portal)
+        if (form.mac_address && !/^([A-Fa-f0-9]{2}:){5}[A-Fa-f0-9]{2}$/i.test(form.mac_address)) {
+            setSaveError('Invalid MAC address format. Use XX:XX:XX:XX:XX:XX');
+            setSaving(false);
+            return;
+        }
         try {
-            await api.patch('/api/admin/students', { student_id: student.id, ...form });
+            await api.patch('/api/admin/students', { student_id: student.id, ...form, schema });
             setSaveSuccess('Student details updated successfully!');
             onSaved();
             setTimeout(() => setSaveSuccess(''), 2500);
@@ -117,7 +174,7 @@ function StudentDrawer({ student, courses, onClose, onSaved }) {
     const handleEnroll = async (course) => {
         setEnrollError(''); setEnrolling(course.id);
         try {
-            await api.post('/api/admin/enrollments', { student_id: student.id, course_id: course.id });
+            await api.post('/api/admin/enrollments', { student_id: student.id, course_id: course.id, schema });
             setStudentCourses(prev => [...prev, { course_id: course.id, course_name: course.name, course_code: course.code, enrolled_at: new Date().toISOString() }]);
             onSaved();
         } catch (err) {
@@ -130,7 +187,7 @@ function StudentDrawer({ student, courses, onClose, onSaved }) {
     const handleUnenroll = async (courseId) => {
         setEnrollError(''); setUnenrolling(courseId);
         try {
-            await api.delete('/api/admin/enrollments', { student_id: student.id, course_id: courseId });
+            await api.delete('/api/admin/enrollments', { student_id: student.id, course_id: courseId, schema });
             setStudentCourses(prev => prev.filter(c => c.course_id !== courseId));
             onSaved();
         } catch (err) {
@@ -230,7 +287,7 @@ function StudentDrawer({ student, courses, onClose, onSaved }) {
                                 </div>
                             </div>
 
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
                                 <div>
                                     <label style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Account Status</label>
                                     <select style={{ ...inp }} value={form.is_active ? 'true' : 'false'} onChange={e => setForm(f => ({ ...f, is_active: e.target.value === 'true' }))}>
@@ -244,6 +301,32 @@ function StudentDrawer({ student, courses, onClose, onSaved }) {
                                         <option value="true">Verified</option>
                                         <option value="false">Not Verified</option>
                                     </select>
+                                </div>
+                            </div>
+                            {/* MAC Address field */}
+                            <div style={{ marginBottom: '1.5rem' }}>
+                                <label style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>MAC Address</label>
+                                <input
+                                    style={{ ...inp, fontFamily: 'monospace', letterSpacing: '0.5px', textTransform: 'uppercase' }}
+                                    value={form.mac_address}
+                                    onChange={e => setForm(f => ({ ...f, mac_address: e.target.value.trim() }))}
+                                    placeholder="XX:XX:XX:XX:XX:XX"
+                                    maxLength={17}
+                                    onFocus={e => e.target.style.borderColor = '#3B82F6'}
+                                    onBlur={e => e.target.style.borderColor = '#e5e7eb'}
+                                />
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 5 }}>
+                                    {form.mac_address && !/^([A-Fa-f0-9]{2}:){5}[A-Fa-f0-9]{2}$/i.test(form.mac_address) ? (
+                                        <span style={{ fontSize: '0.68rem', color: '#dc2626', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                            <AlertTriangle size={11} /> Invalid format — use XX:XX:XX:XX:XX:XX
+                                        </span>
+                                    ) : form.mac_address ? (
+                                        <span style={{ fontSize: '0.68rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                            <CheckCircle size={11} /> Valid · will be stored as {form.mac_address.toUpperCase()} · mac_verified will reset to false
+                                        </span>
+                                    ) : (
+                                        <span style={{ fontSize: '0.68rem', color: '#94a3b8' }}>Leave blank to clear MAC address</span>
+                                    )}
                                 </div>
                             </div>
 
@@ -348,7 +431,7 @@ function StudentDrawer({ student, courses, onClose, onSaved }) {
 }
 
 // ─── Add Student Modal ─────────────────────────────────────────────────────
-function AddStudentModal({ onClose, onAdded }) {
+function AddStudentModal({ onClose, onAdded, schema = 'july' }) {
     const [form, setForm] = useState({ first_name: '', last_name: '', email: '', enrollment_no: '', program_name: '' });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -363,7 +446,7 @@ function AddStudentModal({ onClose, onAdded }) {
         e.preventDefault();
         setError(''); setLoading(true);
         try {
-            await api.post('/api/admin/students', form);
+            await api.post('/api/admin/students', { ...form, schema });
             onAdded();
         } catch (err) {
             setError(err.message || 'Failed to create student.');
@@ -450,6 +533,145 @@ function AddStudentModal({ onClose, onAdded }) {
     );
 }
 
+
+// ─── Attendance Summary Panel ──────────────────────────────────────────────
+function AttendanceSummaryPanel({ student, schema }) {
+    const [data, setData] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+
+    useEffect(() => {
+        setLoading(true); setError('');
+        api.get(`/api/admin/students/attendance-summary?student_id=${student.id}&schema=${schema}`)
+            .then(d => setData(d))
+            .catch(err => setError(err.message || 'Failed to load attendance data'))
+            .finally(() => setLoading(false));
+    }, [student.id, schema]);
+
+    const pctColor = (p) => p >= 85 ? '#10b981' : p >= 75 ? '#f59e0b' : '#ef4444';
+    const pctBg   = (p) => p >= 85 ? '#ecfdf5' : p >= 75 ? '#fffbeb' : '#fef2f2';
+    const pctLabel = (p) => p >= 85 ? 'On Track' : p >= 75 ? 'Needs Attention' : 'At Risk';
+    const statusColor = { present: '#10b981', partial: '#f59e0b', absent: '#ef4444', leave: '#3B82F6' };
+    const statusBg    = { present: '#ecfdf5', partial: '#fffbeb', absent: '#fef2f2', leave: '#eff6ff' };
+    const statusLabel = { present: 'Present', partial: 'Partial', absent: 'Absent', leave: 'Leave' };
+
+    return (
+        <tr>
+            <td colSpan={8} style={{ padding: 0, borderBottom: '2px solid #e2e8f0' }}>
+                <div style={{ background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)', borderLeft: '3px solid #1b6ca8', padding: '1.2rem 1.4rem', animation: 'expandIn 0.2s ease' }}>
+                    {loading ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: '#94a3b8', fontSize: '0.82rem', padding: '0.5rem 0' }}>
+                            <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
+                            Loading attendance data for {student.first_name}…
+                        </div>
+                    ) : error ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#dc2626', fontSize: '0.8rem' }}>
+                            <AlertTriangle size={13} /> {error}
+                        </div>
+                    ) : data ? (
+                        <div>
+                            {/* Header row */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: '1rem' }}>
+                                <BarChart2 size={14} color="#1b6ca8" />
+                                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#1b6ca8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Attendance Summary</span>
+                                <span style={{ fontSize: '0.68rem', color: '#94a3b8', marginLeft: 4 }}>· {data.overall.total} sessions tracked</span>
+                            </div>
+
+                            {/* Overall stats bar */}
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, auto) 1fr', alignItems: 'center', gap: '1rem', background: '#fff', borderRadius: '10px', padding: '0.9rem 1.2rem', border: '1px solid #e2e8f0', marginBottom: '1rem', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+                                {/* Big % */}
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, paddingRight: '1rem', borderRight: '1px solid #f1f5f9' }}>
+                                    <div style={{ fontSize: '1.8rem', fontWeight: 900, color: pctColor(data.overall.pct), lineHeight: 1 }}>{data.overall.pct}%</div>
+                                    <div style={{ fontSize: '0.62rem', fontWeight: 700, color: pctColor(data.overall.pct), background: pctBg(data.overall.pct), padding: '2px 7px', borderRadius: 5 }}>{pctLabel(data.overall.pct)}</div>
+                                </div>
+                                {/* Stat chips */}
+                                {[
+                                    { label: 'Present', value: data.overall.attended, color: '#10b981', bg: '#ecfdf5' },
+                                    { label: 'Absent', value: data.overall.absent, color: '#ef4444', bg: '#fef2f2' },
+                                    { label: 'Leave', value: data.overall.leave, color: '#3B82F6', bg: '#eff6ff' },
+                                    { label: 'Total', value: data.overall.total, color: '#64748b', bg: '#f8fafc' },
+                                ].map(chip => (
+                                    <div key={chip.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+                                        <div style={{ fontSize: '1.1rem', fontWeight: 800, color: chip.color }}>{chip.value}</div>
+                                        <div style={{ fontSize: '0.62rem', fontWeight: 700, color: chip.color, background: chip.bg, padding: '2px 7px', borderRadius: 5 }}>{chip.label}</div>
+                                    </div>
+                                ))}
+                                {/* Streak */}
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 5 }}>
+                                    <Flame size={13} color={data.streak > 0 ? '#f59e0b' : '#cbd5e1'} />
+                                    <span style={{ fontSize: '0.78rem', fontWeight: 700, color: data.streak > 0 ? '#f59e0b' : '#94a3b8' }}>{data.streak} day streak</span>
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: data.courses.length > 0 ? '1fr 1fr' : '1fr', gap: '1rem' }}>
+                                {/* Course breakdown */}
+                                {data.courses.length > 0 && (
+                                    <div>
+                                        <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '0.6rem' }}>By Course</div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                            {data.courses.map(c => (
+                                                <div key={c.course_name} style={{ background: '#fff', borderRadius: '8px', padding: '8px 12px', border: '1px solid #e2e8f0' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                                                            <span style={{ fontSize: '0.65rem', fontWeight: 800, background: '#f1f5f9', color: '#334155', padding: '2px 6px', borderRadius: 5 }}>{c.course_code}</span>
+                                                            <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#0f172a' }}>{c.course_name}</span>
+                                                        </div>
+                                                        <span style={{ fontSize: '0.78rem', fontWeight: 800, color: pctColor(c.pct) }}>{c.pct}%</span>
+                                                    </div>
+                                                    {/* Progress bar */}
+                                                    <div style={{ height: 5, borderRadius: 99, background: '#f1f5f9', overflow: 'hidden' }}>
+                                                        <div style={{ height: '100%', width: `${c.pct}%`, background: `linear-gradient(90deg, ${pctColor(c.pct)}, ${pctColor(c.pct)}aa)`, borderRadius: 99, transition: 'width 0.5s ease' }} />
+                                                    </div>
+                                                    <div style={{ display: 'flex', gap: 10, marginTop: 4, fontSize: '0.62rem', color: '#94a3b8' }}>
+                                                        <span style={{ color: '#10b981' }}>✓ {c.attended}</span>
+                                                        <span style={{ color: '#ef4444' }}>✗ {c.absent}</span>
+                                                        {c.leave > 0 && <span style={{ color: '#3B82F6' }}>L {c.leave}</span>}
+                                                        <span>/ {c.total}</span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Recent sessions */}
+                                <div>
+                                    <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '0.6rem' }}>Recent Sessions</div>
+                                    {data.recentSessions.length === 0 ? (
+                                        <div style={{ background: '#fff', borderRadius: '8px', padding: '1rem', border: '1px solid #e2e8f0', textAlign: 'center', color: '#94a3b8', fontSize: '0.78rem' }}>
+                                            No sessions recorded yet
+                                        </div>
+                                    ) : (
+                                        <div style={{ background: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+                                            {data.recentSessions.slice(0, 8).map((sess, idx) => (
+                                                <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px', borderBottom: idx < Math.min(7, data.recentSessions.length - 1) ? '1px solid #f1f5f9' : 'none', gap: 10 }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                                                        <div style={{ flexShrink: 0, textAlign: 'center', minWidth: 42 }}>
+                                                            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#334155' }}>{sess.date}</div>
+                                                            <div style={{ fontSize: '0.58rem', color: '#94a3b8' }}>{sess.day}</div>
+                                                        </div>
+                                                        <div style={{ minWidth: 0 }}>
+                                                            <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 160 }}>{sess.title}</div>
+                                                            <div style={{ fontSize: '0.62rem', color: '#94a3b8' }}>{sess.course_code} · {sess.start_time}</div>
+                                                        </div>
+                                                    </div>
+                                                    <span style={{ flexShrink: 0, fontSize: '0.65rem', fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: statusBg[sess.status] || '#f8fafc', color: statusColor[sess.status] || '#94a3b8' }}>
+                                                        {statusLabel[sess.status] || sess.status}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    ) : null}
+                </div>
+            </td>
+        </tr>
+    );
+}
+
 // ─── Main Page Component ───────────────────────────────────────────────────
 export default function AdminStudentsPage() {
     const router = useRouter();
@@ -461,22 +683,46 @@ export default function AdminStudentsPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
+    // Cohort/schema selector
+    const [schema, setSchema] = useState('july');
+    const [cohorts, setCohorts] = useState([{ value: 'july', label: 'July 2026' }]);
+    const [cohortsLoading, setCohortsLoading] = useState(true);
+
     const [searchTerm, setSearchTerm] = useState('');
     const [filterProgram, setFilterProgram] = useState('');
-    const [filterStatus, setFilterStatus] = useState('all'); // 'all' | 'active' | 'inactive'
+    const [filterStatus, setFilterStatus] = useState('all');
 
     const [editingStudent, setEditingStudent] = useState(null);
     const [deletingStudent, setDeletingStudent] = useState(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
     const [showAddModal, setShowAddModal] = useState(false);
+    const [expandedStudentId, setExpandedStudentId] = useState(null);
+
+    const [selectedStudents, setSelectedStudents] = useState([]);
+    const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+
+    const toggleExpand = (id) => setExpandedStudentId(prev => prev === id ? null : id);
 
     const navTo = p => router.push(p);
 
+    // Load available cohorts from API on mount
+    useEffect(() => {
+        api.get('/api/admin/cohorts')
+            .then(cfg => {
+                const list = (cfg.schemas || []).map(s => ({ value: s, label: cfg.labels?.[s] || s }));
+                if (list.length > 0) { setCohorts(list); setSchema(list[0].value); }
+            })
+            .catch(() => {})
+            .finally(() => setCohortsLoading(false));
+    }, []);
+
     const fetchStudents = useCallback(async () => {
         setLoading(true); setError('');
+        setExpandedStudentId(null); // collapse any open panel when cohort changes
+        setSelectedStudents([]); // reset selection
         try {
             const [stuRes, courseRes] = await Promise.allSettled([
-                api.get('/api/admin/students'),
+                api.get(`/api/admin/students?schema=${schema}`),
                 api.get('/api/admin/lookup'),
             ]);
             if (stuRes.status === 'fulfilled') setStudents(stuRes.value.students || []);
@@ -485,7 +731,7 @@ export default function AdminStudentsPage() {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [schema]);
 
     useEffect(() => { fetchStudents(); }, [fetchStudents]);
 
@@ -516,11 +762,26 @@ export default function AdminStudentsPage() {
         if (!deletingStudent) return;
         setDeleteLoading(true);
         try {
-            await api.delete('/api/admin/students', { student_id: deletingStudent.id });
+            await api.delete('/api/admin/students', { student_id: deletingStudent.id, schema });
             setDeletingStudent(null);
             fetchStudents();
         } catch (err) {
             alert('Failed to delete student: ' + (err.message || 'Unknown error'));
+        } finally {
+            setDeleteLoading(false);
+        }
+    };
+
+    const handleBulkDelete = async () => {
+        if (selectedStudents.length === 0) return;
+        setDeleteLoading(true);
+        try {
+            await api.delete('/api/admin/students', { student_ids: selectedStudents, schema });
+            setShowBulkDeleteModal(false);
+            setSelectedStudents([]);
+            fetchStudents();
+        } catch (err) {
+            alert('Failed to delete students: ' + (err.message || 'Unknown error'));
         } finally {
             setDeleteLoading(false);
         }
@@ -583,13 +844,38 @@ export default function AdminStudentsPage() {
                         </div>
                     </header>
 
+                    {/* Cohort Selector Banner */}
+                    {!cohortsLoading && cohorts.length > 1 && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '1rem', padding: '10px 14px', background: '#fff', borderRadius: '10px', border: '1px solid #e2e8f0', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                <BookOpen size={13} color="#64748b" /> Cohort
+                            </div>
+                            <div style={{ display: 'flex', gap: 6 }}>
+                                {cohorts.map(c => (
+                                    <button key={c.value} onClick={() => { setSchema(c.value); setExpandedStudentId(null); }}
+                                        style={{ padding: '5px 14px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, transition: 'all 0.15s',
+                                            background: schema === c.value ? 'linear-gradient(135deg, #0f4c75, #1b6ca8)' : '#f1f5f9',
+                                            color: schema === c.value ? '#fff' : '#64748b',
+                                            boxShadow: schema === c.value ? '0 2px 8px rgba(27,108,168,0.3)' : 'none' }}>
+                                        {c.label}
+                                        {c.value !== 'july' && <span style={{ fontSize: '0.58rem', marginLeft: 5, opacity: 0.75 }}>● Archive</span>}
+                                    </button>
+                                ))}
+                            </div>
+                            {schema !== (cohorts[0]?.value) && (
+                                <span style={{ marginLeft: 'auto', fontSize: '0.68rem', fontWeight: 700, padding: '3px 10px', borderRadius: '6px', background: '#fffbeb', color: '#b45309', border: '1px solid #fde68a' }}>
+                                    ⚠ Viewing archived cohort — edits apply to this schema
+                                </span>
+                            )}
+                        </div>
+                    )}
+
                     {/* Stats Row */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
                         {[
                             { label: 'Total Students', value: totalStudents, icon: GraduationCap, color: '#3B82F6', bg: '#eff6ff', border: '#bfdbfe' },
                             { label: 'Active Accounts', value: activeStudents, icon: Activity, color: '#10b981', bg: '#ecfdf5', border: '#a7f3d0' },
                             { label: 'MAC Verified', value: verifiedMAC, icon: ShieldCheck, color: '#7c3aed', bg: '#faf5ff', border: '#ddd6fe' },
-                            { label: 'Total Enrollments', value: totalEnrollments, icon: BookOpen, color: '#f59e0b', bg: '#fffbeb', border: '#fde68a' },
                         ].map(stat => {
                             const Icon = stat.icon;
                             return (
@@ -614,6 +900,7 @@ export default function AdminStudentsPage() {
                                 <GraduationCap size={16} color="#1b6ca8" />
                                 All Students
                                 <span style={{ fontSize: '0.72rem', color: '#888', fontWeight: 500 }}>({filtered.length} of {totalStudents})</span>
+                                {cohorts.length > 1 && <span style={{ fontSize: '0.68rem', fontWeight: 700, padding: '2px 8px', borderRadius: 5, background: '#eff6ff', color: '#1d4ed8', marginLeft: 4 }}>{cohorts.find(c => c.value === schema)?.label}</span>}
                             </div>
 
                             {/* Filters */}
@@ -629,6 +916,12 @@ export default function AdminStudentsPage() {
                                         <option value="">All Programs</option>
                                         {programs.map(p => <option key={p} value={p}>{p}</option>)}
                                     </select>
+                                )}
+
+                                {selectedStudents.length > 0 && (
+                                    <button onClick={() => setShowBulkDeleteModal(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 16px', borderRadius: '9px', border: 'none', background: '#dc2626', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700, color: '#fff' }}>
+                                        <Trash2 size={14} /> Delete Selected ({selectedStudents.length})
+                                    </button>
                                 )}
 
                                 <button onClick={fetchStudents} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: '8px', border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, color: '#555' }}>
@@ -653,6 +946,13 @@ export default function AdminStudentsPage() {
                             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.83rem' }}>
                                 <thead>
                                     <tr style={{ background: '#f8fafc' }}>
+                                        <th style={{ padding: '11px 16px', width: '40px', borderBottom: '1px solid #e2e8f0' }}>
+                                            <input type="checkbox"
+                                                checked={filtered.length > 0 && selectedStudents.length === filtered.length}
+                                                onChange={e => setSelectedStudents(e.target.checked ? filtered.map(s => s.id) : [])}
+                                                style={{ cursor: 'pointer' }}
+                                            />
+                                        </th>
                                         {['Student', 'Enrollment No.', 'Program', 'Courses', 'Status', 'MAC', 'Actions'].map(h => (
                                             <th key={h} style={{ padding: '11px 16px', textAlign: 'left', fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>{h}</th>
                                         ))}
@@ -662,7 +962,7 @@ export default function AdminStudentsPage() {
                                     {loading ? (
                                         [...Array(5)].map((_, i) => (
                                             <tr key={i}>
-                                                {[...Array(7)].map((_, j) => (
+                                                {[...Array(8)].map((_, j) => (
                                                     <td key={j} style={{ padding: '13px 16px' }}>
                                                         <div style={{ height: 12, borderRadius: 4, background: '#f1f5f9', width: `${50 + (i + j) * 7}%`, animation: 'shimmer 1.5s infinite' }} />
                                                     </td>
@@ -671,7 +971,7 @@ export default function AdminStudentsPage() {
                                         ))
                                     ) : filtered.length === 0 ? (
                                         <tr>
-                                            <td colSpan={7} style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>
+                                            <td colSpan={8} style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>
                                                 <GraduationCap size={42} color="#cbd5e1" strokeWidth={1.5} style={{ marginBottom: 10 }} />
                                                 <div style={{ fontWeight: 600, marginBottom: 4 }}>No students found</div>
                                                 <div style={{ fontSize: '0.78rem' }}>Try adjusting your search or filters</div>
@@ -682,16 +982,29 @@ export default function AdminStudentsPage() {
                                             const initials = `${s.first_name?.[0] || ''}${s.last_name?.[0] || ''}`.toUpperCase();
                                             const hues = [215, 142, 267, 23, 345, 187, 48, 160];
                                             const hue = hues[i % hues.length];
+                                            const isExpanded = expandedStudentId === s.id;
                                             return (
-                                                <tr key={s.id} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.12s', cursor: 'pointer' }}
-                                                    onMouseOver={e => e.currentTarget.style.background = '#f8fafc'}
-                                                    onMouseOut={e => e.currentTarget.style.background = ''}>
-                                                    {/* Student name + email */}
+                                                <React.Fragment key={s.id}>
+                                                <tr style={{ borderBottom: isExpanded ? 'none' : '1px solid #f1f5f9', transition: 'background 0.12s', background: isExpanded ? '#f0f7ff' : '' }}
+                                                    onMouseOver={e => { if (!isExpanded) e.currentTarget.style.background = '#f8fafc'; }}
+                                                    onMouseOut={e => { if (!isExpanded) e.currentTarget.style.background = ''; }}>
+                                                    {/* Checkbox */}
+                                                    <td style={{ padding: '12px 16px', width: '40px' }}>
+                                                        <input type="checkbox"
+                                                            checked={selectedStudents.includes(s.id)}
+                                                            onChange={e => setSelectedStudents(prev => e.target.checked ? [...prev, s.id] : prev.filter(id => id !== s.id))}
+                                                            style={{ cursor: 'pointer' }}
+                                                        />
+                                                    </td>
+                                                    {/* Student name + email — clickable to expand */}
                                                     <td style={{ padding: '12px 16px' }}>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }} onClick={() => toggleExpand(s.id)} title="Click to view attendance">
                                                             <div style={{ width: 36, height: 36, borderRadius: '10px', background: `hsl(${hue},70%,92%)`, color: `hsl(${hue},55%,35%)`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '0.8rem', flexShrink: 0 }}>{initials}</div>
-                                                            <div>
-                                                                <div style={{ fontWeight: 700, color: '#0f172a' }}>{s.first_name} {s.last_name}</div>
+                                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                                                                    <span style={{ fontWeight: 700, color: isExpanded ? '#1b6ca8' : '#0f172a' }}>{s.first_name} {s.last_name}</span>
+                                                                    {isExpanded ? <ChevronUp size={13} color="#1b6ca8" /> : <ChevronDown size={13} color="#94a3b8" />}
+                                                                </div>
                                                                 <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: 1 }}>{s.email}</div>
                                                             </div>
                                                         </div>
@@ -746,6 +1059,8 @@ export default function AdminStudentsPage() {
                                                         </div>
                                                     </td>
                                                 </tr>
+                                                {isExpanded && <AttendanceSummaryPanel student={s} schema={schema} />}
+                                                </React.Fragment>
                                             );
                                         })
                                     )}
@@ -766,19 +1081,23 @@ export default function AdminStudentsPage() {
 
             {/* Modals */}
             {showAddModal && (
-                <AddStudentModal onClose={() => setShowAddModal(false)} onAdded={() => { setShowAddModal(false); fetchStudents(); }} />
+                <AddStudentModal onClose={() => setShowAddModal(false)} onAdded={() => { setShowAddModal(false); fetchStudents(); }} schema={schema} />
             )}
             {editingStudent && (
-                <StudentDrawer student={editingStudent} courses={courses} onClose={() => setEditingStudent(null)} onSaved={fetchStudents} />
+                <StudentDrawer student={editingStudent} courses={courses} onClose={() => setEditingStudent(null)} onSaved={fetchStudents} schema={schema} />
             )}
             {deletingStudent && (
                 <DeleteConfirmModal student={deletingStudent} onClose={() => setDeletingStudent(null)} onConfirm={handleDelete} deleting={deleteLoading} />
+            )}
+            {showBulkDeleteModal && (
+                <BulkDeleteConfirmModal count={selectedStudents.length} onClose={() => setShowBulkDeleteModal(false)} onConfirm={handleBulkDelete} deleting={deleteLoading} />
             )}
 
             <style>{`
                 @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
                 @keyframes shimmer { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
                 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+                @keyframes expandIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
             `}</style>
         </div>
     );
