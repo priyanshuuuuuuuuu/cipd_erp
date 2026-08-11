@@ -5,6 +5,7 @@
 const API_BASE = '';
 
 function getToken() {
+  // test
   if (typeof window === 'undefined') return null;
 
   // Determine the expected role from the current URL path
