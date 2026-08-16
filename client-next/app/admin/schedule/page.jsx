@@ -293,6 +293,15 @@ export default function AdminSchedulePage() {
         }
     }, [fetchSessions, fetchLookup, authReady]);
 
+    // ── Live auto-refresh: re-fetch every 60 s so Ongoing/Completed transitions are live ──
+    useEffect(() => {
+        if (!authReady) return;
+        const intervalId = setInterval(() => {
+            fetchSessions();
+        }, 60 * 1000); // every 60 seconds
+        return () => clearInterval(intervalId);
+    }, [authReady, fetchSessions]);
+
     // ── Date-sorted sessions ─────────────────────────────────────────────────
     const sortedSessions = useMemo(() => {
         return [...sessions].sort((a, b) => {
@@ -441,9 +450,23 @@ export default function AdminSchedulePage() {
             Pending:    { bg: '#fffbeb', color: '#92400e' },
             Cancelled:  { bg: '#fef2f2', color: '#991b1b' },
             Completed:  { bg: '#eff6ff', color: '#1d4ed8' },
+            Ongoing:    { bg: '#fff7ed', color: '#c2410c' },
         };
         const s = map[status] || map.Pending;
-        return <span style={{ padding: '3px 10px', borderRadius: '8px', fontSize: '0.72rem', fontWeight: 600, background: s.bg, color: s.color }}>{status}</span>;
+        const isOngoing = status === 'Ongoing';
+        return (
+            <span style={{ padding: '3px 10px', borderRadius: '8px', fontSize: '0.72rem', fontWeight: 600, background: s.bg, color: s.color, display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                {isOngoing && (
+                    <span style={{
+                        width: '6px', height: '6px', borderRadius: '50%',
+                        background: '#ea580c',
+                        display: 'inline-block',
+                        animation: 'pulse-dot 1.2s ease-in-out infinite',
+                    }} />
+                )}
+                {status}
+            </span>
+        );
     };
 
     // ── Add new session submit ────────────────────────────────────────────────
@@ -619,21 +642,6 @@ export default function AdminSchedulePage() {
             </aside>
 
             <div className="main-content">
-                <style>{`
-                    .skills-tooltip-wrap { position: relative; display: inline-flex; align-items: center; }
-                    .skills-tooltip-content {
-                        display: none; position: absolute; z-index: 50; top: 100%; left: 0;
-                        margin-top: 6px; padding: 10px 12px; background: #222; color: #fff;
-                        font-size: 0.75rem; border-radius: 6px; white-space: nowrap; font-weight: normal;
-                        box-shadow: 0 4px 12px rgba(0,0,0,0.15); line-height: 1.4;
-                    }
-                    .skills-tooltip-wrap:hover .skills-tooltip-content { display: block; }
-                    .skills-tooltip-content::before {
-                        content: ''; position: absolute; top: -4px; left: 16px;
-                        border-width: 0 4px 4px 4px; border-style: solid;
-                        border-color: transparent transparent #222 transparent;
-                    }
-                `}</style>
                 <div className="content-center admin-full">
                     <header className="dashboard-header">
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>

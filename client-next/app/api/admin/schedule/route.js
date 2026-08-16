@@ -87,16 +87,29 @@ async function handler(request) {
             });
         }
 
+        // Current time in IST (UTC+5:30) as a comparable "YYYY-MM-DDTHH:MM" string
+        const nowUtcMs = Date.now();
+        const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000; // +05:30
+        const nowIstMs = nowUtcMs + IST_OFFSET_MS;
+        const nowIst = new Date(nowIstMs); // treat as UTC internally but represents IST wall-clock
+        const nowIstStr = nowIst.toISOString().slice(0, 16); // "YYYY-MM-DDTHH:MM"
+
         const sessions = (data || []).map(s => {
             let computedStatus = s.status === 'scheduled'
                 ? 'Confirmed'
                 : s.status.charAt(0).toUpperCase() + s.status.slice(1);
 
-            if (s.status === 'scheduled' && s.session_date && s.end_time) {
-                // If it's a past date/time, treat it as completed
-                const sessionEnd = new Date(`${s.session_date}T${s.end_time}`);
-                if (sessionEnd < new Date()) {
+            if (s.status === 'scheduled' && s.session_date && s.start_time && s.end_time) {
+                // Compare session start/end (stored in IST) against current IST wall-clock time
+                const sessionStartStr = `${s.session_date}T${s.start_time.slice(0, 5)}`;
+                const sessionEndStr   = `${s.session_date}T${s.end_time.slice(0, 5)}`;
+
+                if (nowIstStr >= sessionEndStr) {
+                    // Class has fully ended
                     computedStatus = 'Completed';
+                } else if (nowIstStr >= sessionStartStr) {
+                    // Class is currently ongoing
+                    computedStatus = 'Ongoing';
                 }
             }
 

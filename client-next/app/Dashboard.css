@@ -1408,3 +1408,45 @@
         margin-top: 10px;
     }
 }
+
+/* ── Schedule page: skills tooltip ───────────────────────────────────────── */
+.skills-tooltip-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+.skills-tooltip-content {
+    display: none;
+    position: absolute;
+    z-index: 50;
+    top: 100%;
+    left: 0;
+    margin-top: 6px;
+    padding: 10px 12px;
+    background: #222;
+    color: #fff;
+    font-size: 0.75rem;
+    border-radius: 6px;
+    white-space: nowrap;
+    font-weight: normal;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    line-height: 1.4;
+}
+.skills-tooltip-wrap:hover .skills-tooltip-content {
+    display: block;
+}
+.skills-tooltip-content::before {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: 16px;
+    border-width: 0 4px 4px 4px;
+    border-style: solid;
+    border-color: transparent transparent #222 transparent;
+}
+
+/* ── Ongoing status: pulsing live dot ────────────────────────────────────── */
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%       { opacity: 0.4; transform: scale(0.7); }
+}

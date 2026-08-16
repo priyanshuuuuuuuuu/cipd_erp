@@ -5,29 +5,63 @@ import { withRole } from '@/lib/middleware';
 
 async function handler(request) {
   try {
-    // ── 1. All sessions with full metadata ───────────────────────────────────
-    const { data: sessions, error: sessErr } = await supabaseAdmin
-      .from('sessions')
-      .select(`
-        id, title, session_date, start_time, end_time, status,
-        courses ( id, name ),
-        faculty:faculty_id ( id, years_experience, users ( first_name, last_name ) ),
-        venues ( name ),
-        session_types ( name ),
-        categories ( id, name ),
-        session_skills ( skills ( id, name, details, categories ( name ) ) )
-      `)
-      .order('session_date', { ascending: true })
-      .order('start_time', { ascending: true });
+    // ── Run all flat queries in parallel ─────────────────────────────────────
+    const [
+      { data: sessions,      error: sessErr  },
+      { data: feedbackRaw                    },
+      { data: courseRows                     },
+      { data: facultyRows                    },
+      { data: userRows                       },
+      { data: venueRows                      },
+      { data: sessionTypeRows                },
+      { data: sessionSkillRows               },
+      { data: skillRows                      },
+    ] = await Promise.all([
+      supabaseAdmin
+        .from('sessions')
+        .select('id, title, session_date, start_time, end_time, status, course_id, faculty_id, venue_id, session_type_id')
+        .order('session_date', { ascending: true })
+        .order('start_time',   { ascending: true }),
+
+      supabaseAdmin
+        .from('feedback_responses')
+        .select('session_id, rating')
+        .not('rating', 'is', null),
+
+      supabaseAdmin.from('courses').select('id, name'),
+
+      supabaseAdmin.from('faculty').select('id, years_experience, designation'),
+
+      supabaseAdmin.from('users').select('id, first_name, last_name'),
+
+      supabaseAdmin.from('venues').select('id, name'),
+
+      supabaseAdmin.from('session_types').select('id, name'),
+
+      supabaseAdmin.from('session_skills').select('session_id, skill_id'),
+
+      supabaseAdmin.from('skills').select('id, name, details'),
+    ]);
 
     if (sessErr) throw sessErr;
 
-    // ── 2. Feedback ratings per session ──────────────────────────────────────
-    const { data: feedbackRaw } = await supabaseAdmin
-      .from('feedback_responses')
-      .select('session_id, rating')
-      .not('rating', 'is', null);
+    // ── Build lookup maps ─────────────────────────────────────────────────────
+    const courseById     = Object.fromEntries((courseRows      || []).map(r => [r.id, r]));
+    const facultyById    = Object.fromEntries((facultyRows     || []).map(r => [r.id, r]));
+    const userById       = Object.fromEntries((userRows        || []).map(r => [r.id, r]));
+    const venueById      = Object.fromEntries((venueRows       || []).map(r => [r.id, r]));
+    const sessTypeById   = Object.fromEntries((sessionTypeRows || []).map(r => [r.id, r]));
+    const skillById      = Object.fromEntries((skillRows       || []).map(r => [r.id, r]));
 
+    // Skills per session
+    const skillNamesBySession = {};
+    (sessionSkillRows || []).forEach(ss => {
+      if (!skillNamesBySession[ss.session_id]) skillNamesBySession[ss.session_id] = [];
+      const sk = skillById[ss.skill_id];
+      if (sk) skillNamesBySession[ss.session_id].push(sk.name);
+    });
+
+    // Ratings per session
     const ratingsBySession = {};
     (feedbackRaw || []).forEach(r => {
       if (!ratingsBySession[r.session_id]) ratingsBySession[r.session_id] = [];
@@ -39,7 +73,7 @@ async function handler(request) {
       return parseFloat((arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1));
     };
 
-    // ── 3. Helpers ───────────────────────────────────────────────────────────
+    // ── Helpers ───────────────────────────────────────────────────────────────
     const expBucket = (yrs) => {
       if (yrs === null || yrs === undefined) return 'Unknown';
       if (typeof yrs === 'string' && yrs.toLowerCase() === 'self') return 'Self';
@@ -59,24 +93,25 @@ async function handler(request) {
       return Math.max(0, (eh * 60 + em) - (sh * 60 + sm));
     };
 
-    // ── 4. Master rows ───────────────────────────────────────────────────────
+    // ── Master rows ───────────────────────────────────────────────────────────
     const masterRows = (sessions || []).map((s, idx) => {
-      const facultyName = s.faculty?.users
-        ? `${s.faculty.users.first_name} ${s.faculty.users.last_name}`
-        : 'TBA';
-      const skills = (s.session_skills || []).map(ss => ss.skills?.name).filter(Boolean).join(', ');
+      const faculty      = facultyById[s.faculty_id];
+      const user         = faculty ? userById[faculty.id] : null;
+      const facultyName  = user ? `${user.first_name} ${user.last_name}` : 'TBA';
+      const skills       = (skillNamesBySession[s.id] || []).join(', ');
+
       return {
         row:           idx + 1,
         date:          s.session_date,
-        month:         s.session_date ? s.session_date.slice(0, 7) : '—',   // YYYY-MM
-        domain:        s.courses?.name || '—',
-        category:      s.categories?.name || '—',
-        title:         s.title || '—',
+        month:         s.session_date ? s.session_date.slice(0, 7) : '—',
+        domain:        courseById[s.course_id]?.name     || '—',
+        category:      '—',
+        title:         s.title                           || '—',
         instructor:    facultyName,
-        experience:    s.faculty?.years_experience ?? null,
-        exp_bucket:    expBucket(s.faculty?.years_experience),
-        session_type:  s.session_types?.name || '—',
-        venue:         s.venues?.name || '—',
+        experience:    faculty?.years_experience         ?? null,
+        exp_bucket:    expBucket(faculty?.years_experience),
+        session_type:  sessTypeById[s.session_type_id]?.name || '—',
+        venue:         venueById[s.venue_id]?.name       || '—',
         duration_mins: durationMins(s),
         skills,
         avg_rating:    avgRatingForSession(s.id),
@@ -85,7 +120,7 @@ async function handler(request) {
       };
     });
 
-    // ── 5. Sessions & hours per DOMAIN ───────────────────────────────────────
+    // ── 5. Sessions & hours per DOMAIN ────────────────────────────────────────
     const domainMap = {};
     masterRows.forEach(r => {
       const d = r.domain;
@@ -97,10 +132,10 @@ async function handler(request) {
     });
     const domainAnalytics = Object.values(domainMap)
       .map(d => ({
-        domain: d.domain,
-        sessions: d.sessions,
-        completed: d.completed,
-        hours: parseFloat((d.hours / 60).toFixed(1)),
+        domain:     d.domain,
+        sessions:   d.sessions,
+        completed:  d.completed,
+        hours:      parseFloat((d.hours / 60).toFixed(1)),
         avg_rating: d.ratings.length > 0
           ? parseFloat((d.ratings.reduce((a, b) => a + b, 0) / d.ratings.length).toFixed(1))
           : null,
@@ -108,7 +143,7 @@ async function handler(request) {
       .filter(d => d.domain !== '—')
       .sort((a, b) => b.sessions - a.sessions);
 
-    // ── 6. Sessions per MONTH (timeline) ────────────────────────────────────
+    // ── 6. Sessions per MONTH (timeline) ─────────────────────────────────────
     const monthMap = {};
     masterRows.forEach(r => {
       if (!r.date) return;
@@ -126,7 +161,7 @@ async function handler(request) {
         label: new Date(m.month + '-01').toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }),
       }));
 
-    // ── 7. Session type distribution (all sessions) ──────────────────────────
+    // ── 7. Session type distribution ─────────────────────────────────────────
     const typeMap = {};
     masterRows.forEach(r => {
       const t = r.session_type;
@@ -139,20 +174,20 @@ async function handler(request) {
       .sort((a, b) => b.sessions - a.sessions)
       .map(t => ({ ...t, hours: parseFloat((t.hours / 60).toFixed(1)) }));
 
-    // ── 8. Instructor load: sessions + hours ─────────────────────────────────
+    // ── 8. Instructor load ────────────────────────────────────────────────────
     const instructorMap = {};
     masterRows.forEach(r => {
       const key = r.instructor;
       if (!instructorMap[key]) {
         instructorMap[key] = {
-          name: r.instructor,
-          experience: r.experience,
-          exp_bucket: r.exp_bucket,
-          sessions: 0,
+          name:          r.instructor,
+          experience:    r.experience,
+          exp_bucket:    r.exp_bucket,
+          sessions:      0,
           total_minutes: 0,
-          completed: 0,
-          domains: new Set(),
-          ratings: [],
+          completed:     0,
+          domains:       new Set(),
+          ratings:       [],
         };
       }
       instructorMap[key].sessions      += 1;
@@ -175,7 +210,7 @@ async function handler(request) {
         : null,
     })).sort((a, b) => b.total_minutes - a.total_minutes);
 
-    // ── 9. Avg feedback rating over time (month) ─────────────────────────────
+    // ── 9. Rating timeline ────────────────────────────────────────────────────
     const ratingTimeline = monthlyTimeline.map(m => {
       const monthRows = masterRows.filter(r => r.month === m.month && r.avg_rating !== null);
       const avg = monthRows.length > 0
@@ -184,7 +219,7 @@ async function handler(request) {
       return { ...m, avg_rating: avg };
     });
 
-    // ── 10. Instructor experience pivot ──────────────────────────────────────
+    // ── 10. Experience pivot ──────────────────────────────────────────────────
     const expPivot = {};
     masterRows.forEach(r => {
       const bucket = r.exp_bucket;
@@ -195,34 +230,25 @@ async function handler(request) {
     const EXP_ORDER = ['<5', '5-10', '10-20', '20-30', '30-40', '>40', 'Self', 'Unknown'];
     const experiencePivot = EXP_ORDER.filter(b => expPivot[b]).map(b => expPivot[b]);
 
-    // ── 11. Skills coverage matrix ───────────────────────────────────────────
-    const { data: allSkills } = await supabaseAdmin
-      .from('skills')
-      .select('id, name, details, category_id, categories ( id, name, course_id, courses(name) )')
-      .order('name');
-
-    const { data: allSessionSkills } = await supabaseAdmin
-      .from('session_skills')
-      .select('skill_id, session_id');
-
-    const coveredSkillIds = new Set((allSessionSkills || []).map(ss => ss.skill_id));
+    // ── 11. Skills coverage matrix ────────────────────────────────────────────
+    const coveredSkillIds    = new Set((sessionSkillRows || []).map(ss => ss.skill_id));
     const sessionDatesBySkill = {};
-    (allSessionSkills || []).forEach(ss => {
+    (sessionSkillRows || []).forEach(ss => {
       if (!sessionDatesBySkill[ss.skill_id]) sessionDatesBySkill[ss.skill_id] = [];
       const session = (sessions || []).find(s => s.id === ss.session_id);
       if (session?.session_date) sessionDatesBySkill[ss.skill_id].push(session.session_date);
     });
-    const skillsCoverage = (allSkills || []).map(sk => ({
+    const skillsCoverage = (skillRows || []).map(sk => ({
       skill_id:      sk.id,
       skill_name:    sk.name,
       details:       sk.details || '—',
-      category:      sk.categories?.name || '—',
-      domain:        sk.categories?.courses?.name || '—',
+      category:      '—',
+      domain:        '—',
       covered:       coveredSkillIds.has(sk.id),
       session_dates: (sessionDatesBySkill[sk.id] || []).sort(),
     }));
 
-    // ── 12. Summary stats ────────────────────────────────────────────────────
+    // ── 12. Summary stats ─────────────────────────────────────────────────────
     const completedSessions = masterRows.filter(r => r.status === 'completed').length;
     const totalMinutes      = masterRows.reduce((s, r) => s + r.duration_mins, 0);
     const uniqueInstructors = new Set(masterRows.map(r => r.instructor).filter(n => n !== 'TBA')).size;
@@ -234,13 +260,13 @@ async function handler(request) {
 
     return NextResponse.json({
       summary: {
-        total_sessions: masterRows.length,
+        total_sessions:    masterRows.length,
         completed_sessions: completedSessions,
-        total_minutes: totalMinutes,
+        total_minutes:     totalMinutes,
         unique_instructors: uniqueInstructors,
-        unique_domains: uniqueDomains,
-        skills_covered: skillsCoverage.filter(s => s.covered).length,
-        skills_total: skillsCoverage.length,
+        unique_domains:    uniqueDomains,
+        skills_covered:    skillsCoverage.filter(s => s.covered).length,
+        skills_total:      skillsCoverage.length,
         overall_avg_rating: overallAvgRating,
       },
       masterRows,
