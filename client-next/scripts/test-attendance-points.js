@@ -5,10 +5,10 @@
 
 import {
   calculatePoints,
-  calculateLateEntryBasePoints,
-  calculatePingDeduction,
+  calculateArrivalBonus,
+  calculateDurationScore,
   resolveAttendanceStatus,
-  MIN_PRESENCE_PERCENT,
+  MIN_DURATION_PERCENT,
 } from '../lib/attendance-points.js';
 
 let passed = 0;
@@ -26,69 +26,61 @@ function assert(condition, testName, details = '') {
 
 const sessionStart = new Date('2026-06-01T10:00:00+05:30');
 const sessionEnd = new Date('2026-06-01T12:00:00+05:30'); // 120 min
-const snaps = ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9', 's10'];
 
-console.log('\n=== Late entry base points ===');
-assert(calculateLateEntryBasePoints(0, 120) === 5, 'On time → 5');
-assert(calculateLateEntryBasePoints(6, 120) === 5, '6 min → 5');
-assert(calculateLateEntryBasePoints(6.2, 120) === 4, '6.2 min → 4');
-assert(calculateLateEntryBasePoints(12, 120) === 4, '12 min → 4');
-assert(calculateLateEntryBasePoints(15, 120) === 3, '15 min → 3');
-assert(calculateLateEntryBasePoints(25, 120) === 2, '25 min → 2');
-assert(calculateLateEntryBasePoints(45, 120) === 1, '45 min → 1');
-assert(calculateLateEntryBasePoints(70, 120) === 0.5, '70 min (after half) → 0.5');
+console.log('\n=== Arrival bonus ===');
+assert(calculateArrivalBonus(0) === 1, 'On time → +1');
+assert(calculateArrivalBonus(6) === 1, '6 min → +1');
+assert(calculateArrivalBonus(6.2) === 0, '6.2 min → +0');
+assert(calculateArrivalBonus(15) === 0, '15 min → +0');
 
-console.log('\n=== Ping deductions ===');
-assert(calculatePingDeduction(85) === 0, '85% → 0');
-assert(calculatePingDeduction(75) === 1, '75% → -1');
-assert(calculatePingDeduction(50) === 2, '50% → -2');
-assert(calculatePingDeduction(30) === 2, '30% → -2');
+console.log('\n=== Duration score ===');
+assert(calculateDurationScore(85) === 4, '85% → 4');
+assert(calculateDurationScore(75) === 3, '75% → 3');
+assert(calculateDurationScore(65) === 2, '65% → 2');
+assert(calculateDurationScore(55) === 1, '55% → 1');
+assert(calculateDurationScore(30) === 0.5, '30% → 0.5');
 
 console.log('\n=== Full scoring ===');
 {
-  const firstSeen = new Date('2026-06-01T10:05:00+05:30');
+  const firstSeen = new Date('2026-06-01T10:05:00+05:30'); // 5 mins late -> +1 arrival
+  const lastSeen = new Date('2026-06-01T11:55:00+05:30'); // 110 mins duration -> 91% -> +4
   const r = calculatePoints({
     firstSeenAt: firstSeen,
+    lastSeenAt: lastSeen,
     sessionStartAt: sessionStart,
     sessionEndAt: sessionEnd,
-    pingCount: 9,
-    orderedSnapshotIds: snaps,
-    expectedTotalSnapshots: 10,
     detected: true,
     finalizeAbsent: true,
   });
-  assert(r.points === 5, 'On time + 90% pings → 5', `got ${r.points}`);
+  assert(r.points === 5, 'On time + 91% duration → 5', `got ${r.points}`);
 }
 
 {
-  const firstSeen = new Date('2026-06-01T10:15:00+05:30');
+  const firstSeen = new Date('2026-06-01T10:15:00+05:30'); // 15 min late -> 0 arrival
+  const lastSeen = new Date('2026-06-01T11:45:00+05:30'); // 90 min duration -> 75% -> +3
   const r = calculatePoints({
     firstSeenAt: firstSeen,
+    lastSeenAt: lastSeen,
     sessionStartAt: sessionStart,
     sessionEndAt: sessionEnd,
-    pingCount: 7,
-    orderedSnapshotIds: snaps,
-    expectedTotalSnapshots: 10,
     detected: true,
     finalizeAbsent: true,
   });
-  assert(r.points === 2, '15 min late + 70% → 3-1=2', `got ${r.points}`);
+  assert(r.points === 3, '15 min late + 75% duration → 3', `got ${r.points}`);
 }
 
 {
   const r = calculatePoints({
     firstSeenAt: null,
+    lastSeenAt: null,
     sessionStartAt: sessionStart,
     sessionEndAt: sessionEnd,
-    pingCount: 0,
-    orderedSnapshotIds: snaps,
-    expectedTotalSnapshots: 10,
     leaveApproved: true,
     detected: false,
     finalizeAbsent: true,
   });
   const st = resolveAttendanceStatus({
-    presencePercent: 0,
+    durationPercent: 0,
     detected: false,
     leaveApproved: true,
     finalizeAbsent: true,
@@ -99,17 +91,15 @@ console.log('\n=== Full scoring ===');
 {
   const r = calculatePoints({
     firstSeenAt: null,
+    lastSeenAt: null,
     sessionStartAt: sessionStart,
     sessionEndAt: sessionEnd,
-    pingCount: 0,
-    orderedSnapshotIds: snaps,
-    expectedTotalSnapshots: 10,
     leaveApproved: false,
     detected: false,
     finalizeAbsent: true,
   });
   const st = resolveAttendanceStatus({
-    presencePercent: 0,
+    durationPercent: 0,
     detected: false,
     leaveApproved: false,
     finalizeAbsent: true,
@@ -120,25 +110,24 @@ console.log('\n=== Full scoring ===');
 
 console.log('\n=== Status vs points (separate) ===');
 {
-  const firstSeen = new Date('2026-06-01T10:05:00+05:30');
+  const firstSeen = new Date('2026-06-01T10:05:00+05:30'); // arrival +1
+  const lastSeen = new Date('2026-06-01T10:29:00+05:30'); // duration 24 min = 20% -> +0.5
   const r = calculatePoints({
     firstSeenAt: firstSeen,
+    lastSeenAt: lastSeen,
     sessionStartAt: sessionStart,
     sessionEndAt: sessionEnd,
-    pingCount: 4,
-    orderedSnapshotIds: snaps,
-    expectedTotalSnapshots: 10,
     detected: true,
     finalizeAbsent: true,
   });
   const st = resolveAttendanceStatus({
-    presencePercent: 40,
+    durationPercent: 20, // less than 25
     detected: true,
     finalizeAbsent: true,
     isOngoing: false,
   });
-  assert(st === 'absent', '40% pings → absent status');
-  assert(r.points > 0, '40% pings can still earn points from entry time', `got ${r.points}`);
+  assert(st === 'absent', '20% duration → absent status');
+  assert(r.points === 1.5, '20% duration earns 1.5 pts', `got ${r.points}`);
 }
 
 console.log('\n=== Ongoing live status ===');
@@ -150,7 +139,7 @@ assert(
   resolveAttendanceStatus({ detected: false, isOngoing: true }) === 'missing',
   'Ongoing + not detected → missing'
 );
-assert(MIN_PRESENCE_PERCENT === 45, 'Min presence is 45%');
+assert(MIN_DURATION_PERCENT === 25, 'Min duration is 25%');
 
 console.log('\n' + '═'.repeat(50));
 console.log(`Results: ${passed} passed, ${failed} failed`);

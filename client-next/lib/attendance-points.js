@@ -1,21 +1,18 @@
 /**
  * Attendance Points Calculator
  *
- * Base score from first-ping timing vs session start (0–5):
- *   ≤ 6.1 min after start (or before start) → 5
- *   6.1 – 12.1 min  → 4
- *   12.1 – 18.1 min → 3
- *   18.1 – 30.1 min → 2
- *   30.1 min – half-time → 1
- *   after half-time → 0.5
+ * Arrival Bonus:
+ *   ≤ 6.1 min after start (or before start) → +1 point
  *
- * Ping-% deduction from base (monotonic):
- *   ≥ 80% → no loss
- *   ≥ 70% → −1
- *   ≥ 45% → −2
- *   < 45% → −2
+ * Duration Score (lastSeen - firstSeen):
+ *   ≥ 80% of session → +4
+ *   ≥ 70% of session → +3
+ *   ≥ 60% of session → +2
+ *   ≥ 50% of session → +1
+ *   < 50% of session → +0.5
  *
- * Final: max(0, base − deduction)
+ * Final Score = Arrival Bonus + Duration Score
+ *
  * No-show without approved leave: −2
  * No-show with approved leave: 0 (status: leave)
  */
@@ -26,49 +23,39 @@ export const CRON_TIMING_BUFFER_MS = 6 * 1000;
 
 /**
  * @param {number} minutesAfterStart - minutes from session start (negative = early)
- * @param {number} sessionDurationMin - total session length in minutes
  */
-export function calculateLateEntryBasePoints(minutesAfterStart, sessionDurationMin) {
-  const halfTimeMin = sessionDurationMin / 2;
-
-  if (minutesAfterStart <= 6.1) return 5;
-  if (minutesAfterStart <= 12.1) return 4;
-  if (minutesAfterStart <= 18.1) return 3;
-  if (minutesAfterStart <= 30.1) return 2;
-  if (minutesAfterStart <= halfTimeMin) return 1;
-  return 0.5;
+export function calculateArrivalBonus(minutesAfterStart) {
+  return minutesAfterStart <= 6.1 ? 1 : 0;
 }
 
 /**
- * @param {number} presencePercent
- * @returns {number} points to deduct
+ * @param {number} durationPercent
+ * @returns {number} duration score
  */
-export function calculatePingDeduction(presencePercent) {
-  if (presencePercent >= 80) return 0;
-  if (presencePercent >= 70) return 1;
-  return 2;
+export function calculateDurationScore(durationPercent) {
+  if (durationPercent >= 80) return 4;
+  if (durationPercent >= 70) return 3;
+  if (durationPercent >= 60) return 2;
+  if (durationPercent >= 50) return 1;
+  return 0.5;
 }
 
 /**
  * @param {object} params
  * @param {Date|null} params.firstSeenAt
+ * @param {Date|null} params.lastSeenAt
  * @param {Date} params.sessionStartAt
  * @param {Date} params.sessionEndAt
- * @param {number} params.pingCount
- * @param {string[]} params.orderedSnapshotIds
- * @param {number} [params.expectedTotalSnapshots]
  * @param {boolean} [params.leaveApproved]
  * @param {boolean} [params.detected]
  * @param {boolean} [params.finalizeAbsent]
- * @returns {{ points: number, basePoints: number, pingDeduction: number, status: string, breakdown: object }}
+ * @returns {{ points: number, arrivalBonus: number, durationScore: number, durationPercent: number, status: string, breakdown: object }}
  */
 export function calculatePoints({
   firstSeenAt,
+  lastSeenAt,
   sessionStartAt,
   sessionEndAt,
-  pingCount,
-  orderedSnapshotIds,
-  expectedTotalSnapshots = 0,
   leaveApproved = false,
   detected = true,
   finalizeAbsent = false,
@@ -78,17 +65,18 @@ export function calculatePoints({
     (sessionEndAt.getTime() - sessionStartAt.getTime()) / MS_PER_MIN
   );
 
-  if (!detected) {
+  if (!detected || !firstSeenAt || !lastSeenAt) {
     if (!finalizeAbsent) {
       return {
         points: 0,
-        basePoints: 0,
-        pingDeduction: 0,
+        arrivalBonus: 0,
+        durationScore: 0,
+        durationPercent: 0,
         status: 'absent',
         breakdown: {
           reason: 'Not yet detected',
           tier: 'pending',
-          presencePercent: 0,
+          durationPercent: 0,
         },
       };
     }
@@ -96,86 +84,77 @@ export function calculatePoints({
     if (leaveApproved) {
       return {
         points: 0,
-        basePoints: 0,
-        pingDeduction: 0,
+        arrivalBonus: 0,
+        durationScore: 0,
+        durationPercent: 0,
         status: 'leave',
         breakdown: {
           reason: 'Approved leave — no penalty',
           tier: 'leave',
-          presencePercent: 0,
+          durationPercent: 0,
         },
       };
     }
 
     return {
       points: -2,
-      basePoints: 0,
-      pingDeduction: 0,
+      arrivalBonus: 0,
+      durationScore: 0,
+      durationPercent: 0,
       status: 'absent',
       breakdown: {
         reason: 'Absent without approved leave → −2 pts',
         tier: 'absent',
-        presencePercent: 0,
+        durationPercent: 0,
       },
     };
   }
 
-  const actualSnapshots = orderedSnapshotIds.length;
-  const totalSnapshots = Math.max(actualSnapshots, expectedTotalSnapshots || 0);
+  const durationMin = (lastSeenAt.getTime() - firstSeenAt.getTime()) / MS_PER_MIN;
+  let durationPercent = (durationMin / sessionDurationMin) * 100;
+  
+  // Cap at 100% just in case of slight timing overflow
+  if (durationPercent > 100) durationPercent = 100;
 
-  if (totalSnapshots === 0 || pingCount === 0) {
-    return calculatePoints({
-      firstSeenAt: null,
-      sessionStartAt,
-      sessionEndAt,
-      pingCount: 0,
-      orderedSnapshotIds,
-      expectedTotalSnapshots,
-      leaveApproved,
-      detected: false,
-      finalizeAbsent,
-    });
-  }
-
-  const presencePercent = (pingCount / totalSnapshots) * 100;
   const msAfterStart =
     firstSeenAt.getTime() - sessionStartAt.getTime() + CRON_TIMING_BUFFER_MS;
   const minutesAfterStart = msAfterStart / MS_PER_MIN;
 
-  const basePoints = calculateLateEntryBasePoints(minutesAfterStart, sessionDurationMin);
-  const pingDeduction = calculatePingDeduction(presencePercent);
-  const points = Math.max(0, basePoints - pingDeduction);
+  const arrivalBonus = calculateArrivalBonus(minutesAfterStart);
+  const durationScore = calculateDurationScore(durationPercent);
+  const points = arrivalBonus + durationScore;
 
-  let tier = `late ${minutesAfterStart.toFixed(1)}min → base ${basePoints}`;
-  if (pingDeduction > 0) tier += `, ping ${Math.round(presencePercent)}% −${pingDeduction}`;
+  let tier = `duration ${Math.round(durationPercent)}% → ${durationScore} pts`;
+  if (arrivalBonus > 0) tier += `, on-time bonus +${arrivalBonus}`;
 
   return {
     points,
-    basePoints,
-    pingDeduction,
-    presencePercent: Math.round(presencePercent),
+    arrivalBonus,
+    durationScore,
+    durationPercent: Math.round(durationPercent),
     breakdown: {
-      presencePercent: Math.round(presencePercent),
-      basePoints,
-      pingDeduction,
+      durationPercent: Math.round(durationPercent),
+      arrivalBonus,
+      durationScore,
       minutesAfterStart: Math.round(minutesAfterStart * 10) / 10,
+      durationMin: Math.round(durationMin * 10) / 10,
       tier,
-      reason: `${tier} → ${points} pts`,
+      reason: `${tier} (Total: ${points} pts)`,
     },
   };
 }
 
-/** Minimum ping % to count as present (below this → absent). */
-export const MIN_PRESENCE_PERCENT = 45;
+/** Minimum duration % to count as present (below this → absent). */
+export const MIN_DURATION_PERCENT = 25;
 
 /**
  * Attendance status is separate from points.
- * Present/absent is driven by ping %; points use entry time + deductions.
+ * Present/absent is driven by duration %; points use duration score + arrival bonus.
  *
  * @returns {'present'|'partial'|'absent'|'leave'|'missing'}
  */
 export function resolveAttendanceStatus({
-  presencePercent = 0,
+  durationPercent = 0,
   detected = false,
   leaveApproved = false,
   finalizeAbsent = false,
@@ -192,7 +171,7 @@ export function resolveAttendanceStatus({
     return finalizeAbsent ? 'absent' : 'missing';
   }
 
-  if (presencePercent < MIN_PRESENCE_PERCENT) return 'absent';
+  if (durationPercent < MIN_DURATION_PERCENT) return 'absent';
   return 'present';
 }
 

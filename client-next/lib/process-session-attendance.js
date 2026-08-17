@@ -230,18 +230,16 @@ export async function processSessionAttendance(session, options = {}) {
 
     const scoring = calculatePoints({
       firstSeenAt: firstSeen,
+      lastSeenAt: lastSeen,
       sessionStartAt: sessionStartDate,
       sessionEndAt: sessionEndDate,
-      pingCount,
-      orderedSnapshotIds,
-      expectedTotalSnapshots,
       leaveApproved,
       detected,
       finalizeAbsent,
     });
 
     const status = resolveAttendanceStatus({
-      presencePercent: scoring.presencePercent ?? presencePercent,
+      durationPercent: scoring.durationPercent ?? 0,
       detected,
       leaveApproved,
       finalizeAbsent,

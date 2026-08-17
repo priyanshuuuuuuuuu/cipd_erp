@@ -173,6 +173,26 @@ async function handler(req) {
       }
 
       if (existing && (existing.admin_override || existing.penalty)) {
+        const detected = timeline.length > 0;
+        let activePingCount = existing.ping_count || 0;
+        let activeFirstSeen = existing.first_seen_at 
+            ? new Date(!existing.first_seen_at.endsWith('Z') && !existing.first_seen_at.includes('+') ? existing.first_seen_at + 'Z' : existing.first_seen_at).toISOString() 
+            : null;
+        let activeLastSeen = existing.last_seen_at 
+            ? new Date(!existing.last_seen_at.endsWith('Z') && !existing.last_seen_at.includes('+') ? existing.last_seen_at + 'Z' : existing.last_seen_at).toISOString() 
+            : null;
+        let activeDuration = existing.duration_minutes || 0;
+
+        if (detected) {
+          const uniqueSnapshots = new Set(timeline.map((t) => t.snapshotId));
+          activePingCount = uniqueSnapshots.size;
+          const fs = timeline[0].time;
+          const ls = timeline[timeline.length - 1].time;
+          activeFirstSeen = fs ? fs.toISOString() : null;
+          activeLastSeen = ls ? ls.toISOString() : null;
+          activeDuration = Math.round(((ls - fs) / 60000) * 10) / 10;
+        }
+
         studentResults.push({
           studentId: student.id,
           enrollmentNo: student.enrollment_no || '',
@@ -181,12 +201,12 @@ async function handler(req) {
           program: student.program_name || '',
           macAddress: mac,
           macVerified: true,
-          signal: 0,
+          signal: detected ? timeline[timeline.length - 1].signal : 0,
           avgSignal: 0,
-          firstSeen: existing.first_seen_at,
-          lastSeen: existing.last_seen_at,
-          durationMinutes: existing.duration_minutes || 0,
-          pingCount: existing.ping_count || 0,
+          firstSeen: activeFirstSeen,
+          lastSeen: activeLastSeen,
+          durationMinutes: activeDuration,
+          pingCount: activePingCount,
           points: existing.points || 0,
           pointsBreakdown: {
             reason: existing.penalty
@@ -234,18 +254,16 @@ async function handler(req) {
 
       const scoring = calculatePoints({
         firstSeenAt: firstSeen,
+        lastSeenAt: lastSeen,
         sessionStartAt: sessionStartDate,
         sessionEndAt: sessionEndDate,
-        pingCount,
-        orderedSnapshotIds,
-        expectedTotalSnapshots,
         leaveApproved: approvedLeaves.has(student.id),
         detected,
         finalizeAbsent,
       });
 
       const status = resolveAttendanceStatus({
-        presencePercent: scoring.presencePercent ?? presencePercent,
+        durationPercent: scoring.durationPercent ?? 0,
         detected,
         leaveApproved: approvedLeaves.has(student.id),
         finalizeAbsent,

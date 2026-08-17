@@ -50,7 +50,6 @@ async function handler(req) {
           admin_override: true,
           penalty: false,
           penalty_reason: null,
-          ping_count: 0,
           calculated_at: new Date().toISOString(),
         },
         { onConflict: 'session_id,student_id' }
@@ -78,7 +77,6 @@ async function handler(req) {
           admin_override: true,
           penalty: false,
           penalty_reason: null,
-          ping_count: 0,
           calculated_at: new Date().toISOString(),
         },
         { onConflict: 'session_id,student_id' }
@@ -108,7 +106,6 @@ async function handler(req) {
             admin_override: true,
             penalty: true,
             penalty_reason: 'Faking attendance — marked absent by admin',
-            ping_count: 0,
             calculated_at: new Date().toISOString(),
           },
           { onConflict: 'session_id,student_id' }
@@ -145,7 +142,6 @@ async function handler(req) {
           admin_override: false,
           penalty: true,
           penalty_reason: `Penalty: faking attendance on ${session.session_date} (${session.courses?.name || 'course'})`,
-          ping_count: 0,
           calculated_at: new Date().toISOString(),
         }));
 
