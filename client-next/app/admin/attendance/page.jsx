@@ -5,7 +5,7 @@ import {
     LayoutGrid, Calendar, MessageSquare, Settings, LogOut, Bell, Search, Menu,
     ChevronLeft, ChevronRight, Wifi, Clock, FileBarChart, Download, RefreshCw, Activity,
     CheckCircle, AlertTriangle, Filter, Users, ChevronDown, ChevronUp, XCircle, Timer,
-    ShieldCheck, ShieldX, Smartphone, Trophy, GraduationCap
+    ShieldCheck, ShieldX, Smartphone, Trophy, GraduationCap, Info
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
@@ -160,6 +160,7 @@ export default function AdminAttendancePage() {
     const [confirmOverride, setConfirmOverride] = useState(null); // { studentId, studentName, action, sessionId }
     const [confirmPresent, setConfirmPresent] = useState(null); // { studentId, studentName, sessionId }
     const [presentPoints, setPresentPoints] = useState('5'); // custom points input for manual present
+    const [showPointsInfo, setShowPointsInfo] = useState(false); // points info modal
     const [expandedStudent, setExpandedStudent] = useState(null); // studentId for timeline graph
 
     const handleOverride = async (sessionId, studentId, action, points) => {
@@ -439,15 +440,13 @@ export default function AdminAttendancePage() {
                             <span style={{ color: '#ddd' }}>·</span>
                             <span>Window: <span style={{ color: '#888', fontWeight: 500 }}>Start → End + 2 min</span></span>
                             <span style={{ color: '#ddd' }}>·</span>
-                            <span>Points: <span style={{ color: '#888', fontWeight: 500 }}>1.0 max</span></span>
+                            <span>Points: <span style={{ color: '#888', fontWeight: 500 }}>5 max</span></span>
                             <span style={{ color: '#ddd' }}>·</span>
-                            <span>Late: <span style={{ color: '#b45309', fontWeight: 500 }}>−0.5</span></span>
+                            <span>On-time: <span style={{ color: '#16a34a', fontWeight: 500 }}>+1</span></span>
                             <span style={{ color: '#ddd' }}>·</span>
-                            <span>{'<'}75%: <span style={{ color: '#b45309', fontWeight: 500 }}>−0.2</span></span>
+                            <span>Duration ≥80%: <span style={{ color: '#16a34a', fontWeight: 500 }}>+4</span></span>
                             <span style={{ color: '#ddd' }}>·</span>
-                            <span>{'<'}50%: <span style={{ color: '#dc2626', fontWeight: 500 }}>−0.3</span></span>
-                            <span style={{ color: '#ddd' }}>·</span>
-                            <span>{'<'}30%: <span style={{ color: '#dc2626', fontWeight: 500 }}>Absent</span></span>
+                            <span>Absent: <span style={{ color: '#dc2626', fontWeight: 500 }}>−2</span></span>
                             {nextRefreshIn !== null && nextRefreshIn > 0 && (
                                 <>
                                     <span style={{ color: '#ddd' }}>·</span>
@@ -459,6 +458,18 @@ export default function AdminAttendancePage() {
                                     </span>
                                 </>
                             )}
+                            <button
+                                onClick={() => setShowPointsInfo(true)}
+                                title="How are points calculated?"
+                                style={{
+                                    marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '4px',
+                                    padding: '3px 9px', borderRadius: '6px', border: '1px solid #e5e7eb',
+                                    background: '#fff', cursor: 'pointer', fontSize: '0.68rem',
+                                    fontWeight: 600, color: '#6366f1',
+                                }}
+                            >
+                                <Info size={11} /> How points work
+                            </button>
                         </div>
                     </div>
 
@@ -881,6 +892,97 @@ export default function AdminAttendancePage() {
 
                 </div>
             </div>
+                {/* ── Points Info Modal ── */}
+                {showPointsInfo && (
+                    <div style={{
+                        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'flex',
+                        alignItems: 'center', justifyContent: 'center', zIndex: 9999,
+                    }} onClick={() => setShowPointsInfo(false)}>
+                        <div style={{
+                            background: '#fff', borderRadius: '14px', padding: '1.8rem', maxWidth: '520px', width: '92%',
+                            boxShadow: '0 24px 64px rgba(0,0,0,0.22)', border: '1.5px solid #e5e7eb',
+                        }} onClick={e => e.stopPropagation()}>
+
+                            {/* Header */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1.2rem' }}>
+                                <div style={{ width: '38px', height: '38px', borderRadius: '50%', background: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                    <Info size={20} color="#6366f1" />
+                                </div>
+                                <div>
+                                    <div style={{ fontWeight: 700, fontSize: '1.05rem', color: '#111' }}>Attendance Point System</div>
+                                    <div style={{ fontSize: '0.72rem', color: '#aaa' }}>How attendance scores are calculated automatically</div>
+                                </div>
+                                <button onClick={() => setShowPointsInfo(false)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: '#bbb', fontSize: '1.2rem', lineHeight: 1 }}>✕</button>
+                            </div>
+
+                            {/* Max score callout */}
+                            <div style={{ background: '#eef2ff', borderRadius: '10px', padding: '10px 14px', marginBottom: '1.2rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <Trophy size={16} color="#6366f1" />
+                                <span style={{ fontSize: '0.8rem', color: '#4338ca', fontWeight: 600 }}>Maximum score per session: <span style={{ fontFamily: 'monospace', fontSize: '0.95rem' }}>5 pts</span> &nbsp;(on-time +1 &amp; duration ≥80% +4)</span>
+                            </div>
+
+                            {/* Arrival bonus */}
+                            <div style={{ marginBottom: '1rem' }}>
+                                <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: '#6366f1', marginBottom: '6px' }}>① Arrival Bonus</div>
+                                <div style={{ background: '#f8fafc', borderRadius: '8px', overflow: 'hidden', border: '1px solid #f0f0f0' }}>
+                                    {[
+                                        ['Arrives on time (≤ 6 min after start)', '+1 pt', '#16a34a', '#ecfdf5'],
+                                        ['Arrives late (> 6 min after start)', '+0 pts', '#888', '#fafafa'],
+                                    ].map(([label, pts, color, bg]) => (
+                                        <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: bg, borderBottom: '1px solid #f0f0f0' }}>
+                                            <span style={{ fontSize: '0.78rem', color: '#444' }}>{label}</span>
+                                            <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '0.82rem', color }}>{pts}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Duration score */}
+                            <div style={{ marginBottom: '1rem' }}>
+                                <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: '#6366f1', marginBottom: '6px' }}>② Duration Score <span style={{ color: '#aaa', fontSize: '0.65rem', fontWeight: 500 }}>(time detected / session length)</span></div>
+                                <div style={{ background: '#f8fafc', borderRadius: '8px', overflow: 'hidden', border: '1px solid #f0f0f0' }}>
+                                    {[
+                                        ['≥ 80% of session', '+4 pts', '#16a34a', '#ecfdf5'],
+                                        ['≥ 70% of session', '+3 pts', '#15803d', '#f0fdf4'],
+                                        ['≥ 60% of session', '+2 pts', '#b45309', '#fffbeb'],
+                                        ['≥ 50% of session', '+1 pt',  '#b45309', '#fefce8'],
+                                        ['< 50% of session', '+0.5 pts', '#dc2626', '#fef2f2'],
+                                    ].map(([label, pts, color, bg]) => (
+                                        <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: bg, borderBottom: '1px solid #f0f0f0' }}>
+                                            <span style={{ fontSize: '0.78rem', color: '#444' }}>{label}</span>
+                                            <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '0.82rem', color }}>{pts}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Absence & status */}
+                            <div style={{ marginBottom: '1.2rem' }}>
+                                <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: '#6366f1', marginBottom: '6px' }}>③ Absence &amp; Status Rules</div>
+                                <div style={{ background: '#f8fafc', borderRadius: '8px', overflow: 'hidden', border: '1px solid #f0f0f0' }}>
+                                    {[
+                                        ['No-show, no approved leave', '−2 pts, Absent', '#dc2626', '#fef2f2'],
+                                        ['No-show with approved leave', '0 pts, Leave', '#888', '#f8fafc'],
+                                        ['Detected but < 25% duration', 'Absent status', '#dc2626', '#fff5f5'],
+                                        ['Admin faking penalty', '−2 pts + ±1 week cascade', '#991b1b', '#fff1f2'],
+                                    ].map(([label, pts, color, bg]) => (
+                                        <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: bg, borderBottom: '1px solid #f0f0f0' }}>
+                                            <span style={{ fontSize: '0.78rem', color: '#444' }}>{label}</span>
+                                            <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '0.78rem', color }}>{pts}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Admin override note */}
+                            <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', padding: '10px 14px', fontSize: '0.75rem', color: '#92400e', lineHeight: 1.5 }}>
+                                <strong>Admin Override:</strong> Admin can manually mark a student present with a custom point value (−10 to +10). The ADMIN badge appears on overridden records.
+                            </div>
+
+                        </div>
+                    </div>
+                )}
+
                 {/* ── Mark Present Modal (with custom points) ── */}
                 {confirmPresent && (
                     <div style={{
