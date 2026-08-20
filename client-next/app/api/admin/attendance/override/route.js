@@ -5,16 +5,16 @@ import { withRole } from '@/lib/middleware';
 
 /**
  * POST /api/admin/attendance/override
- * Body: { session_id, student_id, action: 'present' | 'absent' | 'leave' }
+ * Body: { session_id, student_id, action: 'present' | 'absent' | 'leave', points?: number }
  *
- * present → 5 points, status=present, admin_override=true
+ * present → points (default 5, admin-configurable), status=present, admin_override=true
  * leave   → 0 points, status=leave, admin_override=true
  * absent  → penalty cascade (faking attendance)
  */
 async function handler(req) {
   try {
     const body = await req.json();
-    const { session_id, student_id, action } = body;
+    const { session_id, student_id, action, points: customPoints } = body;
 
     if (
       !session_id ||
@@ -41,12 +41,25 @@ async function handler(req) {
     }
 
     if (action === 'present') {
+      // Allow admin to specify custom points; default to 5 if not provided
+      let assignedPoints = 5;
+      if (customPoints !== undefined && customPoints !== null) {
+        const parsed = parseFloat(customPoints);
+        if (isNaN(parsed) || parsed < -10 || parsed > 10) {
+          return NextResponse.json(
+            { error: 'points must be a number between -10 and 10' },
+            { status: 400 }
+          );
+        }
+        assignedPoints = parsed;
+      }
+
       const { error } = await supabaseAdmin.from('attendance_records').upsert(
         {
           session_id,
           student_id,
           status: 'present',
-          points: 5,
+          points: assignedPoints,
           admin_override: true,
           penalty: false,
           penalty_reason: null,
@@ -62,7 +75,7 @@ async function handler(req) {
 
       return NextResponse.json({
         message: 'Student marked present by admin',
-        points: 5,
+        points: assignedPoints,
         action: 'present',
       });
     }

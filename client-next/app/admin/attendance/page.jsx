@@ -158,21 +158,22 @@ export default function AdminAttendancePage() {
     const [macActioning, setMacActioning] = useState(null); // studentId being actioned
     const [overrideLoading, setOverrideLoading] = useState(null); // studentId being overridden
     const [confirmOverride, setConfirmOverride] = useState(null); // { studentId, studentName, action, sessionId }
+    const [confirmPresent, setConfirmPresent] = useState(null); // { studentId, studentName, sessionId }
+    const [presentPoints, setPresentPoints] = useState('5'); // custom points input for manual present
     const [expandedStudent, setExpandedStudent] = useState(null); // studentId for timeline graph
 
-    const handleOverride = async (sessionId, studentId, action) => {
+    const handleOverride = async (sessionId, studentId, action, points) => {
         setOverrideLoading(studentId);
         try {
-            const res = await api.post('/api/admin/attendance/override', {
-                session_id: sessionId,
-                student_id: studentId,
-                action,
-            });
+            const body = { session_id: sessionId, student_id: studentId, action };
+            if (points !== undefined) body.points = parseFloat(points);
+            const res = await api.post('/api/admin/attendance/override', body);
             // Refresh the student data
             const json = await api.get(`/api/admin/attendance/session-students?session_id=${sessionId}`);
             setSessionStudents(json);
             fetchSessions();
             setConfirmOverride(null);
+            setConfirmPresent(null);
         } catch (err) {
             console.error('Override failed:', err);
             alert('Override failed: ' + (err.message || 'Unknown error'));
@@ -716,7 +717,11 @@ export default function AdminAttendancePage() {
                                                                                 ) : (
                                                                                     <div style={{ display: 'flex', gap: '4px' }}>
                                                                                         <button
-                                                                                            onClick={(e) => { e.stopPropagation(); handleOverride(expandedSession, s.studentId, 'present'); }}
+                                                                                            onClick={(e) => {
+                                                                                                e.stopPropagation();
+                                                                                                setPresentPoints('5');
+                                                                                                setConfirmPresent({ studentId: s.studentId, studentName: s.name, sessionId: expandedSession });
+                                                                                            }}
                                                                                             disabled={s.adminOverride && s.status === 'present'}
                                                                                             style={{
                                                                                                 padding: '3px 8px', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 600, cursor: 'pointer',
@@ -876,7 +881,97 @@ export default function AdminAttendancePage() {
 
                 </div>
             </div>
-                {/* ── Absent Override Confirmation Modal ── */}
+                {/* ── Mark Present Modal (with custom points) ── */}
+                {confirmPresent && (
+                    <div style={{
+                        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex',
+                        alignItems: 'center', justifyContent: 'center', zIndex: 9999,
+                    }} onClick={() => setConfirmPresent(null)}>
+                        <div style={{
+                            background: '#fff', borderRadius: '12px', padding: '1.5rem', maxWidth: '420px', width: '90%',
+                            boxShadow: '0 20px 60px rgba(0,0,0,0.2)', border: '2px solid #bbf7d0',
+                        }} onClick={e => e.stopPropagation()}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '1rem' }}>
+                                <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#ecfdf5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <CheckCircle size={20} color="#16a34a" />
+                                </div>
+                                <div>
+                                    <div style={{ fontWeight: 700, fontSize: '1rem', color: '#111' }}>Mark Present — Admin Override</div>
+                                    <div style={{ fontSize: '0.75rem', color: '#888' }}>Manually mark student as present</div>
+                                </div>
+                            </div>
+
+                            <div style={{ padding: '12px', borderRadius: '8px', background: '#f0fdf4', marginBottom: '1rem', fontSize: '0.8rem', color: '#166534', lineHeight: '1.5' }}>
+                                <strong>{confirmPresent.studentName}</strong> will be marked as <strong>present</strong> with an admin override. You can adjust the points awarded below.
+                            </div>
+
+                            <div style={{ marginBottom: '1.2rem' }}>
+                                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#444', marginBottom: '6px' }}>
+                                    Points to Award
+                                    <span style={{ fontWeight: 400, color: '#aaa', marginLeft: '6px' }}>(range: −10 to 10, default: 5)</span>
+                                </label>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <input
+                                        type="number"
+                                        min="-10" max="10" step="1"
+                                        value={presentPoints}
+                                        onChange={e => setPresentPoints(e.target.value)}
+                                        style={{
+                                            width: '90px', padding: '7px 10px', borderRadius: '7px',
+                                            border: '1.5px solid #bbf7d0', fontSize: '0.9rem', fontWeight: 700,
+                                            color: '#166534', textAlign: 'center', outline: 'none',
+                                            fontFamily: 'monospace',
+                                        }}
+                                    />
+                                    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                                        {[0, 1, 2, 3, 4, 5].map(v => (
+                                            <button key={v} onClick={() => setPresentPoints(String(v))}
+                                                style={{
+                                                    padding: '4px 10px', borderRadius: '5px', border: '1px solid #e5e7eb',
+                                                    background: presentPoints === String(v) ? '#dcfce7' : '#f9fafb',
+                                                    color: presentPoints === String(v) ? '#166534' : '#555',
+                                                    fontWeight: presentPoints === String(v) ? 700 : 500,
+                                                    fontSize: '0.72rem', cursor: 'pointer',
+                                                }}
+                                            >{v}</button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div style={{ fontSize: '0.68rem', color: '#aaa', marginTop: '6px' }}>
+                                    Normal auto-scoring: on-time (+1) + duration ≥80% (+4) = max 5 pts
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                <button
+                                    onClick={() => setConfirmPresent(null)}
+                                    style={{
+                                        padding: '8px 16px', borderRadius: '6px', border: '1px solid #e5e7eb',
+                                        background: '#fff', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, color: '#555',
+                                    }}
+                                >Cancel</button>
+                                <button
+                                    onClick={() => {
+                                        const pts = parseFloat(presentPoints);
+                                        if (isNaN(pts) || pts < -10 || pts > 10) {
+                                            alert('Please enter a valid points value between -10 and 10.');
+                                            return;
+                                        }
+                                        handleOverride(confirmPresent.sessionId, confirmPresent.studentId, 'present', pts);
+                                    }}
+                                    disabled={overrideLoading === confirmPresent.studentId}
+                                    style={{
+                                        padding: '8px 18px', borderRadius: '6px', border: 'none',
+                                        background: '#16a34a', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700, color: '#fff',
+                                        opacity: overrideLoading === confirmPresent.studentId ? 0.6 : 1,
+                                    }}
+                                >{overrideLoading === confirmPresent.studentId ? 'Saving...' : `Confirm — Mark Present (${presentPoints} pts)`}</button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+            {/* ── Absent Override Confirmation Modal ── */}
                 {confirmOverride && (
                     <div style={{
                         position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex',
