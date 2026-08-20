@@ -45,9 +45,9 @@ async function handler(req) {
       let assignedPoints = 5;
       if (customPoints !== undefined && customPoints !== null) {
         const parsed = parseFloat(customPoints);
-        if (isNaN(parsed) || parsed < -10 || parsed > 10) {
+        if (isNaN(parsed) || parsed < -2 || parsed > 5) {
           return NextResponse.json(
-            { error: 'points must be a number between -10 and 10' },
+            { error: 'points must be a number between -2 and 5' },
             { status: 400 }
           );
         }

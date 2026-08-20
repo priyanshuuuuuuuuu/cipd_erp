@@ -976,7 +976,7 @@ export default function AdminAttendancePage() {
 
                             {/* Admin override note */}
                             <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', padding: '10px 14px', fontSize: '0.75rem', color: '#92400e', lineHeight: 1.5 }}>
-                                <strong>Admin Override:</strong> Admin can manually mark a student present with a custom point value (−10 to +10). The ADMIN badge appears on overridden records.
+                                <strong>Admin Override:</strong> Admin can manually mark a student present with a custom point value (−2 to +5). The ADMIN badge appears on overridden records.
                             </div>
 
                         </div>
@@ -1010,12 +1010,12 @@ export default function AdminAttendancePage() {
                             <div style={{ marginBottom: '1.2rem' }}>
                                 <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#444', marginBottom: '6px' }}>
                                     Points to Award
-                                    <span style={{ fontWeight: 400, color: '#aaa', marginLeft: '6px' }}>(range: −10 to 10, default: 5)</span>
+                                    <span style={{ fontWeight: 400, color: '#aaa', marginLeft: '6px' }}>(range: −2 to 5, default: 5)</span>
                                 </label>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                     <input
                                         type="number"
-                                        min="-10" max="10" step="1"
+                                        min="-2" max="5" step="1"
                                         value={presentPoints}
                                         onChange={e => setPresentPoints(e.target.value)}
                                         style={{
@@ -1055,8 +1055,8 @@ export default function AdminAttendancePage() {
                                 <button
                                     onClick={() => {
                                         const pts = parseFloat(presentPoints);
-                                        if (isNaN(pts) || pts < -10 || pts > 10) {
-                                            alert('Please enter a valid points value between -10 and 10.');
+                                        if (isNaN(pts) || pts < -2 || pts > 5) {
+                                            alert('Please enter a valid points value between -2 and 5.');
                                             return;
                                         }
                                         handleOverride(confirmPresent.sessionId, confirmPresent.studentId, 'present', pts);
