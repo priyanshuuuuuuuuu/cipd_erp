@@ -21,6 +21,7 @@ function getToken() {
   }
 
   // Prefer role-scoped token for the current page
+  // role-based token
   const roleToken = localStorage.getItem(`${expectedRole}_token`);
   if (roleToken) return roleToken;
 
