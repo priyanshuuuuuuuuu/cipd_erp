@@ -692,6 +692,84 @@ export async function sendFeedbackReminderEmail(studentEmail, studentName, sessi
   });
 }
 
+// ── Password Reset (admin-initiated) ─────────────────────────────────────────
+/**
+ * Sends a password reset email to a student.
+ * @param {{ to: string, firstName: string, resetUrl: string }} opts
+ */
+export async function sendPasswordResetEmail({ to, firstName, resetUrl }) {
+  const content = `
+    <!-- Hero -->
+    <tr>
+      <td class="hero-pad" style="background:${DARK};padding:48px 48px 40px;text-align:center;border-radius:16px 16px 0 0;">
+        <div style="width:64px;height:64px;background:rgba(255,255,255,0.1);border-radius:16px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:20px;border:1px solid rgba(255,255,255,0.15);">
+          <!-- Lock icon -->
+          <svg width="28" height="28" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+        </div>
+        <h1 class="hero-title" style="margin:0 0 12px;font-size:32px;font-weight:900;color:#FFFFFF;letter-spacing:-0.5px;line-height:1.1;">Reset Your Password</h1>
+        <p style="margin:0;font-size:15px;color:rgba(255,255,255,0.65);line-height:1.6;">Hi ${firstName || 'there'}, your admin has requested a password reset for your CiPD 360 account.</p>
+      </td>
+    </tr>
+
+    <!-- Info card -->
+    <tr>
+      <td style="padding:32px 40px 8px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#F7F7F7;border-radius:12px;border:1px solid ${BORDER};">
+          <tr>
+            <td style="padding:20px 24px;">
+              <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:${MUTED};text-transform:uppercase;letter-spacing:0.5px;">What to do</p>
+              <p style="margin:0;font-size:14px;color:${SUBTLE};line-height:1.7;">
+                Click the button below to set a new password. The link is valid for <strong>15 minutes</strong> and can only be used once.
+                If you didn't expect this, contact your program coordinator.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+    <!-- CTA Button -->
+    <tr>
+      <td style="padding:24px 40px 8px;text-align:center;">
+        <a href="${resetUrl}" target="_blank" style="display:inline-block;background:${INK};color:#FFFFFF;text-decoration:none;font-size:15px;font-weight:700;padding:14px 36px;border-radius:10px;letter-spacing:0.2px;">
+          Set New Password →
+        </a>
+      </td>
+    </tr>
+
+    <!-- Expiry note -->
+    <tr>
+      <td style="padding:12px 40px 8px;text-align:center;">
+        <p style="margin:0;font-size:12px;color:${MUTED};">Link expires in 15 minutes · Do not share this email</p>
+      </td>
+    </tr>
+
+    <!-- Fallback URL -->
+    <tr>
+      <td style="padding:8px 40px 32px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#F7F7F7;border-radius:10px;border:1px solid ${BORDER};">
+          <tr>
+            <td style="padding:14px 18px;">
+              <p style="margin:0 0 4px;font-size:11px;font-weight:700;color:${MUTED};text-transform:uppercase;letter-spacing:0.5px;">Or copy this link</p>
+              <p style="margin:0;font-size:11px;color:${MUTED};word-break:break-all;line-height:1.5;">${resetUrl}</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  `;
+
+  await transporter.sendMail({
+    from: `"CiPD 360" <${process.env.EMAIL_FROM}>`,
+    to,
+    subject: 'Reset your CiPD 360 password',
+    html: shell(content, `Password reset link for your CiPD 360 account — expires in 15 minutes`),
+  });
+}
+
 // ── Connection test ───────────────────────────────────────────────────────────
 export async function verifyEmailConnection() {
   try {

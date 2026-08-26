@@ -136,6 +136,11 @@ function StudentDrawer({ student, courses, onClose, onSaved, schema = 'july' }) 
     const [saveError, setSaveError] = useState('');
     const [saveSuccess, setSaveSuccess] = useState('');
 
+    // Password reset email
+    const [resetSending, setResetSending] = useState(false);
+    const [resetStatus, setResetStatus] = useState(''); // '' | 'success' | 'error'
+    const [resetMessage, setResetMessage] = useState('');
+
     // Enrollment management
     const [studentCourses, setStudentCourses] = useState(student.courses || []);
     const [enrolling, setEnrolling] = useState(null); // course_id being added
@@ -168,6 +173,20 @@ function StudentDrawer({ student, courses, onClose, onSaved, schema = 'july' }) 
             setSaveError(err.message || 'Failed to save changes.');
         } finally {
             setSaving(false);
+        }
+    };
+
+    const handleResetPassword = async () => {
+        setResetSending(true); setResetStatus(''); setResetMessage('');
+        try {
+            const res = await api.post('/api/admin/students/reset-password', { student_id: student.id, schema });
+            setResetStatus('success');
+            setResetMessage(res.message || `Reset email sent to ${student.email}`);
+        } catch (err) {
+            setResetStatus('error');
+            setResetMessage(err.message || 'Failed to send reset email.');
+        } finally {
+            setResetSending(false);
         }
     };
 
@@ -344,6 +363,52 @@ function StudentDrawer({ student, courses, onClose, onSaved, schema = 'july' }) 
                             <button type="submit" disabled={saving} style={{ width: '100%', padding: '10px', borderRadius: '10px', border: 'none', background: saving ? '#93c5fd' : 'linear-gradient(135deg, #0f4c75, #1b6ca8)', color: '#fff', cursor: saving ? 'not-allowed' : 'pointer', fontSize: '0.88rem', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                                 {saving ? <><Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} /> Saving...</> : <><CheckCircle size={15} /> Save Changes</>}
                             </button>
+
+                            {/* ── Password Reset Section ── */}
+                            <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid #e2e8f0' }}>
+                                <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '0.6rem' }}>Password Reset</div>
+                                <div style={{ fontSize: '0.8rem', color: '#64748b', lineHeight: 1.6, marginBottom: '0.9rem' }}>
+                                    Send a password reset link to <strong>{student.email}</strong>. The link expires in 15 minutes.
+                                </div>
+
+                                {resetStatus === 'success' && (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '8px', marginBottom: '0.75rem', fontSize: '0.8rem', color: '#065f46' }}>
+                                        <CheckCircle size={14} /> {resetMessage}
+                                    </div>
+                                )}
+                                {resetStatus === 'error' && (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', marginBottom: '0.75rem', fontSize: '0.8rem', color: '#dc2626' }}>
+                                        <AlertTriangle size={14} /> {resetMessage}
+                                    </div>
+                                )}
+
+                                <button
+                                    type="button"
+                                    onClick={handleResetPassword}
+                                    disabled={resetSending || resetStatus === 'success'}
+                                    style={{
+                                        width: '100%', padding: '10px', borderRadius: '10px',
+                                        border: '1.5px solid',
+                                        borderColor: resetStatus === 'success' ? '#a7f3d0' : '#bfdbfe',
+                                        background: resetStatus === 'success' ? '#ecfdf5' : '#eff6ff',
+                                        color: resetStatus === 'success' ? '#065f46' : '#1d4ed8',
+                                        cursor: (resetSending || resetStatus === 'success') ? 'not-allowed' : 'pointer',
+                                        fontSize: '0.88rem', fontWeight: 700,
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                                        transition: 'all 0.15s',
+                                        opacity: resetStatus === 'success' ? 0.75 : 1,
+                                    }}
+                                    onMouseOver={e => { if (!resetSending && resetStatus !== 'success') e.currentTarget.style.background = '#dbeafe'; }}
+                                    onMouseOut={e => { if (!resetSending && resetStatus !== 'success') e.currentTarget.style.background = '#eff6ff'; }}
+                                >
+                                    {resetSending
+                                        ? <><Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} /> Sending Email…</>
+                                        : resetStatus === 'success'
+                                            ? <><CheckCircle size={15} /> Email Sent!</>
+                                            : <><Mail size={15} /> Send Password Reset Email</>
+                                    }
+                                </button>
+                            </div>
                         </form>
                     )}
 
