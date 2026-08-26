@@ -1,0 +1,15 @@
+{
+  "extends": ["next/core-web-vitals"],
+  "rules": {
+    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
+    "no-console": ["warn", { "allow": ["warn", "error"] }],
+    "prefer-const": "warn",
+    "no-var": "warn"
+  },
+  "ignorePatterns": [
+    "node_modules/",
+    ".next/",
+    "migrations/",
+    "scripts/dev/"
+  ]
+}

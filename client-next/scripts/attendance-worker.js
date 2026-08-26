@@ -28,7 +28,9 @@ const APP_URL = process.env.APP_URL || 'http://localhost:3000';
 const CRON_SECRET = process.env.CRON_SECRET;
 const INTERVAL_MS = 6 * 60 * 1000; // 6 minutes
 
-const ALERT_RECIPIENTS = ['aaman23006@iiitd.ac.in'];
+// Load alert recipients from env var (comma-separated list of emails)
+// Set ALERT_RECIPIENTS=admin@example.com,backup@example.com in .env
+const ALERT_RECIPIENTS = (process.env.ALERT_RECIPIENTS || '').split(',').map(e => e.trim()).filter(Boolean);
 
 // Track state across cycles
 let lastAlertSentAt = 0;

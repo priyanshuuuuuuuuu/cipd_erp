@@ -1,37 +1,69 @@
-# dependencies
+# ─── Dependencies ────────────────────────────────────────────────────────────
 node_modules/
 client/node_modules/
 
-# Next.js build output
+# ─── Next.js ─────────────────────────────────────────────────────────────────
 .next/
 client-next/.next/
+*.tsbuildinfo
+next-env.d.ts
 
-# production build
+# ─── Production builds ───────────────────────────────────────────────────────
 dist/
 build/
+out/
 
-# logs
+# ─── Logs ────────────────────────────────────────────────────────────────────
+logs/
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+lerna-debug.log*
+attendance-worker.log
 
-# environment variables
+# ─── Environment variables (NEVER commit secrets) ────────────────────────────
 .env
 .env.local
+.env.*.local
 RouterCodesForAttendance/.env
-# env
+# .env.example IS committed intentionally (no secrets, only keys)
 
-# OS files
+# ─── Python (RouterCodesForAttendance) ───────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+
+# ─── OS files ────────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
 
-# editor
+# ─── Editor / IDE ────────────────────────────────────────────────────────────
 .vscode/
+.idea/
+*.swp
+*.swo
+
+# ─── Large data / seed files (not source code) ───────────────────────────────
+attendance/sessions_rows.json
+attendance/*.csv
+attendance/seed.sql
+
+# ─── One-off debug / diagnostic scripts ─────────────────────────────────────
+client-next/scripts/dev/
+client-next/tmp_check_tokens.js
+client-next/test-hash.js
+
+# ─── Junk ────────────────────────────────────────────────────────────────────
 students_signup_log.json
 client-next/scripts/bulk-signup-from-csv.mjs
 
-# security: never commit these
+# ─── Security: never commit these ────────────────────────────────────────────
 *.tar.gz
 backups/
 *.pgdump
 *.dump
+*.pem
+*.key

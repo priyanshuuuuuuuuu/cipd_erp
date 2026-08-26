@@ -1,0 +1,93 @@
+name: Deploy — Production (PM2)
+
+on:
+  push:
+    branches: [main]
+  # You can also trigger manually from the GitHub Actions UI
+  workflow_dispatch:
+
+# Only run one deploy at a time — cancel older in-progress deploys if a new push arrives
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy to College Server
+    runs-on: ubuntu-latest
+    # Only deploy if CI passed (the ci.yml workflow runs first on push to main)
+    needs: []   # Set to [lint-and-build] once you merge CI and Deploy into one file
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: client-next/package-lock.json
+
+      - name: Install dependencies
+        working-directory: client-next
+        run: npm ci
+
+      - name: Build Next.js app
+        working-directory: client-next
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_URL: ${{ secrets.APP_URL }}
+          COHORT_SCHEMAS: ${{ secrets.COHORT_SCHEMAS }}
+          COHORT_LABELS: ${{ secrets.COHORT_LABELS }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          ALERT_RECIPIENTS: ${{ secrets.ALERT_RECIPIENTS }}
+
+      # ── SSH into the college server and deploy ───────────────────────────────
+      # The server pulls the latest code from GitHub, installs production deps,
+      # rebuilds (so pm2 picks up the new .next/standalone), and restarts pm2.
+      #
+      # Required GitHub Secrets:
+      #   COLLEGE_SERVER_HOST  — IP or hostname of the college server
+      #   COLLEGE_SERVER_USER  — SSH username (e.g. ubuntu, ec2-user, your name)
+      #   COLLEGE_SERVER_SSH_KEY — Full private SSH key (-----BEGIN OPENSSH PRIVATE KEY-----)
+      #   COLLEGE_SERVER_PORT  — SSH port (usually 22)
+      #   DEPLOY_PATH          — Absolute path to cipd_erp on the server (e.g. /home/user/cipd_erp)
+      - name: SSH Deploy to Server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.COLLEGE_SERVER_HOST }}
+          username: ${{ secrets.COLLEGE_SERVER_USER }}
+          key: ${{ secrets.COLLEGE_SERVER_SSH_KEY }}
+          port: ${{ secrets.COLLEGE_SERVER_PORT }}
+          envs: DEPLOY_PATH
+          script: |
+            set -e
+
+            echo "==> Pulling latest code..."
+            cd ${{ secrets.DEPLOY_PATH }}
+            git pull origin main
+
+            echo "==> Installing production dependencies..."
+            cd client-next
+            npm ci --omit=dev
+
+            echo "==> Building Next.js..."
+            npm run build
+
+            echo "==> Restarting pm2..."
+            # If the pm2 process already exists, reload it gracefully (zero downtime).
+            # If it doesn't exist yet, start it.
+            pm2 reload cipd-erp --update-env 2>/dev/null || \
+              pm2 start npm --name "cipd-erp" -- start
+
+            echo "==> Saving pm2 process list..."
+            pm2 save
+
+            echo "✅ Deploy complete."
