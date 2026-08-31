@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { withRole } from '@/lib/middleware';
+import { getISTDateString } from '@/lib/ist-date';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -228,7 +229,7 @@ async function handler(request) {
   const courseId  = searchParams.get('courseId') || 'all';
   const facultyId = searchParams.get('facultyId')|| 'all';
 
-  const timestamp = new Date().toISOString().split('T')[0];
+  const timestamp = getISTDateString(); // IST date for filename
   const filename  = `cipd_${type}_report_${timestamp}.csv`;
 
   try {

@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { withRole } from '@/lib/middleware';
+import { getISTDateString } from '@/lib/ist-date';
 
 async function getHandler(req) {
   try {
@@ -22,7 +23,7 @@ async function getHandler(req) {
 
     if (status) query = query.eq('status', status);
     if (upcoming) {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getISTDateString(); // IST date
       query = query.gte('session_date', today).neq('status', 'cancelled');
     }
 

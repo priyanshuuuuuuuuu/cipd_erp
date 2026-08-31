@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { withAuth } from '@/lib/middleware';
+import { getISTWeekRange } from '@/lib/ist-date';
 
 async function handler(req) {
   try {
@@ -9,16 +10,11 @@ async function handler(req) {
     const startDate = searchParams.get('start');
     const endDate = searchParams.get('end');
 
-    // Default to current week
-    const now = new Date();
-    const dayOfWeek = now.getDay();
-    const weekStart = new Date(now);
-    weekStart.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
-    const weekEnd = new Date(weekStart);
-    weekEnd.setDate(weekStart.getDate() + 6);
+    // Default to current IST week (Monday–Sunday)
+    const { start: weekStartStr, end: weekEndStr } = getISTWeekRange();
 
-    const start = startDate || weekStart.toISOString().split('T')[0];
-    const end = endDate || weekEnd.toISOString().split('T')[0];
+    const start = startDate || weekStartStr;
+    const end = endDate || weekEndStr;
 
     // Get enrolled courses
     const { data: enrollments } = await supabaseAdmin

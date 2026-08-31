@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { sendDayBeforeReminderEmail } from '@/lib/emailer';
 import { fetchPreferencesMap, shouldNotifyUser } from '@/lib/should-notify';
+import { getISTNow } from '@/lib/ist-date';
 
 /**
  * GET /api/cron/reminder
@@ -17,10 +18,10 @@ export async function GET(req) {
   }
 
   try {
-    // Build tomorrow's date in UTC (server-side cron runs in UTC)
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = tomorrow.toISOString().split('T')[0]; // YYYY-MM-DD
+    // Build tomorrow's date in IST (cron server may run in UTC)
+    const tomorrow = getISTNow();
+    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().split('T')[0]; // YYYY-MM-DD (IST)
 
     // Fetch all sessions scheduled for tomorrow
     const { data: sessions, error } = await supabaseAdmin

@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { withRole } from '@/lib/middleware';
+import { getISTMonthStart } from '@/lib/ist-date';
 
 async function handler(request) {
     try {
@@ -28,15 +29,13 @@ async function handler(request) {
             .select('*', { count: 'exact', head: true })
             .eq('status', 'completed');
 
-        // 3. Sessions completed this month
-        const startOfMonth = new Date();
-        startOfMonth.setDate(1);
-        startOfMonth.setHours(0, 0, 0, 0);
+        // 3. Sessions completed this month (IST)
+        const startOfMonth = getISTMonthStart();
         const { count: thisMonth } = await supabaseAdmin
             .from('sessions')
             .select('*', { count: 'exact', head: true })
             .eq('status', 'completed')
-            .gte('session_date', startOfMonth.toISOString().split('T')[0]);
+            .gte('session_date', startOfMonth);
 
         // 4. Average feedback rating across all sessions
         const { data: ratings } = await supabaseAdmin

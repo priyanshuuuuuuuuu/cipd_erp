@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { withRole } from '@/lib/middleware';
+import { getISTDateString } from '@/lib/ist-date';
 
 async function handler(req) {
   try {
@@ -11,8 +12,8 @@ async function handler(req) {
       .select('total_students, total_faculty, total_sessions')
       .single();
 
-    // Get today's session count
-    const today = new Date().toISOString().split('T')[0];
+    // Get today's session count (IST date)
+    const today = getISTDateString();
     const { count: todaySessions } = await supabaseAdmin
       .from('sessions')
       .select('*', { count: 'exact', head: true })

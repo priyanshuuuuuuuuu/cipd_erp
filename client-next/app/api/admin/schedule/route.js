@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { withRole } from '@/lib/middleware';
+import { getISTDateString, getISTWeekRange } from '@/lib/ist-date';
 
 async function handler(request) {
     const { searchParams } = new URL(request.url);
@@ -28,20 +29,15 @@ async function handler(request) {
             `);
 
         // Filter processing
-        const todayStr = new Date().toISOString().split('T')[0];
+        const todayStr = getISTDateString(); // IST date (not UTC)
 
         if (filter === 'today') {
             query = query.eq('session_date', todayStr);
         } else if (filter === 'week') {
-            const today = new Date();
-            const dayOfWeek = today.getDay() || 7; // Sunday = 7
-            const monday = new Date(today);
-            monday.setDate(today.getDate() - dayOfWeek + 1);
-            const sunday = new Date(today);
-            sunday.setDate(monday.getDate() + 6);
+            const { start: monday, end: sunday } = getISTWeekRange();
             query = query
-                .gte('session_date', monday.toISOString().split('T')[0])
-                .lte('session_date', sunday.toISOString().split('T')[0]);
+                .gte('session_date', monday)
+                .lte('session_date', sunday);
         } else if (['confirmed', 'pending', 'cancelled'].includes(filter)) {
             const dbStatus = filter === 'confirmed' ? 'scheduled' : filter;
             query = query.eq('status', dbStatus);

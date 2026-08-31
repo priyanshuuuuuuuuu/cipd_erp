@@ -8,6 +8,7 @@ import {
   filterNotificationsByPrefs,
   shouldNotifyUser,
 } from '@/lib/should-notify';
+import { getISTWeekRange } from '@/lib/ist-date';
 
 
 // POST - Send notifications (supports feedback reminders, class reminders, general)
@@ -184,14 +185,8 @@ async function postHandler(req) {
             (studentUsers || []).map((s) => s.id)
           );
 
-          // Week date range
-          const now = new Date();
-          const weekStart = new Date(now);
-          weekStart.setDate(now.getDate() - (now.getDay() === 0 ? 6 : now.getDay() - 1));
-          const weekEnd = new Date(weekStart);
-          weekEnd.setDate(weekStart.getDate() + 6);
-          const startStr = weekStart.toISOString().split('T')[0];
-          const endStr = weekEnd.toISOString().split('T')[0];
+          // Week date range (IST)
+          const { start: startStr, end: endStr } = getISTWeekRange();
 
           // Get all enrollments for these students
           const { data: allEnrollments } = await supabaseAdmin

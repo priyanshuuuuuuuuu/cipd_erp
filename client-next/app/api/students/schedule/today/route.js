@@ -2,13 +2,15 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { withAuth } from '@/lib/middleware';
+import { getISTDateString } from '@/lib/ist-date';
 
 async function handler(req) {
   try {
     // Use client-supplied local date to avoid UTC vs local timezone mismatch.
     // The frontend passes ?date=YYYY-MM-DD in the user's timezone.
+    // Fallback to IST date if no date is provided.
     const { searchParams } = new URL(req.url);
-    const today = searchParams.get('date') || new Date().toISOString().split('T')[0];
+    const today = searchParams.get('date') || getISTDateString();
 
     // Get courses the student is enrolled in
     const { data: enrollments } = await supabaseAdmin

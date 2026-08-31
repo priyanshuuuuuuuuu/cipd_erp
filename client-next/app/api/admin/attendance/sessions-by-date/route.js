@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { withRole } from '@/lib/middleware';
+import { getISTDateString, getISTTimeString } from '@/lib/ist-date';
 
 // Robust MAC normalizer
 const normalizeMac = (mac) => {
@@ -13,7 +14,7 @@ const isValidMac = (mac) => /^([A-F0-9]{2}:){5}[A-F0-9]{2}$/.test(mac);
 async function handler(req) {
   try {
     const { searchParams } = new URL(req.url);
-    const date = searchParams.get('date') || new Date().toISOString().split('T')[0];
+    const date = searchParams.get('date') || getISTDateString(); // IST date
 
     // Fetch sessions for the given date with course, faculty, venue info
     const { data: sessions, error: sessErr } = await supabaseAdmin
@@ -44,9 +45,8 @@ async function handler(req) {
         .filter(mac => mac && isValidMac(mac))
     );
 
-    const now = new Date();
-    const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:00`;
-    const today = now.toISOString().split('T')[0];
+    const currentTime = getISTTimeString(); // HH:MM:SS in IST
+    const today = getISTDateString();       // YYYY-MM-DD in IST
 
     const enrichedSessions = await Promise.all((sessions || []).map(async (session) => {
       const isToday = date === today;
