@@ -446,7 +446,7 @@ export default function AdminSchedulePage() {
 
     const statusBadge = status => {
         const map = {
-            Confirmed:  { bg: '#ecfdf5', color: '#166534' },
+            Scheduled:  { bg: '#ecfdf5', color: '#166534' },
             Pending:    { bg: '#fffbeb', color: '#92400e' },
             Cancelled:  { bg: '#fef2f2', color: '#991b1b' },
             Completed:  { bg: '#eff6ff', color: '#1d4ed8' },
@@ -537,7 +537,7 @@ export default function AdminSchedulePage() {
     const getSessionsForSlot = (dateKey, time) =>
         sessions.filter(s => s.date === dateKey && s.time?.startsWith(time.split(':')[0]));
     const totalToday = sessions.filter(s => s.date === todayStr).length;
-    const confirmed = sessions.filter(s => s.status === 'Confirmed').length;
+    const scheduled = sessions.filter(s => s.status === 'Scheduled').length;
     const pending = sessions.filter(s => s.status === 'Pending').length;
     const displayName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Admin' : 'Admin';
 
@@ -625,6 +625,7 @@ export default function AdminSchedulePage() {
                         <div className="nav-item" onClick={() => navTo('/admin/attendance')} style={{ cursor: 'pointer' }}><CheckCircle size={18} /> <span>Attendance Monitoring</span></div>
                         <div className="nav-item" onClick={() => navTo('/admin/live-students')} style={{ cursor: 'pointer' }}><Users size={18} /> <span>Live Students</span></div>
                         <div className="nav-item" onClick={() => navTo('/admin/students')} style={{ cursor: 'pointer' }}><GraduationCap size={18} /> <span>Student Management</span></div>
+                        <div className="nav-item" onClick={() => navTo('/admin/leave-requests')} style={{ cursor: 'pointer' }}><Clock size={18} /> <span>Leave Requests</span></div>
                         <div className="nav-item" onClick={() => navTo('/admin/wifi-logs')} style={{ cursor: 'pointer' }}><Wifi size={18} /> <span>Wi-Fi Logs</span></div>
                         <div style={{ fontSize: '0.6rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', color: '#555', padding: '10px 1rem 4px' }}><span>Analytics</span></div>
                         <div className="nav-item" onClick={() => navTo('/admin/feedback')} style={{ cursor: 'pointer' }}><MessageSquare size={18} /> <span>Feedback Analytics</span></div>
@@ -660,7 +661,7 @@ export default function AdminSchedulePage() {
                         {[
                             { label: 'Total Sessions',  value: sessions.length, icon: CalendarDays, color: '#2563eb', bg: '#eff6ff' },
                             { label: "Today's Classes", value: totalToday,     icon: Clock,        color: '#7c3aed', bg: '#faf5ff' },
-                            { label: 'Confirmed',       value: confirmed,      icon: CheckCircle,  color: '#16a34a', bg: '#ecfdf5' },
+                            { label: 'Scheduled',       value: scheduled,      icon: CheckCircle,  color: '#16a34a', bg: '#ecfdf5' },
                             { label: 'Pending',         value: pending,        icon: AlertTriangle,color: '#b45309', bg: '#fffbeb' },
                         ].map((stat, i) => (
                             <div key={i} style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', padding: '1rem 1.2rem', display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -676,7 +677,7 @@ export default function AdminSchedulePage() {
                     {/* Controls row */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-                            {[['all', 'All'], ['today', 'Today'], ['week', 'This Week'], ['confirmed', 'Confirmed'], ['pending', 'Pending']].map(([key, label]) => (
+                            {[['all', 'All'], ['today', 'Today'], ['week', 'This Week'], ['scheduled', 'Scheduled'], ['pending', 'Pending']].map(([key, label]) => (
                                 <button key={key} onClick={() => setActiveFilter(key)} style={{ padding: '6px 16px', borderRadius: '6px', border: `1px solid ${activeFilter === key ? '#111' : '#e8e8e8'}`, background: activeFilter === key ? '#111' : '#fff', color: activeFilter === key ? '#fff' : '#888', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer' }}>{label}</button>
                             ))}
                             {/* Backfill button */}
@@ -874,7 +875,7 @@ export default function AdminSchedulePage() {
                                                 return (
                                                     <div key={`${dayObj.dateKey}-${time}`} style={{ padding: '4px', borderBottom: '1px solid #f5f5f5', borderRight: '1px solid #f0f0f0', minHeight: '60px' }}>
                                                         {daySessions.map(s => (
-                                                            <div key={s.id} style={{ padding: '6px 8px', borderRadius: '8px', marginBottom: '2px', background: s.status === 'Confirmed' ? '#ecfdf5' : '#fffbeb', border: s.date === todayStr ? '1px solid #a78bfa' : `1px solid ${s.status === 'Confirmed' ? '#bbf7d0' : '#fde68a'}`, cursor: 'pointer' }}>
+                                                            <div key={s.id} style={{ padding: '6px 8px', borderRadius: '8px', marginBottom: '2px', background: s.status === 'Scheduled' ? '#ecfdf5' : '#fffbeb', border: s.date === todayStr ? '1px solid #a78bfa' : `1px solid ${s.status === 'Scheduled' ? '#bbf7d0' : '#fde68a'}`, cursor: 'pointer' }}>
                                                                 <div style={{ fontSize: '0.65rem', fontWeight: 600, color: '#111', lineHeight: 1.3 }}>{s.course}</div>
                                                                 <div style={{ fontSize: '0.58rem', color: '#888' }}>{s.time}–{s.endTime}</div>
                                                             </div>
@@ -1425,7 +1426,7 @@ export default function AdminSchedulePage() {
                                 <div>
                                     <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>Status</label>
                                     <select value={editForm.status || 'scheduled'} onChange={e => setEditForm(f => ({ ...f, status: e.target.value }))} style={{ ...inp, cursor: 'pointer', background: '#fff' }}>
-                                        <option value='scheduled'>Confirmed</option>
+                                        <option value='scheduled'>Scheduled</option>
                                         <option value='completed'>Completed</option>
                                         <option value='cancelled'>Cancelled</option>
                                     </select>

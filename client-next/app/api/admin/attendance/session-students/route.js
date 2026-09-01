@@ -104,6 +104,22 @@ async function handler(req) {
       verifiedEnrolled.map((s) => s.id)
     );
 
+    // Also load pending leaves for display-only: pending leave => show 'On Leave' badge
+    // (does not affect points scoring — only approved leaves exempt from penalty)
+    const { data: pendingLeaveRows } = await supabaseAdmin
+      .from('leave_requests')
+      .select('student_id, session_id')
+      .eq('status', 'pending')
+      .eq('leave_date', date)
+      .in('student_id', verifiedEnrolled.map((s) => s.id));
+
+    const pendingLeaves = new Set();
+    (pendingLeaveRows || []).forEach((l) => {
+      if (!l.session_id || l.session_id === sessionId) {
+        pendingLeaves.add(l.student_id);
+      }
+    });
+
     const { data: existingRecords } = await supabaseAdmin
       .from('attendance_records')
       .select(
@@ -262,13 +278,20 @@ async function handler(req) {
         finalizeAbsent,
       });
 
-      const status = resolveAttendanceStatus({
+      let status = resolveAttendanceStatus({
         durationPercent: scoring.durationPercent ?? 0,
         detected,
         leaveApproved: approvedLeaves.has(student.id),
         finalizeAbsent,
         isOngoing,
       });
+
+      // If student has a pending leave request and is not detected as present/partial,
+      // show as 'leave' in the admin UI (display only — points are not affected)
+      const leavePending = pendingLeaves.has(student.id);
+      if (leavePending && status === 'absent') {
+        status = 'leave';
+      }
 
       const displayPoints = isOngoing ? 0 : (existing?.points ?? scoring.points);
 
@@ -292,6 +315,8 @@ async function handler(req) {
         adminOverride: false,
         penalty: false,
         penaltyReason: '',
+        leavePending,
+        leaveApproved: approvedLeaves.has(student.id),
         deviceName: detected ? timeline[timeline.length - 1].deviceName || '' : '',
         pings: timeline.map((t) => ({
           time: t.time.toISOString(),

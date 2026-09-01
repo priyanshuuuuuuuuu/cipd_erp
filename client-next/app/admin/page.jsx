@@ -5,7 +5,8 @@ import '../Dashboard.css';
 import {
     LayoutGrid, Calendar, BookOpen, Users, MessageSquare, Settings, LogOut, Bell, Search, Menu,
     ChevronLeft, ChevronRight, Wifi, Clock, FileBarChart, RefreshCw, Activity, CheckCircle,
-    AlertTriangle, Filter, Plus, Send, Mail, MapPin, User, AlertCircle, X, BarChart3, Trophy, GraduationCap
+    AlertTriangle, Filter, Plus, Send, Mail, MapPin, User, AlertCircle, X, BarChart3, Trophy, GraduationCap,
+    CalendarX, CheckSquare, XSquare
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
@@ -31,6 +32,8 @@ export default function AdminDashboard() {
     const [feedbackPending, setFeedbackPending] = useState([]);
     const [recentActivity, setRecentActivity] = useState([]);
     const [weeklyAttendance, setWeeklyAttendance] = useState([]);
+    const [pendingLeaves, setPendingLeaves] = useState([]);
+    const [leaveActionBusy, setLeaveActionBusy] = useState(null);
     const [loadingData, setLoadingData] = useState(true);
 
     const navTo = (p) => router.push(p);
@@ -38,12 +41,13 @@ export default function AdminDashboard() {
 
     const fetchAll = useCallback(async () => {
         try {
-            const [sessRes, fbRes, wkRes, dashRes, lookupRes] = await Promise.allSettled([
-                api.get('/api/admin/sessions?upcoming=true'),
+            const [sessRes, fbRes, wkRes, dashRes, lookupRes, leaveRes] = await Promise.allSettled([
+                api.get('/api/admin/sessions?today=true'),
                 api.get('/api/admin/feedback/status'),
                 api.get('/api/admin/attendance/weekly'),
                 api.get('/api/admin/dashboard'),
                 api.get('/api/admin/lookup'),
+                api.get('/api/admin/leave-requests?status=pending'),
             ]);
 
             if (sessRes.status === 'fulfilled') {
@@ -54,7 +58,7 @@ export default function AdminDashboard() {
                     time: s.start_time ? s.start_time.slice(0, 5) : '',
                     venue: s.venues?.name || 'TBA',
                     students: s.enrolled_students || 0,
-                    status: s.status === 'scheduled' ? 'Confirmed' : 'Pending',
+                    status: s.status === 'scheduled' ? 'Scheduled' : 'Pending',
                     id: s.id,
                 })));
             }
@@ -105,6 +109,21 @@ export default function AdminDashboard() {
                     venues: lookupRes.value.venues || [],
                 });
             }
+
+            if (leaveRes.status === 'fulfilled') {
+                setPendingLeaves((leaveRes.value.requests || []).map(r => ({
+                    id: r.id,
+                    studentName: r.students?.users
+                        ? `${r.students.users.first_name} ${r.students.users.last_name}`.trim()
+                        : 'Unknown',
+                    enrollmentNo: r.students?.enrollment_no || '—',
+                    leaveDate: r.leave_date,
+                    session: r.sessions?.title || 'Full Day',
+                    course: r.sessions?.courses?.name || '',
+                    reason: r.reason || '',
+                    createdAt: r.created_at,
+                })));
+            }
         } finally {
             setLoadingData(false);
         }
@@ -116,6 +135,18 @@ export default function AdminDashboard() {
     const avgAttendance = weeklyAttendance.length > 0
         ? (weeklyAttendance.reduce((a, d) => a + (d.pct || 0), 0) / weeklyAttendance.length).toFixed(1)
         : '—';
+
+    const handleLeaveAction = async (leaveId, action) => {
+        setLeaveActionBusy(leaveId);
+        try {
+            await api.patch(`/api/admin/leave-requests/${leaveId}`, { status: action });
+            setPendingLeaves(prev => prev.filter(l => l.id !== leaveId));
+        } catch (e) {
+            alert(e.message || `Failed to ${action} leave request`);
+        } finally {
+            setLeaveActionBusy(null);
+        }
+    };
 
     const handleNotifyAll = async (sessionId) => {
         setNotifyStatus('sending');
@@ -210,6 +241,7 @@ export default function AdminDashboard() {
                         <div className="nav-item" onClick={() => navTo('/admin/attendance')} style={{ cursor: 'pointer' }}><CheckCircle size={18} /> <span>Attendance Monitoring</span></div>
                         <div className="nav-item" onClick={() => navTo('/admin/live-students')} style={{ cursor: 'pointer' }}><Users size={18} /> <span>Live Students</span></div>
                         <div className="nav-item" onClick={() => navTo('/admin/students')} style={{ cursor: 'pointer' }}><GraduationCap size={18} /> <span>Student Management</span></div>
+                        <div className="nav-item" onClick={() => navTo('/admin/leave-requests')} style={{ cursor: 'pointer' }}><Clock size={18} /> <span>Leave Requests</span></div>
                         <div className="nav-item" onClick={() => navTo('/admin/wifi-logs')} style={{ cursor: 'pointer' }}><Wifi size={18} /> <span>Wi-Fi Logs</span></div>
                         <div style={{ fontSize: '0.6rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', color: '#555', padding: '10px 1rem 4px' }}><span>Analytics</span></div>
                         <div className="nav-item" onClick={() => navTo('/admin/feedback')} style={{ cursor: 'pointer' }}><MessageSquare size={18} /> <span>Feedback Analytics</span></div>
@@ -295,7 +327,7 @@ export default function AdminDashboard() {
                     <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
                         <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', borderTop: '3px solid #3B2D82', boxShadow: '0 2px 8px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.5rem', borderBottom: '1px solid #f0f0f0' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1rem', fontWeight: 700 }}><Calendar size={16} /> Upcoming Classes</div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1rem', fontWeight: 700 }}><Calendar size={16} /> Today's Classes</div>
                                 <button onClick={() => setShowScheduleModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 14px', borderRadius: '8px', border: 'none', background: '#111', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, color: '#fff' }}>
                                     <Plus size={13} /> Schedule Class
                                 </button>
@@ -313,7 +345,7 @@ export default function AdminDashboard() {
                                         </div>
                                     ))}</div>
                                 ) : upcomingClasses.length === 0 ? (
-                                    <div style={{ padding: '1.5rem', color: '#888', fontSize: '0.82rem', textAlign: 'center' }}>No upcoming classes scheduled.</div>
+                                    <div style={{ padding: '1.5rem', color: '#888', fontSize: '0.82rem', textAlign: 'center' }}>No classes scheduled for today.</div>
                                 ) : upcomingClasses.map((cls, i) => (
                                     <div key={i} className="attendance-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 1.5rem', borderBottom: i < upcomingClasses.length - 1 ? '1px solid #f5f5f5' : 'none' }}>
                                         <div style={{ flex: 1 }}>
@@ -326,7 +358,7 @@ export default function AdminDashboard() {
                                             </div>
                                         </div>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                                            <span style={{ padding: '3px 10px', borderRadius: '8px', fontSize: '0.7rem', fontWeight: 600, background: cls.status === 'Confirmed' ? '#ecfdf5' : '#fffbeb', color: cls.status === 'Confirmed' ? '#166534' : '#92400e' }}>{cls.status}</span>
+                                            <span style={{ padding: '3px 10px', borderRadius: '8px', fontSize: '0.7rem', fontWeight: 600, background: cls.status === 'Scheduled' ? '#ecfdf5' : '#fffbeb', color: cls.status === 'Scheduled' ? '#166534' : '#92400e' }}>{cls.status}</span>
                                             <button onClick={() => handleNotifyAll(cls.id)} disabled={notifyStatus === 'sending'} className="change-status-btn" style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 12px', borderRadius: '8px', border: '1px solid #eee', background: notifyStatus === 'sent' ? '#ecfdf5' : '#fff', cursor: notifyStatus === 'sending' ? 'wait' : 'pointer', fontSize: '0.75rem', fontWeight: 500, color: notifyStatus === 'sent' ? '#166534' : '#555' }}>
                                                 {notifyStatus === 'sending' ? <><RefreshCw size={11} style={{ animation: 'spin 1s linear infinite' }} /> Sending...</> : notifyStatus === 'sent' ? <><CheckCircle size={11} /> Sent!</> : <><Send size={11} /> Notify All</>}
                                             </button>
@@ -382,6 +414,72 @@ export default function AdminDashboard() {
                                 </button>
                             </div>
                         </div>
+                    </div>
+
+                    {/* Row 2b: Leave Requests Panel */}
+                    <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', borderTop: '3px solid #f97316', boxShadow: '0 2px 8px rgba(0,0,0,0.02)', overflow: 'hidden', marginBottom: '1.5rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.5rem', borderBottom: '1px solid #f0f0f0' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1rem', fontWeight: 700 }}>
+                                <CalendarX size={16} color="#f97316" /> Pending Leave Requests
+                                {pendingLeaves.length > 0 && (
+                                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: '20px', height: '20px', borderRadius: '10px', background: '#f97316', color: '#fff', fontSize: '0.65rem', fontWeight: 700, padding: '0 5px' }}>
+                                        {pendingLeaves.length}
+                                    </span>
+                                )}
+                            </div>
+                            <button onClick={() => navTo('/admin/leave-requests')} style={{ fontSize: '0.75rem', color: '#f97316', fontWeight: 600, background: 'none', border: '1px solid #fed7aa', borderRadius: '6px', padding: '4px 10px', cursor: 'pointer' }}>
+                                View All
+                            </button>
+                        </div>
+                        {loadingData ? (
+                            <div style={{ padding: '1.5rem', color: '#aaa', fontSize: '0.82rem', textAlign: 'center' }}>Loading...</div>
+                        ) : pendingLeaves.length === 0 ? (
+                            <div style={{ padding: '1.5rem', textAlign: 'center', color: '#aaa', fontSize: '0.82rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+                                <CheckSquare size={20} color="#bbf7d0" />
+                                <div>No pending leave requests — all clear!</div>
+                            </div>
+                        ) : (
+                            <div style={{ maxHeight: '280px', overflowY: 'auto' }}>
+                                {pendingLeaves.map((leave, i) => {
+                                    const busy = leaveActionBusy === leave.id;
+                                    return (
+                                        <div key={leave.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 1.5rem', borderBottom: i < pendingLeaves.length - 1 ? '1px solid #f5f5f5' : 'none' }}>
+                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+                                                    <span style={{ fontWeight: 700, fontSize: '0.88rem', color: '#111' }}>{leave.studentName}</span>
+                                                    <span style={{ padding: '1px 6px', borderRadius: '4px', fontSize: '0.6rem', fontWeight: 700, background: '#fff7ed', color: '#c2410c', border: '1px solid #fed7aa' }}>LEAVE</span>
+                                                </div>
+                                                <div style={{ fontSize: '0.72rem', color: '#888', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                                    <span style={{ fontFamily: 'monospace' }}>{leave.enrollmentNo}</span>
+                                                    <span>·</span>
+                                                    <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}><Calendar size={10} /> {new Date(leave.leaveDate + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>
+                                                    {leave.course && <><span>·</span><span>{leave.course}</span></>}
+                                                </div>
+                                                {leave.reason && (
+                                                    <div style={{ fontSize: '0.7rem', color: '#b45309', marginTop: '2px', fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>"{leave.reason}"</div>
+                                                )}
+                                            </div>
+                                            <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                                                <button
+                                                    disabled={busy}
+                                                    onClick={() => handleLeaveAction(leave.id, 'approved')}
+                                                    style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 10px', borderRadius: '6px', border: '1px solid #bbf7d0', background: '#f0fdf4', color: '#166534', fontSize: '0.72rem', fontWeight: 700, cursor: busy ? 'not-allowed' : 'pointer', opacity: busy ? 0.6 : 1 }}
+                                                >
+                                                    <CheckSquare size={12} /> Approve
+                                                </button>
+                                                <button
+                                                    disabled={busy}
+                                                    onClick={() => handleLeaveAction(leave.id, 'rejected')}
+                                                    style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 10px', borderRadius: '6px', border: '1px solid #fecaca', background: '#fef2f2', color: '#991b1b', fontSize: '0.72rem', fontWeight: 700, cursor: busy ? 'not-allowed' : 'pointer', opacity: busy ? 0.6 : 1 }}
+                                                >
+                                                    <XSquare size={12} /> Reject
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
 
                     {/* Row 3: Recent Activity */}

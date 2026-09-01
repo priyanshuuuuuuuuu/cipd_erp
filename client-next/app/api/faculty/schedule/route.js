@@ -41,7 +41,7 @@ async function handler(req) {
       date: s.session_date,
       time: s.start_time?.slice(0, 5),
       endTime: s.end_time?.slice(0, 5),
-      status: s.status === 'scheduled' ? 'Confirmed' : s.status.charAt(0).toUpperCase() + s.status.slice(1),
+      status: s.status === 'scheduled' ? 'Scheduled' : s.status.charAt(0).toUpperCase() + s.status.slice(1),
     }));
 
     return NextResponse.json({ sessions: mapped });

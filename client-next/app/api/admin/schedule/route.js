@@ -6,7 +6,7 @@ import { getISTDateString, getISTWeekRange } from '@/lib/ist-date';
 
 async function handler(request) {
     const { searchParams } = new URL(request.url);
-    const filter = searchParams.get('filter') || 'all'; // 'all', 'today', 'week', 'confirmed', 'pending'
+    const filter = searchParams.get('filter') || 'all'; // 'all', 'today', 'week', 'scheduled', 'pending'
 
     try {
         let query = supabaseAdmin
@@ -38,8 +38,8 @@ async function handler(request) {
             query = query
                 .gte('session_date', monday)
                 .lte('session_date', sunday);
-        } else if (['confirmed', 'pending', 'cancelled'].includes(filter)) {
-            const dbStatus = filter === 'confirmed' ? 'scheduled' : filter;
+        } else if (['scheduled', 'pending', 'cancelled'].includes(filter)) {
+            const dbStatus = filter;
             query = query.eq('status', dbStatus);
         }
 
@@ -92,7 +92,7 @@ async function handler(request) {
 
         const sessions = (data || []).map(s => {
             let computedStatus = s.status === 'scheduled'
-                ? 'Confirmed'
+                ? 'Scheduled'
                 : s.status.charAt(0).toUpperCase() + s.status.slice(1);
 
             if (s.status === 'scheduled' && s.session_date && s.start_time && s.end_time) {

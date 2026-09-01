@@ -81,7 +81,7 @@ export default function FacultySchedulePage() {
 
   const statusBadge = (status) => {
     const map = {
-      Confirmed: { bg: '#ecfdf5', color: '#166534' },
+      Scheduled: { bg: '#ecfdf5', color: '#166534' },
       Completed: { bg: '#eff6ff', color: '#1d4ed8' },
       Cancelled: { bg: '#fef2f2', color: '#991b1b' },
       Pending: { bg: '#fffbeb', color: '#92400e' },

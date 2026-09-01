@@ -8,7 +8,7 @@ async function getHandler(req) {
   try {
     const { searchParams } = new URL(req.url);
     const status = searchParams.get('status');
-    const upcoming = searchParams.get('upcoming') === 'true';
+    const todayFlag = searchParams.get('today') === 'true';
 
     let query = supabaseAdmin
       .from('sessions')
@@ -22,9 +22,9 @@ async function getHandler(req) {
       .order('start_time', { ascending: true });
 
     if (status) query = query.eq('status', status);
-    if (upcoming) {
-      const today = getISTDateString(); // IST date
-      query = query.gte('session_date', today).neq('status', 'cancelled');
+    if (todayFlag) {
+      const todayDate = getISTDateString(); // IST date
+      query = query.eq('session_date', todayDate).neq('status', 'cancelled');
     }
 
     const { data: sessions, error } = await query.limit(50);

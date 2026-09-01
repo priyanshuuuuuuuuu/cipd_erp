@@ -5,7 +5,7 @@ import {
     LayoutGrid, Calendar, MessageSquare, Settings, LogOut, Bell, Search, Menu,
     ChevronLeft, ChevronRight, Wifi, Clock, FileBarChart, Download, RefreshCw, Activity,
     CheckCircle, AlertTriangle, Filter, Users, ChevronDown, ChevronUp, XCircle, Timer,
-    ShieldCheck, ShieldX, Smartphone, Trophy, GraduationCap, Info
+    ShieldCheck, ShieldX, Smartphone, Trophy, GraduationCap, Info, FileX
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
@@ -333,10 +333,12 @@ export default function AdminAttendancePage() {
 
     const getStatusStyle = (status) => {
         switch (status) {
-            case 'present': return { bg: '#ecfdf5', color: '#166534', label: 'Present', icon: <CheckCircle size={11} /> };
-            case 'partial': return { bg: '#fffbeb', color: '#92400e', label: 'Partial', icon: <Timer size={11} /> };
-            case 'absent': return { bg: '#fef2f2', color: '#991b1b', label: 'Absent', icon: <XCircle size={11} /> };
-            default: return { bg: '#f5f5f5', color: '#888', label: status, icon: null };
+            case 'present':    return { bg: '#ecfdf5', color: '#166534', label: 'Present',  icon: <CheckCircle size={11} /> };
+            case 'partial':    return { bg: '#fffbeb', color: '#92400e', label: 'Partial',  icon: <Timer size={11} /> };
+            case 'absent':     return { bg: '#fef2f2', color: '#991b1b', label: 'Absent',   icon: <XCircle size={11} /> };
+            case 'leave':      return { bg: '#fff7ed', color: '#c2410c', label: 'On Leave', icon: <FileX size={11} /> };
+            case 'unverified': return { bg: '#f5f5f5', color: '#888',    label: 'No MAC',   icon: null };
+            default:           return { bg: '#f5f5f5', color: '#888',    label: status,     icon: null };
         }
     };
 
@@ -363,23 +365,23 @@ export default function AdminAttendancePage() {
                     </div>
                 </div>
                 <nav className="nav-menu">
-                    <div style={{ fontSize: '0.6rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', color: '#555', padding: '8px 1rem 4px' }}><span>Main</span></div>
-                    <div className="nav-item" onClick={() => navTo('/admin')} style={{ cursor: 'pointer' }}><LayoutGrid size={18} /> <span>Dashboard</span></div>
-                    <div className="nav-item" onClick={() => navTo('/admin/schedule')} style={{ cursor: 'pointer' }}><Calendar size={18} /> <span>Schedule Management</span></div>
-                    <div className="nav-item active"><CheckCircle size={18} /> <span>Attendance Monitoring</span></div>
-                    <div className="nav-item" onClick={() => navTo('/admin/live-students')} style={{ cursor: 'pointer' }}><Users size={18} /> <span>Live Students</span></div>
-                    <div className="nav-item" onClick={() => navTo('/admin/students')} style={{ cursor: 'pointer' }}><GraduationCap size={18} /> <span>Student Management</span></div>
-                    <div className="nav-item" onClick={() => navTo('/admin/leave-requests')} style={{ cursor: 'pointer' }}><Clock size={18} /> <span>Leave Requests</span></div>
-                    <div className="nav-item" onClick={() => navTo('/admin/wifi-logs')} style={{ cursor: 'pointer' }}><Wifi size={18} /> <span>Wi-Fi Logs</span></div>
-                    <div style={{ fontSize: '0.6rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', color: '#555', padding: '10px 1rem 4px' }}><span>Analytics</span></div>
-                    <div className="nav-item" onClick={() => navTo('/admin/feedback')} style={{ cursor: 'pointer' }}><MessageSquare size={18} /> <span>Feedback Analytics</span></div>
-                    <div className="nav-item" onClick={() => navTo('/admin/leaderboard')} style={{ cursor: 'pointer' }}><Trophy size={18} /> <span>Leaderboard</span></div>
-                    <div className="nav-item" onClick={() => navTo('/admin/faculty-hours')} style={{ cursor: 'pointer' }}><Clock size={18} /> <span>Faculty Management</span></div>
-                    <div className="nav-item" onClick={() => navTo('/admin/reports')} style={{ cursor: 'pointer' }}><FileBarChart size={18} /> <span>Reports</span></div>
-                    <div style={{ fontSize: '0.6rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', color: '#555', padding: '10px 1rem 4px' }}><span>System</span></div>
-                    <div className="nav-item" onClick={() => navTo('/admin/notifications')} style={{ cursor: 'pointer' }}><Bell size={18} /> <span>Notifications</span></div>
-                    <div className="nav-item" onClick={() => navTo('/admin/settings')} style={{ cursor: 'pointer' }}><Settings size={18} /> <span>Settings</span></div>
-                </nav>
+                        <div style={{ fontSize: '0.6rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', color: '#555', padding: '8px 1rem 4px' }}><span>Main</span></div>
+                        <div className="nav-item" onClick={() => navTo('/admin')} style={{ cursor: 'pointer' }}><LayoutGrid size={18} /> <span>Dashboard</span></div>
+                        <div className="nav-item" onClick={() => navTo('/admin/schedule')} style={{ cursor: 'pointer' }}><Calendar size={18} /> <span>Schedule Management</span></div>
+                        <div className="nav-item active"><CheckCircle size={18} /> <span>Attendance Monitoring</span></div>
+                        <div className="nav-item" onClick={() => navTo('/admin/live-students')} style={{ cursor: 'pointer' }}><Users size={18} /> <span>Live Students</span></div>
+                        <div className="nav-item" onClick={() => navTo('/admin/students')} style={{ cursor: 'pointer' }}><GraduationCap size={18} /> <span>Student Management</span></div>
+                        <div className="nav-item" onClick={() => navTo('/admin/leave-requests')} style={{ cursor: 'pointer' }}><Clock size={18} /> <span>Leave Requests</span></div>
+                        <div className="nav-item" onClick={() => navTo('/admin/wifi-logs')} style={{ cursor: 'pointer' }}><Wifi size={18} /> <span>Wi-Fi Logs</span></div>
+                        <div style={{ fontSize: '0.6rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', color: '#555', padding: '10px 1rem 4px' }}><span>Analytics</span></div>
+                        <div className="nav-item" onClick={() => navTo('/admin/feedback')} style={{ cursor: 'pointer' }}><MessageSquare size={18} /> <span>Feedback Analytics</span></div>
+                        <div className="nav-item" onClick={() => navTo('/admin/leaderboard')} style={{ cursor: 'pointer' }}><Trophy size={18} /> <span>Leaderboard</span></div>
+                        <div className="nav-item" onClick={() => navTo('/admin/faculty-hours')} style={{ cursor: 'pointer' }}><Clock size={18} /> <span>Faculty Management</span></div>
+                        <div className="nav-item" onClick={() => navTo('/admin/reports')} style={{ cursor: 'pointer' }}><FileBarChart size={18} /> <span>Reports</span></div>
+                        <div style={{ fontSize: '0.6rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', color: '#555', padding: '10px 1rem 4px' }}><span>System</span></div>
+                        <div className="nav-item" onClick={() => navTo('/admin/notifications')} style={{ cursor: 'pointer' }}><Bell size={18} /> <span>Notifications</span></div>
+                        <div className="nav-item" onClick={() => navTo('/admin/settings')} style={{ cursor: 'pointer' }}><Settings size={18} /> <span>Settings</span></div>
+                    </nav>
             </div>
             <div className="sidebar-footer">
                 <div className="nav-item" onClick={() => navTo('/')} style={{ cursor: 'pointer' }}><LogOut size={18} /> <span>Log out</span></div>
@@ -629,6 +631,7 @@ export default function AdminAttendancePage() {
                                                             ['Present', sessionStudents.summary?.present || 0, '#16a34a'],
                                                             ['Partial', sessionStudents.summary?.partial || 0, '#b45309'],
                                                             ['Absent', sessionStudents.summary?.absent || 0, '#dc2626'],
+                                                            ['On Leave', sessionStudents.summary?.leave || 0, '#c2410c'],
                                                         ].map(([label, val, color]) => (
                                                             <span key={label} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                                                                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: color, display: 'inline-block' }} />
@@ -657,10 +660,13 @@ export default function AdminAttendancePage() {
                                                                     const st = getStatusStyle(s.status);
                                                                     return (
                                                                         <React.Fragment key={i}>
-                                                                        <tr onClick={() => setExpandedStudent(expandedStudent === s.studentId ? null : s.studentId)} style={{ borderBottom: '1px solid #f0f0f0', background: expandedStudent === s.studentId ? '#f0f7ff' : s.penalty ? '#fef2f2' : s.adminOverride ? '#fffbeb' : s.status === 'absent' ? '#fefefe' : '#fff', cursor: 'pointer', transition: 'background 0.15s' }}>
+                                                                        <tr onClick={() => setExpandedStudent(expandedStudent === s.studentId ? null : s.studentId)} style={{ borderBottom: '1px solid #f0f0f0', background: expandedStudent === s.studentId ? '#f0f7ff' : s.penalty ? '#fef2f2' : s.status === 'leave' ? '#fff7ed' : s.adminOverride ? '#fffbeb' : s.status === 'absent' ? '#fefefe' : '#fff', cursor: 'pointer', transition: 'background 0.15s' }}>
                                                                             <td style={{ padding: '9px 14px' }}>
                                                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                                                    <span style={{ fontWeight: 600, color: s.status === 'absent' ? '#aaa' : '#111' }}>{s.name}</span>
+                                                                                    <span style={{ fontWeight: 600, color: s.status === 'leave' ? '#c2410c' : s.status === 'absent' ? '#aaa' : '#111' }}>{s.name}</span>
+                                                                                    {s.status === 'leave' && (
+                                                                                        <span style={{ padding: '1px 6px', borderRadius: '4px', fontSize: '0.58rem', fontWeight: 700, background: s.leavePending ? '#fef9c3' : '#ffedd5', color: s.leavePending ? '#854d0e' : '#c2410c', border: `1px solid ${s.leavePending ? '#fde68a' : '#fed7aa'}` }}>{s.leavePending ? 'LEAVE PENDING' : 'ON LEAVE'}</span>
+                                                                                    )}
                                                                                     {s.penalty && (
                                                                                         <span style={{ padding: '1px 6px', borderRadius: '4px', fontSize: '0.58rem', fontWeight: 700, background: '#fecaca', color: '#991b1b' }}>PENALTY</span>
                                                                                     )}

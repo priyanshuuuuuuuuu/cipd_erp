@@ -12,13 +12,12 @@ async function getHandler(req) {
     let query = supabaseAdmin
       .from('leave_requests')
       .select(`
-        id, leave_date, session_id, reason, status, admin_notes, created_at, reviewed_at,
+        id, leave_date, session_id, reason, status, admin_notes, created_at, reviewed_at, reviewed_by,
         students (
           id, enrollment_no,
           users ( first_name, last_name, email )
         ),
-        sessions ( id, title, start_time, end_time, courses ( name ) ),
-        reviewer:reviewed_by ( first_name, last_name )
+        sessions ( id, title, start_time, end_time, courses ( name ) )
       `)
       .order('created_at', { ascending: false })
       .limit(200);
@@ -33,7 +32,7 @@ async function getHandler(req) {
     const { data, error } = await query;
 
     if (error) {
-      console.error('Admin leave requests fetch error:', error.message);
+      console.error('Admin leave requests fetch error:', error.message, error.details, error.hint);
       return NextResponse.json({ error: 'Failed to fetch leave requests' }, { status: 500 });
     }
 

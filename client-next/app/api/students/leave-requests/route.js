@@ -19,7 +19,7 @@ async function getHandler(req) {
       .limit(100);
 
     if (error) {
-      console.error('Leave requests fetch error:', error.message);
+      console.error('Leave requests fetch error:', error.message, error.details, error.hint);
       return NextResponse.json({ error: 'Failed to fetch leave requests' }, { status: 500 });
     }
 
