@@ -10,20 +10,35 @@ async function getHandler(req) {
   try {
     const { data, error } = await supabaseAdmin
       .from('leave_requests')
-      .select(`
-        id, leave_date, session_id, reason, status, admin_notes, created_at, reviewed_at,
-        sessions ( id, title, start_time, end_time, courses ( name ) )
-      `)
+      .select('id, leave_date, session_id, reason, status, admin_notes, created_at, reviewed_at')
       .eq('student_id', req.user.id)
       .order('created_at', { ascending: false })
       .limit(100);
 
     if (error) {
-      console.error('Leave requests fetch error:', error.message, error.details, error.hint);
+      console.error('Leave requests fetch error:', error.message);
       return NextResponse.json({ error: 'Failed to fetch leave requests' }, { status: 500 });
     }
 
-    return NextResponse.json({ requests: data || [] });
+    const rows = data || [];
+
+    // Manually resolve session details to avoid schema-cache FK issues
+    const sessionIds = [...new Set(rows.map((r) => r.session_id).filter(Boolean))];
+    let sessionMap = {};
+    if (sessionIds.length > 0) {
+      const { data: sessions } = await supabaseAdmin
+        .from('sessions')
+        .select('id, title, start_time, end_time, courses ( name )')
+        .in('id', sessionIds);
+      (sessions || []).forEach((s) => { sessionMap[s.id] = s; });
+    }
+
+    const enriched = rows.map((r) => ({
+      ...r,
+      sessions: r.session_id ? (sessionMap[r.session_id] || null) : null,
+    }));
+
+    return NextResponse.json({ requests: enriched });
   } catch (err) {
     console.error('Leave requests GET error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -71,12 +86,15 @@ async function postHandler(req) {
 
     const { data: sessions } = await supabaseAdmin
       .from('sessions')
-      .select('id, title, session_date, course_id, start_time')
+      .select('id, title, session_date, course_id, start_time, courses ( name )')
       .in('id', ids);
 
     if (!sessions?.length || sessions.length !== ids.length) {
       return NextResponse.json({ error: 'One or more sessions not found' }, { status: 404 });
     }
+
+    // Create a map to quickly check if a session is capstone
+    const sessionMap = new Map();
 
     for (const s of sessions) {
       if (s.session_date !== leave_date) {
@@ -91,6 +109,10 @@ async function postHandler(req) {
           { status: 403 }
         );
       }
+      
+      const courseName = s.courses?.name || '';
+      const isCapstone = courseName.toLowerCase().includes('capstone');
+      sessionMap.set(s.id, { isCapstone });
     }
 
     const { data: existing } = await supabaseAdmin
@@ -110,13 +132,16 @@ async function postHandler(req) {
       );
     }
 
-    const rows = ids.map((sessionId) => ({
-      student_id: req.user.id,
-      leave_date,
-      session_id: sessionId,
-      reason: reason.trim(),
-      status: 'pending',
-    }));
+    const rows = ids.map((sessionId) => {
+      const sessionInfo = sessionMap.get(sessionId);
+      return {
+        student_id: req.user.id,
+        leave_date,
+        session_id: sessionId,
+        reason: reason.trim(),
+        status: sessionInfo?.isCapstone ? 'approved' : 'pending',
+      };
+    });
 
     const { data: inserted, error: insertErr } = await supabaseAdmin
       .from('leave_requests')

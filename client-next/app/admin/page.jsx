@@ -120,6 +120,8 @@ export default function AdminDashboard() {
                     leaveDate: r.leave_date,
                     session: r.sessions?.title || 'Full Day',
                     course: r.sessions?.courses?.name || '',
+                    startTime: r.sessions?.start_time || '',
+                    endTime: r.sessions?.end_time || '',
                     reason: r.reason || '',
                     createdAt: r.created_at,
                 })));
@@ -453,6 +455,7 @@ export default function AdminDashboard() {
                                                     <span style={{ fontFamily: 'monospace' }}>{leave.enrollmentNo}</span>
                                                     <span>·</span>
                                                     <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}><Calendar size={10} /> {new Date(leave.leaveDate + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>
+                                                    {(leave.startTime && leave.endTime) && <><span>·</span><span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}><Clock size={10} /> {leave.startTime.slice(0, 5)} - {leave.endTime.slice(0, 5)}</span></>}
                                                     {leave.course && <><span>·</span><span>{leave.course}</span></>}
                                                 </div>
                                                 {leave.reason && (
