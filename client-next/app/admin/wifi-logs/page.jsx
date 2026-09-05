@@ -304,8 +304,13 @@ export default function AdminWifiLogsPage() {
                                         <tr><td colSpan={6} style={{ padding: '3rem', textAlign: 'center', color: '#aaa' }}>
                                             <Wifi size={32} color="#ddd" />
                                             <div style={{ fontSize: '0.9rem', fontWeight: 600, marginTop: '8px' }}>
-                                                {searchTerm || dateFrom || dateTo ? 'No clients match your filters' : 'No snapshot data available'}
+                                                {searchTerm || dateFrom || dateTo || timeFrom || timeTo ? 'No clients match your filters' : 'No snapshot data available'}
                                             </div>
+                                            {!(searchTerm || dateFrom || dateTo || timeFrom || timeTo) && (
+                                                <div style={{ fontSize: '0.75rem', marginTop: '6px', color: '#888', fontWeight: 400 }}>
+                                                    Please choose a filter from above to view snapshot data.
+                                                </div>
+                                            )}
                                         </td></tr>
                                     ) : sortedLogs.map((log, i) => (
                                         <tr key={`${log.snapshot_id}-${log.mac_address}-${i}`} className="attendance-row" style={{ borderBottom: '1px solid #f5f5f5' }}>

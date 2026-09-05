@@ -28,6 +28,8 @@ export default function AdminLiveStudentsPage() {
     const scannerIntervalRef = useRef(6 * 60 * 1000);
     const [scannerIntervalMs, _setScannerIntervalMs] = useState(6 * 60 * 1000);
     const setScannerIntervalMs = (val) => { scannerIntervalRef.current = val; _setScannerIntervalMs(val); };
+    // Track whether a stale-alert email has been fired for the current stale episode
+    const staleAlertSentRef = useRef(false);
 
     const navTo = p => router.push(p);
 
@@ -93,6 +95,27 @@ export default function AdminLiveStudentsPage() {
         init();
         return () => { if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current); };
     }, [fetchData]);
+
+    // ── Stale-alert: auto-email when data is stale for 10+ minutes ──────────────
+    useEffect(() => {
+        if (data.isStale && data.minutesAgo >= 10) {
+            if (!staleAlertSentRef.current) {
+                staleAlertSentRef.current = true;
+                api.post('/api/admin/live-students/stale-alert', {})
+                    .then(res => {
+                        if (res?.sent) {
+                            console.log('[live-students] Stale-data alert email sent:', res.sentAt);
+                        } else if (res?.skipped) {
+                            console.log('[live-students] Alert email skipped (cooldown):', res.reason);
+                        }
+                    })
+                    .catch(err => console.error('[live-students] Failed to send stale alert:', err));
+            }
+        } else {
+            // Data is fresh again — reset so next stale episode sends a new alert
+            staleAlertSentRef.current = false;
+        }
+    }, [data.isStale, data.minutesAgo]);
 
     // Countdown ticker for next refresh display
     useEffect(() => {
