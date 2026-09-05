@@ -17,7 +17,7 @@ async function handler(request) {
                 honorarium_rate_per_hour,
                 years_experience,
                 department,
-                users!inner ( first_name, last_name, is_active )
+                users!inner ( first_name, last_name, email, is_active, role )
             `);
 
         if (facErr) throw facErr;
@@ -98,6 +98,7 @@ async function handler(request) {
                 id: fac.id,
                 firstName: fac.users?.first_name || '',
                 lastName: fac.users?.last_name || '',
+                email: fac.users?.email || '',
                 name: `Prof. ${fac.users?.first_name} ${fac.users?.last_name}`,
                 dept: fac.department || fac.designation || 'Faculty',
                 designation: fac.designation || '',
@@ -200,31 +201,68 @@ export const POST = withRole(createFacultyHandler, ['admin']);
 async function updateFacultyHandler(request) {
     try {
         const body = await request.json();
-        const { facultyId, firstName, lastName, designation, yearsExperience, honorariumRate, department } = body;
+        const { facultyId, firstName, lastName, email, designation, yearsExperience, honorariumRate, department } = body;
 
         if (!facultyId) {
             return NextResponse.json({ error: 'facultyId is required.' }, { status: 400 });
         }
 
-        // Update users table (name fields)
+        // Verify that target user exists and has role 'faculty'
+        const { data: targetUser, error: fetchErr } = await supabaseAdmin
+            .from('users')
+            .select('id, role, email')
+            .eq('id', facultyId)
+            .maybeSingle();
+
+        if (fetchErr) throw fetchErr;
+
+        if (!targetUser || targetUser.role !== 'faculty') {
+            return NextResponse.json({ error: 'Faculty user not found or does not have role faculty.' }, { status: 404 });
+        }
+
+        // Update users table (name & email fields)
         const userUpdates = {};
         if (firstName !== undefined) userUpdates.first_name = firstName.trim();
         if (lastName !== undefined) userUpdates.last_name = lastName.trim();
 
-        if (Object.keys(userUpdates).length > 0) {
-            const { error: userErr } = await supabaseAdmin
-                .from('users')
-                .update(userUpdates)
-                .eq('id', facultyId);
-            if (userErr) throw userErr;
+        if (email !== undefined) {
+            const trimmedEmail = email.toLowerCase().trim();
+            if (!trimmedEmail) {
+                return NextResponse.json({ error: 'Email address cannot be empty.' }, { status: 400 });
+            }
+            if (trimmedEmail !== targetUser.email) {
+                // Check email uniqueness excluding current user
+                const { data: existing } = await supabaseAdmin
+                    .from('users')
+                    .select('id')
+                    .eq('email', trimmedEmail)
+                    .neq('id', facultyId)
+                    .maybeSingle();
+
+                if (existing) {
+                    return NextResponse.json({ error: 'A user with this email already exists.' }, { status: 409 });
+                }
+                userUpdates.email = trimmedEmail;
+            }
         }
 
-        // Update faculty table (profile fields)
+        // Prepare faculty table updates (profile fields)
         const facUpdates = {};
         if (designation !== undefined) facUpdates.designation = designation?.trim() || null;
         if (yearsExperience !== undefined) facUpdates.years_experience = yearsExperience !== '' ? parseInt(yearsExperience, 10) : null;
         if (honorariumRate !== undefined) facUpdates.honorarium_rate_per_hour = honorariumRate !== '' ? parseFloat(honorariumRate) : null;
         if (department !== undefined) facUpdates.department = department?.trim() || null;
+
+        
+
+        if (Object.keys(userUpdates).length > 0) {
+            const { error: userErr } = await supabaseAdmin
+                .from('users')
+                .update(userUpdates)
+                .eq('id', facultyId)
+                .eq('role', 'faculty');
+            if (userErr) throw userErr;
+        }
 
         if (Object.keys(facUpdates).length > 0) {
             const { error: facErr } = await supabaseAdmin
@@ -233,7 +271,6 @@ async function updateFacultyHandler(request) {
                 .eq('id', facultyId);
             if (facErr) throw facErr;
         }
-
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error('Update Faculty API Error:', error);

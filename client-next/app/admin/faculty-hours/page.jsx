@@ -201,6 +201,7 @@ export default function AdminFacultyHoursPage() {
         setEditForm({
             firstName: f.firstName,
             lastName: f.lastName,
+            email: f.email || '',
             designation: f.designation,
             department: f.department,
             yearsExperience: f.yearsExperience !== '' ? String(f.yearsExperience) : '',
@@ -217,21 +218,68 @@ export default function AdminFacultyHoursPage() {
         e.preventDefault();
         if (!editFaculty) return;
         setEditError(''); setEditSuccess(''); setEditLoading(true);
+        console.log('Updating faculty member:', { userId: editFaculty.id, ...editForm });
         try {
             await api.patch('/api/admin/faculty-hours', {
                 facultyId: editFaculty.id,
                 ...editForm,
             });
+            console.log(`Faculty details updated successfully for userId: ${editFaculty.id}`);
             setEditSuccess('Details updated successfully.');
             fetchFaculty();
             // keep modal open briefly so user sees success, then auto-close
             setTimeout(() => closeEdit(), 1400);
         } catch (err) {
+            console.error(`Failed to update faculty member (userId: ${editFaculty.id}):`, err);
             setEditError(err.message || 'Failed to update faculty.');
         } finally {
             setEditLoading(false);
         }
     };
+
+    // ── Export CSV ─────────────────────────────────────────────────────────────
+    const handleExportCSV = React.useCallback(() => {
+        if (!sortedFaculty || sortedFaculty.length === 0) return;
+        const headers = [
+            'Faculty Name',
+            'Email',
+            'Department',
+            'Designation',
+            'Experience (yrs)',
+            'Completed Sessions',
+            'Total Hours',
+            'Rate (₹/hr)',
+            'Total Honorarium (₹)',
+            'Status'
+        ];
+        const rows = sortedFaculty.map(f => [
+            f.name || '',
+            f.email || '',
+            f.department || f.dept || '',
+            f.designation || '',
+            f.yearsExperience !== '' && f.yearsExperience !== null && f.yearsExperience !== undefined ? f.yearsExperience : '',
+            f.sessions || 0,
+            (f.hours || 0).toFixed(1),
+            f.rate || 0,
+            Math.round((f.hours || 0) * (f.rate || 0)),
+            f.status || 'Pending'
+        ]);
+
+        const csvContent = '\uFEFF' + [headers, ...rows]
+            .map(row => row.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','))
+            .join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        const timestamp = new Date().toISOString().split('T')[0];
+        link.setAttribute('href', url);
+        link.setAttribute('download', `faculty_details_${selectedMonth || timestamp}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }, [sortedFaculty, selectedMonth]);
 
     // ── Stats ──────────────────────────────────────────────────────────────────
     const totalSessions   = facultyData.reduce((a, f) => a + (f.sessions || 0), 0);
@@ -381,7 +429,13 @@ export default function AdminFacultyHoursPage() {
                                 style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '0.8rem', color: '#555', fontFamily: 'inherit' }} />
                         </div>
                         <div style={{ display: 'flex', gap: '8px' }}>
-                            <button style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 14px', borderRadius: '8px', border: '1px solid #eee', background: '#fff', cursor: 'pointer', fontSize: '0.75rem', color: '#555' }}><Download size={12} /> Export CSV</button>
+                            <button
+                                onClick={handleExportCSV}
+                                disabled={!sortedFaculty.length}
+                                style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 14px', borderRadius: '8px', border: '1px solid #eee', background: '#fff', cursor: sortedFaculty.length ? 'pointer' : 'not-allowed', fontSize: '0.75rem', color: '#555', opacity: sortedFaculty.length ? 1 : 0.6 }}
+                            >
+                                <Download size={12} /> Export CSV
+                            </button>
                             <button style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 14px', borderRadius: '8px', border: '1px solid #eee', background: '#fff', cursor: 'pointer', fontSize: '0.75rem', color: '#555' }}><Download size={12} /> Export PDF</button>
                         </div>
                     </div>
@@ -525,6 +579,12 @@ export default function AdminFacultyHoursPage() {
                                     <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: '#555', marginBottom: '5px' }}>Last Name <span style={{ color: '#dc2626' }}>*</span></label>
                                     <input type="text" value={editForm.lastName || ''} onChange={e => setEditForm(f => ({ ...f, lastName: e.target.value }))} required style={inp} />
                                 </div>
+                            </div>
+
+                            {/* Email Address */}
+                            <div style={{ marginBottom: '12px' }}>
+                                <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: '#555', marginBottom: '5px' }}>Email Address <span style={{ color: '#dc2626' }}>*</span></label>
+                                <input type="email" placeholder="e.g. prof.name@cipd.edu" value={editForm.email || ''} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} required style={inp} />
                             </div>
 
                             {/* Row 2: Designation + Department */}
