@@ -329,7 +329,7 @@ export default function AdminDashboard() {
                     <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
                         <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', borderTop: '3px solid #3B2D82', boxShadow: '0 2px 8px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.5rem', borderBottom: '1px solid #f0f0f0' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1rem', fontWeight: 700 }}><Calendar size={16} /> Today's Classes</div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1rem', fontWeight: 700 }}><Calendar size={16} /> Today&apos;s Classes</div>
                                 <button onClick={() => setShowScheduleModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 14px', borderRadius: '8px', border: 'none', background: '#111', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, color: '#fff' }}>
                                     <Plus size={13} /> Schedule Class
                                 </button>
@@ -459,7 +459,7 @@ export default function AdminDashboard() {
                                                     {leave.course && <><span>·</span><span>{leave.course}</span></>}
                                                 </div>
                                                 {leave.reason && (
-                                                    <div style={{ fontSize: '0.7rem', color: '#b45309', marginTop: '2px', fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>"{leave.reason}"</div>
+                                                    <div style={{ fontSize: '0.7rem', color: '#b45309', marginTop: '2px', fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>&quot;{leave.reason}&quot;</div>
                                                 )}
                                             </div>
                                             <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>

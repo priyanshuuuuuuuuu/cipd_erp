@@ -24,7 +24,7 @@ async function getHandler(req) {
 
     // Manually resolve session details to avoid schema-cache FK issues
     const sessionIds = [...new Set(rows.map((r) => r.session_id).filter(Boolean))];
-    let sessionMap = {};
+    const sessionMap = {};
     if (sessionIds.length > 0) {
       const { data: sessions } = await supabaseAdmin
         .from('sessions')

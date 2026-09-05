@@ -218,7 +218,7 @@ function ResetPasswordForm() {
                                     </button>
                                 </div>
                                 {confirmPassword && confirmPassword !== newPassword && (
-                                    <span style={{ fontSize: '0.68rem', color: '#ef4444', marginTop: 4, display: 'block' }}>Passwords don't match</span>
+                                    <span style={{ fontSize: '0.68rem', color: '#ef4444', marginTop: 4, display: 'block' }}>Passwords don&apos;t match</span>
                                 )}
                             </div>
 

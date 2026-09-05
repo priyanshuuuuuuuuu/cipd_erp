@@ -26,6 +26,9 @@ export default function AdminFeedbackPage() {
     const [lectureFeedbacks, setLectureFeedbacks] = useState([]);
     const [trendData, setTrendData] = useState([]);
     const [questions, setQuestions] = useState([]);
+    const [recentSubmissions, setRecentSubmissions] = useState([]);
+    const [lastUpdatedAt, setLastUpdatedAt] = useState(null);
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
     // Detail view data
     const [detailData, setDetailData] = useState(null);
@@ -56,8 +59,9 @@ export default function AdminFeedbackPage() {
     const [loadingStudentResponse, setLoadingStudentResponse] = useState(false);
 
     // Fetch overview data
-    const fetchOverview = useCallback(async () => {
-        setLoading(true);
+    const fetchOverview = useCallback(async (silent = false) => {
+        if (!silent) setLoading(true);
+        if (silent) setIsRefreshing(true);
         try {
             const [analyticsRes, questionsRes] = await Promise.allSettled([
                 api.get('/api/admin/feedback/analytics'),
@@ -70,6 +74,8 @@ export default function AdminFeedbackPage() {
                 setRatingDistribution(d.ratingDistribution || []);
                 setLectureFeedbacks(d.lectures || []);
                 setTrendData(d.trendData || []);
+                setRecentSubmissions(d.recentSubmissions || []);
+                setLastUpdatedAt(d.generatedAt || new Date().toISOString());
             }
 
             if (questionsRes.status === 'fulfilled') {
@@ -85,7 +91,8 @@ export default function AdminFeedbackPage() {
         } catch (e) {
             console.error('Failed to load feedback analytics:', e);
         } finally {
-            setLoading(false);
+            if (!silent) setLoading(false);
+            setIsRefreshing(false);
         }
     }, []);
 
@@ -119,13 +126,13 @@ export default function AdminFeedbackPage() {
     useEffect(() => { if (authReady) fetchOverview(); }, [fetchOverview, authReady]);
     useEffect(() => { if (authReady && activeTab === 'forms') fetchForms(); }, [fetchForms, authReady, activeTab]);
 
-    // Auto-refresh every 30 seconds for live updates
+    // Silent polling keeps the dashboard current as students submit feedback.
     useEffect(() => {
         if (!authReady) return;
         const interval = setInterval(() => {
-            fetchOverview();
+            fetchOverview(true);
             if (activeTab === 'forms') fetchForms();
-        }, 30000);
+        }, 10000);
         return () => clearInterval(interval);
     }, [fetchOverview, fetchForms, authReady, activeTab]);
 
@@ -389,99 +396,101 @@ export default function AdminFeedbackPage() {
 
                     {activeTab === 'overview' && !viewingLecture && !loading && (
                         <>
-                            {/* Summary strip */}
-                            <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e8e8e8', marginBottom: '1.2rem', overflow: 'hidden' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', padding: '10px 1.2rem', fontSize: '0.78rem', overflowX: 'auto', whiteSpace: 'nowrap', gap: 0 }}>
-                                    {[
-                                        ['Lectures', String(summaryData.totalLectures || 0)],
-                                        ['Avg Rating', `${summaryData.avgRating || 0} /5`],
-                                        ['Submission Rate', `${summaryData.onTimeRate || 0}%`],
-                                        ['Descriptive Responses', String(summaryData.descriptiveCount || 0)],
-                                        ['Submissions', `${summaryData.totalSubmissions || 0}/${summaryData.totalEnrolled || 0}`],
-                                    ].map(([label, val], i) => (
-                                        <React.Fragment key={label}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0 14px', flexShrink: 0 }}>
-                                                <span style={labelStyle}>{label}</span>
-                                                <span style={valueStyle}>{val}</span>
+                            <section style={{ borderRadius: '16px', padding: '1.35rem 1.5rem', marginBottom: '1.2rem', background: 'linear-gradient(120deg, #211654 0%, #3B2D82 58%, #6355F1 100%)', color: '#fff', boxShadow: '0 10px 28px rgba(59,45,130,0.18)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                                    <div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', color: '#d8d4ff' }}><span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#86efac', boxShadow: '0 0 0 4px rgba(134,239,172,0.16)' }} /> Live feedback pulse</div>
+                                        <h2 style={{ margin: '8px 0 4px', fontSize: '1.3rem', letterSpacing: '-0.02em' }}>Student voice, in one place.</h2>
+                                        <p style={{ margin: 0, color: '#ddd9ff', fontSize: '0.82rem' }}>New submissions from <code style={{ color: '#fff', fontFamily: 'inherit', fontWeight: 700 }}>feedback_responses</code> appear automatically.</p>
+                                    </div>
+                                    <button onClick={() => fetchOverview(true)} disabled={isRefreshing} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 11px', borderRadius: '8px', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)', color: '#fff', cursor: isRefreshing ? 'wait' : 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>
+                                        <RefreshCw size={13} style={isRefreshing ? { animation: 'spin 1s linear infinite' } : undefined} /> {isRefreshing ? 'Updating…' : 'Refresh'}
+                                    </button>
+                                </div>
+                                <div style={{ marginTop: '1rem', color: '#c8c2ff', fontSize: '0.68rem' }}>Last updated {lastUpdatedAt ? new Date(lastUpdatedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'just now'} · updates every 10 seconds</div>
+                            </section>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '12px', marginBottom: '1.2rem' }}>
+                                {[
+                                    { label: 'Completed sessions', value: summaryData.totalLectures || 0, note: 'Classes included in analysis', icon: Calendar, color: '#2563eb', bg: '#eff6ff' },
+                                    { label: 'Average rating', value: summaryData.avgRating ? `${summaryData.avgRating}/5` : '—', note: 'Across rating questions', icon: CheckCircle, color: '#7c3aed', bg: '#f5f3ff' },
+                                    { label: 'Response rate', value: `${summaryData.onTimeRate || 0}%`, note: `${summaryData.totalSubmissions || 0} of ${summaryData.totalEnrolled || 0} eligible students`, icon: Users, color: '#059669', bg: '#ecfdf5' },
+                                    { label: 'Written comments', value: summaryData.descriptiveCount || 0, note: 'Qualitative feedback received', icon: MessageSquare, color: '#d97706', bg: '#fffbeb' },
+                                ].map((metric) => (
+                                    <div key={metric.label} style={{ background: '#fff', border: '1px solid #eceaf4', borderRadius: '12px', padding: '14px', boxShadow: '0 2px 8px rgba(24,18,54,0.035)' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                                            <span style={{ fontSize: '0.72rem', color: '#77748a', fontWeight: 700 }}>{metric.label}</span>
+                                            <span style={{ width: '30px', height: '30px', display: 'grid', placeItems: 'center', borderRadius: '9px', color: metric.color, background: metric.bg }}><metric.icon size={15} /></span>
+                                        </div>
+                                        <div style={{ color: '#17131f', fontWeight: 800, fontSize: '1.45rem', letterSpacing: '-0.03em' }}>{metric.value}</div>
+                                        <div style={{ color: '#9a97a7', fontSize: '0.68rem', marginTop: '4px' }}>{metric.note}</div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.25fr) minmax(280px, 0.75fr)', gap: '1.2rem', marginBottom: '1.2rem' }}>
+                                <TrendChart dataKey="avg" color="#6355F1" label="Rating trend" minY={1.0} maxY={5.0} />
+                                <div style={{ background: '#fff', border: '1px solid #eceaf4', borderRadius: '12px', overflow: 'hidden' }}>
+                                    <div style={{ padding: '13px 15px', borderBottom: '1px solid #f0eef5', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <div><div style={{ fontSize: '0.84rem', fontWeight: 800, color: '#17131f' }}>Recent activity</div><div style={{ fontSize: '0.68rem', color: '#9a97a7', marginTop: '2px' }}>Anonymous student submissions</div></div>
+                                        <span style={{ fontSize: '0.68rem', padding: '3px 7px', color: '#15803d', background: '#f0fdf4', borderRadius: '999px', fontWeight: 700 }}>LIVE</span>
+                                    </div>
+                                    <div>
+                                        {recentSubmissions.length === 0 ? (
+                                            <div style={{ padding: '2.2rem 1.25rem', textAlign: 'center', color: '#9a97a7', fontSize: '0.78rem' }}>No submissions yet. New responses will appear here automatically.</div>
+                                        ) : recentSubmissions.map((submission) => (
+                                            <div key={submission.id} style={{ display: 'flex', alignItems: 'center', gap: '9px', padding: '10px 15px', borderBottom: '1px solid #f7f6fa' }}>
+                                                <span style={{ width: '26px', height: '26px', flexShrink: 0, display: 'grid', placeItems: 'center', borderRadius: '8px', background: '#ecfdf5', color: '#059669' }}><CheckCircle size={13} /></span>
+                                                <div style={{ minWidth: 0, flex: 1 }}><div style={{ color: '#393444', fontSize: '0.75rem', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{submission.lecture}</div><div style={{ color: '#9a97a7', fontSize: '0.66rem', marginTop: '2px' }}>Feedback received</div></div>
+                                                <div style={{ color: '#77748a', fontSize: '0.66rem', whiteSpace: 'nowrap' }}>{new Date(submission.submitted_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</div>
                                             </div>
-                                            {i < 4 && <div style={{ width: '1px', height: '20px', background: '#e8e8e8', flexShrink: 0 }} />}
-                                        </React.Fragment>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 0.8fr) minmax(0, 1.2fr)', gap: '1.2rem', marginBottom: '1.2rem' }}>
+                                <div style={{ background: '#fff', border: '1px solid #eceaf4', borderRadius: '12px', padding: '15px' }}>
+                                    <div style={{ fontSize: '0.84rem', fontWeight: 800, color: '#17131f' }}>Rating distribution</div>
+                                    <div style={{ fontSize: '0.68rem', color: '#9a97a7', margin: '3px 0 13px' }}>How students rated their sessions</div>
+                                    {(ratingDistribution.length ? ratingDistribution : [5, 4, 3, 2, 1].map((rating) => ({ rating, count: 0, pct: 0 }))).map((rating) => (
+                                        <div key={rating.rating} style={{ display: 'grid', gridTemplateColumns: '26px 1fr 58px', alignItems: 'center', gap: '8px', marginBottom: '9px' }}>
+                                            <span style={{ color: '#393444', fontSize: '0.72rem', fontWeight: 800 }}>{rating.rating}★</span>
+                                            <div style={{ height: '7px', overflow: 'hidden', background: '#f0eef5', borderRadius: '999px' }}><div style={{ width: `${rating.pct}%`, height: '100%', borderRadius: '999px', background: rating.rating >= 4 ? '#6355F1' : rating.rating === 3 ? '#f59e0b' : '#ef4444', transition: 'width 300ms ease' }} /></div>
+                                            <span style={{ color: '#77748a', fontSize: '0.68rem', textAlign: 'right' }}>{rating.count} · {rating.pct}%</span>
+                                        </div>
                                     ))}
                                 </div>
+                                <TrendChart dataKey="sub" color="#059669" label="Response rate trend" minY={0} maxY={100} />
                             </div>
 
-                            {/* Rating distribution + trend charts */}
-                            <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: '1.2rem', marginBottom: '1.2rem' }}>
-                                <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e8e8e8', overflow: 'hidden' }}>
-                                    <div style={{ padding: '10px 1.2rem', borderBottom: '1px solid #f0f0f0' }}>
-                                        <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#111' }}>Rating Distribution</span>
-                                    </div>
-                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
-                                        <thead>
-                                            <tr style={{ background: '#fafafa' }}>
-                                                {['Rating', 'Count', '%', ''].map(h => <th key={h} style={{ padding: '8px 16px', textAlign: h === 'Count' || h === '%' ? 'right' : 'left', fontSize: '0.68rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', color: '#aaa', borderBottom: '1px solid #f0f0f0' }}>{h}</th>)}
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {(ratingDistribution.length > 0 ? ratingDistribution : [{ rating: '—', count: 0, pct: 0 }]).map(r => (
-                                                <tr key={r.rating} style={{ borderBottom: '1px solid #f5f5f5' }}>
-                                                    <td style={{ padding: '9px 16px', fontWeight: 600, fontFamily: 'monospace', color: '#111' }}>{r.rating}</td>
-                                                    <td style={{ padding: '9px 16px', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600, color: '#333' }}>{r.count}</td>
-                                                    <td style={{ padding: '9px 16px', textAlign: 'right', fontFamily: 'monospace', color: '#888' }}>{r.pct}%</td>
-                                                    <td style={{ padding: '9px 16px', width: '80px' }}>
-                                                        <div style={{ width: '100%', height: '4px', background: '#e5e7eb', borderRadius: '2px', overflow: 'hidden' }}>
-                                                            <div style={{ width: `${r.pct}%`, height: '100%', background: '#888', borderRadius: '2px' }} />
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
-                                    <TrendChart dataKey="avg" color="#555" label="Average Rating Trend" minY={1.0} maxY={5.0} />
-                                    <TrendChart dataKey="sub" color="#888" label="Submission Rate Trend" minY={0} maxY={100} />
-                                </div>
-                            </div>
-
-                            {/* Lecture table */}
-                            <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e8e8e8', overflow: 'hidden' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 1.2rem', borderBottom: '1px solid #f0f0f0' }}>
-                                    <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#111' }}>Lecture-wise Feedback</span>
-                                    <button style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 10px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', fontSize: '0.72rem', color: '#888' }}><Download size={11} /> Export</button>
+                            <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #eceaf4', overflow: 'hidden', boxShadow: '0 2px 8px rgba(24,18,54,0.025)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px', borderBottom: '1px solid #f0eef5' }}>
+                                    <div><div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#17131f' }}>Session feedback</div><div style={{ fontSize: '0.7rem', color: '#9a97a7', marginTop: '2px' }}>Open any session to review question-level insights.</div></div>
+                                    <span style={{ padding: '5px 8px', borderRadius: '7px', background: '#f5f3ff', color: '#6355F1', fontSize: '0.68rem', fontWeight: 800 }}>{lectureFeedbacks.length} sessions</span>
                                 </div>
                                 <div style={{ overflowX: 'auto' }}>
-                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
-                                        <thead>
-                                            <tr style={{ background: '#fafafa' }}>
-                                                {['Lecture', 'Date', 'Faculty', 'Avg Rating', 'Submissions', 'Descriptive', ''].map(h => (
-                                                    <th key={h} style={{ padding: '8px 16px', textAlign: 'left', fontSize: '0.68rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', color: '#aaa', borderBottom: '1px solid #f0f0f0' }}>{h}</th>
-                                                ))}
-                                            </tr>
-                                        </thead>
+                                    <table style={{ width: '100%', minWidth: '760px', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+                                        <thead><tr style={{ background: '#fbfaff' }}>{['Session', 'Date', 'Faculty', 'Rating', 'Response progress', 'Comments', ''].map((heading) => <th key={heading} style={{ padding: '10px 16px', textAlign: 'left', color: '#9691a4', fontSize: '0.66rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.55px' }}>{heading}</th>)}</tr></thead>
                                         <tbody>
-                                            {lectureFeedbacks.length === 0 ? (
-                                                <tr><td colSpan={7} style={{ padding: '2rem', textAlign: 'center', color: '#ccc' }}>No feedback data yet. Feedback will appear here when students submit responses.</td></tr>
-                                            ) : lectureFeedbacks.map(lf => (
-                                                <tr key={lf.id} className="attendance-row" style={{ borderBottom: '1px solid #f5f5f5' }}>
-                                                    <td style={{ padding: '9px 16px', fontWeight: 600, color: '#111' }}>{lf.lecture}</td>
-                                                    <td style={{ padding: '9px 16px', color: '#888', fontFamily: 'monospace', fontSize: '0.78rem' }}>{formatDate(lf.date)}</td>
-                                                    <td style={{ padding: '9px 16px', color: '#555' }}>{lf.faculty || 'TBA'}</td>
-                                                    <td style={{ padding: '9px 16px' }}><span style={{ fontWeight: 700, fontFamily: 'monospace', color: lf.avg >= 4.0 ? '#111' : lf.avg >= 3.0 ? '#b45309' : '#dc2626' }}>{lf.avg || '—'}</span></td>
-                                                    <td style={{ padding: '9px 16px', fontFamily: 'monospace', fontSize: '0.78rem', color: '#555' }}>{lf.submissions}/{lf.totalEnrolled}</td>
-                                                    <td style={{ padding: '9px 16px', fontFamily: 'monospace', fontSize: '0.78rem', color: '#888' }}>{lf.descCount}</td>
-                                                    <td style={{ padding: '9px 16px' }}>
-                                                        <button onClick={() => handleViewDetail(lf)} className="change-status-btn" style={{ padding: '3px 10px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', fontSize: '0.72rem', color: '#555' }}>View Details</button>
-                                                    </td>
-                                                </tr>
-                                            ))}
+                                            {lectureFeedbacks.length === 0 ? <tr><td colSpan={7} style={{ padding: '2.5rem', textAlign: 'center', color: '#9a97a7' }}>No feedback responses have been submitted yet.</td></tr> : lectureFeedbacks.map((lecture) => {
+                                                const responseRate = lecture.totalEnrolled > 0 ? Math.round((lecture.submissions / lecture.totalEnrolled) * 100) : 0;
+                                                return <tr key={lecture.id} className="attendance-row" style={{ borderTop: '1px solid #f5f3f8' }}>
+                                                    <td style={{ padding: '13px 16px', maxWidth: '300px' }}><div style={{ color: '#24202d', fontWeight: 750 }}>{lecture.lecture}</div><div style={{ color: '#9a97a7', fontSize: '0.67rem', marginTop: '3px' }}>{lecture.submissions ? 'Responses available' : 'Waiting for first response'}</div></td>
+                                                    <td style={{ padding: '13px 16px', color: '#77748a', whiteSpace: 'nowrap' }}>{formatDate(lecture.date)}</td>
+                                                    <td style={{ padding: '13px 16px', color: '#5d5868' }}>{lecture.faculty || 'TBA'}</td>
+                                                    <td style={{ padding: '13px 16px' }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', padding: '4px 7px', borderRadius: '6px', background: lecture.avg >= 4 ? '#f0fdf4' : lecture.avg >= 3 ? '#fffbeb' : lecture.avg ? '#fef2f2' : '#f5f4f7', color: lecture.avg >= 4 ? '#15803d' : lecture.avg >= 3 ? '#b45309' : lecture.avg ? '#dc2626' : '#9a97a7', fontSize: '0.72rem', fontWeight: 800 }}>{lecture.avg ? `${lecture.avg} ★` : '—'}</span></td>
+                                                    <td style={{ padding: '13px 16px', minWidth: '145px' }}><div style={{ display: 'flex', justifyContent: 'space-between', color: '#77748a', fontSize: '0.67rem', marginBottom: '5px' }}><span>{lecture.submissions}/{lecture.totalEnrolled}</span><span>{responseRate}%</span></div><div style={{ height: '5px', overflow: 'hidden', borderRadius: '999px', background: '#f0eef5' }}><div style={{ width: `${responseRate}%`, height: '100%', borderRadius: '999px', background: '#6355F1', transition: 'width 300ms ease' }} /></div></td>
+                                                    <td style={{ padding: '13px 16px', color: '#77748a', fontWeight: 700 }}>{lecture.descCount}</td>
+                                                    <td style={{ padding: '13px 16px' }}><button onClick={() => handleViewDetail(lecture)} style={{ padding: '6px 9px', borderRadius: '7px', border: '1px solid #ddd9fe', background: '#faf9ff', color: '#5646c7', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 800 }}>Open report</button></td>
+                                                </tr>;
+                                            })}
                                         </tbody>
                                     </table>
                                 </div>
                             </div>
                         </>
                     )}
-
                     {/* Lecture Detail View */}
                     {activeTab === 'overview' && viewingLecture && (
                         <>

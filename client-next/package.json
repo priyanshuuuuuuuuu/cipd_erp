@@ -10,7 +10,8 @@
     "lint:fix": "next lint --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "attendance-worker": "node scripts/attendance-worker.js"
+    "attendance-worker": "node scripts/attendance-worker.js",
+    "notification-worker": "node scripts/notification-stream-worker.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.98.0",

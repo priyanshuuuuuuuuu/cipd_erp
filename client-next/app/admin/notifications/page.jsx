@@ -297,7 +297,7 @@ export default function AdminNotificationsPage() {
                                 <div style={{ padding: '3rem 2rem', textAlign: 'center', color: '#888', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
                                     <Bell size={40} color="#e5e7eb" />
                                     <div style={{ fontSize: '0.95rem', fontWeight: 600 }}>No notifications found</div>
-                                    <div style={{ fontSize: '0.8rem' }}>There are no notifications in the "{tabs.find(t => t.id === activeTab)?.label}" category.</div>
+                                    <div style={{ fontSize: '0.8rem' }}>There are no notifications in the &quot;{tabs.find(t => t.id === activeTab)?.label}&quot; category.</div>
                                 </div>
                             ) : (
                                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
@@ -451,7 +451,7 @@ export default function AdminNotificationsPage() {
                                                     )}
                                                     {studentSearch.length >= 2 && studentResults.length === 0 && !searching && (
                                                         <div style={{ padding: '10px 14px', fontSize: '0.85rem', color: '#888', background: '#fafafa', borderRadius: '8px', marginTop: '6px', border: '1px solid #f0f0f0' }}>
-                                                            No students found matching "{studentSearch}"
+                                                            No students found matching &quot;{studentSearch}&quot;
                                                         </div>
                                                     )}
                                                 </>

@@ -33,14 +33,14 @@ async function getHandler(req) {
 
     // ── 1. Resolve students ──────────────────────────────────────────────────
     const studentIds = [...new Set(rows.map((r) => r.student_id).filter(Boolean))];
-    let studentMap = {};
+    const studentMap = {};
     if (studentIds.length > 0) {
       const { data: students } = await supabaseAdmin
         .from('students')
         .select('id, enrollment_no')
         .in('id', studentIds);
       const userIds = (students || []).map((s) => s.id);
-      let userMap = {};
+      const userMap = {};
       if (userIds.length > 0) {
         const { data: users } = await supabaseAdmin
           .from('users')
@@ -55,14 +55,14 @@ async function getHandler(req) {
 
     // ── 2. Resolve sessions ──────────────────────────────────────────────────
     const sessionIds = [...new Set(rows.map((r) => r.session_id).filter(Boolean))];
-    let sessionMap = {};
+    const sessionMap = {};
     if (sessionIds.length > 0) {
       const { data: sessions } = await supabaseAdmin
         .from('sessions')
         .select('id, title, start_time, end_time, course_id')
         .in('id', sessionIds);
       const courseIds = [...new Set((sessions || []).map((s) => s.course_id).filter(Boolean))];
-      let courseMap = {};
+      const courseMap = {};
       if (courseIds.length > 0) {
         const { data: courses } = await supabaseAdmin
           .from('courses')
@@ -77,7 +77,7 @@ async function getHandler(req) {
 
     // ── 3. Resolve reviewers ─────────────────────────────────────────────────
     const reviewerIds = [...new Set(rows.map((r) => r.reviewed_by).filter(Boolean))];
-    let reviewerMap = {};
+    const reviewerMap = {};
     if (reviewerIds.length > 0) {
       const { data: reviewers } = await supabaseAdmin
         .from('users')

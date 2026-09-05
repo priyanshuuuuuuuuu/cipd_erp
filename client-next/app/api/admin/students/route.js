@@ -50,7 +50,7 @@ async function getHandler(req) {
     if (stuErr) throw stuErr;
 
     const studentIds = (students || []).map(s => s.id);
-    let enrollmentMap = {};
+    const enrollmentMap = {};
 
     if (studentIds.length > 0) {
       const { data: enrollments } = await db

@@ -92,7 +92,7 @@ async function handler(req) {
           if (items.length === 0) return;
 
           // Fetch submissions for the logged-in student in this course
-          let turnedInIds = new Set();
+          const turnedInIds = new Set();
           try {
             const subRes = await classroom.courses.courseWork.studentSubmissions.list({
               courseId: course.id,

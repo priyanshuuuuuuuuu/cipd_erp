@@ -36,7 +36,7 @@ async function getHandler(req) {
 
     // Get enrolled student counts per course
     const courseIds = [...new Set((sessions || []).map(s => s.courses?.id).filter(Boolean))];
-    let enrollmentCounts = {};
+    const enrollmentCounts = {};
     if (courseIds.length > 0) {
       for (const cid of courseIds) {
         const { count } = await supabaseAdmin

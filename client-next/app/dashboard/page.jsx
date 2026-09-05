@@ -222,7 +222,7 @@ const StudentDashboard = () => {
 
                     {/* Today's Schedule */}
                     <section>
-                        <div className="section-title">Today's Schedule</div>
+                        <div className="section-title">Today&apos;s Schedule</div>
                         <div className="schedule-cards">
                             {todaySessions.length === 0 && !attendance ? (
                                 <div style={{ display: 'flex', gap: '1rem' }}>{[1,2,3].map(i => (

@@ -83,18 +83,17 @@ export async function GET(req) {
           .filter((r) => r.status === 'present' || r.status === 'partial')
           .map((r) => r.student_id);
 
-        rolloutFeedbackForSession(
-          session.id,
-          presentStudentIds.length > 0 ? presentStudentIds : null
-        )
-          .then((res) =>
-            console.log(
-              `Cron: Feedback for "${session.title}" — ${res.notified} notified`
-            )
-          )
-          .catch((err) =>
-            console.error('Feedback auto-rollout error:', err.message)
+        try {
+          const feedback = await rolloutFeedbackForSession(
+            session.id,
+            presentStudentIds.length > 0 ? presentStudentIds : null
           );
+          console.log(
+            'Cron: Feedback queued for "' + session.title + '" — ' + feedback.queued + ' email job(s)'
+          );
+        } catch (error) {
+          console.error('Feedback auto-rollout error:', error.message);
+        }
       }
     }
 
@@ -147,17 +146,16 @@ export async function GET(req) {
           continue;
         }
 
-        rolloutFeedbackForSession(session.id, null)
-          .then((res) => {
-            if (res.notified > 0) {
-              console.log(
-                `Cron [missed]: "${session.title}" — ${res.notified} notified`
-              );
-            }
-          })
-          .catch((err) =>
-            console.error(`Cron [missed]: Rollout error for ${session.id}:`, err.message)
-          );
+        try {
+          const feedback = await rolloutFeedbackForSession(session.id, null);
+          if (feedback.queued > 0) {
+            console.log(
+              'Cron [missed]: "' + session.title + '" — ' + feedback.queued + ' email job(s) queued'
+            );
+          }
+        } catch (error) {
+          console.error('Cron [missed]: Rollout error for ' + session.id + ':', error.message);
+        }
 
         missedCompletedCount++;
       }

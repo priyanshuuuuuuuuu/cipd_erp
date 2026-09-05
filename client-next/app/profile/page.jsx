@@ -310,7 +310,7 @@ export default function ProfilePage() {
                                                         </div>
                                                     )}
                                                 </div>
-                                                {fb.comments && <div style={{ marginTop: '8px', fontSize: '0.8rem', color: '#777', fontStyle: 'italic' }}>"{fb.comments}"</div>}
+                                                {fb.comments && <div style={{ marginTop: '8px', fontSize: '0.8rem', color: '#777', fontStyle: 'italic' }}>&quot;{fb.comments}&quot;</div>}
                                             </div>
                                         ))}
                                     </div>

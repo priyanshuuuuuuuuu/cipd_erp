@@ -33,6 +33,12 @@ export default function AdminSchedulePage() {
     const [rolloutMsg, setRolloutMsg] = useState('');         // success/error flash message
     const [backfilling, setBackfilling] = useState(false);
 
+    // ── Per-session feedback deadline state ──────────────────────────────────
+    const [deadlineSession, setDeadlineSession] = useState(null);
+    const [deadlineInput, setDeadlineInput] = useState('');
+    const [deadlineSaving, setDeadlineSaving] = useState(false);
+    const [deadlineError, setDeadlineError] = useState('');
+
     // ── Add-session form state ───────────────────────────────────────────────
     const [newClass, setNewClass] = useState({ course_id: '', faculty_id: '', date: '', start_time: '', end_time: '', venue_id: '', title: '', session_type_id: '', skill_ids: [] });
     const [lookupData, setLookupData] = useState({ courses: [], faculty: [], venues: [], sessionTypes: [], skills: [], categories: [] });
@@ -99,13 +105,16 @@ export default function AdminSchedulePage() {
         setRolloutMsg('');
         try {
             const res = await api.post('/api/admin/sessions/rollout-feedback', { session_id: sessionId });
-            const notified = res.notified ?? 0;
-            const skipped = res.skipped ?? 0;
+            const queued = res.queued ?? 0;
+            const alreadyQueued = res.alreadyQueued ?? 0;
             setRolloutMsg(
-                notified === 0
-                    ? `All students for "${sessionTitle}" already notified (${skipped} skipped).`
-                    : `✓ Feedback sent to ${notified} student(s) for "${sessionTitle}".`
+                queued > 0
+                    ? `✓ Feedback queued for ${queued} recipient(s) for "${sessionTitle}". Delivery progress is shown in the class row.`
+                    : alreadyQueued > 0
+                        ? `Feedback for "${sessionTitle}" is already queued or sent (${alreadyQueued} recipient(s)).`
+                        : `No eligible feedback recipients were found for "${sessionTitle}".`
             );
+            await fetchSessions({ silent: true });
         } catch (err) {
             setRolloutMsg(`✗ Rollout failed: ${err.message}`);
         } finally {
@@ -122,26 +131,27 @@ export default function AdminSchedulePage() {
         try {
             const res = await api.post('/api/admin/sessions/rollout-feedback', { all_completed: true });
             setRolloutMsg(
-                `✓ Backfill done: ${res.totalNotified} notification(s) sent across ${res.sessionsWithActivity?.length ?? 0} sessions, ${res.totalSkipped} already had notifications.`
+                `✓ Backfill queued ${res.totalQueued ?? 0} email(s) across ${res.sessionsWithActivity?.length ?? 0} sessions. ${res.totalAlreadyQueued ?? 0} were already queued or sent.`
             );
         } catch (err) {
             setRolloutMsg(`✗ Backfill failed: ${err.message}`);
         } finally {
             setBackfilling(false);
+            fetchSessions({ silent: true });
             setTimeout(() => setRolloutMsg(''), 8000);
         }
     };
 
     // ── Fetch sessions ───────────────────────────────────────────────────────
-    const fetchSessions = useCallback(async () => {
-        setLoading(true);
+    const fetchSessions = useCallback(async ({ silent = false } = {}) => {
+        if (!silent) setLoading(true);
         try {
             const data = await api.get(`/api/admin/schedule?filter=${activeFilter}`);
             setSessions(data.sessions || []);
         } catch (err) {
             console.error('Failed to fetch schedule:', err);
         } finally {
-            setLoading(false);
+            if (!silent) setLoading(false);
         }
     }, [activeFilter]);
 
@@ -293,14 +303,16 @@ export default function AdminSchedulePage() {
         }
     }, [fetchSessions, fetchLookup, authReady]);
 
-    // ── Live auto-refresh: re-fetch every 60 s so Ongoing/Completed transitions are live ──
+    // Re-fetch quickly while email jobs are moving, otherwise keep the normal
+    // one-minute refresh for schedule state changes.
+    const hasActiveFeedbackDelivery = sessions.some((session) =>
+        session.feedback_delivery?.state === 'sending'
+    );
     useEffect(() => {
         if (!authReady) return;
-        const intervalId = setInterval(() => {
-            fetchSessions();
-        }, 60 * 1000); // every 60 seconds
+        const intervalId = setInterval(() => fetchSessions({ silent: true }), hasActiveFeedbackDelivery ? 8000 : 60 * 1000);
         return () => clearInterval(intervalId);
-    }, [authReady, fetchSessions]);
+    }, [authReady, fetchSessions, hasActiveFeedbackDelivery]);
 
     // ── Date-sorted sessions ─────────────────────────────────────────────────
     const sortedSessions = useMemo(() => {
@@ -371,7 +383,7 @@ export default function AdminSchedulePage() {
                 skill_ids: editForm.skill_ids || [],
             });
             setEditSuccess('Session updated successfully.');
-            fetchSessions();
+            fetchSessions({ silent: true });
             setTimeout(() => closeEdit(), 1200);
         } catch (err) {
             setEditError(err.message || 'Failed to update session.');
@@ -385,7 +397,7 @@ export default function AdminSchedulePage() {
         if (!confirm('Are you sure you want to delete this class?')) return;
         try {
             await api.delete(`/api/admin/sessions/${sessionId}`);
-            fetchSessions();
+            fetchSessions({ silent: true });
         } catch (err) {
             console.error('Failed to delete session:', err);
             alert(err.message || 'Failed to delete session');
@@ -439,6 +451,50 @@ export default function AdminSchedulePage() {
     };
 
     // ── Helpers ──────────────────────────────────────────────────────────────
+    const formatDeadline = (value) => value
+        ? new Date(value).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
+        : '24 hours after class ends';
+
+    const defaultDeadlineFor = (session) => {
+        const endTime = session.endTime || session.time || '00:00';
+        return new Date(`${session.date}T${endTime}:00+05:30`).getTime() + (24 * 60 * 60 * 1000);
+    };
+
+    const toDateTimeLocal = (value) => {
+        const date = new Date(value);
+        const pad = (number) => String(number).padStart(2, '0');
+        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    };
+
+    const openFeedbackDeadline = (session) => {
+        setDeadlineSession(session);
+        setDeadlineInput(toDateTimeLocal(session.feedback_deadline || defaultDeadlineFor(session)));
+        setDeadlineError('');
+    };
+
+    const saveFeedbackDeadline = async (useDefault = false) => {
+        if (!deadlineSession) return;
+        if (!useDefault && !deadlineInput) {
+            setDeadlineError('Choose a deadline, or restore the default 24-hour deadline.');
+            return;
+        }
+        setDeadlineSaving(true);
+        setDeadlineError('');
+        try {
+            await api.patch(`/api/admin/sessions/${deadlineSession.id}`, {
+                feedback_deadline: useDefault ? null : new Date(deadlineInput).toISOString(),
+            });
+            setDeadlineSession(null);
+            await fetchSessions({ silent: true });
+            setRolloutMsg(`✓ Feedback deadline updated for "${deadlineSession.course}".`);
+            setTimeout(() => setRolloutMsg(''), 5000);
+        } catch (err) {
+            setDeadlineError(err.message || 'Could not update the feedback deadline.');
+        } finally {
+            setDeadlineSaving(false);
+        }
+    };
+
     const formatDate = d => {
         const dt = new Date(d + 'T00:00:00');
         return dt.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
@@ -509,7 +565,7 @@ export default function AdminSchedulePage() {
             setNewSkillSearchOpen(false);
             setNewShowAddSkill(false);
             setNewNewSkillName('');
-            fetchSessions();
+            fetchSessions({ silent: true });
         } catch (e) {
             setScheduleError(e.message || 'Failed to schedule class. Please try again.');
         } finally {
@@ -754,6 +810,16 @@ export default function AdminSchedulePage() {
                                             </td></tr>
                                         ) : sortedSessions.map((s) => {
                                             const isToday = s.date === todayStr;
+                                            const delivery = s.feedback_delivery || {};
+                                            const deliveryTotal = delivery.total || 0;
+                                            const deliverySent = delivery.sent || 0;
+                                            const deliveryState = delivery.state || 'not_sent';
+                                            const deliveryProgress = deliveryTotal
+                                                ? Math.round((deliverySent / deliveryTotal) * 100)
+                                                : 0;
+                                            const feedbackIsFinal = deliveryState === 'sent';
+                                            const feedbackIsSending = deliveryState === 'sending';
+                                            const feedbackHasFailed = deliveryState === 'failed';
                                             return (
                                                 <tr key={s.id} className="attendance-row" style={{ borderBottom: '1px solid #f5f5f5' }}>
                                                     <td style={{ padding: '12px 16px', fontWeight: 600, color: '#111', borderLeft: isToday ? '4px solid #3B2D82' : '4px solid transparent' }}>
@@ -825,18 +891,41 @@ export default function AdminSchedulePage() {
                                                                 style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #2563eb', background: '#eff6ff', cursor: 'pointer', color: '#2563eb' }}
                                                                 title="Upload session material"
                                                             ><Upload size={13} /></button>
-                                                             {s.status === 'Completed' && (
-                                                                 <button
-                                                                     onClick={() => handleRolloutFeedback(s.id, s.course)}
-                                                                     disabled={rollingOutId === s.id}
-                                                                     className="change-status-btn"
-                                                                     style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #2563eb', background: '#eff6ff', cursor: rollingOutId === s.id ? 'not-allowed' : 'pointer', color: '#2563eb', opacity: rollingOutId === s.id ? 0.6 : 1 }}
-                                                                     title="Send feedback form to students who attended this session"
-                                                                 >
-                                                                     {rollingOutId === s.id ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Send size={13} />}
-                                                                 </button>
-                                                             )}
-                                                            <button onClick={() => handleDeleteSession(s.id)} className="change-status-btn" style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', color: '#dc2626' }} title="Delete session"><Trash2 size={13} /></button>
+                                                            <button
+                                                                onClick={() => openFeedbackDeadline(s)}
+                                                                className="change-status-btn"
+                                                                style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #d8b4fe', background: '#faf5ff', cursor: 'pointer', color: '#7e22ce' }}
+                                                                title={`Set feedback deadline (currently ${formatDeadline(s.feedback_deadline)})`}
+                                                            ><Clock size={13} /></button>
+                                                            {s.status === 'Completed' && (
+                                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: '72px' }}>
+                                                                    <button
+                                                                        onClick={() => handleRolloutFeedback(s.id, s.course)}
+                                                                        disabled={rollingOutId === s.id || feedbackIsFinal || feedbackIsSending || feedbackHasFailed}
+                                                                        className="change-status-btn"
+                                                                        style={{ padding: '4px 8px', borderRadius: '6px', border: `1px solid ${feedbackIsFinal ? '#86efac' : feedbackHasFailed ? '#fecaca' : '#2563eb'}`, background: feedbackIsFinal ? '#f0fdf4' : feedbackHasFailed ? '#fef2f2' : '#eff6ff', cursor: (rollingOutId === s.id || feedbackIsFinal || feedbackIsSending || feedbackHasFailed) ? 'not-allowed' : 'pointer', color: feedbackIsFinal ? '#15803d' : feedbackHasFailed ? '#dc2626' : '#2563eb', opacity: rollingOutId === s.id ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}
+                                                                        title={feedbackIsFinal
+                                                                            ? 'Feedback is already sent to all recipients'
+                                                                            : feedbackIsSending
+                                                                                ? `Sending feedback: ${deliverySent}/${deliveryTotal} delivered`
+                                                                                : feedbackHasFailed
+                                                                                    ? 'Some feedback emails failed; retry them from the notification service'
+                                                                                    : 'Queue feedback form delivery for students who attended this session'}
+                                                                    >
+                                                                        {rollingOutId === s.id || feedbackIsSending
+                                                                            ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} />
+                                                                            : feedbackIsFinal ? <CheckCircle size={13} />
+                                                                                : feedbackHasFailed ? <AlertCircle size={13} /> : <Send size={13} />}
+                                                                        {feedbackIsFinal ? 'Sent' : feedbackIsSending ? `Sending ${deliverySent}/${deliveryTotal}` : feedbackHasFailed ? 'Failed' : 'Send'}
+                                                                    </button>
+                                                                    {deliveryTotal > 0 && (
+                                                                        <div title={`${deliverySent} of ${deliveryTotal} feedback emails sent`} style={{ height: '3px', borderRadius: '999px', overflow: 'hidden', background: '#e5e7eb' }}>
+                                                                            <div style={{ height: '100%', width: `${deliveryProgress}%`, background: feedbackHasFailed ? '#dc2626' : feedbackIsFinal ? '#16a34a' : '#2563eb', transition: 'width 250ms ease' }} />
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                             <button onClick={() => handleDeleteSession(s.id)} className="change-status-btn" style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', color: '#dc2626' }} title="Delete session"><Trash2 size={13} /></button>
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -1448,6 +1537,62 @@ export default function AdminSchedulePage() {
                 </div>
             )}
 
+            {/* ══ Feedback Deadline Modal ═════════════════════════════════════ */}
+            {deadlineSession && (
+                <div
+                    style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
+                    onClick={() => !deadlineSaving && setDeadlineSession(null)}
+                >
+                    <div
+                        style={{ background: '#fff', borderRadius: '14px', width: '100%', maxWidth: '460px', padding: '1.5rem', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }}
+                        onClick={event => event.stopPropagation()}
+                    >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                            <div>
+                                <div style={{ fontSize: '0.72rem', fontWeight: 600, color: '#7e22ce', textTransform: 'uppercase' }}>Feedback deadline</div>
+                                <div style={{ fontSize: '1rem', fontWeight: 700, color: '#111', marginTop: '2px' }}>{deadlineSession.course}</div>
+                            </div>
+                            <button onClick={() => !deadlineSaving && setDeadlineSession(null)} style={{ background: 'none', border: 'none', cursor: deadlineSaving ? 'not-allowed' : 'pointer', color: '#888' }}><X size={18} /></button>
+                        </div>
+
+                        <p style={{ fontSize: '0.82rem', color: '#666', lineHeight: 1.5, margin: '0 0 14px' }}>
+                            The normal deadline is 24 hours after the class ends. Set a specific date and time when this class needs more or less time.
+                        </p>
+                        <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>Custom deadline</label>
+                        <input
+                            type="datetime-local"
+                            value={deadlineInput}
+                            onChange={event => setDeadlineInput(event.target.value)}
+                            disabled={deadlineSaving}
+                            style={inp}
+                        />
+                        <div style={{ fontSize: '0.72rem', color: '#888', marginTop: '6px' }}>
+                            Current effective deadline: {formatDeadline(deadlineSession.feedback_deadline || new Date(defaultDeadlineFor(deadlineSession)).toISOString())}
+                        </div>
+                        {deadlineError && <div style={{ color: '#dc2626', fontSize: '0.8rem', marginTop: '10px' }}>{deadlineError}</div>}
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', marginTop: '1.25rem' }}>
+                            <button
+                                type="button"
+                                onClick={() => saveFeedbackDeadline(true)}
+                                disabled={deadlineSaving}
+                                style={{ padding: '8px 11px', borderRadius: '8px', border: '1px solid #d8b4fe', background: '#faf5ff', color: '#7e22ce', cursor: deadlineSaving ? 'not-allowed' : 'pointer', fontSize: '0.78rem', fontWeight: 600 }}
+                            >Restore 24-hour default</button>
+                            <div style={{ display: 'flex', gap: '8px' }}>
+                                <button type="button" onClick={() => setDeadlineSession(null)} disabled={deadlineSaving} style={{ padding: '8px 14px', borderRadius: '8px', border: '1px solid #eee', background: '#fff', cursor: deadlineSaving ? 'not-allowed' : 'pointer', fontSize: '0.82rem', color: '#555' }}>Cancel</button>
+                                <button
+                                    type="button"
+                                    onClick={() => saveFeedbackDeadline(false)}
+                                    disabled={deadlineSaving}
+                                    style={{ padding: '8px 14px', borderRadius: '8px', border: 'none', background: '#3B2D82', color: '#fff', cursor: deadlineSaving ? 'not-allowed' : 'pointer', fontSize: '0.82rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px' }}
+                                >
+                                    {deadlineSaving ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> Saving...</> : <><Clock size={13} /> Save deadline</>}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
             {/* ══ Upload Material Modal ═══════════════════════════════════════ */}
             {uploadSession && (
                 <div

@@ -174,16 +174,30 @@ async function getHandler(req) {
 
     // ===== OVERVIEW — summary across all completed sessions =====
 
-    // Get all completed sessions with their course and faculty info
-    const { data: sessions } = await supabaseAdmin
+    // Keep completed sessions in the dashboard, and also include any session
+    // that already has feedback. This avoids hiding a new response when a
+    // session's status transition is still catching up.
+    const { data: responseSessionRows, error: responseSessionError } = await supabaseAdmin
+      .from('feedback_responses')
+      .select('session_id');
+    if (responseSessionError) throw responseSessionError;
+
+    const responseSessionIds = [...new Set((responseSessionRows || []).map((row) => row.session_id).filter(Boolean))];
+    let sessionsQuery = supabaseAdmin
       .from('sessions')
       .select(`
         id, title, session_date, course_id,
         courses ( name ),
         faculty ( id, users ( first_name, last_name ) )
-      `)
-      .eq('status', 'completed')
+      `);
+
+    sessionsQuery = responseSessionIds.length > 0
+      ? sessionsQuery.or(`status.eq.completed,id.in.(${responseSessionIds.join(',')})`)
+      : sessionsQuery.eq('status', 'completed');
+
+    const { data: sessions, error: sessionsError } = await sessionsQuery
       .order('session_date', { ascending: false });
+    if (sessionsError) throw sessionsError;
 
     const sessionIds = (sessions || []).map((s) => s.id);
 
@@ -277,6 +291,27 @@ async function getHandler(req) {
       sub: l.totalEnrolled > 0 ? Math.round((l.submissions / l.totalEnrolled) * 100) : 0,
     }));
 
+    // One activity row per student/session submission, not one per answer. Student
+    // identity intentionally stays out of the overview to preserve anonymity.
+    const lectureById = new Map(lectures.map((lecture) => [lecture.id, lecture]));
+    const latestSubmissionByPair = new Map();
+    (allResponses || []).forEach((response) => {
+      const key = `${response.session_id}:${response.student_id}`;
+      const previous = latestSubmissionByPair.get(key);
+      if (!previous || new Date(response.submitted_at).getTime() > new Date(previous.submitted_at).getTime()) {
+        latestSubmissionByPair.set(key, response);
+      }
+    });
+    const recentSubmissions = [...latestSubmissionByPair.values()]
+      .sort((a, b) => new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime())
+      .slice(0, 6)
+      .map((response) => ({
+        id: `${response.session_id}:${response.student_id}`,
+        session_id: response.session_id,
+        lecture: lectureById.get(response.session_id)?.lecture || 'Feedback response',
+        submitted_at: response.submitted_at,
+      }));
+
     return NextResponse.json({
       summary: {
         totalLectures: (sessions || []).length,
@@ -289,6 +324,8 @@ async function getHandler(req) {
       ratingDistribution: ratingDistWithPct,
       lectures,
       trendData,
+      recentSubmissions,
+      generatedAt: new Date().toISOString(),
     });
   } catch (err) {
     console.error('Admin feedback analytics error:', err);

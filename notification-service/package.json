@@ -1,0 +1,17 @@
+{
+  "name": "cipd-notification-service",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.mjs",
+    "dev": "node --watch src/server.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.98.0",
+    "dotenv": "^16.6.1",
+    "express": "^5.2.1",
+    "nodemailer": "^8.0.4"
+  }
+}
+

@@ -53,7 +53,7 @@ async function handler(req) {
         .from('session_materials')
         .select('*', { count: 'exact', head: true })
         .eq('course_id', course.id);
-      let materialsCount = matCount || 0;
+      const materialsCount = matCount || 0;
 
       // Extract primary faculty & venue (just pick the first session's details)
       let facultyName = null;

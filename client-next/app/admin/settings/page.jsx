@@ -176,7 +176,7 @@ export default function AdminSettingsPage() {
                         <div className="nav-item" onClick={() => navTo('/admin/reports')} style={{ cursor: 'pointer' }}><FileBarChart size={18} /> <span>Reports</span></div>
                         <div style={{ fontSize: '0.6rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', color: '#555', padding: '10px 1rem 4px' }}><span>System</span></div>
                         <div className="nav-item" onClick={() => navTo('/admin/notifications')} style={{ cursor: 'pointer' }}><Bell size={18} /> <span>Notifications</span></div>
-                        <div className="nav-item active"><Settings size={18} /> <span>Settings</span></div>
+                        <div className="nav-item active"><SettingsIcon size={18} /> <span>Settings</span></div>
                     </nav>
             </div>
             <div className="sidebar-footer">
@@ -327,7 +327,7 @@ export default function AdminSettingsPage() {
                             <div style={{ fontSize: '0.82rem', color: '#555', marginBottom: '12px', lineHeight: 1.6 }}>
                                 Connect your Google Classroom teacher account (<strong>priyanshupandeynov18@gmail.com</strong>).
                                 Once connected, assignments you create in Google Classroom will automatically appear
-                                in every student's dashboard under "Pending Assignments".
+                                in every student&apos;s dashboard under &quot;Pending Assignments&quot;.
                             </div>
                             <div style={{ padding: '10px 14px', background: '#f0f7ff', borderRadius: '8px', border: '1px solid #c7d9f8', marginBottom: '14px', fontSize: '0.75rem', color: '#1a56db', lineHeight: 1.5 }}>
                                 ℹ️ Students do <strong>not</strong> need to connect their own Google accounts.
@@ -341,7 +341,7 @@ export default function AdminSettingsPage() {
                             )}
                             {gcStatus === 'db_error' && (
                                 <div style={{ padding: '10px 14px', background: '#fce8e6', borderRadius: '8px', border: '1px solid #fad2cf', marginBottom: '14px', fontSize: '0.8rem', color: '#c5221f', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <AlertCircle size={16} /> Database Error: Supabase schema cache issue. Please run `NOTIFY pgrst, 'reload schema'` in your Supabase SQL editor.
+                                    <AlertCircle size={16} /> Database Error: Supabase schema cache issue. Please run `NOTIFY pgrst, &apos;reload schema&apos;` in your Supabase SQL editor.
                                 </div>
                             )}
                             {gcStatus && gcStatus !== 'success' && gcStatus !== 'db_error' && (

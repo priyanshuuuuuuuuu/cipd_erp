@@ -45,18 +45,22 @@ async function handler(req, { params }) {
       if (status === 'completed') {
         const session = await fetchSessionForProcessing(id);
         if (session) {
-          processSessionAttendance(session, {
-            isOngoing: false,
-            finalizeAbsent: true,
-            upsert: true,
-          }).catch((err) =>
-            console.error('Wi-Fi attendance on mark-complete:', err.message)
-          );
+          try {
+            await processSessionAttendance(session, {
+              isOngoing: false,
+              finalizeAbsent: true,
+              upsert: true,
+            });
+          } catch (error) {
+            console.error('Wi-Fi attendance on mark-complete:', error.message);
+          }
         }
 
-        rolloutFeedbackForSession(id).catch((err) =>
-          console.error('Feedback rollout error after admin mark-complete:', err.message)
-        );
+        try {
+          await rolloutFeedbackForSession(id);
+        } catch (error) {
+          console.error('Feedback rollout error after admin mark-complete:', error.message);
+        }
       }
 
       return NextResponse.json({ session: data });
@@ -73,6 +77,7 @@ async function handler(req, { params }) {
       session_date,
       start_time,
       end_time,
+      feedback_deadline,
       status,
       skill_ids,         // optional array of skill UUIDs
     } = body;
@@ -88,6 +93,17 @@ async function handler(req, { params }) {
     if (session_date !== undefined)    updates.session_date    = session_date || null;
     if (start_time !== undefined)      updates.start_time      = start_time || null;
     if (end_time !== undefined)        updates.end_time        = end_time || null;
+    if (feedback_deadline !== undefined) {
+      if (feedback_deadline === null || feedback_deadline === '') {
+        updates.feedback_deadline = null;
+      } else {
+        const parsedDeadline = new Date(feedback_deadline);
+        if (Number.isNaN(parsedDeadline.getTime())) {
+          return NextResponse.json({ error: 'Feedback deadline must be a valid date and time' }, { status: 400 });
+        }
+        updates.feedback_deadline = parsedDeadline.toISOString();
+      }
+    }
     if (status !== undefined)          updates.status          = status;
 
     if (Object.keys(updates).length === 0 && skill_ids === undefined) {

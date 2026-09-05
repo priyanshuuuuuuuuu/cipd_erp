@@ -17,6 +17,7 @@ async function handler(request) {
                 session_date,
                 start_time,
                 end_time,
+                feedback_deadline,
                 status,
                 course_id,
                 faculty_id,
@@ -51,7 +52,7 @@ async function handler(request) {
 
         // Fetch skill_ids for all sessions in one batch query
         const sessionIds = (data || []).map(s => s.id);
-        let skillsMap = {}; // { session_id: [skill_id, ...] }
+        const skillsMap = {}; // { session_id: [skill_id, ...] }
 
         if (sessionIds.length > 0) {
             try {
@@ -68,9 +69,49 @@ async function handler(request) {
                 // table may not exist yet — skills just won't be populated
             }
         }
+        // Fetch durable email-job state in one batch query. The migration may not
+        // yet be applied in a development database, so retain the schedule view
+        // even when that optional status data is unavailable.
+        const deliveryMap = {};
+        if (sessionIds.length > 0) {
+            try {
+                const { data: messages, error: messagesError } = await supabaseAdmin
+                    .from('notification_stream')
+                    .select('session_id, status')
+                    .in('session_id', sessionIds);
+
+                if (messagesError) throw messagesError;
+                (messages || []).forEach(message => {
+                    if (!message.session_id) return;
+                    if (!deliveryMap[message.session_id]) {
+                        deliveryMap[message.session_id] = {
+                            total: 0, queued: 0, processing: 0, retry: 0,
+                            sent: 0, failed: 0, state: 'not_sent',
+                        };
+                    }
+                    const delivery = deliveryMap[message.session_id];
+                    delivery.total += 1;
+                    if (Object.prototype.hasOwnProperty.call(delivery, message.status)) {
+                        delivery[message.status] += 1;
+                    }
+                });
+
+                Object.values(deliveryMap).forEach(delivery => {
+                    const outstanding = delivery.queued + delivery.processing + delivery.retry;
+                    delivery.state = outstanding > 0
+                        ? 'sending'
+                        : delivery.failed > 0
+                            ? 'failed'
+                            : delivery.sent > 0 ? 'sent' : 'not_sent';
+                });
+            } catch (streamError) {
+                console.warn('Notification stream status unavailable:', streamError.message);
+            }
+        }
+
         // Fetch real enrollment counts in one batch query
         const courseIds = [...new Set((data || []).map(s => s.course_id).filter(Boolean))];
-        let enrollmentMap = {};
+        const enrollmentMap = {};
 
         if (courseIds.length > 0) {
             const { data: enrollments } = await supabaseAdmin
@@ -121,6 +162,11 @@ async function handler(request) {
                 date: s.session_date,
                 time: s.start_time?.slice(0, 5),
                 endTime: s.end_time?.slice(0, 5),
+                feedback_deadline: s.feedback_deadline || null,
+                feedback_delivery: deliveryMap[s.id] || {
+                    total: 0, queued: 0, processing: 0, retry: 0,
+                    sent: 0, failed: 0, state: 'not_sent',
+                },
                 students: enrollmentMap[s.course_id] || 0,
                 status: computedStatus,
                 // Raw IDs / values for edit form pre-fill

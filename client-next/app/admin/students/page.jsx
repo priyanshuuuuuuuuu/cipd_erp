@@ -52,7 +52,7 @@ function DeleteConfirmModal({ student, onConfirm, onClose, deleting }) {
                 <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '10px 14px', marginBottom: '1.5rem' }}>
                     <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#dc2626', marginBottom: 4 }}>⚠ Cascade Deletion Warning</div>
                     <div style={{ fontSize: '0.75rem', color: '#b91c1c', lineHeight: 1.5 }}>
-                        All of this student's attendance records, feedback responses, leave requests, and assignment submissions will also be permanently deleted.
+                        All of this student&apos;s attendance records, feedback responses, leave requests, and assignment submissions will also be permanently deleted.
                     </div>
                 </div>
 

@@ -39,13 +39,17 @@ async function handler(req) {
 
       const summary = [];
       let totalNotified = 0;
+      let totalQueued = 0;
+      let totalAlreadyQueued = 0;
       let totalSkipped = 0;
 
       for (const session of sessions || []) {
         const result = await rolloutFeedbackForSession(session.id);
         totalNotified += result.notified;
+        totalQueued += result.queued;
+        totalAlreadyQueued += result.alreadyQueued || 0;
         totalSkipped += result.skipped;
-        if (result.notified > 0 || result.errors.length > 0) {
+        if (result.notified > 0 || result.queued > 0 || result.alreadyQueued > 0 || result.errors.length > 0) {
           summary.push({
             session_id: session.id,
             title: session.title,
@@ -58,6 +62,8 @@ async function handler(req) {
       return NextResponse.json({
         message: `Backfill complete: ${sessions?.length || 0} sessions processed`,
         totalNotified,
+        totalQueued,
+        totalAlreadyQueued,
         totalSkipped,
         sessionsWithActivity: summary,
       });

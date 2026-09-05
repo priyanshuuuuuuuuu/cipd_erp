@@ -8,7 +8,7 @@ async function handler(req) {
     const { searchParams } = new URL(req.url);
     const department = searchParams.get('department');
 
-    let query = supabaseAdmin
+    const query = supabaseAdmin
       .from('faculty')
       .select(`
         id, designation, department, photo_url, years_experience, honorarium_rate_per_hour,

@@ -431,7 +431,7 @@ export default function CourseDetailPage() {
                                                 {asn.submission_status === 'graded' && asn.marks != null && (
                                                     <div style={{ marginTop: '10px', marginLeft: '36px', fontSize: '0.78rem', color: '#888', borderTop: '1px solid #f5f5f5', paddingTop: '8px' }}>
                                                         Score: <strong style={{ color: '#111' }}>{asn.marks}/{asn.total_marks}</strong>
-                                                        {asn.feedback && <span style={{ marginLeft: '12px', fontStyle: 'italic' }}>"{asn.feedback}"</span>}
+                                                        {asn.feedback && <span style={{ marginLeft: '12px', fontStyle: 'italic' }}>&quot;{asn.feedback}&quot;</span>}
                                                     </div>
                                                 )}
                                             </div>

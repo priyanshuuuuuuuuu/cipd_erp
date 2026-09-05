@@ -1,9 +1,23 @@
 import nodemailer from 'nodemailer';
 
+const REQUIRED_SENDER_EMAIL = 'cipd@iiitd.ac.in';
+
+function senderEmail() {
+  const configured = (process.env.EMAIL_FROM || '').trim().toLowerCase();
+  if (configured !== REQUIRED_SENDER_EMAIL) {
+    throw new Error('EMAIL_FROM must be cipd@iiitd.ac.in. Refusing to send from any other account.');
+  }
+  return REQUIRED_SENDER_EMAIL;
+}
+
+function fromAddress() {
+  return '"CiPD 360" <' + senderEmail() + '>';
+}
+
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: process.env.EMAIL_FROM,
+    user: REQUIRED_SENDER_EMAIL,
     pass: process.env.EMAIL_PASSWORD,
   },
 });
@@ -378,7 +392,7 @@ export async function sendWeeklyScheduleEmail(studentEmail, studentName, session
   const icsContent = generateICS(sorted, studentName);
 
   await transporter.sendMail({
-    from: `"CiPD 360" <${process.env.EMAIL_FROM}>`,
+    from: fromAddress(),
     to: studentEmail,
     subject: `Your weekly schedule — ${weekRange}`,
     html: shell(content, `${count} classes this week. Next class at ${nextTime ?? 'TBA'}.`),
@@ -482,7 +496,7 @@ export async function sendDayBeforeReminderEmail(studentEmail, studentName, sess
   const icsContent = generateICS([session], studentName);
 
   await transporter.sendMail({
-    from: `"CiPD 360" <${process.env.EMAIL_FROM}>`,
+    from: fromAddress(),
     to: studentEmail,
     subject: `Class tomorrow: ${title} at ${start}`,
     html: shell(content, `"${title}" starts at ${start} tomorrow at ${venue}.`),
@@ -543,7 +557,7 @@ export async function sendGeneralNotificationEmail(studentEmail, studentName, ti
         </tr>`;
 
   await transporter.sendMail({
-    from: `"CiPD 360" <${process.env.EMAIL_FROM}>`,
+    from: fromAddress(),
     to: studentEmail,
     subject: `${cfg.label}: ${title || cfg.label} — CiPD 360`,
     html: shell(content, message?.slice(0, 100)),
@@ -553,7 +567,7 @@ export async function sendGeneralNotificationEmail(studentEmail, studentName, ti
 // ─────────────────────────────────────────────────────────────────────────────
 // 4. FEEDBACK AVAILABLE EMAIL
 // ─────────────────────────────────────────────────────────────────────────────
-export async function sendFeedbackAvailableEmail(studentEmail, studentName, session, deadline) {
+export async function sendFeedbackAvailableEmail(studentEmail, studentName, session, deadline, options = {}) {
   const firstName  = (studentName || '').split(' ')[0] || 'Student';
   const course     = session.courses?.name || session.title || '—';
   const date       = session.session_date
@@ -625,9 +639,10 @@ export async function sendFeedbackAvailableEmail(studentEmail, studentName, sess
         </tr>`;
 
   await transporter.sendMail({
-    from: `"CiPD 360" <${process.env.EMAIL_FROM}>`,
+    from: fromAddress(),
     to: studentEmail,
     subject: `Feedback form ready: ${course} — CiPD 360`,
+    messageId: options.messageId,
     html: shell(content, `Feedback for "${course}" is due by ${deadlineStr}. Takes 30 seconds.`),
   });
 }
@@ -685,7 +700,7 @@ export async function sendFeedbackReminderEmail(studentEmail, studentName, sessi
         </tr>`;
 
   await transporter.sendMail({
-    from: `"CiPD 360" <${process.env.EMAIL_FROM}>`,
+    from: fromAddress(),
     to: studentEmail,
     subject: `Feedback closes in ${hrs}h: ${course} — CiPD 360`,
     html: shell(content, `Your feedback for "${course}" closes in ~${hrs} hours. Just 30 seconds!`),
@@ -763,7 +778,7 @@ export async function sendPasswordResetEmail({ to, firstName, resetUrl }) {
   `;
 
   await transporter.sendMail({
-    from: `"CiPD 360" <${process.env.EMAIL_FROM}>`,
+    from: fromAddress(),
     to,
     subject: 'Reset your CiPD 360 password',
     html: shell(content, `Password reset link for your CiPD 360 account — expires in 15 minutes`),

@@ -704,7 +704,7 @@ export default function FeedbackPage() {
                                         <span style={{ padding: '4px 14px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 600, background: '#f5f3ff', color: '#6355F1', border: '1px solid #e0d9ff' }}>{r.text_answer}</span>
                                     );
                                     else if (q.type === 'text') answer = r.text_answer
-                                        ? <span style={{ fontSize: '0.85rem', color: '#333', lineHeight: 1.6, fontStyle: 'italic' }}>"{r.text_answer}"</span>
+                                        ? <span style={{ fontSize: '0.85rem', color: '#333', lineHeight: 1.6, fontStyle: 'italic' }}>&quot;{r.text_answer}&quot;</span>
                                         : <span style={{ fontSize: '0.78rem', color: '#ccc' }}>No comment</span>;
 
                                     return (
