@@ -97,6 +97,31 @@ export default function CalendarPage() {
         return '';
     };
 
+    const sessionSorter = (a, b) => `${a.start_time || ''}${a.title || ''}`.localeCompare(`${b.start_time || ''}${b.title || ''}`);
+    const mobileAgendaGroups = (() => {
+        if (view === 'day') return [{ date: viewDateStr, sessions: [...daySessions].sort(sessionSorter) }];
+        if (view === 'week') {
+            return Array.from({ length: 7 }, (_, index) => {
+                const date = new Date(weekStartdDate);
+                date.setDate(date.getDate() + index);
+                const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                return { date: key, sessions: (sessionsByDayOfWeek[DAY_KEYS[date.getDay()]] || []).sort(sessionSorter) };
+            });
+        }
+        return Object.entries(sessionsByDom)
+            .flatMap(([, grouped]) => grouped)
+            .filter((s) => s.session_date?.startsWith(`${viewDate.getFullYear()}-${String(viewDate.getMonth() + 1).padStart(2, '0')}`))
+            .sort((a, b) => `${a.session_date}${a.start_time || ''}`.localeCompare(`${b.session_date}${b.start_time || ''}`))
+            .reduce((groups, session) => {
+                const current = groups[groups.length - 1];
+                if (!current || current.date !== session.session_date) groups.push({ date: session.session_date, sessions: [session] });
+                else current.sessions.push(session);
+                return groups;
+            }, []);
+    })();
+    const formatAgendaDate = (date) => new Date(`${date}T12:00:00`).toLocaleDateString('en-IN', {
+        weekday: 'long', day: 'numeric', month: 'short',
+    });
     return (
         <div className="dashboard-container">
             <div className={`sidebar-overlay ${isMobileMenuOpen ? 'visible' : ''}`} onClick={() => setIsMobileMenuOpen(false)} />
@@ -141,9 +166,9 @@ export default function CalendarPage() {
                     </div>
                 </header>
 
-                <div style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', height: '100%' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <div className="calendar-page-content">
+                    <div className="calendar-toolbar">
+                        <div className="calendar-title-group">
                             <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: '600' }}>
                                 {getHeaderText()}
                             </h2>
@@ -152,7 +177,7 @@ export default function CalendarPage() {
                                 <button onClick={handleNext} style={{ border: 'none', background: 'transparent', cursor: 'pointer' }}><ChevronRight size={20} /></button>
                             </div>
                         </div>
-                        <div style={{ background: '#f5f5f5', padding: '4px', borderRadius: '20px', display: 'flex', gap: '5px' }}>
+                        <div className="calendar-view-switcher">
                             {['day', 'week', 'month'].map(v => (
                                 <button key={v} onClick={() => setView(v)} style={{ border: 'none', background: view === v ? '#111' : 'transparent', color: view === v ? '#fff' : '#000', padding: '6px 16px', borderRadius: '16px', fontSize: '0.8rem', fontWeight: view === v ? '600' : '400', cursor: 'pointer', textTransform: 'capitalize' }}>{v.charAt(0).toUpperCase() + v.slice(1)}</button>
                             ))}
@@ -160,9 +185,25 @@ export default function CalendarPage() {
                     </div>
 
                     <div className="calendar-view-container" style={{ display: 'flex', flex: 1, border: '1px solid #f0f0f0', borderRadius: '12px', padding: '10px', overflowY: 'auto', overflowX: 'hidden', flexDirection: 'column' }}>
+                        <div className="calendar-mobile-agenda">
+                            {mobileAgendaGroups.length ? mobileAgendaGroups.map((group) => (
+                                <section key={group.date} className="calendar-agenda-day">
+                                    <h3>{formatAgendaDate(group.date)}</h3>
+                                    {group.sessions.length ? group.sessions.map((s, index) => (
+                                        <article key={s.id} className="calendar-agenda-event" style={{ '--agenda-color': colors[index % colors.length] }}>
+                                            <time>{s.start_time ? `${s.start_time.slice(0, 5)}${s.end_time ? ` – ${s.end_time.slice(0, 5)}` : ''}` : 'Time TBA'}</time>
+                                            <div>
+                                                <strong>{s.courses?.name || s.title}</strong>
+                                                <span>{s.venues?.name || 'Venue TBA'}</span>
+                                            </div>
+                                        </article>
+                                    )) : <p className="calendar-agenda-empty">No classes scheduled.</p>}
+                                </section>
+                            )) : <p className="calendar-agenda-empty">No classes scheduled for this month.</p>}
+                        </div>
                         {/* DAY VIEW */}
                         {view === 'day' && (
-                            <div style={{ display: 'flex', minHeight: '100%' }}>
+                            <div className="calendar-desktop-view" style={{ display: 'flex', minHeight: '100%' }}>
                                 <div style={{ width: '80px', display: 'flex', flexDirection: 'column', paddingRight: '10px' }}>
                                     {['8 AM', '9 AM', '10 AM', '11 AM', '12 PM', '1 PM', '2 PM', '3 PM', '4 PM', '5 PM', '6 PM'].map(time => (
                                         <div key={time} style={{ height: '80px', fontSize: '0.75rem', color: '#888', textAlign: 'right', paddingRight: '10px' }}>{time}</div>
@@ -194,7 +235,7 @@ export default function CalendarPage() {
 
                         {/* WEEK VIEW */}
                         {view === 'week' && (
-                            <div style={{ display: 'flex', flex: 1, minHeight: '800px' }}>
+                            <div className="calendar-desktop-view" style={{ display: 'flex', flex: 1, minHeight: '800px' }}>
                                 <div style={{ width: '80px', display: 'flex', flexDirection: 'column', paddingRight: '10px', marginTop: '50px' }}>
                                     {['8:00 AM', '10:00 AM', '12:00 PM', '2:00 PM', '4:00 PM', '6:00 PM'].map(time => (
                                         <div key={time} style={{ height: '120px', fontSize: '0.75rem', color: '#888', textAlign: 'right', paddingRight: '10px' }}>{time}</div>
@@ -244,7 +285,7 @@ export default function CalendarPage() {
 
                         {/* MONTH VIEW */}
                         {view === 'month' && (
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', minHeight: '100%', gridAutoRows: 'minmax(100px, auto)', gap: '1px', background: '#f0f0f0' }}>
+                            <div className="calendar-desktop-view" style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', minHeight: '100%', gridAutoRows: 'minmax(100px, auto)', gap: '1px', background: '#f0f0f0' }}>
                                 {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(h => (
                                     <div key={h} style={{ background: '#fff', padding: '10px', textAlign: 'center', fontWeight: '600', color: '#555', fontSize: '0.9rem' }}>{h}</div>
                                 ))}

@@ -172,6 +172,15 @@ const StudentDashboard = () => {
     };
 
     const courseImages = ['/course1.png', '/active.png', '/course3.png', '/course4.png', '/course5.png'];
+    const mobileWeekSessions = [...weekSessions].sort((a, b) =>
+        `${a.session_date || ''}${a.start_time || ''}`.localeCompare(`${b.session_date || ''}${b.start_time || ''}`)
+    );
+    const formatMobileDate = (date) => {
+        if (!date) return 'This week';
+        return new Date(`${date}T12:00:00`).toLocaleDateString('en-IN', {
+            weekday: 'short', day: 'numeric', month: 'short',
+        });
+    };
 
     return (
         <div className="dashboard-container">
@@ -258,33 +267,46 @@ const StudentDashboard = () => {
                             </div>
                         </div>
                         <div className="calendar-container">
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '1px solid #f0f0f0', paddingBottom: '10px', marginBottom: '10px' }}>
-                                {DAY_KEYS.map((d, i) => (
-                                    <div key={i} style={{ textAlign: 'left', paddingLeft: '5px', fontSize: '0.8rem', color: '#888' }}>{d}</div>
-                                ))}
+                            <div className="dashboard-week-grid">
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '1px solid #f0f0f0', paddingBottom: '10px', marginBottom: '10px' }}>
+                                    {DAY_KEYS.map((d, i) => (
+                                        <div key={i} style={{ textAlign: 'left', paddingLeft: '5px', fontSize: '0.8rem', color: '#888' }}>{d}</div>
+                                    ))}
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', flex: 1, gap: '6px' }}>
+                                    {DAY_KEYS.map((day, idx) => {
+                                        const dayS = weekSessions.filter(s => {
+                                            const d = new Date(`${s.session_date}T12:00:00`);
+                                            return DAY_KEYS[d.getDay()] === day;
+                                        });
+                                        return (
+                                            <div key={day} className="cal-col" style={{ borderLeft: idx > 0 ? '1px solid #f9f9f9' : 'none', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                                {dayS.slice(0, 2).map((s, si) => {
+                                                    const colors = ['blue', 'teal', 'purple', 'green'];
+                                                    return (
+                                                        <div key={s.id} className={`cal-event ${colors[si % colors.length]}`}>
+                                                            <div className="event-badge">Class</div>
+                                                            <strong>{s.courses?.name || s.title}</strong>
+                                                            <div>{s.venues?.name || 'TBA'}</div>
+                                                            <div>{s.start_time ? s.start_time.slice(0, 5) : ''}</div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
                             </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', flex: 1, gap: '6px' }}>
-                                {DAY_KEYS.map((day, idx) => {
-                                    const dayS = weekSessions.filter(s => {
-                                        const d = new Date(s.session_date);
-                                        return DAY_KEYS[d.getDay()] === day;
-                                    });
-                                    return (
-                                        <div key={day} className="cal-col" style={{ borderLeft: idx > 0 ? '1px solid #f9f9f9' : 'none', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                            {dayS.slice(0, 2).map((s, si) => {
-                                                const colors = ['blue', 'teal', 'purple', 'green'];
-                                                return (
-                                                    <div key={s.id} className={`cal-event ${colors[si % colors.length]}`}>
-                                                        <div className="event-badge">Class</div>
-                                                        <strong>{s.courses?.name || s.title}</strong>
-                                                        <div>{s.venues?.name || 'TBA'}</div>
-                                                        <div>{s.start_time ? s.start_time.slice(0, 5) : ''}</div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    );
-                                })}
+                            <div className="dashboard-mobile-week-agenda">
+                                {mobileWeekSessions.length ? mobileWeekSessions.map((s) => (
+                                    <button key={s.id} type="button" className="mobile-week-event" onClick={() => router.push('/calendar')}>
+                                        <span className="mobile-week-event-date">{formatMobileDate(s.session_date)}</span>
+                                        <span className="mobile-week-event-details">
+                                            <strong>{s.courses?.name || s.title}</strong>
+                                            <span>{s.start_time?.slice(0, 5) || 'Time TBA'} · {s.venues?.name || 'Venue TBA'}</span>
+                                        </span>
+                                    </button>
+                                )) : <p className="mobile-empty-state">No classes scheduled this week.</p>}
                             </div>
                         </div>
                     </section>
