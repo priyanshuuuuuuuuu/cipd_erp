@@ -9,13 +9,14 @@ import {
   shouldNotifyUser,
 } from '@/lib/should-notify';
 import { getISTWeekRange } from '@/lib/ist-date';
-
+import { isNotificationSandboxEnabled, notificationSandboxRecipients } from '@/lib/notification-stream';
 
 // POST - Send notifications (supports feedback reminders, class reminders, general)
 async function postHandler(req) {
   try {
     const body = await req.json();
-    const { type, message, session_id, course_id, recipients } = body;
+    const { type, message, session_id, session_ids, course_id, recipients } = body;
+    const targetSessionIds = session_ids || (session_id ? [session_id] : []);
 
     if (!message) {
       return NextResponse.json({ error: 'message is required' }, { status: 400 });
@@ -39,7 +40,7 @@ async function postHandler(req) {
     if (type === 'feedback_reminder') {
       // Send feedback reminders to students with pending feedback
       // Get the pending details from feedback status
-      const feedbackStatusRes = await getFeedbackPendingStudents();
+      const feedbackStatusRes = await getFeedbackPendingStudents(targetSessionIds);
       
       for (const item of feedbackStatusRes) {
         for (const pending of item.pending_details) {
@@ -54,33 +55,43 @@ async function postHandler(req) {
           });
         }
       }
-    } else if (type === 'class_reminder' && session_id) {
-      // Send class reminder to all enrolled students
-      const { data: session } = await supabaseAdmin
+    } else if (type === 'class_reminder' && targetSessionIds.length > 0) {
+      // Send class reminder to all enrolled students for these sessions
+      const { data: sessions } = await supabaseAdmin
         .from('sessions')
         .select('id, title, course_id, session_date, start_time, venues ( name ), courses ( name )')
-        .eq('id', session_id)
-        .single();
+        .in('id', targetSessionIds);
 
-      if (!session) {
-        return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+      if (!sessions || sessions.length === 0) {
+        return NextResponse.json({ error: 'Sessions not found' }, { status: 404 });
       }
+
+      const courseIds = [...new Set(sessions.map(s => s.course_id).filter(Boolean))];
 
       const { data: enrollments } = await supabaseAdmin
         .from('course_enrollments')
-        .select('student_id')
-        .eq('course_id', session.course_id);
+        .select('student_id, course_id')
+        .in('course_id', courseIds);
 
-      for (const enrollment of (enrollments || [])) {
-        notificationsToInsert.push({
-          recipient_id: enrollment.student_id,
-          type: 'class_reminder',
-          title: `Class Reminder: ${session.courses?.name || session.title}`,
-          message: message || `Reminder: ${session.title} is scheduled for ${session.session_date} at ${session.start_time?.slice(0, 5)} in ${session.venues?.name || 'TBA'}. Please attend.`,
-          course_id: session.course_id,
-          session_id: session_id,
-          sent_by: senderId,
-        });
+      const enrollmentsByCourse = {};
+      for (const e of enrollments || []) {
+        if (!enrollmentsByCourse[e.course_id]) enrollmentsByCourse[e.course_id] = [];
+        enrollmentsByCourse[e.course_id].push(e.student_id);
+      }
+
+      for (const session of sessions) {
+        const enrolledStudents = enrollmentsByCourse[session.course_id] || [];
+        for (const studentId of enrolledStudents) {
+          notificationsToInsert.push({
+            recipient_id: studentId,
+            type: 'class_reminder',
+            title: `Class Reminder: ${session.courses?.name || session.title}`,
+            message: message || `Reminder: ${session.title} is scheduled for ${session.session_date} at ${session.start_time?.slice(0, 5)} in ${session.venues?.name || 'TBA'}. Please attend.`,
+            course_id: session.course_id,
+            session_id: session.id,
+            sent_by: senderId,
+          });
+        }
       }
     } else if (recipients && Array.isArray(recipients) && recipients.length > 0) {
       // Send to specified recipients
@@ -145,32 +156,38 @@ async function postHandler(req) {
     });
 
     // Fire-and-forget: send emails in background without blocking the response
-    if (type === 'class_reminder' && session_id) {
+    if (type === 'class_reminder' && targetSessionIds.length > 0) {
       (async () => {
         try {
-          console.log(`[EMAIL DEBUG] class_reminder background started for session_id=${session_id}`);
-          const { data: session } = await supabaseAdmin
+          console.log(`[EMAIL DEBUG] class_reminder background started for session_ids=${targetSessionIds.join(',')}`);
+          const { data: sessions } = await supabaseAdmin
             .from('sessions')
-            .select('course_id')
-            .eq('id', session_id)
-            .single();
+            .select('course_id, title, session_date, start_time, venues ( name ), courses ( name )')
+            .in('id', targetSessionIds);
 
-          const courseId = session?.course_id;
-          if (!courseId) {
-            console.log('[EMAIL DEBUG] ❌ No course_id found for session — aborting');
+          const courseIds = [...new Set((sessions || []).map(s => s.course_id).filter(Boolean))];
+          if (courseIds.length === 0) {
+            console.log('[EMAIL DEBUG] ❌ No course_ids found for sessions — aborting');
             return;
           }
-          console.log(`[EMAIL DEBUG] course_id=${courseId}`);
+          console.log(`[EMAIL DEBUG] course_ids=${courseIds.join(',')}`);
 
-          const { data: enrollments } = await supabaseAdmin
-            .from('course_enrollments')
-            .select('student_id')
-            .eq('course_id', courseId);
+          // If specific recipients were provided, only email them (don't blast all enrollees)
+          let studentIds;
+          if (recipients && Array.isArray(recipients) && recipients.length > 0) {
+            studentIds = recipients;
+            console.log(`[EMAIL DEBUG] Using specified recipients: ${studentIds.join(',')}`);
+          } else {
+            const { data: enrollments } = await supabaseAdmin
+              .from('course_enrollments')
+              .select('student_id')
+              .in('course_id', courseIds);
+            studentIds = [...new Set((enrollments || []).map(e => e.student_id))];
+            console.log(`[EMAIL DEBUG] enrolled students found: ${studentIds.length}`);
+          }
 
-          const studentIds = (enrollments || []).map(e => e.student_id);
-          console.log(`[EMAIL DEBUG] enrolled students found: ${studentIds.length}`);
           if (studentIds.length === 0) {
-            console.log('[EMAIL DEBUG] ❌ 0 students enrolled in this course — no emails sent. Enroll students first!');
+            console.log('[EMAIL DEBUG] ❌ 0 students to notify — no emails sent.');
             return;
           }
 
@@ -185,7 +202,54 @@ async function postHandler(req) {
             (studentUsers || []).map((s) => s.id)
           );
 
-          // Week date range (IST)
+          const isSandbox = isNotificationSandboxEnabled();
+          const sandboxEmails = isSandbox ? notificationSandboxRecipients() : [];
+
+          // ── TARGETED send: specific student(s) + custom message ───────────────
+          // Send a direct notification email with the custom message, NOT the weekly schedule
+          if (recipients && Array.isArray(recipients) && recipients.length > 0) {
+            const sessionList = sessions || [];
+            const sessionSummary = sessionList
+              .map(s => `${s.courses?.name || s.title} on ${s.session_date} at ${s.start_time?.slice(0, 5)} (${s.venues?.name || 'TBA'})`)
+              .join(', ');
+            const notifTitle = `Class Reminder: ${sessionList.length === 1 ? (sessionList[0].courses?.name || sessionList[0].title) : 'Multiple Classes'}`;
+            const emailMessage = `${message}\n\nClass details: ${sessionSummary}`;
+
+            let studentListToProcess = studentUsers || [];
+            if (isSandbox) {
+              studentListToProcess = studentListToProcess.slice(0, 1);
+            }
+
+            const BATCH_SIZE = 5;
+            const BATCH_DELAY_MS = 500;
+            for (let i = 0; i < studentListToProcess.length; i += BATCH_SIZE) {
+              const batch = studentListToProcess.slice(i, i + BATCH_SIZE);
+              await Promise.allSettled(
+                batch.map(async (student) => {
+                  try {
+                    const prefAllowed = isSandbox || shouldNotifyUser(emailPrefMap, student.id, 'class_reminder');
+                    if (!prefAllowed) {
+                      console.log(`[EMAIL DEBUG] ⚠ ${student.email} blocked by notification preferences`);
+                      return;
+                    }
+                    const name = `${student.first_name || ''} ${student.last_name || ''}`.trim() || 'Student';
+                    const targetEmail = isSandbox ? sandboxEmails[0] : student.email;
+                    await sendGeneralNotificationEmail(targetEmail, name, notifTitle, emailMessage, 'class_reminder');
+                    console.log(`✉ ${isSandbox ? '[SANDBOX] ' : ''}Targeted class reminder email sent to ${student.email}`);
+                  } catch (emailErr) {
+                    console.error(`Email failed for ${student.email}:`, emailErr.message);
+                  }
+                })
+              );
+              if (i + BATCH_SIZE < studentListToProcess.length) {
+                await new Promise(res => setTimeout(res, BATCH_DELAY_MS));
+              }
+            }
+            console.log('[EMAIL DEBUG] ✅ targeted class_reminder email block complete');
+            return;
+          }
+
+          // ── BROADCAST send: all enrolled students → weekly schedule email ─────
           const { start: startStr, end: endStr } = getISTWeekRange();
 
           // Get all enrollments for these students
@@ -221,16 +285,25 @@ async function postHandler(req) {
           console.log(`[EMAIL DEBUG] week range: ${startStr} → ${endStr}`);
           console.log(`[EMAIL DEBUG] week sessions found: ${(weekSessions || []).length}`);
 
+          let studentListToProcess = studentUsers || [];
+          if (isSandbox) {
+            const validStudent = studentListToProcess.find(student => {
+              const myCourseIds = studentCourseMap[student.id] || [];
+              const mySessions = (weekSessions || []).filter(s => myCourseIds.includes(s.course_id));
+              return mySessions.length > 0;
+            });
+            studentListToProcess = validStudent ? [validStudent] : [];
+          }
+
           // Send in batches of 5 to avoid Gmail 421 rate-limit errors
           const BATCH_SIZE = 5;
           const BATCH_DELAY_MS = 500;
-          const studentList = studentUsers || [];
-          for (let i = 0; i < studentList.length; i += BATCH_SIZE) {
-            const batch = studentList.slice(i, i + BATCH_SIZE);
+          for (let i = 0; i < studentListToProcess.length; i += BATCH_SIZE) {
+            const batch = studentListToProcess.slice(i, i + BATCH_SIZE);
             await Promise.allSettled(
               batch.map(async (student) => {
                 try {
-                  const prefAllowed = shouldNotifyUser(emailPrefMap, student.id, 'class_reminder');
+                  const prefAllowed = isSandbox || shouldNotifyUser(emailPrefMap, student.id, 'class_reminder');
                   if (!prefAllowed) {
                     console.log(`[EMAIL DEBUG] ⚠ ${student.email} blocked by notification preferences`);
                     return;
@@ -242,15 +315,23 @@ async function postHandler(req) {
                     return;
                   }
                   const name = `${student.first_name || ''} ${student.last_name || ''}`.trim() || 'Student';
-                  await sendWeeklyScheduleEmail(student.email, name, mySessions);
-                  console.log(`✉ Weekly schedule email sent to ${student.email}`);
+                  
+                  if (isSandbox) {
+                    for (const sEmail of sandboxEmails) {
+                      await sendWeeklyScheduleEmail(sEmail, name + ' (Sandbox)', mySessions);
+                      console.log(`✉ [SANDBOX] Weekly schedule email meant for ${student.email} sent to ${sEmail}`);
+                    }
+                  } else {
+                    await sendWeeklyScheduleEmail(student.email, name, mySessions);
+                    console.log(`✉ Weekly schedule email sent to ${student.email}`);
+                  }
                 } catch (emailErr) {
                   console.error(`Email failed for ${student.email}:`, emailErr.message);
                 }
               })
             );
             // Pause between batches to respect Gmail sending limits
-            if (i + BATCH_SIZE < studentList.length) {
+            if (i + BATCH_SIZE < studentListToProcess.length) {
               await new Promise(res => setTimeout(res, BATCH_DELAY_MS));
             }
           }
@@ -261,11 +342,30 @@ async function postHandler(req) {
       })(); // immediately invoked — does NOT block the response above
     }
 
+
     // ── General email for all other types sent from compose panel ────────────
-    if (!session_id) {
+    if (targetSessionIds.length === 0) {
       (async () => {
         try {
           console.log(`[EMAIL DEBUG] general email background started, type=${notifType}`);
+          
+          const isSandbox = isNotificationSandboxEnabled();
+          const sandboxEmails = isSandbox ? notificationSandboxRecipients() : [];
+          const notifTitle = body?.title || (type || 'general').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
+          if (isSandbox) {
+            console.log(`[EMAIL DEBUG] Sandbox mode enabled. Sending only to sandbox recipients.`);
+            for (const sEmail of sandboxEmails) {
+              try {
+                await sendGeneralNotificationEmail(sEmail, 'Sandbox Tester', notifTitle, message, type || 'general');
+                console.log(`✉ [SANDBOX] General notification email sent to ${sEmail}`);
+              } catch (emailErr) {
+                console.error(`Email failed for ${sEmail}:`, emailErr.message);
+              }
+            }
+            return;
+          }
+
           // Collect target student list
           let targetStudents = [];
 
@@ -289,8 +389,6 @@ async function postHandler(req) {
               .eq('is_active', true);
             targetStudents = data || [];
           }
-
-          const notifTitle = body?.title || (type || 'general').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
           const generalPrefMap = prefMap.size > 0
             ? prefMap
@@ -384,7 +482,7 @@ async function getHandler(req) {
 }
 
 // Helper: Get all students with pending feedback per course
-async function getFeedbackPendingStudents() {
+async function getFeedbackPendingStudents(targetSessionIds = []) {
   const { data: courses } = await supabaseAdmin
     .from('courses')
     .select('id, name');
@@ -399,11 +497,17 @@ async function getFeedbackPendingStudents() {
       .select('*', { count: 'exact', head: true })
       .eq('course_id', course.id);
 
-    const { data: sessions } = await supabaseAdmin
+    let sessionsQuery = supabaseAdmin
       .from('sessions')
       .select('id')
       .eq('course_id', course.id)
       .eq('status', 'completed');
+      
+    if (targetSessionIds.length > 0) {
+      sessionsQuery = sessionsQuery.in('id', targetSessionIds);
+    }
+
+    const { data: sessions } = await sessionsQuery;
 
     if (!sessions || sessions.length === 0 || !totalEnrolled) continue;
 

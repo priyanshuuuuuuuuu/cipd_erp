@@ -30,6 +30,11 @@ export default function AdminNotificationsPage() {
     const [sessionId, setSessionId] = useState('');
     const [sessions, setSessions] = useState([]);
     const [sessionsLoading, setSessionsLoading] = useState(false);
+    
+    // NEW state
+    const [classSelectionMode, setClassSelectionMode] = useState('all');
+    const [selectedSessionIds, setSelectedSessionIds] = useState([]);
+    const [timeWindowDays, setTimeWindowDays] = useState(2);
 
     // Student search state (for "Specific Student" target)
     const [studentSearch, setStudentSearch] = useState('');
@@ -78,30 +83,55 @@ export default function AdminNotificationsPage() {
     const loadSessions = useCallback(async () => {
         setSessionsLoading(true);
         try {
-            const data = await api.get('/api/admin/schedule?filter=week');
+            const data = await api.get(`/api/admin/schedule?filter=window&days=${timeWindowDays}`);
             setSessions(data.sessions || []);
         } catch {
             setSessions([]);
         } finally {
             setSessionsLoading(false);
         }
-    }, []);
+    }, [timeWindowDays]);
 
     useEffect(() => {
-        if (triggerType === 'class_reminder' && authReady) {
+        if ((triggerType === 'class_reminder' || triggerType === 'feedback_reminder') && authReady) {
             loadSessions();
         } else {
+            setSessions([]);
             setSessionId('');
         }
+        setSelectedSessionIds([]);
+        setClassSelectionMode('all');
     }, [triggerType, authReady, loadSessions]);
+
+    // Derived state for sessions filtering
+    const filteredSessions = sessions.filter(s => {
+        if (triggerType === 'class_reminder') return s.status !== 'Completed';
+        if (triggerType === 'feedback_reminder') return s.status === 'Completed';
+        return false;
+    });
+
+    const sessionsByDate = {};
+    filteredSessions.forEach(s => {
+        if (!sessionsByDate[s.date]) sessionsByDate[s.date] = [];
+        sessionsByDate[s.date].push(s);
+    });
 
     // Real send handler
     const handleSend = async () => {
         if (!message.trim()) return;
-        if (triggerType === 'class_reminder' && !sessionId) {
-            setSendError('Please select a session for the class reminder.');
-            return;
+        
+        let targetSessionIds = [];
+        if (triggerType === 'class_reminder' || triggerType === 'feedback_reminder') {
+            targetSessionIds = classSelectionMode === 'all' 
+                ? filteredSessions.map(s => s.id) 
+                : selectedSessionIds;
+            
+            if (targetSessionIds.length === 0) {
+                setSendError(`No sessions available/selected for ${triggerType === 'class_reminder' ? 'class' : 'feedback'} reminder.`);
+                return;
+            }
         }
+
         if (target === 'specific' && !selectedStudent) {
             setSendError('Please select a student first.');
             return;
@@ -117,8 +147,8 @@ export default function AdminNotificationsPage() {
         if (target === 'specific' && selectedStudent) {
             body.recipients = [selectedStudent.id];
         }
-        if (triggerType === 'class_reminder' && sessionId) {
-            body.session_id = sessionId;
+        if (targetSessionIds.length > 0) {
+            body.session_ids = targetSessionIds;
         }
 
         try {
@@ -126,6 +156,8 @@ export default function AdminNotificationsPage() {
             setSentSuccess(true);
             setMessage('');
             setSessionId('');
+            setSelectedSessionIds([]);
+            setClassSelectionMode('all');
             setSelectedStudent(null);
             setStudentSearch('');
             loadHistory();
@@ -355,17 +387,6 @@ export default function AdminNotificationsPage() {
                                 
                                 <div style={{ padding: '1.5rem', overflowY: 'auto' }}>
                                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-                                        {/* Target Audience */}
-                                        <div>
-                                            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '6px' }}>Target Audience</label>
-                                            <select value={target} onChange={e => { setTarget(e.target.value); setSelectedStudent(null); setStudentSearch(''); setStudentResults([]); }}
-                                                style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '0.85rem', fontFamily: 'inherit', background: '#fff', outline: 'none', cursor: 'pointer', width: '100%', transition: 'border 0.2s' }}
-                                                onFocus={e => e.target.style.borderColor = '#3B2D82'} onBlur={e => e.target.style.borderColor = '#e5e7eb'}>
-                                                <option value="all">All Students</option>
-                                                <option value="specific">Specific Student</option>
-                                            </select>
-                                        </div>
-
                                         {/* Notification Type */}
                                         <div>
                                             <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '6px' }}>Notification Type</label>
@@ -379,25 +400,85 @@ export default function AdminNotificationsPage() {
                                                 <option value="general">📢 Custom / General</option>
                                             </select>
                                         </div>
+
+                                        {/* Target Audience */}
+                                        <div>
+                                            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '6px' }}>Target Audience</label>
+                                            <select value={target} onChange={e => { setTarget(e.target.value); setSelectedStudent(null); setStudentSearch(''); setStudentResults([]); }}
+                                                style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '0.85rem', fontFamily: 'inherit', background: '#fff', outline: 'none', cursor: 'pointer', width: '100%', transition: 'border 0.2s' }}
+                                                onFocus={e => e.target.style.borderColor = '#3B2D82'} onBlur={e => e.target.style.borderColor = '#e5e7eb'}>
+                                                <option value="all">All Students</option>
+                                                <option value="specific">Specific Student</option>
+                                            </select>
+                                        </div>
                                     </div>
 
-                                    {triggerType === 'class_reminder' && (
+                                    {(triggerType === 'class_reminder' || triggerType === 'feedback_reminder') && (
                                         <div style={{ marginBottom: '16px' }}>
-                                            <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '6px' }}>Session (Required)</label>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                                                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: '#555', display: 'block' }}>Target Classes</label>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                                    <span style={{ fontSize: '0.7rem', color: '#888' }}>Time window:</span>
+                                                    <select 
+                                                        value={timeWindowDays} 
+                                                        onChange={e => setTimeWindowDays(Number(e.target.value))}
+                                                        style={{ fontSize: '0.7rem', padding: '2px 4px', borderRadius: '4px', border: '1px solid #e5e7eb', background: '#fff', outline: 'none', cursor: 'pointer' }}
+                                                    >
+                                                        <option value={1}>1 Day</option>
+                                                        <option value={2}>2 Days</option>
+                                                        <option value={3}>3 Days</option>
+                                                        <option value={7}>7 Days</option>
+                                                        <option value={14}>14 Days</option>
+                                                    </select>
+                                                </div>
+                                            </div>
                                             <select
-                                                value={sessionId}
-                                                onChange={e => setSessionId(e.target.value)}
+                                                value={classSelectionMode}
+                                                onChange={e => { setClassSelectionMode(e.target.value); setSelectedSessionIds([]); }}
                                                 disabled={sessionsLoading}
-                                                style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '0.85rem', fontFamily: 'inherit', background: '#fff', outline: 'none', cursor: 'pointer', width: '100%', transition: 'border 0.2s' }}
+                                                style={{ padding: '10px 12px', borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '0.85rem', fontFamily: 'inherit', background: '#fff', outline: 'none', cursor: 'pointer', width: '100%', transition: 'border 0.2s', marginBottom: '8px' }}
                                                 onFocus={e => e.target.style.borderColor = '#3B2D82'} onBlur={e => e.target.style.borderColor = '#e5e7eb'}
                                             >
-                                                <option value="">{sessionsLoading ? 'Loading sessions...' : 'Select a session to remind students about'}</option>
-                                                {sessions.map(s => (
-                                                    <option key={s.id} value={s.id}>
-                                                        {s.course || 'Course'} — {s.title} ({s.date} {s.time})
-                                                    </option>
-                                                ))}
+                                                <option value="all">All {triggerType === 'class_reminder' ? 'Upcoming' : 'Completed'} Classes</option>
+                                                <option value="specific">Select Specific Classes</option>
                                             </select>
+
+                                            {sessionsLoading ? (
+                                                <div style={{ fontSize: '0.8rem', color: '#888' }}>Loading classes...</div>
+                                            ) : classSelectionMode === 'specific' && (
+                                                <div style={{ background: '#fafafa', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '12px', maxHeight: '200px', overflowY: 'auto' }}>
+                                                    {Object.keys(sessionsByDate).length === 0 ? (
+                                                        <div style={{ fontSize: '0.8rem', color: '#888', textAlign: 'center' }}>No classes found in the {triggerType === 'class_reminder' ? 'next' : 'past'} {timeWindowDays} days.</div>
+                                                    ) : (
+                                                        Object.keys(sessionsByDate).sort().map(date => (
+                                                            <div key={date} style={{ marginBottom: '12px' }}>
+                                                                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#3B2D82', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                                                    {new Date(date).toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' })}
+                                                                </div>
+                                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                                                    {sessionsByDate[date].map(s => (
+                                                                        <label key={s.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', cursor: 'pointer', fontSize: '0.8rem', color: '#333' }}>
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                checked={selectedSessionIds.includes(s.id)}
+                                                                                onChange={(e) => {
+                                                                                    if (e.target.checked) setSelectedSessionIds(prev => [...prev, s.id]);
+                                                                                    else setSelectedSessionIds(prev => prev.filter(id => id !== s.id));
+                                                                                }}
+                                                                                style={{ marginTop: '2px', accentColor: '#3B2D82' }}
+                                                                            />
+                                                                            <div style={{ flex: 1 }}>
+                                                                                <div style={{ fontWeight: 600 }}>{s.course || 'Course'}</div>
+                                                                                <div style={{ color: '#666', fontSize: '0.75rem' }}>{s.title} • {s.time} • {s.status}</div>
+                                                                            </div>
+                                                                        </label>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        ))
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
                                     )}
 

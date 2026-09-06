@@ -39,6 +39,17 @@ async function handler(request) {
             query = query
                 .gte('session_date', monday)
                 .lte('session_date', sunday);
+        } else if (filter === 'window') {
+            const days = parseInt(searchParams.get('days') || '2', 10);
+            const now = new Date();
+            const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+            const nowIstMs = now.getTime() + IST_OFFSET_MS;
+            const startIstStr = new Date(nowIstMs - days * 24 * 3600 * 1000).toISOString().slice(0, 10);
+            const endIstStr = new Date(nowIstMs + days * 24 * 3600 * 1000).toISOString().slice(0, 10);
+            
+            query = query
+                .gte('session_date', startIstStr)
+                .lte('session_date', endIstStr);
         } else if (['scheduled', 'pending', 'cancelled'].includes(filter)) {
             const dbStatus = filter;
             query = query.eq('status', dbStatus);
