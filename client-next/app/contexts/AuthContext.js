@@ -79,6 +79,17 @@ export function AuthProvider({ children }) {
     return data.user;
   };
 
+  const completeGoogleLogin = (data) => {
+    if (!data?.token || !data?.user || data.user.role !== 'student') {
+      throw new Error('Google sign-in did not return an eligible student account');
+    }
+
+    localStorage.setItem('student_token', data.token);
+    localStorage.setItem('student_user', JSON.stringify(data.user));
+    setToken(data.token);
+    setUser(data.user);
+    return data.user;
+  };
   const logout = async () => {
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
@@ -98,7 +109,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, authReady: !loading, login, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, authReady: !loading, login, completeGoogleLogin, logout }}>
       {children}
     </AuthContext.Provider>
   );

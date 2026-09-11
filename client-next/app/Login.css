@@ -259,4 +259,64 @@
     .form-group {
         margin-bottom: 1rem;
     }
-}
+}
+.login-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 18px 0 14px;
+    color: #6b7280;
+    font-size: 0.8rem;
+}
+
+.login-divider::before,
+.login-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(55, 65, 81, 0.2);
+}
+
+.google-login-button {
+    width: 100%;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.88);
+    color: #1f2937;
+    font: 600 0.92rem 'DM Sans', sans-serif;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.google-login-button:hover:not(:disabled) {
+    background: #fff;
+    border-color: #9ca3af;
+}
+
+.google-login-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.65;
+}
+
+.google-login-mark {
+    display: grid;
+    width: 20px;
+    height: 20px;
+    place-items: center;
+    border-radius: 50%;
+    background: #fff;
+    color: #4285f4;
+    font: 700 1rem Arial, sans-serif;
+}
+
+.iiitd-login-note {
+    margin: 9px 0 0;
+    color: #6b7280;
+    font: 0.75rem 'DM Sans', sans-serif;
+    text-align: center;
+}
