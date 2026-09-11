@@ -17,6 +17,10 @@ async function handler(request) {
                 honorarium_rate_per_hour,
                 years_experience,
                 department,
+                bank_account_number,
+                bank_account_holder,
+                bank_ifsc_code,
+                bank_branch,
                 users!inner ( first_name, last_name, email, is_active, role )
             `);
 
@@ -111,6 +115,11 @@ async function handler(request) {
                 honorarium: Math.round(totalHours * rate),
                 status: 'Pending',
                 sessionDetails: detailedSessions,
+                // Bank details
+                bankAccountNumber: fac.bank_account_number || '',
+                bankAccountHolder: fac.bank_account_holder || '',
+                bankIfscCode: fac.bank_ifsc_code || '',
+                bankBranch: fac.bank_branch || '',
             };
         });
 
@@ -201,7 +210,8 @@ export const POST = withRole(createFacultyHandler, ['admin']);
 async function updateFacultyHandler(request) {
     try {
         const body = await request.json();
-        const { facultyId, firstName, lastName, email, designation, yearsExperience, honorariumRate, department } = body;
+        const { facultyId, firstName, lastName, email, designation, yearsExperience, honorariumRate, department,
+            bankAccountNumber, bankAccountHolder, bankIfscCode, bankBranch } = body;
 
         if (!facultyId) {
             return NextResponse.json({ error: 'facultyId is required.' }, { status: 400 });
@@ -252,6 +262,11 @@ async function updateFacultyHandler(request) {
         if (yearsExperience !== undefined) facUpdates.years_experience = yearsExperience !== '' ? parseInt(yearsExperience, 10) : null;
         if (honorariumRate !== undefined) facUpdates.honorarium_rate_per_hour = honorariumRate !== '' ? parseFloat(honorariumRate) : null;
         if (department !== undefined) facUpdates.department = department?.trim() || null;
+        // Bank detail fields
+        if (bankAccountNumber !== undefined) facUpdates.bank_account_number = bankAccountNumber?.trim() || null;
+        if (bankAccountHolder !== undefined) facUpdates.bank_account_holder = bankAccountHolder?.trim() || null;
+        if (bankIfscCode !== undefined) facUpdates.bank_ifsc_code = bankIfscCode?.trim()?.toUpperCase() || null;
+        if (bankBranch !== undefined) facUpdates.bank_branch = bankBranch?.trim() || null;
 
         
 
