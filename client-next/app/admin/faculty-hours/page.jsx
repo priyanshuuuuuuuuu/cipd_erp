@@ -1,14 +1,184 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import '../../Dashboard.css';
 import {
     LayoutGrid, Calendar, MessageSquare, Settings, LogOut, Bell, Search, Menu,
     ChevronLeft, ChevronRight, Wifi, Clock, FileBarChart, CheckCircle, Download,
     Eye, IndianRupee, Users, Filter, UserPlus, ChevronDown, ChevronUp, X, Loader2, Pencil, Trophy,
-    BookOpen, Star, GraduationCap
+    BookOpen, Star, GraduationCap, Plus, Trash2
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
+
+// ── Default options (used on first load; persisted in localStorage) ────────────
+const DEFAULT_DESIGNATION_OPTIONS = ['Professor', 'Visiting Faculty', 'Student'];
+const DEFAULT_DEPARTMENT_OPTIONS = [
+    'Computer Science and Engineering (CSE)',
+    'Electronics and Communication Engineering (ECE)',
+    'Computational Biology (CB)',
+    'Human-Centered Design (HCD)',
+    'Mathematics (Math)',
+    'Social Sciences and Humanities (SSH)',
+    'Other',
+];
+
+function loadOptions(key, defaults) {
+    if (typeof window === 'undefined') return defaults;
+    try {
+        const stored = localStorage.getItem(key);
+        return stored ? JSON.parse(stored) : defaults;
+    } catch { return defaults; }
+}
+function saveOptions(key, arr) {
+    try { localStorage.setItem(key, JSON.stringify(arr)); } catch {}
+}
+
+// ── EditableDropdown ───────────────────────────────────────────────────────────
+// A <select>-like dropdown where a pencil icon opens a popover to manage options.
+function EditableDropdown({ value, onChange, options, onOptionsChange, placeholder = 'Select…', inputStyle }) {
+    const [open, setOpen] = useState(false);           // dropdown open
+    const [editing, setEditing] = useState(false);     // options editor open
+    const [newItem, setNewItem] = useState('');
+    const wrapRef = useRef(null);
+
+    // Close on outside click
+    useEffect(() => {
+        const handler = (e) => {
+            if (wrapRef.current && !wrapRef.current.contains(e.target)) {
+                setOpen(false);
+                setEditing(false);
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
+
+    const addItem = () => {
+        const trimmed = newItem.trim();
+        if (!trimmed || options.includes(trimmed)) return;
+        const next = [...options, trimmed];
+        onOptionsChange(next);
+        setNewItem('');
+    };
+    const removeItem = (opt) => {
+        const next = options.filter(o => o !== opt);
+        onOptionsChange(next);
+        if (value === opt) onChange('');
+    };
+
+    const selStyle = {
+        ...inputStyle,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        cursor: 'pointer', userSelect: 'none',
+        color: value ? '#111' : '#aaa',
+    };
+
+    return (
+        <div ref={wrapRef} style={{ position: 'relative' }}>
+            {/* Trigger row */}
+            <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                <div
+                    style={selStyle}
+                    onClick={() => { setOpen(o => !o); setEditing(false); }}
+                >
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, fontSize: '0.82rem' }}>
+                        {value || placeholder}
+                    </span>
+                    <ChevronDown size={14} style={{ flexShrink: 0, color: '#888', transition: 'transform 0.2s', transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }} />
+                </div>
+                {/* Edit-options icon */}
+                <button
+                    type="button"
+                    title="Edit options"
+                    onClick={(e) => { e.stopPropagation(); setEditing(ed => !ed); setOpen(false); }}
+                    style={{ flexShrink: 0, width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '8px', border: '1px solid #e5e7eb', background: editing ? '#ede9fe' : '#f8fafc', color: editing ? '#7c3aed' : '#888', cursor: 'pointer', transition: 'all 0.15s' }}
+                    onMouseOver={e => { e.currentTarget.style.background = '#ede9fe'; e.currentTarget.style.color = '#7c3aed'; }}
+                    onMouseOut={e => { if (!editing) { e.currentTarget.style.background = '#f8fafc'; e.currentTarget.style.color = '#888'; } }}
+                >
+                    <Pencil size={12} strokeWidth={2.5} />
+                </button>
+            </div>
+
+            {/* ── Dropdown list ── */}
+            {open && (
+                <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 36, background: '#fff', border: '1px solid #e5e7eb', borderRadius: '10px', boxShadow: '0 8px 24px rgba(0,0,0,0.12)', zIndex: 9999, overflow: 'hidden' }}>
+                    {options.length === 0 && (
+                        <div style={{ padding: '10px 14px', fontSize: '0.78rem', color: '#aaa' }}>No options — use ✏ to add some.</div>
+                    )}
+                    {options.map(opt => (
+                        <div
+                            key={opt}
+                            onClick={() => { onChange(opt); setOpen(false); }}
+                            style={{ padding: '9px 14px', fontSize: '0.82rem', cursor: 'pointer', background: value === opt ? '#f5f3ff' : '#fff', color: value === opt ? '#3B2D82' : '#222', fontWeight: value === opt ? 600 : 400, transition: 'background 0.1s' }}
+                            onMouseOver={e => { if (value !== opt) e.currentTarget.style.background = '#f8fafc'; }}
+                            onMouseOut={e => { if (value !== opt) e.currentTarget.style.background = '#fff'; }}
+                        >
+                            {opt}
+                        </div>
+                    ))}
+                    {/* Clear selection */}
+                    {value && (
+                        <div
+                            onClick={() => { onChange(''); setOpen(false); }}
+                            style={{ padding: '8px 14px', fontSize: '0.75rem', color: '#ef4444', cursor: 'pointer', borderTop: '1px solid #f1f5f9', background: '#fff' }}
+                            onMouseOver={e => { e.currentTarget.style.background = '#fff5f5'; }}
+                            onMouseOut={e => { e.currentTarget.style.background = '#fff'; }}
+                        >
+                            ✕ Clear selection
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* ── Options editor popover ── */}
+            {editing && (
+                <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: '#fff', border: '1.5px solid #7c3aed', borderRadius: '12px', boxShadow: '0 12px 32px rgba(124,58,237,0.15)', zIndex: 9999, padding: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
+                        <div style={{ width: 18, height: 18, borderRadius: '5px', background: '#ede9fe', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Pencil size={10} color="#7c3aed" strokeWidth={2.5} />
+                        </div>
+                        <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#7c3aed', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Manage Options</span>
+                    </div>
+                    <div style={{ maxHeight: '160px', overflowY: 'auto', marginBottom: '10px' }}>
+                        {options.map(opt => (
+                            <div key={opt} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '5px 8px', borderRadius: '7px', marginBottom: '4px', background: '#f8fafc', border: '1px solid #f1f5f9' }}>
+                                <span style={{ fontSize: '0.78rem', color: '#334155', flex: 1 }}>{opt}</span>
+                                <button
+                                    type="button"
+                                    onClick={() => removeItem(opt)}
+                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '2px 4px', borderRadius: '4px', display: 'flex', alignItems: 'center' }}
+                                    onMouseOver={e => { e.currentTarget.style.background = '#fff5f5'; }}
+                                    onMouseOut={e => { e.currentTarget.style.background = 'none'; }}
+                                >
+                                    <Trash2 size={11} strokeWidth={2.5} />
+                                </button>
+                            </div>
+                        ))}
+                        {options.length === 0 && <div style={{ fontSize: '0.75rem', color: '#aaa', padding: '4px 8px' }}>No options yet.</div>}
+                    </div>
+                    {/* Add new option */}
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                        <input
+                            type="text"
+                            value={newItem}
+                            onChange={e => setNewItem(e.target.value)}
+                            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addItem(); } }}
+                            placeholder="Add new option…"
+                            style={{ flex: 1, padding: '6px 10px', borderRadius: '7px', border: '1px solid #d8b4fe', fontSize: '0.78rem', outline: 'none', fontFamily: 'inherit' }}
+                        />
+                        <button
+                            type="button"
+                            onClick={addItem}
+                            style={{ padding: '6px 10px', borderRadius: '7px', border: 'none', background: '#7c3aed', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', fontWeight: 600 }}
+                        >
+                            <Plus size={12} strokeWidth={2.5} /> Add
+                        </button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
 
 // ── Faculty Session Modal ─────────────────────────────────────────────────
 function FacultySessionModal({ faculty, onClose }) {
@@ -162,6 +332,13 @@ export default function AdminFacultyHoursPage() {
     const [editError, setEditError] = useState('');
     const [editSuccess, setEditSuccess] = useState('');
 
+    // ── Dropdown option lists (persisted in localStorage) ──────────────────────
+    const [designationOptions, setDesignationOptions] = useState(() => loadOptions('cipd_designation_opts', DEFAULT_DESIGNATION_OPTIONS));
+    const [departmentOptions, setDepartmentOptions] = useState(() => loadOptions('cipd_department_opts', DEFAULT_DEPARTMENT_OPTIONS));
+
+    const updateDesignationOptions = (opts) => { setDesignationOptions(opts); saveOptions('cipd_designation_opts', opts); };
+    const updateDepartmentOptions  = (opts) => { setDepartmentOptions(opts);  saveOptions('cipd_department_opts', opts); };
+
     const navTo = p => router.push(p);
 
     const fetchFaculty = React.useCallback(() => {
@@ -206,6 +383,11 @@ export default function AdminFacultyHoursPage() {
             department: f.department,
             yearsExperience: f.yearsExperience !== '' ? String(f.yearsExperience) : '',
             honorariumRate: f.rate !== 1500 ? String(f.rate) : String(f.rate),
+            // Bank details
+            bankAccountNumber: f.bankAccountNumber || '',
+            bankAccountHolder: f.bankAccountHolder || '',
+            bankIfscCode: f.bankIfscCode || '',
+            bankBranch: f.bankBranch || '',
         });
         setEditError('');
         setEditSuccess('');
@@ -552,7 +734,7 @@ export default function AdminFacultyHoursPage() {
                     onClick={closeEdit}
                 >
                     <div
-                        style={{ background: '#fff', borderRadius: '16px', padding: '1.8rem 2rem', width: '100%', maxWidth: '500px', boxShadow: '0 24px 64px rgba(0,0,0,0.18)', border: '1.5px solid #e8e8e8', position: 'relative' }}
+                        style={{ background: '#fff', borderRadius: '16px', padding: '1.8rem 2rem', width: '100%', maxWidth: '540px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(0,0,0,0.18)', border: '1.5px solid #e8e8e8', position: 'relative' }}
                         onClick={e => e.stopPropagation()}
                     >
                         {/* Header */}
@@ -591,16 +773,30 @@ export default function AdminFacultyHoursPage() {
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
                                 <div>
                                     <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: '#555', marginBottom: '5px' }}>Designation</label>
-                                    <input type="text" placeholder="e.g. Senior Lecturer" value={editForm.designation || ''} onChange={e => setEditForm(f => ({ ...f, designation: e.target.value }))} style={inp} />
+                                    <EditableDropdown
+                                        value={editForm.designation || ''}
+                                        onChange={v => setEditForm(f => ({ ...f, designation: v }))}
+                                        options={designationOptions}
+                                        onOptionsChange={updateDesignationOptions}
+                                        placeholder="Select designation…"
+                                        inputStyle={inp}
+                                    />
                                 </div>
                                 <div>
                                     <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: '#555', marginBottom: '5px' }}>Department</label>
-                                    <input type="text" placeholder="e.g. Computer Science" value={editForm.department || ''} onChange={e => setEditForm(f => ({ ...f, department: e.target.value }))} style={inp} />
+                                    <EditableDropdown
+                                        value={editForm.department || ''}
+                                        onChange={v => setEditForm(f => ({ ...f, department: v }))}
+                                        options={departmentOptions}
+                                        onOptionsChange={updateDepartmentOptions}
+                                        placeholder="Select department…"
+                                        inputStyle={inp}
+                                    />
                                 </div>
                             </div>
 
                             {/* Row 3: Experience + Honorarium Rate */}
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
                                 <div>
                                     <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: '#555', marginBottom: '5px' }}>Experience (years)</label>
                                     <input type="number" min="0" max="60" placeholder="e.g. 10" value={editForm.yearsExperience ?? ''} onChange={e => setEditForm(f => ({ ...f, yearsExperience: e.target.value }))} style={inp} />
@@ -608,6 +804,64 @@ export default function AdminFacultyHoursPage() {
                                 <div>
                                     <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: '#555', marginBottom: '5px' }}>Honorarium Rate (₹/hr)</label>
                                     <input type="number" min="0" step="100" placeholder="e.g. 1500" value={editForm.honorariumRate ?? ''} onChange={e => setEditForm(f => ({ ...f, honorariumRate: e.target.value }))} style={inp} />
+                                </div>
+                            </div>
+
+                            {/* ── Bank Details section ─────────────────────────── */}
+                            <div style={{ borderTop: '1px dashed #e5e7eb', paddingTop: '14px', marginBottom: '16px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '12px' }}>
+                                    <div style={{ width: 22, height: 22, borderRadius: '6px', background: '#ede9fe', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+                                    </div>
+                                    <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#7c3aed', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Bank Details</span>
+                                </div>
+
+                                {/* Account Number + Account Holder */}
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '10px' }}>
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: '#555', marginBottom: '5px' }}>Account Number</label>
+                                        <input
+                                            type="text"
+                                            placeholder="e.g. 012345678901"
+                                            value={editForm.bankAccountNumber || ''}
+                                            onChange={e => setEditForm(f => ({ ...f, bankAccountNumber: e.target.value }))}
+                                            style={inp}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: '#555', marginBottom: '5px' }}>Account Holder Name</label>
+                                        <input
+                                            type="text"
+                                            placeholder="e.g. Abbas Murtaza"
+                                            value={editForm.bankAccountHolder || ''}
+                                            onChange={e => setEditForm(f => ({ ...f, bankAccountHolder: e.target.value }))}
+                                            style={inp}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* IFSC + Branch */}
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: '#555', marginBottom: '5px' }}>IFSC Code</label>
+                                        <input
+                                            type="text"
+                                            placeholder="e.g. SBIN0001234"
+                                            value={editForm.bankIfscCode || ''}
+                                            onChange={e => setEditForm(f => ({ ...f, bankIfscCode: e.target.value.toUpperCase() }))}
+                                            style={{ ...inp, textTransform: 'uppercase', fontFamily: 'monospace' }}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: '#555', marginBottom: '5px' }}>Branch</label>
+                                        <input
+                                            type="text"
+                                            placeholder="e.g. Andheri West, Mumbai"
+                                            value={editForm.bankBranch || ''}
+                                            onChange={e => setEditForm(f => ({ ...f, bankBranch: e.target.value }))}
+                                            style={inp}
+                                        />
+                                    </div>
                                 </div>
                             </div>
 

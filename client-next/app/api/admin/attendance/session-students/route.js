@@ -83,8 +83,9 @@ async function handler(req) {
     const { data: allStudents } = await supabaseAdmin
       .from('students')
       .select(
-        'id, enrollment_no, program_name, mac_address, mac_verified, users ( first_name, last_name, email )'
-      );
+        'id, enrollment_no, program_name, mac_address, mac_verified, users!inner ( first_name, last_name, email, is_active )'
+      )
+      .eq('users.is_active', true);
 
     const studentMap = {};
     (allStudents || []).forEach((s) => {

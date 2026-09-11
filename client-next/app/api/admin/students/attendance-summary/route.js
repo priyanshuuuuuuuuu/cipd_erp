@@ -91,6 +91,9 @@ async function handler(req) {
       else totalAbsent++;
     }
     const overallPct = overallTotal > 0 ? Math.max(0, Math.round((overallPoints / (overallTotal * 5)) * 1000) / 10) : 0;
+    // Score breakdown: gross = net + deductions, negative = absent × 2
+    const negativePoints = totalAbsent * 2;
+    const grossPoints = Math.round((overallPoints + negativePoints) * 10) / 10;
 
     // Streak
     const byDate = {};
@@ -107,8 +110,8 @@ async function handler(req) {
       else break;
     }
 
-    // Recent sessions (last 20)
-    const recentSessions = records.slice(0, 20).map(r => {
+    // Recent sessions (last 10)
+    const recentSessions = records.slice(0, 10).map(r => {
       const sess = r.sessions || {};
       const dateStr = sess.session_date || '';
       const d = dateStr ? new Date(dateStr + 'T00:00:00') : null;
@@ -123,7 +126,7 @@ async function handler(req) {
         course_code: makeCode(sess.courses?.name || ''),
         status: r.status,
         ping_count: r.ping_count || 0,
-        points: r.points ?? null,
+        points: r.points != null ? Number(r.points) : null,
       };
     });
 
@@ -135,7 +138,17 @@ async function handler(req) {
         enrollment_no: student.enrollment_no || '',
         program_name: student.program_name || '',
       },
-      overall: { total: overallTotal, attended: totalAttended, absent: totalAbsent, leave: totalLeave, pct: overallPct, points: Math.round(overallPoints * 10) / 10 },
+      overall: {
+        total: overallTotal,
+        attended: totalAttended,
+        absent: totalAbsent,
+        leave: totalLeave,
+        pct: overallPct,
+        points: Math.round(overallPoints * 10) / 10,       // net score
+        grossPoints,                                         // earned before deductions
+        negativePoints,                                      // absent × 2 deduction
+        maxPoints: overallTotal * 5,
+      },
       streak,
       courses,
       recentSessions,

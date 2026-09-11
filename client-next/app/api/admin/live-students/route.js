@@ -81,11 +81,12 @@ async function handler(req) {
     const isValidMac = (mac) => /^([A-F0-9]{2}:){5}[A-F0-9]{2}$/.test(mac);
     const validClients = clients.filter(c => c.mac && c.mac.trim() !== '' && isValidMac(normalizeMac(c.mac)));
 
-    // 5. Fetch all students who have a mac_address, join with users for name
+    // 5. Fetch all active students who have a mac_address, join with users for name
     const { data: allStudents } = await supabaseAdmin
       .from('students')
-      .select('id, enrollment_no, program_name, mac_address, mac_verified, users ( first_name, last_name, email )')
-      .not('mac_address', 'is', null);
+      .select('id, enrollment_no, program_name, mac_address, mac_verified, users!inner ( first_name, last_name, email, is_active )')
+      .not('mac_address', 'is', null)
+      .eq('users.is_active', true);
 
     // 6. Build MAC -> student map
     const macToStudent = {};

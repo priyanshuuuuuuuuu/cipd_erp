@@ -31,7 +31,8 @@ async function handler(req) {
 
     const { data: allStudents, error: studentsError } = await supabaseAdmin
       .from('students')
-      .select('id, enrollment_no, users ( first_name, last_name )');
+      .select('id, enrollment_no, users!inner ( first_name, last_name, is_active )')
+      .eq('users.is_active', true);
 
     if (studentsError) throw new Error('students: ' + studentsError.message);
 

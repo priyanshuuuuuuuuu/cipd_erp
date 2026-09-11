@@ -5,7 +5,7 @@ import {
     LayoutGrid, Calendar, MessageSquare, Settings, LogOut, Bell, Menu,
     ChevronLeft, ChevronRight, Wifi, Clock, FileBarChart, CheckCircle,
     Download, RefreshCw, AlertCircle, Users, BookOpen, BarChart3,
-    TrendingUp, Search, X, Tag, Trophy, Star, GraduationCap
+    TrendingUp, Search, X, Tag, Trophy, Star, GraduationCap, TableProperties
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
@@ -317,6 +317,13 @@ export default function AdminReportsPage() {
     const [searchQ,          setSearchQ]          = useState('');
     const [exporting,        setExporting]        = useState(false);
 
+    // ── Students tab state ────────────────────────────────────────────────────
+    const [cohorts,          setCohorts]          = useState([]);
+    const [studSchema,       setStudSchema]       = useState('july');
+    const [studDateFrom,     setStudDateFrom]     = useState('');
+    const [studDateTo,       setStudDateTo]       = useState('');
+    const [studExporting,    setStudExporting]    = useState(false);
+
     const navTo = p => router.push(p);
 
     const fetchData = useCallback(async () => {
@@ -324,6 +331,17 @@ export default function AdminReportsPage() {
         try { setData(await api.get('/api/admin/reports/master')); }
         catch (err) { setError(err.message || 'Failed to load report data'); }
         finally { setLoading(false); }
+    }, []);
+
+    // Load cohort schemas for the Students tab selector
+    useEffect(() => {
+        api.get('/api/admin/cohorts').then(d => {
+            // d = { schemas: string[], labels: Record<string,string> }
+            if (d?.schemas) {
+                setCohorts(d.schemas.map(s => ({ schema: s, label: d.labels?.[s] || (s.charAt(0).toUpperCase() + s.slice(1)) })));
+                setStudSchema(d.schemas[0] || 'july');
+            }
+        }).catch(() => setCohorts([{ schema: 'july', label: 'July' }]));
     }, []);
 
     useEffect(() => { fetchData(); }, [fetchData]);
@@ -490,6 +508,7 @@ export default function AdminReportsPage() {
                         <Tab id="master"       label="Master Sheet"      Icon={FileBarChart} />
                         <Tab id="instructors"  label="Instructors"       Icon={Users} />
                         <Tab id="skills"       label="Skills Matrix"     Icon={BookOpen} />
+                        <Tab id="students"     label="Students"          Icon={GraduationCap} />
                     </div>
 
                     {/* ══════════════════════════════════════════════════════
@@ -935,6 +954,194 @@ export default function AdminReportsPage() {
                                             ))}
                                         </tbody>
                                     </table>
+                                </div>
+
+                            </div>
+                        );
+                    })()}
+
+
+                    {/* ══════════════════════════════════════════════════════
+                        TAB: STUDENTS
+                    ══════════════════════════════════════════════════════ */}
+                    {activeTab === 'students' && (() => {
+                        const handleDownload = async () => {
+                            if (studExporting) return;
+                            setStudExporting(true);
+                            try {
+                                const params = new URLSearchParams({ schema: studSchema });
+                                if (studDateFrom) params.set('dateFrom', studDateFrom);
+                                if (studDateTo)   params.set('dateTo',   studDateTo);
+
+                                // Get token for Authorization header
+                                const token = localStorage.getItem('admin_token') || localStorage.getItem('token');
+                                const res = await fetch(`/api/admin/reports/students?${params}`, {
+                                    headers: token ? { Authorization: `Bearer ${token}` } : {},
+                                });
+                                if (!res.ok) {
+                                    const j = await res.json().catch(() => ({}));
+                                    throw new Error(j.error || `HTTP ${res.status}`);
+                                }
+                                const blob = await res.blob();
+                                const url  = URL.createObjectURL(blob);
+                                const a    = Object.assign(document.createElement('a'), {
+                                    href: url,
+                                    download: `cipd_student_report_${studSchema}_${new Date().toISOString().split('T')[0]}.xlsx`,
+                                });
+                                document.body.appendChild(a);
+                                a.click();
+                                document.body.removeChild(a);
+                                URL.revokeObjectURL(url);
+                            } catch (err) {
+                                alert('Download failed: ' + err.message);
+                            } finally {
+                                setStudExporting(false);
+                            }
+                        };
+
+                        return (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+
+                                {/* Hero info card */}
+                                <div style={{
+                                    background: 'linear-gradient(135deg, #1d4ed8 0%, #4f46e5 100%)',
+                                    borderRadius: 16, padding: '2rem 2rem 1.75rem', color: '#fff',
+                                    display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+                                    flexWrap: 'wrap', gap: '1.5rem',
+                                }}>
+                                    <div>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                                            <div style={{ background: 'rgba(255,255,255,0.15)', borderRadius: 10, padding: 8, display: 'flex' }}>
+                                                <TableProperties size={20} />
+                                            </div>
+                                            <div style={{ fontSize: '1.15rem', fontWeight: 800, letterSpacing: '-0.3px' }}>Student Activity Report</div>
+                                        </div>
+                                        <div style={{ fontSize: '0.82rem', opacity: 0.85, lineHeight: 1.65, maxWidth: 520 }}>
+                                            Generates an <strong>.xlsx</strong> file with one row per active student and one column per
+                                            completed session — ordered by date. Each cell shows the <strong>points earned</strong>
+                                            and is colour-coded by attendance status. Empty cells mean the student was not enrolled
+                                            in that session's course.
+                                        </div>
+                                        <div style={{ marginTop: 14, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                            {[['Present','#D1FAE5','#065F46'],['Partial','#FEF9C3','#713F12'],['Absent','#FEE2E2','#991B1B'],['Leave','#EDE9FE','#5B21B6']].map(([lbl,bg,fg]) => (
+                                                <span key={lbl} style={{ padding: '3px 10px', borderRadius: 6, fontSize: '0.72rem', fontWeight: 700, background: bg, color: fg }}>{lbl}</span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Filters + download */}
+                                <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e8e8e8', padding: '1.25rem 1.5rem' }}>
+                                    <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#111', marginBottom: '1rem' }}>Report Filters</div>
+                                    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+
+                                        {/* Cohort */}
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                            <label style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#888' }}>Cohort</label>
+                                            <select value={studSchema} onChange={e => setStudSchema(e.target.value)}
+                                                style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.82rem', fontFamily: 'inherit', background: '#fafafa', outline: 'none', cursor: 'pointer', minWidth: 130 }}>
+                                                {cohorts.length > 0
+                                                    ? cohorts.map(c => <option key={c.schema} value={c.schema}>{c.label}</option>)
+                                                    : <option value="july">July</option>}
+                                            </select>
+                                        </div>
+
+                                        {/* Date From */}
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                            <label style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#888' }}>Date From</label>
+                                            <input type="date" value={studDateFrom} onChange={e => setStudDateFrom(e.target.value)}
+                                                style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.82rem', fontFamily: 'inherit', background: '#fafafa', outline: 'none', color: '#111' }} />
+                                        </div>
+
+                                        {/* Date To */}
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                            <label style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#888' }}>Date To</label>
+                                            <input type="date" value={studDateTo} onChange={e => setStudDateTo(e.target.value)}
+                                                style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.82rem', fontFamily: 'inherit', background: '#fafafa', outline: 'none', color: '#111' }} />
+                                        </div>
+
+                                        {/* Clear */}
+                                        {(studDateFrom || studDateTo) && (
+                                            <button onClick={() => { setStudDateFrom(''); setStudDateTo(''); }}
+                                                style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', fontSize: '0.78rem', color: '#888', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+                                                <X size={12} /> Clear dates
+                                            </button>
+                                        )}
+
+                                        {/* Download button */}
+                                        <button onClick={handleDownload} disabled={studExporting}
+                                            style={{
+                                                marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 7,
+                                                padding: '8px 22px', borderRadius: 8, border: 'none',
+                                                background: studExporting ? '#9ca3af' : 'linear-gradient(135deg, #1d4ed8, #4f46e5)',
+                                                color: '#fff', fontSize: '0.82rem', fontWeight: 700,
+                                                cursor: studExporting ? 'not-allowed' : 'pointer',
+                                                boxShadow: studExporting ? 'none' : '0 4px 14px rgba(79,70,229,0.35)',
+                                                transition: 'all 0.2s',
+                                            }}
+                                            onMouseOver={e => { if (!studExporting) e.currentTarget.style.transform = 'translateY(-1px)'; }}
+                                            onMouseOut={e => { e.currentTarget.style.transform = 'translateY(0)'; }}>
+                                            {studExporting
+                                                ? <><RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} /> Generating…</>
+                                                : <><Download size={14} /> Download Excel</>}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Structure preview */}
+                                <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e8e8e8', padding: '1.25rem 1.5rem' }}>
+                                    <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#111', marginBottom: '0.75rem' }}>Excel Structure Preview</div>
+                                    <div style={{ overflowX: 'auto' }}>
+                                        <table style={{ borderCollapse: 'collapse', fontSize: '0.78rem', minWidth: 640 }}>
+                                            <thead>
+                                                <tr>
+                                                    <th style={{ padding: '7px 14px', background: '#1d4ed8', color: '#fff', fontWeight: 700, border: '1px solid #3b5fc0', whiteSpace: 'nowrap' }}>Enrollment No</th>
+                                                    <th style={{ padding: '7px 14px', background: '#1d4ed8', color: '#fff', fontWeight: 700, border: '1px solid #3b5fc0', whiteSpace: 'nowrap' }}>Student Name</th>
+                                                    <th style={{ padding: '7px 14px', background: '#1d4ed8', color: '#fff', fontWeight: 700, border: '1px solid #3b5fc0', whiteSpace: 'nowrap' }}>Actual Score</th>
+                                                    <th style={{ padding: '7px 14px', background: '#1d4ed8', color: '#fff', fontWeight: 700, border: '1px solid #3b5fc0', whiteSpace: 'nowrap' }}>Total Positive Score</th>
+                                                    <th style={{ padding: '7px 14px', background: '#1d4ed8', color: '#fff', fontWeight: 700, border: '1px solid #3b5fc0', whiteSpace: 'nowrap' }}>09 Sept 2026</th>
+                                                    <th style={{ padding: '7px 14px', background: '#1d4ed8', color: '#fff', fontWeight: 700, border: '1px solid #3b5fc0', whiteSpace: 'nowrap' }}>09 Sept 2026</th>
+                                                    <th style={{ padding: '7px 14px', background: '#1d4ed8', color: '#fff', fontWeight: 700, border: '1px solid #3b5fc0', opacity: 0.6 }}>…</th>
+                                                </tr>
+                                                <tr>
+                                                    <td style={{ padding: '6px 14px', background: '#e5e7eb', fontWeight: 600, border: '1px solid #d1d5db' }}></td>
+                                                    <td style={{ padding: '6px 14px', background: '#e5e7eb', fontWeight: 600, border: '1px solid #d1d5db' }}></td>
+                                                    <td style={{ padding: '6px 14px', background: '#e5e7eb', fontWeight: 600, border: '1px solid #d1d5db' }}></td>
+                                                    <td style={{ padding: '6px 14px', background: '#e5e7eb', fontWeight: 600, border: '1px solid #d1d5db' }}></td>
+                                                    <td style={{ padding: '6px 14px', background: '#e5e7eb', fontWeight: 600, border: '1px solid #d1d5db', whiteSpace: 'nowrap' }}>Power Supply</td>
+                                                    <td style={{ padding: '6px 14px', background: '#e5e7eb', fontWeight: 600, border: '1px solid #d1d5db', whiteSpace: 'nowrap' }}>Self Work Session</td>
+                                                    <td style={{ padding: '6px 14px', background: '#e5e7eb', fontWeight: 600, border: '1px solid #d1d5db', opacity: 0.6 }}>…</td>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {[
+                                                    ['1PDCP2026R01','Alice Smith',  1,    3,    3,    -2,   'present','absent' ],
+                                                    ['1PDCP2026R02','Bob Jones',    1,    1,    1,    null, 'partial', null    ],
+                                                    ['1PDCP2026R03','Carol White',  3,    5,    -2,   5,    'absent', 'present'],
+                                                ].map(([enr, name, act, pos, p1, p2, s1, s2], i) => {
+                                                    const cellStyle = (s, p) => s ? {
+                                                        padding: '7px 14px', border: '1px solid #f0f0f0', textAlign: 'center', fontWeight: 700,
+                                                        background: s === 'present' ? '#D1FAE5' : s === 'partial' ? '#FEF9C3' : s === 'absent' ? '#FEE2E2' : '#EDE9FE',
+                                                        color:      s === 'present' ? '#065F46' : s === 'partial' ? '#713F12' : s === 'absent' ? '#991B1B' : '#5B21B6',
+                                                    } : { padding: '7px 14px', border: '1px solid #f0f0f0', textAlign: 'center', color: '#9ca3af' };
+                                                    return (
+                                                        <tr key={i}>
+                                                            <td style={{ padding: '7px 14px', border: '1px solid #f0f0f0', fontWeight: 600, background: i % 2 === 0 ? '#fff' : '#fafafa' }}>{enr}</td>
+                                                            <td style={{ padding: '7px 14px', border: '1px solid #f0f0f0', fontWeight: 600, background: i % 2 === 0 ? '#fff' : '#fafafa' }}>{name}</td>
+                                                            <td style={{ padding: '7px 14px', border: '1px solid #f0f0f0', fontWeight: 700, textAlign: 'center' }}>{act}</td>
+                                                            <td style={{ padding: '7px 14px', border: '1px solid #f0f0f0', fontWeight: 700, textAlign: 'center' }}>{pos}</td>
+                                                            <td style={cellStyle(s1, p1)}>{p1 != null ? p1 : '—'}</td>
+                                                            <td style={cellStyle(s2, p2)}>{p2 != null ? p2 : '—'}</td>
+                                                            <td style={{ padding: '7px 14px', border: '1px solid #f0f0f0', color: '#d1d5db', textAlign: 'center' }}>…</td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div style={{ marginTop: 10, fontSize: '0.72rem', color: '#888' }}>
+                                        Row 1 = session dates (blue) · Row 2 = session names (gray) · Empty (—) = not enrolled in that course · Negative values = absent deduction
+                                    </div>
                                 </div>
 
                             </div>

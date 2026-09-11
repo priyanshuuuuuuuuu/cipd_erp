@@ -34,7 +34,6 @@ async function getHandler(req) {
         program_name,
         mac_address,
         mac_verified,
-        device_hash,
         created_at,
         users!inner (
           id,
@@ -84,7 +83,6 @@ async function getHandler(req) {
       program_name: s.program_name || '',
       mac_address: s.mac_address || '',
       mac_verified: s.mac_verified ?? false,
-      device_hash: s.device_hash || '',
       created_at: s.created_at,
       courses: enrollmentMap[s.id] || [],
     }));
@@ -182,11 +180,13 @@ async function patchHandler(req) {
     if (mac_verified !== undefined) stuUpdates.mac_verified = Boolean(mac_verified);
     if (mac_address !== undefined) {
       if (mac_address === '' || mac_address === null) {
+        // Clearing a MAC — also clear verification
         stuUpdates.mac_address = null;
         stuUpdates.mac_verified = false;
       } else {
+        // Admin is setting a MAC directly — trust it immediately, no approval needed
         stuUpdates.mac_address = mac_address.toUpperCase();
-        stuUpdates.mac_verified = false;
+        stuUpdates.mac_verified = true;
       }
     }
 
