@@ -166,10 +166,11 @@ export async function processSessionAttendance(session, options = {}) {
 
   const { data: students } = await supabaseAdmin
     .from('students')
-    .select('id, enrollment_no, mac_address, mac_verified')
+    .select('id, enrollment_no, mac_address, mac_verified, users!inner ( is_active )')
     .in('id', enrolledStudentIds)
     .eq('mac_verified', true)
-    .not('mac_address', 'is', null);
+    .not('mac_address', 'is', null)
+    .eq('users.is_active', true);
 
   const verifiedStudents = students || [];
 

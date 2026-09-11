@@ -153,8 +153,9 @@ async function handler(request) {
                 const sessionEndStr   = `${s.session_date}T${s.end_time.slice(0, 5)}`;
 
                 if (nowIstStr >= sessionEndStr) {
-                    // Class has fully ended
+                    // Class has fully ended — mark for DB write-back
                     computedStatus = 'Completed';
+                    s._shouldMarkCompleted = true; // flag for DB update below
                 } else if (nowIstStr >= sessionStartStr) {
                     // Class is currently ongoing
                     computedStatus = 'Ongoing';
@@ -163,6 +164,7 @@ async function handler(request) {
 
             return {
                 id: s.id,
+                _shouldMarkCompleted: s._shouldMarkCompleted || false,
                 // Display values
                 course: s.courses?.name || 'Unknown',
                 sessionType: s.session_types?.name || null,
@@ -190,7 +192,26 @@ async function handler(request) {
             };
         });
 
-        return NextResponse.json({ sessions });
+        // ── Auto-complete: write 'completed' back to DB for sessions that have
+        // ended but still carry status='scheduled'. Fire-and-forget so the
+        // API response is not delayed.
+        const toComplete = sessions.filter(s => s._shouldMarkCompleted).map(s => s.id);
+        if (toComplete.length > 0) {
+            Promise.all(
+                toComplete.map(id =>
+                    supabaseAdmin
+                        .from('sessions')
+                        .update({ status: 'completed' })
+                        .eq('id', id)
+                        .eq('status', 'scheduled') // guard: only update if still scheduled
+                )
+            ).catch(err => console.error('Auto-complete sessions write-back error:', err));
+        }
+
+        // Strip internal flag before returning to client
+        const clientSessions = sessions.map(({ _shouldMarkCompleted, ...rest }) => rest);
+
+        return NextResponse.json({ sessions: clientSessions });
 
     } catch (error) {
         console.error('Schedule API Error:', error);

@@ -36,8 +36,9 @@ async function handler(req) {
     // Fetch all students with MAC addresses (for matching)
     const { data: allStudents } = await supabaseAdmin
       .from('students')
-      .select('id, mac_address')
-      .not('mac_address', 'is', null);
+      .select('id, mac_address, users!inner ( is_active )')
+      .not('mac_address', 'is', null)
+      .eq('users.is_active', true);
 
     const studentMacs = new Set(
       (allStudents || [])

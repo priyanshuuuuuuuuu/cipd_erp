@@ -341,7 +341,7 @@ function StudentDrawer({ student, courses, onClose, onSaved, schema = 'july' }) 
                                         </span>
                                     ) : form.mac_address ? (
                                         <span style={{ fontSize: '0.68rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: 4 }}>
-                                            <CheckCircle size={11} /> Valid · will be stored as {form.mac_address.toUpperCase()} · mac_verified will reset to false
+                                            <CheckCircle size={11} /> Valid · will be stored as {form.mac_address.toUpperCase()} · will be marked as verified
                                         </span>
                                     ) : (
                                         <span style={{ fontSize: '0.68rem', color: '#94a3b8' }}>Leave blank to clear MAC address</span>
@@ -643,28 +643,55 @@ function AttendanceSummaryPanel({ student, schema }) {
                             </div>
 
                             {/* Overall stats bar */}
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, auto) 1fr', alignItems: 'center', gap: '1rem', background: '#fff', borderRadius: '10px', padding: '0.9rem 1.2rem', border: '1px solid #e2e8f0', marginBottom: '1rem', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', alignItems: 'center', gap: '1rem', background: '#fff', borderRadius: '10px', padding: '0.9rem 1.2rem', border: '1px solid #e2e8f0', marginBottom: '1rem', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
                                 {/* Big % */}
                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, paddingRight: '1rem', borderRight: '1px solid #f1f5f9' }}>
                                     <div style={{ fontSize: '1.8rem', fontWeight: 900, color: pctColor(data.overall.pct), lineHeight: 1 }}>{data.overall.pct}%</div>
                                     <div style={{ fontSize: '0.62rem', fontWeight: 700, color: pctColor(data.overall.pct), background: pctBg(data.overall.pct), padding: '2px 7px', borderRadius: 5 }}>{pctLabel(data.overall.pct)}</div>
                                 </div>
                                 {/* Stat chips */}
-                                {[
-                                    { label: 'Present', value: data.overall.attended, color: '#10b981', bg: '#ecfdf5' },
-                                    { label: 'Absent', value: data.overall.absent, color: '#ef4444', bg: '#fef2f2' },
-                                    { label: 'Leave', value: data.overall.leave, color: '#3B82F6', bg: '#eff6ff' },
-                                    { label: 'Total', value: data.overall.total, color: '#64748b', bg: '#f8fafc' },
-                                ].map(chip => (
-                                    <div key={chip.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
-                                        <div style={{ fontSize: '1.1rem', fontWeight: 800, color: chip.color }}>{chip.value}</div>
-                                        <div style={{ fontSize: '0.62rem', fontWeight: 700, color: chip.color, background: chip.bg, padding: '2px 7px', borderRadius: 5 }}>{chip.label}</div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                                    {[
+                                        { label: 'Present', value: data.overall.attended, color: '#10b981', bg: '#ecfdf5' },
+                                        { label: 'Absent', value: data.overall.absent, color: '#ef4444', bg: '#fef2f2' },
+                                        { label: 'Leave', value: data.overall.leave, color: '#3B82F6', bg: '#eff6ff' },
+                                        { label: 'Total', value: data.overall.total, color: '#64748b', bg: '#f8fafc' },
+                                    ].map(chip => (
+                                        <div key={chip.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+                                            <div style={{ fontSize: '1.1rem', fontWeight: 800, color: chip.color }}>{chip.value}</div>
+                                            <div style={{ fontSize: '0.62rem', fontWeight: 700, color: chip.color, background: chip.bg, padding: '2px 7px', borderRadius: 5 }}>{chip.label}</div>
+                                        </div>
+                                    ))}
+                                    {/* Streak inline */}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginLeft: 'auto' }}>
+                                        <Flame size={13} color={data.streak > 0 ? '#f59e0b' : '#cbd5e1'} />
+                                        <span style={{ fontSize: '0.78rem', fontWeight: 700, color: data.streak > 0 ? '#f59e0b' : '#94a3b8' }}>{data.streak} day streak</span>
                                     </div>
-                                ))}
-                                {/* Streak */}
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 5 }}>
-                                    <Flame size={13} color={data.streak > 0 ? '#f59e0b' : '#cbd5e1'} />
-                                    <span style={{ fontSize: '0.78rem', fontWeight: 700, color: data.streak > 0 ? '#f59e0b' : '#94a3b8' }}>{data.streak} day streak</span>
+                                </div>
+                                {/* Score breakdown panel */}
+                                <div style={{ paddingLeft: '1rem', borderLeft: '1px solid #f1f5f9', minWidth: 140 }}>
+                                    {/* Net score — big */}
+                                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, marginBottom: 6 }}>
+                                        <span style={{ fontSize: '1.5rem', fontWeight: 900, color: '#f59e0b', lineHeight: 1 }}>{data.overall.points}</span>
+                                        <span style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 600 }}>/ {data.overall.maxPoints ?? data.overall.total * 5} pts</span>
+                                    </div>
+                                    <div style={{ fontSize: '0.6rem', fontWeight: 700, color: '#f59e0b', background: '#fffbeb', padding: '1px 6px', borderRadius: 4, display: 'inline-block', marginBottom: 8 }}>Net Score</div>
+                                    {/* Breakdown rows */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                                            <span style={{ fontSize: '0.65rem', color: '#64748b' }}>Gross earned</span>
+                                            <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#10b981' }}>+{data.overall.grossPoints ?? data.overall.points}</span>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                                            <span style={{ fontSize: '0.65rem', color: '#64748b' }}>Absent deduction</span>
+                                            <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#ef4444' }}>−{data.overall.negativePoints ?? data.overall.absent * 2}</span>
+                                        </div>
+                                        <div style={{ height: 1, background: '#f1f5f9', margin: '1px 0' }} />
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                                            <span style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: 600 }}>Net score</span>
+                                            <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#f59e0b' }}>{data.overall.points}</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
@@ -708,8 +735,8 @@ function AttendanceSummaryPanel({ student, schema }) {
                                         </div>
                                     ) : (
                                         <div style={{ background: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
-                                            {data.recentSessions.slice(0, 8).map((sess, idx) => (
-                                                <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px', borderBottom: idx < Math.min(7, data.recentSessions.length - 1) ? '1px solid #f1f5f9' : 'none', gap: 10 }}>
+                                            {data.recentSessions.slice(0, 10).map((sess, idx) => (
+                                                <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px', borderBottom: idx < Math.min(9, data.recentSessions.length - 1) ? '1px solid #f1f5f9' : 'none', gap: 10 }}>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
                                                         <div style={{ flexShrink: 0, textAlign: 'center', minWidth: 42 }}>
                                                             <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#334155' }}>{sess.date}</div>
@@ -720,9 +747,16 @@ function AttendanceSummaryPanel({ student, schema }) {
                                                             <div style={{ fontSize: '0.62rem', color: '#94a3b8' }}>{sess.course_code} · {sess.start_time}</div>
                                                         </div>
                                                     </div>
-                                                    <span style={{ flexShrink: 0, fontSize: '0.65rem', fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: statusBg[sess.status] || '#f8fafc', color: statusColor[sess.status] || '#94a3b8' }}>
-                                                        {statusLabel[sess.status] || sess.status}
-                                                    </span>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                                                        {sess.points != null && (
+                                                            <span style={{ fontSize: '0.62rem', fontWeight: 700, color: '#92400e', background: '#fef3c7', border: '1px solid #fde68a', padding: '1px 6px', borderRadius: 5 }}>
+                                                                {sess.points} pts
+                                                            </span>
+                                                        )}
+                                                        <span style={{ fontSize: '0.65rem', fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: statusBg[sess.status] || '#f8fafc', color: statusColor[sess.status] || '#94a3b8' }}>
+                                                            {statusLabel[sess.status] || sess.status}
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>
@@ -812,15 +846,18 @@ export default function AdminStudentsPage() {
         return [...set].sort();
     }, [students]);
 
-    // Filtered list
+    // Filtered list — active students first, inactive sorted to bottom
     const filtered = useMemo(() => {
-        return students.filter(s => {
+        const result = students.filter(s => {
             const term = searchTerm.toLowerCase();
             const matchSearch = !term || [s.first_name, s.last_name, s.email, s.enrollment_no, s.program_name].some(v => v?.toLowerCase().includes(term));
             const matchProgram = !filterProgram || s.program_name === filterProgram;
             const matchStatus = filterStatus === 'all' || (filterStatus === 'active' ? s.is_active : !s.is_active);
             return matchSearch && matchProgram && matchStatus;
         });
+        // Always sort inactive to end (active=1 sorts before inactive=0 when descending)
+        result.sort((a, b) => (b.is_active ? 1 : 0) - (a.is_active ? 1 : 0));
+        return result;
     }, [students, searchTerm, filterProgram, filterStatus]);
 
     const handleDelete = async () => {
