@@ -65,7 +65,11 @@ const StudentDashboard = () => {
         if (attRes.status === 'fulfilled') setAttendance(attRes.value);
         if (sesRes.status === 'fulfilled') setSessionHistory(sesRes.value.sessions || []);
         if (assRes.status === 'fulfilled') setAssignments((assRes.value.assignments || []).filter(a => !a.is_submitted));
-        if (fbRes.status === 'fulfilled') setPendingFeedback(fbRes.value.pending);
+        if (fbRes.status === 'fulfilled') {
+            // API returns { forms, questions, stats } — pick first active pending form
+            const firstPending = (fbRes.value.forms || []).find(f => !f.submitted && !f.expired);
+            setPendingFeedback(firstPending || null);
+        }
         if (profRes.status === 'fulfilled') setProfile(profRes.value.profile);
     }, []);
 
@@ -472,7 +476,7 @@ const StudentDashboard = () => {
                     {pendingFeedback ? (
                         <div className="feedback-box" onClick={() => router.push('/feedback')} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}>
                             <div>
-                                <div className="feedback-text" style={{ fontSize: '0.9rem' }}>Feedback pending<br />for {pendingFeedback.courses?.name || 'a session'}</div>
+                                <div className="feedback-text" style={{ fontSize: '0.9rem' }}>Feedback pending<br />for {pendingFeedback.course?.name || pendingFeedback.courses?.name || 'a session'}</div>
                                 <div className="feedback-sub">Tap to submit your feedback</div>
                             </div>
                             <div style={{ width: '40px', height: '40px', background: '#e0e7ff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4f46e5' }}>

@@ -1016,7 +1016,7 @@ export default function AdminReportsPage() {
                                             </div>
                                             <div style={{ fontSize: '1.15rem', fontWeight: 800, letterSpacing: '-0.3px' }}>Student Activity Report</div>
                                         </div>
-                                        <div style={{ fontSize: '0.82rem', opacity: 0.85, lineHeight: 1.65, maxWidth: 520 }}>
+                                        <div style={{ fontSize: '0.82rem', opacity: 0.85, lineHeight: 1.65 }}>
                                             Generates an <strong>.xlsx</strong> file with one row per active student and one column per
                                             completed session — ordered by date. Each cell shows the <strong>points earned</strong>
                                             and is colour-coded by attendance status. Empty cells mean the student was not enrolled

@@ -34,24 +34,29 @@ export default function AdminDashboard() {
     const [weeklyAttendance, setWeeklyAttendance] = useState([]);
     const [pendingLeaves, setPendingLeaves] = useState([]);
     const [leaveActionBusy, setLeaveActionBusy] = useState(null);
-    const [loadingData, setLoadingData] = useState(true);
+    const [loadingSessions, setLoadingSessions] = useState(true);
+    const [loadingFeedback, setLoadingFeedback] = useState(true);
+    const [loadingWeekly, setLoadingWeekly] = useState(true);
+    const [loadingDash, setLoadingDash] = useState(true);
+    const [loadingLeave, setLoadingLeave] = useState(true);
 
     const navTo = (p) => router.push(p);
     const displayName = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Admin' : 'Admin';
 
-    const fetchAll = useCallback(async () => {
-        try {
-            const [sessRes, fbRes, wkRes, dashRes, lookupRes, leaveRes] = await Promise.allSettled([
-                api.get('/api/admin/sessions?today=true'),
-                api.get('/api/admin/feedback/status'),
-                api.get('/api/admin/attendance/weekly'),
-                api.get('/api/admin/dashboard'),
-                api.get('/api/admin/lookup'),
-                api.get('/api/admin/leave-requests?status=pending'),
-            ]);
+    const fetchAll = useCallback(() => {
+        // Reset per-section loading flags so skeletons re-appear on refresh
+        setLoadingSessions(true);
+        setLoadingFeedback(true);
+        setLoadingWeekly(true);
+        setLoadingDash(true);
+        setLoadingLeave(true);
 
-            if (sessRes.status === 'fulfilled') {
-                setUpcomingClasses((sessRes.value.sessions || []).slice(0, 5).map(s => ({
+        // Fire all requests in parallel; each section updates independently
+        // so the UI renders progressively as data arrives.
+
+        api.get('/api/admin/sessions?today=true')
+            .then(res => {
+                setUpcomingClasses((res.sessions || []).slice(0, 5).map(s => ({
                     course: `${s.courses?.name || s.title}`,
                     faculty: s.faculty?.users ? `${s.faculty.users.first_name} ${s.faculty.users.last_name}` : 'TBA',
                     date: new Date(s.session_date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }),
@@ -61,10 +66,13 @@ export default function AdminDashboard() {
                     status: s.status === 'scheduled' ? 'Scheduled' : 'Pending',
                     id: s.id,
                 })));
-            }
+            })
+            .catch(() => {})
+            .finally(() => setLoadingSessions(false));
 
-            if (fbRes.status === 'fulfilled') {
-                setFeedbackPending((fbRes.value.feedback_status || []).map(f => ({
+        api.get('/api/admin/feedback/status')
+            .then(res => {
+                setFeedbackPending((res.feedback_status || []).map(f => ({
                     course: f.course,
                     total: f.total,
                     submitted: f.submitted,
@@ -72,15 +80,18 @@ export default function AdminDashboard() {
                     total_enrolled: f.total_enrolled,
                     completed_sessions: f.completed_sessions,
                 })));
-            }
+            })
+            .catch(() => {})
+            .finally(() => setLoadingFeedback(false));
 
-            if (wkRes.status === 'fulfilled') {
-                setWeeklyAttendance(wkRes.value.weekly || []);
-            }
+        api.get('/api/admin/attendance/weekly')
+            .then(res => setWeeklyAttendance(res.weekly || []))
+            .catch(() => {})
+            .finally(() => setLoadingWeekly(false));
 
-            if (dashRes.status === 'fulfilled') {
-                const recent = (dashRes.value.recent_sessions || []).slice(0, 6).map((s, i) => {
-                    // Show relative time from created_at
+        api.get('/api/admin/dashboard')
+            .then(res => {
+                const recent = (res.recent_sessions || []).slice(0, 6).map((s, i) => {
                     const createdAt = s.created_at ? new Date(s.created_at) : new Date(s.session_date);
                     const now = new Date();
                     const diffMs = now - createdAt;
@@ -90,7 +101,6 @@ export default function AdminDashboard() {
                     else if (diffMins < 60) timeStr = `${diffMins}m ago`;
                     else if (diffMins < 1440) timeStr = `${Math.floor(diffMins / 60)}h ago`;
                     else timeStr = `${Math.floor(diffMins / 1440)}d ago`;
-
                     return {
                         type: 'session',
                         text: `${s.courses?.name || s.title} — ${s.status}`,
@@ -100,18 +110,21 @@ export default function AdminDashboard() {
                     };
                 });
                 setRecentActivity(recent);
-            }
+            })
+            .catch(() => {})
+            .finally(() => setLoadingDash(false));
 
-            if (lookupRes.status === 'fulfilled') {
-                setLookupData({
-                    courses: lookupRes.value.courses || [],
-                    faculty: lookupRes.value.faculty || [],
-                    venues: lookupRes.value.venues || [],
-                });
-            }
+        api.get('/api/admin/lookup')
+            .then(res => setLookupData({
+                courses: res.courses || [],
+                faculty: res.faculty || [],
+                venues: res.venues || [],
+            }))
+            .catch(() => {});
 
-            if (leaveRes.status === 'fulfilled') {
-                setPendingLeaves((leaveRes.value.requests || []).map(r => ({
+        api.get('/api/admin/leave-requests?status=pending')
+            .then(res => {
+                setPendingLeaves((res.requests || []).map(r => ({
                     id: r.id,
                     studentName: r.students?.users
                         ? `${r.students.users.first_name} ${r.students.users.last_name}`.trim()
@@ -125,10 +138,9 @@ export default function AdminDashboard() {
                     reason: r.reason || '',
                     createdAt: r.created_at,
                 })));
-            }
-        } finally {
-            setLoadingData(false);
-        }
+            })
+            .catch(() => {})
+            .finally(() => setLoadingLeave(false));
     }, []);
 
     useEffect(() => { if (authReady) fetchAll(); }, [fetchAll, authReady]);
@@ -335,7 +347,7 @@ export default function AdminDashboard() {
                                 </button>
                             </div>
                             <div>
-                                {loadingData ? (
+                                {loadingSessions ? (
                                     <div>{[1,2,3].map(i => (
                                         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '14px 1.5rem', borderBottom: '1px solid #f5f5f5' }}>
                                             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -376,7 +388,7 @@ export default function AdminDashboard() {
                                 <div style={{ fontSize: '0.75rem', color: '#dc2626', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}><AlertCircle size={12} /> {totalPending} pending</div>
                             </div>
                             <div>
-                                {loadingData ? (
+                                {loadingFeedback ? (
                                     <div>{[1,2,3].map(i => (
                                         <div key={i} style={{ padding: '12px 1.5rem', borderBottom: '1px solid #f5f5f5' }}>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
@@ -433,7 +445,7 @@ export default function AdminDashboard() {
                                 View All
                             </button>
                         </div>
-                        {loadingData ? (
+                        {loadingLeave ? (
                             <div style={{ padding: '1.5rem', color: '#aaa', fontSize: '0.82rem', textAlign: 'center' }}>Loading...</div>
                         ) : pendingLeaves.length === 0 ? (
                             <div style={{ padding: '1.5rem', textAlign: 'center', color: '#aaa', fontSize: '0.82rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
