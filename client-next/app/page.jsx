@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import './Login.css';
 import SubBrandText from './components/SubBrandText';
@@ -61,7 +61,42 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, completeGoogleLogin } = useAuth();
+
+  useEffect(() => {
+    const outcome = new URLSearchParams(window.location.search).get('google_signin');
+    if (!outcome) return;
+
+    const finishGoogleLogin = async () => {
+      if (outcome !== 'success') {
+        const messages = {
+          cancelled: 'Google sign-in was cancelled.',
+          iiitd_only: 'Please use your verified IIITD Google account.',
+          not_eligible: 'This IIITD account is not an active student account in CiPD 360.',
+          not_configured: 'Google sign-in is not configured yet.',
+        };
+        setError(messages[outcome] || 'Google sign-in could not be completed. Please try again.');
+        window.history.replaceState({}, '', '/');
+        return;
+      }
+
+      setIsLoading(true);
+      try {
+        const response = await fetch('/api/auth/google/signin/session', { cache: 'no-store' });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Google sign-in session expired');
+        completeGoogleLogin(data);
+        router.replace('/dashboard');
+      } catch (err) {
+        setError(err.message || 'Google sign-in could not be completed.');
+      } finally {
+        window.history.replaceState({}, '', '/');
+        setIsLoading(false);
+      }
+    };
+
+    finishGoogleLogin();
+  }, [completeGoogleLogin, router]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -176,6 +211,17 @@ const Login = () => {
             />
 
 
+            <div className="login-divider"><span>or</span></div>
+            <button
+              type="button"
+              className="google-login-button"
+              onClick={() => { window.location.assign('/api/auth/google/signin'); }}
+              disabled={isLoading}
+            >
+              <span className="google-login-mark" aria-hidden="true">G</span>
+              Continue with Google
+            </button>
+            <p className="iiitd-login-note">Use your IIITD Google account (@iiitd.ac.in) to continue.</p>
             <ForgotPasswordText />
           </form>
         </div>
