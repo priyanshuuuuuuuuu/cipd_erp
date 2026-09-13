@@ -115,3 +115,31 @@ export async function retryNotificationMessage(messageId) {
   return data;
 }
 
+/**
+ * Enqueues a password-reset email via the notification stream outbox.
+ * The notification service resolves APP_URL from its own environment,
+ * so the reset link is always the production URL — never localhost.
+ *
+ * @param {{ studentId: string, email: string, firstName: string, resetToken: string }} opts
+ */
+export async function enqueuePasswordResetEmail({ studentId, email, firstName, resetToken }) {
+  const dedupeKey = 'password_reset:' + studentId + ':' + resetToken.slice(-16);
+
+  const { error } = await supabaseAdmin
+    .from('notification_stream')
+    .insert({
+      dedupe_key: dedupeKey,
+      event_type: 'password_reset',
+      channel: 'email',
+      recipient_id: studentId || null,
+      recipient_email: email.trim().toLowerCase(),
+      recipient_name: firstName || null,
+      payload: { resetToken },
+      status: 'queued',
+      available_at: new Date().toISOString(),
+    });
+
+  if (error) throw new Error('Could not enqueue password reset email: ' + error.message);
+  return { queued: 1 };
+}
+

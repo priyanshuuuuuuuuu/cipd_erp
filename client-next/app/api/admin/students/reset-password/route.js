@@ -3,10 +3,9 @@ import { NextResponse } from 'next/server';
 import { getSchemaClient, getCohortConfig } from '@/lib/supabase';
 import { withRole } from '@/lib/middleware';
 import jwt from 'jsonwebtoken';
-import { sendPasswordResetEmail } from '@/lib/emailer';
+import { enqueuePasswordResetEmail } from '@/lib/notification-stream';
 
 const JWT_SECRET = process.env.JWT_SECRET;
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
 /**
  * POST /api/admin/students/reset-password
@@ -15,7 +14,9 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
  * Admin-initiated password reset:
  * 1. Looks up the student's email across all schemas (or the given schema).
  * 2. Signs a short-lived JWT reset token (15 minutes).
- * 3. Emails the student a password-reset link.
+ * 3. Enqueues a password-reset email via the notification stream outbox.
+ *    The notification service resolves APP_URL from its own environment,
+ *    so the reset link is always the production URL — never localhost.
  */
 async function handler(req) {
   try {
@@ -57,13 +58,12 @@ async function handler(req) {
       { expiresIn: '15m' }
     );
 
-    const resetUrl = `${APP_URL.replace(/\/$/, '')}/reset-password?token=${resetToken}`;
-
-    // Send the email
-    await sendPasswordResetEmail({
-      to: foundUser.email,
+    // Enqueue via the notification service outbox (handles APP_URL + retries)
+    await enqueuePasswordResetEmail({
+      studentId: foundUser.id,
+      email: foundUser.email,
       firstName: foundUser.first_name,
-      resetUrl,
+      resetToken,
     });
 
     return NextResponse.json({
