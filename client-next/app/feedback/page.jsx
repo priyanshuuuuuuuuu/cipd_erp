@@ -6,7 +6,7 @@ import {
     LayoutGrid, Calendar, BookOpen, Users, MessageSquare, Settings,
     LogOut, Bell, Search, Menu, ChevronLeft, ChevronRight,
     CheckCircle, Clock, FileText, Send, Lock, Trophy, Award, ArrowLeft,
-    AlertTriangle, Eye, X
+    AlertTriangle, Eye, X, XCircle
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
@@ -45,6 +45,10 @@ export default function FeedbackPage() {
     const [submitting, setSubmitting] = useState(false);
     const [justSubmitted, setJustSubmitted] = useState(false);
 
+    // List pagination states
+    const [visibleExpired, setVisibleExpired] = useState(5);
+    const [visibleSubmitted, setVisibleSubmitted] = useState(5);
+
     // View submitted response modal
     const [viewResponseForm, setViewResponseForm] = useState(null);
     const [viewResponseData, setViewResponseData] = useState([]);
@@ -81,7 +85,15 @@ export default function FeedbackPage() {
         setLoading(false);
     }, []);
 
-    useEffect(() => { if (authReady) fetchData(); }, [fetchData, authReady]);
+    // Auth guard — redirect unauthenticated visitors to login, preserving this page as the return destination
+    useEffect(() => {
+        if (!authReady) return;
+        if (!user) {
+            router.replace('/?redirect=/feedback');
+            return;
+        }
+        fetchData();
+    }, [authReady, user, fetchData, router]);
 
     /* ─── Open a form to fill ─── */
     const openForm = (form) => {
@@ -184,6 +196,7 @@ export default function FeedbackPage() {
     const pendingForms   = forms.filter(f => !f.submitted && !f.expired);
     const expiredForms   = forms.filter(f => !f.submitted && f.expired);
     const submittedForms = forms.filter(f => f.submitted);
+    const totalPointsEarned = submittedForms.length * 3;
 
     return (
         <div className="dashboard-container">
@@ -234,81 +247,82 @@ export default function FeedbackPage() {
 
                     {activeTab === 'feedback' && !selectedForm && (
                         <>
-                            {/* Stats bar */}
+                            {/* Gamified Hero Section */}
                             {loading ? (
-                                <div style={{ display: 'flex', gap: '12px', marginBottom: '1.2rem' }}>{[1,2,3,4].map(i => (
-                                    <div key={i} style={{ flex: 1, borderRadius: '10px', border: '1px solid #f0f0f0', padding: '14px 18px' }}>
-                                        <div style={{ width: '50px', height: '9px', borderRadius: '3px', background: '#f5f5f5', marginBottom: '8px', animation: 'shimmer 1.5s infinite', animationDelay: `${i*0.1}s` }} />
-                                        <div style={{ width: '40px', height: '18px', borderRadius: '4px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i*0.2}s` }} />
-                                    </div>
-                                ))}</div>
-                            ) : (
                                 <div style={{ display: 'flex', gap: '12px', marginBottom: '1.2rem' }}>
-                                    {[
-                                        { label: 'Pending',        value: stats.totalPending   || 0, color: '#b45309', bg: '#fffbeb' },
-                                        { label: 'Submitted',      value: stats.totalSubmitted || 0, color: '#16a34a', bg: '#f0fdf4' },
-                                        { label: 'Expired',        value: stats.totalExpired   || 0, color: '#dc2626', bg: '#fef2f2' },
-                                        { label: 'Total Sessions', value: stats.totalAttended  || 0, color: '#6355F1', bg: '#f5f3ff' },
-                                    ].map(s => (
-                                        <div key={s.label} style={{ flex: 1, background: s.bg, borderRadius: '10px', border: `1px solid ${s.color}22`, padding: '14px 18px' }}>
-                                            <div style={{ fontSize: '0.68rem', fontWeight: 600, color: s.color, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>{s.label}</div>
-                                            <div style={{ fontSize: '1.5rem', fontWeight: 800, color: s.color, fontFamily: 'monospace' }}>{s.value}</div>
+                                    <div style={{ flex: 1, borderRadius: '16px', background: '#f5f5f5', height: '140px', animation: 'shimmer 1.5s infinite' }} />
+                                </div>
+                            ) : (
+                                <div style={{ 
+                                    background: '#fff', 
+                                    borderRadius: '16px', 
+                                    padding: '24px 28px', 
+                                    marginBottom: '1.5rem',
+                                    border: '1px solid #93c5fd',
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    boxShadow: '0 4px 12px rgba(59, 130, 246, 0.05)'
+                                }}>
+                                    <div>
+                                        <h2 style={{ fontSize: '1.35rem', fontWeight: 700, color: '#0f172a', margin: '0 0 4px', letterSpacing: '-0.3px' }}>
+                                            Lecture Feedback
+                                        </h2>
+                                        <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}>
+                                            You've earned <strong style={{ color: '#0f172a' }}>{totalPointsEarned} Points</strong> from feedback.
+                                        </p>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '12px' }}>
+                                        <div style={{ textAlign: 'center', padding: '10px 16px', background: '#fffbeb', borderRadius: '12px', border: '1px solid #fde68a' }}>
+                                            <div style={{ fontSize: '0.7rem', color: '#b45309', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '2px' }}>Pending</div>
+                                            <div style={{ fontSize: '1.3rem', fontWeight: 700, color: '#92400e', lineHeight: 1 }}>{pendingForms.length}</div>
                                         </div>
-                                    ))}
+                                        <div style={{ textAlign: 'center', padding: '10px 16px', background: '#f0fdf4', borderRadius: '12px', border: '1px solid #bbf7d0' }}>
+                                            <div style={{ fontSize: '0.7rem', color: '#16a34a', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '2px' }}>Completed</div>
+                                            <div style={{ fontSize: '1.3rem', fontWeight: 700, color: '#15803d', lineHeight: 1 }}>{submittedForms.length}</div>
+                                        </div>
+                                        <div style={{ textAlign: 'center', padding: '10px 16px', background: '#fef2f2', borderRadius: '12px', border: '1px solid #fecaca' }}>
+                                            <div style={{ fontSize: '0.7rem', color: '#dc2626', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '2px' }}>Missed</div>
+                                            <div style={{ fontSize: '1.3rem', fontWeight: 700, color: '#b91c1c', lineHeight: 1 }}>{expiredForms.length}</div>
+                                        </div>
+                                    </div>
                                 </div>
                             )}
 
                             {/* Pending forms */}
                             {pendingForms.length > 0 && (
                                 <div style={{ marginBottom: '1.5rem' }}>
-                                    <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#111', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                        <Clock size={14} color="#b45309" /> Pending Feedback ({pendingForms.length})
+                                    <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#0f172a', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        Pending ({pendingForms.length})
                                     </div>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                         {pendingForms.map(form => (
-                                            <div key={form.session_id} onClick={() => openForm(form)} style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e8e8e8', padding: '14px 18px', cursor: 'pointer', transition: 'all 0.15s', boxShadow: '0 1px 4px rgba(0,0,0,0.02)' }}
-                                                onMouseOver={e => { e.currentTarget.style.borderColor = '#6355F1'; e.currentTarget.style.boxShadow = '0 2px 12px rgba(99,85,241,0.1)'; }}
-                                                onMouseOut={e => { e.currentTarget.style.borderColor = '#e8e8e8'; e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,0,0,0.02)'; }}>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                    <div>
-                                                        <div style={{ fontSize: '0.68rem', fontWeight: 600, color: '#6355F1', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>{form.course?.name || 'Course'}</div>
-                                                        <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#111', marginBottom: '4px' }}>{form.title}</div>
-                                                        <div style={{ display: 'flex', gap: '16px', fontSize: '0.72rem', color: '#999' }}>
-                                                            <span>📅 {form.session_date ? new Date(form.session_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}</span>
-                                                            <span>👤 {form.faculty?.users ? `${form.faculty.users.first_name} ${form.faculty.users.last_name}` : 'Faculty'}</span>
-                                                            <span>📍 {form.venue?.name || 'TBA'}</span>
-                                                        </div>
-                                                    </div>
-                                                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                                                        <div style={{ fontSize: '0.72rem', fontWeight: 700, color: form.hoursLeft < 4 ? '#dc2626' : '#b45309', marginBottom: '4px' }}>
-                                                            ⏰ {getDeadlineDisplay(form)}
-                                                        </div>
-                                                        <div style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600, background: '#6355F1', color: '#fff' }}>
-                                                            Fill Now →
-                                                        </div>
+                                            <div key={form.session_id} onClick={() => openForm(form)} style={{ background: '#fff', borderRadius: '12px', border: '1px solid #fde68a', padding: '16px 20px', cursor: 'pointer', transition: 'all 0.15s', boxShadow: '0 1px 2px rgba(0,0,0,0.02)', display: 'flex', alignItems: 'center', gap: '16px' }}
+                                                onMouseOver={e => { e.currentTarget.style.borderColor = '#fbbf24'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(251,191,36,0.1)'; }}
+                                                onMouseOut={e => { e.currentTarget.style.borderColor = '#fde68a'; e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.02)'; }}>
+                                                
+                                                <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#f8fafc', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: '0.85rem', flexShrink: 0, border: '1px solid #f1f5f9' }}>
+                                                    {form.course?.name?.match(/\b(\w)/g)?.join('').substring(0, 2).toUpperCase() || 'FB'}
+                                                </div>
+
+                                                <div style={{ flex: 1 }}>
+                                                    <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#0f172a', marginBottom: '2px' }}>{form.title}</div>
+                                                    <div style={{ display: 'flex', gap: '8px', fontSize: '0.75rem', color: '#64748b', alignItems: 'center' }}>
+                                                        <span>{form.session_date ? new Date(form.session_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '—'}</span>
+                                                        <span>·</span>
+                                                        <span>{form.faculty?.users ? `${form.faculty.users.first_name} ${form.faculty.users.last_name}` : 'Faculty'}</span>
+                                                        <span>·</span>
+                                                        <span>{form.course?.name || 'Course'}</span>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
 
-                            {/* Expired forms */}
-                            {expiredForms.length > 0 && (
-                                <div style={{ marginBottom: '1.5rem' }}>
-                                    <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#dc2626', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                        <AlertTriangle size={14} color="#dc2626" /> Expired ({expiredForms.length})
-                                    </div>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                        {expiredForms.map(form => (
-                                            <div key={form.session_id} style={{ background: '#fef2f2', borderRadius: '10px', border: '1px solid #fecaca', padding: '14px 18px', opacity: 0.7 }}>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                    <div>
-                                                        <div style={{ fontSize: '0.68rem', fontWeight: 600, color: '#dc2626', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>{form.course?.name || 'Course'}</div>
-                                                        <div style={{ fontSize: '0.88rem', fontWeight: 600, color: '#555' }}>{form.title}</div>
-                                                    </div>
-                                                    <span style={{ padding: '3px 10px', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 600, background: '#dc2626', color: '#fff' }}>Expired</span>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                                                    <span style={{ padding: '4px 10px', borderRadius: '20px', background: '#fffbeb', color: '#d97706', fontSize: '0.72rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #fef3c7' }}>
+                                                        +3 pts
+                                                    </span>
+                                                    <span style={{ padding: '5px 14px', borderRadius: '20px', background: '#0f172a', color: '#fff', fontSize: '0.72rem', fontWeight: 600 }}>
+                                                        Fill
+                                                    </span>
                                                 </div>
                                             </div>
                                         ))}
@@ -319,30 +333,95 @@ export default function FeedbackPage() {
                             {/* Submitted forms */}
                             {submittedForms.length > 0 && (
                                 <div style={{ marginBottom: '1.5rem' }}>
-                                    <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#16a34a', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                        <CheckCircle size={14} color="#16a34a" /> Submitted ({submittedForms.length})
+                                    <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#0f172a', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        Submitted ({submittedForms.length})
                                     </div>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                        {submittedForms.map(form => (
-                                            <div key={form.session_id} style={{ background: '#f0fdf4', borderRadius: '10px', border: '1px solid #bbf7d0', padding: '12px 18px' }}>
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                    <div>
-                                                        <div style={{ fontSize: '0.68rem', fontWeight: 600, color: '#16a34a', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '2px' }}>{form.course?.name || 'Course'}</div>
-                                                        <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#333' }}>{form.title}</div>
+                                        {submittedForms.slice(0, visibleSubmitted).map(form => (
+                                            <div key={form.session_id} style={{ background: '#fff', borderRadius: '12px', border: '1px solid #bbf7d0', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                                <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#f8fafc', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: '0.85rem', flexShrink: 0, border: '1px solid #f1f5f9' }}>
+                                                    {form.course?.name?.match(/\b(\w)/g)?.join('').substring(0, 2).toUpperCase() || 'FB'}
+                                                </div>
+
+                                                <div style={{ flex: 1 }}>
+                                                    <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#0f172a', marginBottom: '2px' }}>{form.title}</div>
+                                                    <div style={{ display: 'flex', gap: '8px', fontSize: '0.75rem', color: '#64748b', alignItems: 'center' }}>
+                                                        <span>{form.session_date ? new Date(form.session_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '—'}</span>
+                                                        <span>·</span>
+                                                        <span>{form.course?.name || 'Course'}</span>
                                                     </div>
-                                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                                        <button
-                                                            onClick={() => openViewResponse(form)}
-                                                            style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 12px', borderRadius: '6px', border: '1px solid #bbf7d0', background: '#fff', color: '#16a34a', fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer' }}
-                                                        >
-                                                            <Eye size={12} /> View Response
-                                                        </button>
-                                                        <span style={{ padding: '4px 12px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600, background: '#16a34a', color: '#fff' }}>✓ Done</span>
-                                                    </div>
+                                                </div>
+
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                                                    <span style={{ padding: '4px 10px', borderRadius: '20px', background: '#f8fafc', color: '#64748b', fontSize: '0.72rem', fontWeight: 600, display: 'flex', alignItems: 'center', border: '1px solid #f1f5f9' }}>
+                                                        3 pts
+                                                    </span>
+                                                    <button
+                                                        onClick={() => openViewResponse(form)}
+                                                        style={{ padding: '4px 10px', borderRadius: '20px', background: '#f8fafc', color: '#64748b', fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer', border: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                                    >
+                                                        <Eye size={12} /> View
+                                                    </button>
+                                                    <span style={{ padding: '4px 10px', borderRadius: '20px', background: '#f0fdf4', color: '#16a34a', fontSize: '0.72rem', fontWeight: 600, display: 'flex', alignItems: 'center', border: '1px solid #dcfce7' }}>
+                                                        Done
+                                                    </span>
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
+                                    {submittedForms.length > visibleSubmitted && (
+                                        <button 
+                                            onClick={() => setVisibleSubmitted(prev => prev + 10)}
+                                            style={{ marginTop: '12px', width: '100%', padding: '12px', borderRadius: '12px', border: '1px dashed #cbd5e1', background: '#f8fafc', color: '#64748b', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s' }}
+                                            onMouseOver={e => e.currentTarget.style.background = '#f1f5f9'}
+                                            onMouseOut={e => e.currentTarget.style.background = '#f8fafc'}
+                                        >
+                                            Show More ({submittedForms.length - visibleSubmitted} remaining)
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Expired forms */}
+                            {expiredForms.length > 0 && (
+                                <div style={{ marginBottom: '1.5rem' }}>
+                                    <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#0f172a', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        Expired ({expiredForms.length})
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                        {expiredForms.slice(0, visibleExpired).map(form => (
+                                            <div key={form.session_id} style={{ background: '#fff', borderRadius: '12px', border: '1px solid #fecaca', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '16px', opacity: 0.8 }}>
+                                                <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#f8fafc', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: '0.85rem', flexShrink: 0, border: '1px solid #f1f5f9' }}>
+                                                    {form.course?.name?.match(/\b(\w)/g)?.join('').substring(0, 2).toUpperCase() || 'FB'}
+                                                </div>
+
+                                                <div style={{ flex: 1 }}>
+                                                    <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#64748b', marginBottom: '2px' }}>{form.title}</div>
+                                                    <div style={{ display: 'flex', gap: '8px', fontSize: '0.75rem', color: '#94a3b8', alignItems: 'center' }}>
+                                                        <span>{form.session_date ? new Date(form.session_date + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '—'}</span>
+                                                        <span>·</span>
+                                                        <span>{form.course?.name || 'Course'}</span>
+                                                    </div>
+                                                </div>
+
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                                                    <span style={{ padding: '4px 10px', borderRadius: '20px', background: '#fef2f2', color: '#ef4444', fontSize: '0.72rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', border: '1px solid #fee2e2' }}>
+                                                        <XCircle size={12} /> Expired
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    {expiredForms.length > visibleExpired && (
+                                        <button 
+                                            onClick={() => setVisibleExpired(prev => prev + 10)}
+                                            style={{ marginTop: '12px', width: '100%', padding: '12px', borderRadius: '12px', border: '1px dashed #cbd5e1', background: '#f8fafc', color: '#64748b', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s' }}
+                                            onMouseOver={e => e.currentTarget.style.background = '#f1f5f9'}
+                                            onMouseOut={e => e.currentTarget.style.background = '#f8fafc'}
+                                        >
+                                            Show More ({expiredForms.length - visibleExpired} remaining)
+                                        </button>
+                                    )}
                                 </div>
                             )}
 

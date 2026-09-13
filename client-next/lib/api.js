@@ -53,7 +53,10 @@ export async function apiFetch(path, options = {}) {
       });
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      window.location.href = '/';
+      // Preserve the current path so login can redirect back after authentication
+      const currentPath = window.location.pathname + window.location.search;
+      const loginUrl = currentPath && currentPath !== '/' ? `/?redirect=${encodeURIComponent(currentPath)}` : '/';
+      window.location.href = loginUrl;
     }
     throw new Error('Unauthorized');
   }
@@ -89,7 +92,10 @@ export async function apiUpload(path, formData) {
       });
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      window.location.href = '/';
+      // Preserve the current path so login can redirect back after authentication
+      const currentPath = window.location.pathname + window.location.search;
+      const loginUrl = currentPath && currentPath !== '/' ? `/?redirect=${encodeURIComponent(currentPath)}` : '/';
+      window.location.href = loginUrl;
     }
     throw new Error('Unauthorized');
   }

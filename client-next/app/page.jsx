@@ -59,9 +59,17 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [redirectTo, setRedirectTo] = useState(null);
 
   const router = useRouter();
   const { login, completeGoogleLogin } = useAuth();
+
+  // Capture ?redirect= param once on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const dest = params.get('redirect');
+    if (dest && dest.startsWith('/')) setRedirectTo(dest);
+  }, []);
 
   useEffect(() => {
     const outcome = new URLSearchParams(window.location.search).get('google_signin');
@@ -86,7 +94,10 @@ const Login = () => {
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Google sign-in session expired');
         completeGoogleLogin(data);
-        router.replace('/dashboard');
+        // Restore any redirect destination that was saved before Google OAuth
+        const savedRedirect = sessionStorage.getItem('login_redirect');
+        sessionStorage.removeItem('login_redirect');
+        router.replace(savedRedirect && savedRedirect.startsWith('/') ? savedRedirect : '/dashboard');
       } catch (err) {
         setError(err.message || 'Google sign-in could not be completed.');
       } finally {
@@ -105,7 +116,10 @@ const Login = () => {
 
     try {
       const user = await login(identifier.trim(), password);
-      if (user.role === 'admin') {
+      // Honour any ?redirect= destination; otherwise fall back to role defaults
+      if (redirectTo) {
+        router.push(redirectTo);
+      } else if (user.role === 'admin') {
         router.push('/admin');
       } else if (user.role === 'faculty') {
         router.push('/faculty/dashboard');
@@ -215,7 +229,11 @@ const Login = () => {
             <button
               type="button"
               className="google-login-button"
-              onClick={() => { window.location.assign('/api/auth/google/signin'); }}
+              onClick={() => {
+                // Save the redirect destination so it survives the Google OAuth round-trip
+                if (redirectTo) sessionStorage.setItem('login_redirect', redirectTo);
+                window.location.assign('/api/auth/google/signin');
+              }}
               disabled={isLoading}
             >
               <span className="google-login-mark" aria-hidden="true">G</span>

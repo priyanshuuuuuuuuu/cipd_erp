@@ -227,9 +227,7 @@ const StudentDashboard = () => {
                             <h1>Home</h1>
                         </div>
                         <div className="header-actions">
-                            <div className="search-bar"><Search size={16} color="#aaa" /><input type="text" placeholder="Search" className="search-input" /></div>
                             <NotificationBell />
-                            <MessageSquare size={20} color="#555" />
                         </div>
                     </header>
 
