@@ -269,7 +269,7 @@ export default function FeedbackPage() {
                                             Lecture Feedback
                                         </h2>
                                         <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}>
-                                            You've earned <strong style={{ color: '#0f172a' }}>{totalPointsEarned} Points</strong> from feedback.
+                                            You&apos;ve earned ... <strong style={{ color: '#0f172a' }}>{totalPointsEarned} Points</strong> from feedback.
                                         </p>
                                     </div>
                                     <div style={{ display: 'flex', gap: '12px' }}>

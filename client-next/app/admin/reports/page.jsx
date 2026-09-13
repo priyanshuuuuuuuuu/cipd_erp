@@ -1020,7 +1020,7 @@ export default function AdminReportsPage() {
                                             Generates an <strong>.xlsx</strong> file with one row per active student and one column per
                                             completed session — ordered by date. Each cell shows the <strong>points earned</strong>
                                             and is colour-coded by attendance status. Empty cells mean the student was not enrolled
-                                            in that session's course.
+                                            in that session&apos;s course..
                                         </div>
                                         <div style={{ marginTop: 14, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                                             {[['Present','#D1FAE5','#065F46'],['Partial','#FEF9C3','#713F12'],['Absent','#FEE2E2','#991B1B'],['Leave','#EDE9FE','#5B21B6']].map(([lbl,bg,fg]) => (
