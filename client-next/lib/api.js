@@ -18,6 +18,7 @@ function getToken() {
   } else {
     expectedRole = 'student';
     // code
+    // code
   }
 
   // Prefer role-scoped token for the current page
