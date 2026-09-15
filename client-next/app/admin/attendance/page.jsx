@@ -146,6 +146,7 @@ export default function AdminAttendancePage() {
     const [expandedSession, setExpandedSession] = useState(null);
     const [sessionStudents, setSessionStudents] = useState(null);
     const [studentsLoading, setStudentsLoading] = useState(false);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const [nextRefreshIn, setNextRefreshIn] = useState(null);
     const refreshTimerRef = useRef(null);
     const scannerIntervalRef = useRef(6 * 60 * 1000);
@@ -256,6 +257,7 @@ export default function AdminAttendancePage() {
 
     // Silent refresh (no loading spinner) for ongoing session auto-updates
     const refreshSessionStudents = async (sessionId) => {
+        setIsRefreshing(true);
         try {
             const json = await api.get(`/api/admin/attendance/session-students?session_id=${sessionId}`);
             setSessionStudents(json);
@@ -273,6 +275,8 @@ export default function AdminAttendancePage() {
             // Retry in 30s
             refreshTimerRef.current = setTimeout(() => refreshSessionStudents(sessionId), 30000);
             setNextRefreshIn(30);
+        } finally {
+            setIsRefreshing(false);
         }
     };
 
@@ -576,12 +580,14 @@ export default function AdminAttendancePage() {
                                                         </>
                                                     )}
                                                     <button onClick={(e) => { e.stopPropagation(); refreshSessionStudents(session.id); }}
+                                                        disabled={isRefreshing}
                                                         style={{
                                                             marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '4px',
                                                             padding: '4px 10px', borderRadius: '6px', border: '1px solid #bbf7d0',
-                                                            background: '#fff', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 600, color: '#166534',
+                                                            background: '#fff', cursor: isRefreshing ? 'not-allowed' : 'pointer', fontSize: '0.7rem', fontWeight: 600, color: '#166534',
+                                                            opacity: isRefreshing ? 0.7 : 1
                                                         }}>
-                                                        <RefreshCw size={10} /> Refresh Now
+                                                        <RefreshCw size={10} style={isRefreshing ? { animation: 'spin 1s linear infinite' } : {}} /> {isRefreshing ? 'Refreshing...' : 'Refresh Now'}
                                                     </button>
                                                 </div>
                                             )}
