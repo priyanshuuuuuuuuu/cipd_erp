@@ -1,48 +1,70 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import { courseEnrollments, sessions as sessionsTable, courses, faculty, users, venues, sessionTypes } from '@/drizzle/schema';
+import { eq, and, inArray, ne, asc } from 'drizzle-orm';
 import { withAuth } from '@/lib/middleware';
 import { getISTDateString } from '@/lib/ist-date';
 
 async function handler(req) {
   try {
-    // Use client-supplied local date to avoid UTC vs local timezone mismatch.
-    // The frontend passes ?date=YYYY-MM-DD in the user's timezone.
-    // Fallback to IST date if no date is provided.
     const { searchParams } = new URL(req.url);
     const today = searchParams.get('date') || getISTDateString();
 
-    // Get courses the student is enrolled in
-    const { data: enrollments } = await supabaseAdmin
-      .from('course_enrollments')
-      .select('course_id')
-      .eq('student_id', req.user.id);
+    const enrollments = await db
+      .select({ course_id: courseEnrollments.courseId })
+      .from(courseEnrollments)
+      .where(eq(courseEnrollments.studentId, req.user.id));
 
-    const courseIds = (enrollments || []).map(e => e.course_id);
+    const courseIds = (enrollments || []).map((e) => e.course_id);
 
     if (courseIds.length === 0) {
       return NextResponse.json({ sessions: [] });
     }
 
-    // Get today's sessions for enrolled courses
-    const { data: sessions, error } = await supabaseAdmin
-      .from('sessions')
-      .select(`
-        id, title, session_date, start_time, end_time, status,
-        courses ( id, name ),
-        faculty ( id, users ( first_name, last_name ) ),
-        venues ( id, name, building ),
-        session_types ( id, name )
-      `)
-      .in('course_id', courseIds)
-      .eq('session_date', today)
-      .neq('status', 'cancelled')
-      .order('start_time', { ascending: true });
-
-    if (error) {
-      console.error('Schedule today error:', error);
-      return NextResponse.json({ error: 'Failed to fetch schedule' }, { status: 500 });
-    }
+    const sessions = await db
+      .select({
+        id: sessionsTable.id,
+        title: sessionsTable.title,
+        session_date: sessionsTable.sessionDate,
+        start_time: sessionsTable.startTime,
+        end_time: sessionsTable.endTime,
+        status: sessionsTable.status,
+        courses: {
+          id: courses.id,
+          name: courses.name,
+        },
+        faculty: {
+          id: faculty.id,
+          users: {
+            first_name: users.firstName,
+            last_name: users.lastName,
+          },
+        },
+        venues: {
+          id: venues.id,
+          name: venues.name,
+          building: venues.building,
+        },
+        session_types: {
+          id: sessionTypes.id,
+          name: sessionTypes.name,
+        },
+      })
+      .from(sessionsTable)
+      .leftJoin(courses, eq(sessionsTable.courseId, courses.id))
+      .leftJoin(faculty, eq(sessionsTable.facultyId, faculty.id))
+      .leftJoin(users, eq(faculty.userId, users.id))
+      .leftJoin(venues, eq(sessionsTable.venueId, venues.id))
+      .leftJoin(sessionTypes, eq(sessionsTable.sessionTypeId, sessionTypes.id))
+      .where(
+        and(
+          inArray(sessionsTable.courseId, courseIds),
+          eq(sessionsTable.sessionDate, today),
+          ne(sessionsTable.status, 'cancelled')
+        )
+      )
+      .orderBy(asc(sessionsTable.startTime));
 
     return NextResponse.json({ sessions: sessions || [] });
   } catch (err) {

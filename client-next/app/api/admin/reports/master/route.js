@@ -1,49 +1,72 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import {
+  sessions,
+  feedbackResponses,
+  courses,
+  faculty,
+  users,
+  venues,
+  sessionTypes,
+  sessionSkills,
+  skills,
+} from '@/drizzle/schema';
+import { asc, isNotNull } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
 
 async function handler(request) {
   try {
     // ── Run all flat queries in parallel ─────────────────────────────────────
     const [
-      { data: sessions,      error: sessErr  },
-      { data: feedbackRaw                    },
-      { data: courseRows                     },
-      { data: facultyRows                    },
-      { data: userRows                       },
-      { data: venueRows                      },
-      { data: sessionTypeRows                },
-      { data: sessionSkillRows               },
-      { data: skillRows                      },
+      sessionRows,
+      feedbackRaw,
+      courseRows,
+      facultyRows,
+      userRows,
+      venueRows,
+      sessionTypeRows,
+      sessionSkillRows,
+      skillRows,
     ] = await Promise.all([
-      supabaseAdmin
-        .from('sessions')
-        .select('id, title, session_date, start_time, end_time, status, course_id, faculty_id, venue_id, session_type_id')
-        .order('session_date', { ascending: true })
-        .order('start_time',   { ascending: true }),
+      db
+        .select({
+          id: sessions.id,
+          title: sessions.title,
+          session_date: sessions.sessionDate,
+          start_time: sessions.startTime,
+          end_time: sessions.endTime,
+          status: sessions.status,
+          course_id: sessions.courseId,
+          faculty_id: sessions.facultyId,
+          venue_id: sessions.venueId,
+          session_type_id: sessions.sessionTypeId,
+        })
+        .from(sessions)
+        .orderBy(asc(sessions.sessionDate), asc(sessions.startTime)),
 
-      supabaseAdmin
-        .from('feedback_responses')
-        .select('session_id, rating')
-        .not('rating', 'is', null),
+      db
+        .select({
+          session_id: feedbackResponses.sessionId,
+          rating: feedbackResponses.rating,
+        })
+        .from(feedbackResponses)
+        .where(isNotNull(feedbackResponses.rating)),
 
-      supabaseAdmin.from('courses').select('id, name'),
+      db.select({ id: courses.id, name: courses.name }).from(courses),
 
-      supabaseAdmin.from('faculty').select('id, years_experience, designation'),
+      db.select({ id: faculty.id, years_experience: faculty.yearsExperience, designation: faculty.designation }).from(faculty),
 
-      supabaseAdmin.from('users').select('id, first_name, last_name'),
+      db.select({ id: users.id, first_name: users.firstName, last_name: users.lastName }).from(users),
 
-      supabaseAdmin.from('venues').select('id, name'),
+      db.select({ id: venues.id, name: venues.name }).from(venues),
 
-      supabaseAdmin.from('session_types').select('id, name'),
+      db.select({ id: sessionTypes.id, name: sessionTypes.name }).from(sessionTypes),
 
-      supabaseAdmin.from('session_skills').select('session_id, skill_id'),
+      db.select({ session_id: sessionSkills.sessionId, skill_id: sessionSkills.skillId }).from(sessionSkills),
 
-      supabaseAdmin.from('skills').select('id, name, details'),
+      db.select({ id: skills.id, name: skills.name, details: skills.details }).from(skills),
     ]);
-
-    if (sessErr) throw sessErr;
 
     // ── Build lookup maps ─────────────────────────────────────────────────────
     const courseById     = Object.fromEntries((courseRows      || []).map(r => [r.id, r]));
@@ -94,7 +117,7 @@ async function handler(request) {
     };
 
     // ── Master rows ───────────────────────────────────────────────────────────
-    const masterRows = (sessions || []).map((s, idx) => {
+    const masterRows = (sessionRows || []).map((s, idx) => {
       const faculty      = facultyById[s.faculty_id];
       const user         = faculty ? userById[faculty.id] : null;
       const facultyName  = user ? `${user.first_name} ${user.last_name}` : 'TBA';
@@ -235,7 +258,7 @@ async function handler(request) {
     const sessionDatesBySkill = {};
     (sessionSkillRows || []).forEach(ss => {
       if (!sessionDatesBySkill[ss.skill_id]) sessionDatesBySkill[ss.skill_id] = [];
-      const session = (sessions || []).find(s => s.id === ss.session_id);
+      const session = (sessionRows || []).find(s => s.id === ss.session_id);
       if (session?.session_date) sessionDatesBySkill[ss.skill_id].push(session.session_date);
     });
     const skillsCoverage = (skillRows || []).map(sk => ({

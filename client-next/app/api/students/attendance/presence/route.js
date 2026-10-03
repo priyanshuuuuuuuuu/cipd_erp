@@ -1,5 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
+import { db } from '@/lib/db';
+import { students } from '@/drizzle/schema';
+import { eq } from 'drizzle-orm';
 import { supabaseAdmin } from '@/lib/supabase';
 import { withAuth } from '@/lib/middleware';
 
@@ -13,11 +16,10 @@ async function handler(req) {
     const studentId = req.user.id;
 
     // Get the student's MAC address
-    const { data: student } = await supabaseAdmin
-      .from('students')
-      .select('mac_address')
-      .eq('id', studentId)
-      .single();
+    const [student] = await db
+      .select({ mac_address: students.macAddress })
+      .from(students)
+      .where(eq(students.id, studentId));
 
     if (!student?.mac_address) {
       return NextResponse.json({ present: false, lastUpdated: null, message: 'MAC address not registered' });

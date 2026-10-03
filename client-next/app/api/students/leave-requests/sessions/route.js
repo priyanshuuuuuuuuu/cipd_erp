@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import { courseEnrollments, sessions as sessionsTable, courses, leaveRequests } from '@/drizzle/schema';
+import { eq, and, inArray, ne, asc } from 'drizzle-orm';
 import { withAuth } from '@/lib/middleware';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -18,34 +20,48 @@ async function getHandler(req) {
       );
     }
 
-    const { data: enrollments } = await supabaseAdmin
-      .from('course_enrollments')
-      .select('course_id')
-      .eq('student_id', req.user.id);
+    const enrollments = await db
+      .select({ course_id: courseEnrollments.courseId })
+      .from(courseEnrollments)
+      .where(eq(courseEnrollments.studentId, req.user.id));
 
     const courseIds = (enrollments || []).map((e) => e.course_id);
     if (courseIds.length === 0) {
       return NextResponse.json({ sessions: [] });
     }
 
-    const { data: sessions, error } = await supabaseAdmin
-      .from('sessions')
-      .select('id, title, start_time, end_time, status, courses ( name )')
-      .in('course_id', courseIds)
-      .eq('session_date', date)
-      .neq('status', 'cancelled')
-      .order('start_time', { ascending: true });
+    const sessions = await db
+      .select({
+        id: sessionsTable.id,
+        title: sessionsTable.title,
+        start_time: sessionsTable.startTime,
+        end_time: sessionsTable.endTime,
+        status: sessionsTable.status,
+        courses: {
+          name: courses.name,
+        },
+      })
+      .from(sessionsTable)
+      .leftJoin(courses, eq(sessionsTable.courseId, courses.id))
+      .where(
+        and(
+          inArray(sessionsTable.courseId, courseIds),
+          eq(sessionsTable.sessionDate, date),
+          ne(sessionsTable.status, 'cancelled')
+        )
+      )
+      .orderBy(asc(sessionsTable.startTime));
 
-    if (error) {
-      return NextResponse.json({ error: 'Failed to load sessions' }, { status: 500 });
-    }
-
-    const { data: existingLeaves } = await supabaseAdmin
-      .from('leave_requests')
-      .select('session_id, status')
-      .eq('student_id', req.user.id)
-      .eq('leave_date', date)
-      .in('status', ['pending', 'approved']);
+    const existingLeaves = await db
+      .select({ session_id: leaveRequests.sessionId, status: leaveRequests.status })
+      .from(leaveRequests)
+      .where(
+        and(
+          eq(leaveRequests.studentId, req.user.id),
+          eq(leaveRequests.leaveDate, date),
+          inArray(leaveRequests.status, ['pending', 'approved'])
+        )
+      );
 
     const leaveMap = {};
     (existingLeaves || []).forEach((l) => {

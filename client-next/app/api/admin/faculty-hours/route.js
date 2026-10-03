@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import { faculty, users, sessions, feedbackResponses } from '@/drizzle/schema';
+import { eq, and, ne, isNotNull } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
 import { hashPassword } from '@/lib/auth';
 
@@ -9,53 +11,34 @@ const DEFAULT_RATE = 2000;
 async function handler(request) {
     try {
         // Fetch all faculty members with user details
-        const { data: facultyList, error: facErr } = await supabaseAdmin
-            .from('faculty')
-            .select(`
-                id,
-                designation,
-                honorarium_rate_per_hour,
-                years_experience,
-                department,
-                bank_account_number,
-                bank_account_holder,
-                bank_ifsc_code,
-                bank_branch,
-                users!inner ( first_name, last_name, email, is_active, role )
-            `);
-
-        if (facErr) throw facErr;
+        const facultyList = await db.query.faculty.findMany({
+            with: {
+                user: {
+                    columns: { firstName: true, lastName: true, email: true, isActive: true, role: true }
+                }
+            }
+        });
 
         // Fetch ALL sessions (all statuses) with course + venue info
-        const { data: sessions, error: sessErr } = await supabaseAdmin
-            .from('sessions')
-            .select(`
-                id,
-                faculty_id,
-                start_time,
-                end_time,
-                session_date,
-                status,
-                title,
-                courses ( name ),
-                venues ( name )
-            `);
-
-        if (sessErr) throw sessErr;
+        const sessionsData = await db.query.sessions.findMany({
+            columns: { id: true, facultyId: true, startTime: true, endTime: true, sessionDate: true, status: true, title: true },
+            with: {
+                course: { columns: { name: true } },
+                venue: { columns: { name: true } }
+            }
+        });
 
         // Fetch all feedback ratings grouped by session
-        const { data: feedbackRows, error: fbErr } = await supabaseAdmin
-            .from('feedback_responses')
-            .select('session_id, rating')
-            .not('rating', 'is', null);
-
-        if (fbErr) throw fbErr;
+        const feedbackRows = await db.query.feedbackResponses.findMany({
+            columns: { sessionId: true, rating: true },
+            where: isNotNull(feedbackResponses.rating)
+        });
 
         // Build a map: session_id -> avg_rating
         const ratingMap = {};
         (feedbackRows || []).forEach(fb => {
-            if (!ratingMap[fb.session_id]) ratingMap[fb.session_id] = [];
-            ratingMap[fb.session_id].push(fb.rating);
+            if (!ratingMap[fb.sessionId]) ratingMap[fb.sessionId] = [];
+            ratingMap[fb.sessionId].push(fb.rating);
         });
         const avgRatingMap = {};
         for (const [sid, ratings] of Object.entries(ratingMap)) {
@@ -64,31 +47,31 @@ async function handler(request) {
 
         // Map data to calculate hours and honorarium
         const facultyData = (facultyList || []).map(fac => {
-            const facSessions = (sessions || []).filter(s => s.faculty_id === fac.id);
+            const facSessions = (sessionsData || []).filter(s => s.facultyId === fac.id);
             const completedSessions = facSessions.filter(s => s.status === 'completed');
             let totalHours = 0;
 
             const detailedSessions = facSessions.map(s => {
                 // Calculate duration in hours
-                const start = new Date(`1970-01-01T${s.start_time}Z`);
-                const end = new Date(`1970-01-01T${s.end_time}Z`);
+                const start = new Date(`1970-01-01T${s.startTime}Z`);
+                const end = new Date(`1970-01-01T${s.endTime}Z`);
                 const durationHrs = Math.abs((end - start) / (1000 * 60 * 60));
                 const durationMins = durationHrs * 60;
 
                 if (s.status === 'completed') totalHours += durationHrs;
 
                 // Format date safely (avoid timezone issues)
-                const [y, m, d] = s.session_date.split('-');
+                const [y, m, d] = s.sessionDate.split('-');
                 const dObj = new Date(Number(y), Number(m) - 1, Number(d));
                 const dateStr = dObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
                 return {
                     session_id: s.id,
                     date: dateStr,
-                    date_raw: s.session_date,
+                    date_raw: s.sessionDate,
                     title: s.title || 'Untitled Session',
-                    course: s.courses?.name || 'Unknown',
-                    venue: s.venues?.name || 'Unknown',
+                    course: s.course?.name || 'Unknown',
+                    venue: s.venue?.name || 'Unknown',
                     duration: `${durationHrs.toFixed(1)}h`,
                     duration_mins: durationMins,
                     status: s.status,
@@ -96,18 +79,18 @@ async function handler(request) {
                 };
             }).sort((a, b) => b.date_raw.localeCompare(a.date_raw));
 
-            const rate = fac.honorarium_rate_per_hour || DEFAULT_RATE;
+            const rate = fac.honorariumRatePerHour || DEFAULT_RATE;
 
             return {
                 id: fac.id,
-                firstName: fac.users?.first_name || '',
-                lastName: fac.users?.last_name || '',
-                email: fac.users?.email || '',
-                name: `Prof. ${fac.users?.first_name} ${fac.users?.last_name}`,
+                firstName: fac.user?.firstName || '',
+                lastName: fac.user?.lastName || '',
+                email: fac.user?.email || '',
+                name: `Prof. ${fac.user?.firstName} ${fac.user?.lastName}`,
                 dept: fac.department || fac.designation || 'Faculty',
                 designation: fac.designation || '',
                 department: fac.department || '',
-                yearsExperience: fac.years_experience ?? '',
+                yearsExperience: fac.yearsExperience ?? '',
                 sessions: completedSessions.length,
                 totalSessionCount: facSessions.length,
                 hours: totalHours,
@@ -116,10 +99,10 @@ async function handler(request) {
                 status: 'Pending',
                 sessionDetails: detailedSessions,
                 // Bank details
-                bankAccountNumber: fac.bank_account_number || '',
-                bankAccountHolder: fac.bank_account_holder || '',
-                bankIfscCode: fac.bank_ifsc_code || '',
-                bankBranch: fac.bank_branch || '',
+                bankAccountNumber: fac.bankAccountNumber || '',
+                bankAccountHolder: fac.bankAccountHolder || '',
+                bankIfscCode: fac.bankIfscCode || '',
+                bankBranch: fac.bankBranch || '',
             };
         });
 
@@ -143,12 +126,13 @@ async function createFacultyHandler(request) {
             return NextResponse.json({ error: 'First name, last name, and email are required.' }, { status: 400 });
         }
 
+        const safeEmail = email.toLowerCase().trim();
+
         // Check if email already exists
-        const { data: existing } = await supabaseAdmin
-            .from('users')
-            .select('id')
-            .eq('email', email.toLowerCase().trim())
-            .maybeSingle();
+        const existing = await db.query.users.findFirst({
+            columns: { id: true },
+            where: eq(users.email, safeEmail)
+        });
 
         if (existing) {
             return NextResponse.json({ error: 'A user with this email already exists.' }, { status: 409 });
@@ -157,44 +141,35 @@ async function createFacultyHandler(request) {
         // Hash default password
         const password_hash = await hashPassword('cipd@123');
 
-        // Insert into users table
-        const { data: newUser, error: userErr } = await supabaseAdmin
-            .from('users')
-            .insert({
-                first_name: firstName.trim(),
-                last_name: lastName.trim(),
-                email: email.toLowerCase().trim(),
-                password_hash,
+        let newUserId;
+
+        // Use a transaction to ensure both user and faculty records are created together
+        await db.transaction(async (tx) => {
+            const [newUser] = await tx.insert(users).values({
+                firstName: firstName.trim(),
+                lastName: lastName.trim(),
+                email: safeEmail,
+                passwordHash: password_hash,
                 role: 'faculty',
-                is_active: true,
-            })
-            .select('id')
-            .single();
+                isActive: true,
+            }).returning({ id: users.id });
 
-        if (userErr) throw userErr;
+            newUserId = newUser.id;
 
-        // Insert into faculty table
-        const { error: facErr } = await supabaseAdmin
-            .from('faculty')
-            .insert({
-                id: newUser.id,
+            await tx.insert(faculty).values({
+                id: newUserId,
                 designation: designation?.trim() || null,
-                years_experience: yearsExperience ? parseInt(yearsExperience, 10) : null,
-                honorarium_rate_per_hour: DEFAULT_RATE,
+                yearsExperience: yearsExperience ? parseInt(yearsExperience, 10) : null,
+                honorariumRatePerHour: DEFAULT_RATE,
             });
-
-        if (facErr) {
-            // Rollback user insertion if faculty insert fails
-            await supabaseAdmin.from('users').delete().eq('id', newUser.id);
-            throw facErr;
-        }
+        });
 
         return NextResponse.json({
             success: true,
             faculty: {
-                id: newUser.id,
+                id: newUserId,
                 name: `Prof. ${firstName.trim()} ${lastName.trim()}`,
-                email: email.toLowerCase().trim(),
+                email: safeEmail,
                 designation: designation || null,
                 yearsExperience: yearsExperience || null,
             },
@@ -218,13 +193,10 @@ async function updateFacultyHandler(request) {
         }
 
         // Verify that target user exists and has role 'faculty'
-        const { data: targetUser, error: fetchErr } = await supabaseAdmin
-            .from('users')
-            .select('id, role, email')
-            .eq('id', facultyId)
-            .maybeSingle();
-
-        if (fetchErr) throw fetchErr;
+        const targetUser = await db.query.users.findFirst({
+            columns: { id: true, role: true, email: true },
+            where: eq(users.id, facultyId)
+        });
 
         if (!targetUser || targetUser.role !== 'faculty') {
             return NextResponse.json({ error: 'Faculty user not found or does not have role faculty.' }, { status: 404 });
@@ -232,8 +204,8 @@ async function updateFacultyHandler(request) {
 
         // Update users table (name & email fields)
         const userUpdates = {};
-        if (firstName !== undefined) userUpdates.first_name = firstName.trim();
-        if (lastName !== undefined) userUpdates.last_name = lastName.trim();
+        if (firstName !== undefined) userUpdates.firstName = firstName.trim();
+        if (lastName !== undefined) userUpdates.lastName = lastName.trim();
 
         if (email !== undefined) {
             const trimmedEmail = email.toLowerCase().trim();
@@ -242,12 +214,13 @@ async function updateFacultyHandler(request) {
             }
             if (trimmedEmail !== targetUser.email) {
                 // Check email uniqueness excluding current user
-                const { data: existing } = await supabaseAdmin
-                    .from('users')
-                    .select('id')
-                    .eq('email', trimmedEmail)
-                    .neq('id', facultyId)
-                    .maybeSingle();
+                const existing = await db.query.users.findFirst({
+                    columns: { id: true },
+                    where: and(
+                        eq(users.email, trimmedEmail),
+                        ne(users.id, facultyId)
+                    )
+                });
 
                 if (existing) {
                     return NextResponse.json({ error: 'A user with this email already exists.' }, { status: 409 });
@@ -259,33 +232,30 @@ async function updateFacultyHandler(request) {
         // Prepare faculty table updates (profile fields)
         const facUpdates = {};
         if (designation !== undefined) facUpdates.designation = designation?.trim() || null;
-        if (yearsExperience !== undefined) facUpdates.years_experience = yearsExperience !== '' ? parseInt(yearsExperience, 10) : null;
-        if (honorariumRate !== undefined) facUpdates.honorarium_rate_per_hour = honorariumRate !== '' ? parseFloat(honorariumRate) : null;
+        if (yearsExperience !== undefined) facUpdates.yearsExperience = yearsExperience !== '' ? parseInt(yearsExperience, 10) : null;
+        if (honorariumRate !== undefined) facUpdates.honorariumRatePerHour = honorariumRate !== '' ? parseFloat(honorariumRate) : null;
         if (department !== undefined) facUpdates.department = department?.trim() || null;
-        // Bank detail fields
-        if (bankAccountNumber !== undefined) facUpdates.bank_account_number = bankAccountNumber?.trim() || null;
-        if (bankAccountHolder !== undefined) facUpdates.bank_account_holder = bankAccountHolder?.trim() || null;
-        if (bankIfscCode !== undefined) facUpdates.bank_ifsc_code = bankIfscCode?.trim()?.toUpperCase() || null;
-        if (bankBranch !== undefined) facUpdates.bank_branch = bankBranch?.trim() || null;
-
         
+        // Bank detail fields
+        if (bankAccountNumber !== undefined) facUpdates.bankAccountNumber = bankAccountNumber?.trim() || null;
+        if (bankAccountHolder !== undefined) facUpdates.bankAccountHolder = bankAccountHolder?.trim() || null;
+        if (bankIfscCode !== undefined) facUpdates.bankIfscCode = bankIfscCode?.trim()?.toUpperCase() || null;
+        if (bankBranch !== undefined) facUpdates.bankBranch = bankBranch?.trim() || null;
 
-        if (Object.keys(userUpdates).length > 0) {
-            const { error: userErr } = await supabaseAdmin
-                .from('users')
-                .update(userUpdates)
-                .eq('id', facultyId)
-                .eq('role', 'faculty');
-            if (userErr) throw userErr;
-        }
+        await db.transaction(async (tx) => {
+            if (Object.keys(userUpdates).length > 0) {
+                await tx.update(users)
+                    .set(userUpdates)
+                    .where(and(eq(users.id, facultyId), eq(users.role, 'faculty')));
+            }
 
-        if (Object.keys(facUpdates).length > 0) {
-            const { error: facErr } = await supabaseAdmin
-                .from('faculty')
-                .update(facUpdates)
-                .eq('id', facultyId);
-            if (facErr) throw facErr;
-        }
+            if (Object.keys(facUpdates).length > 0) {
+                await tx.update(faculty)
+                    .set(facUpdates)
+                    .where(eq(faculty.id, facultyId));
+            }
+        });
+
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error('Update Faculty API Error:', error);

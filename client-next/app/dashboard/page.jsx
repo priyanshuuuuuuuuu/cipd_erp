@@ -126,11 +126,14 @@ const StudentDashboard = () => {
 
         (sessionHistory || []).forEach(s => {
             const sess = s.sessions || s; // handle both shapes
-            const dateStr = sess.session_date || sess.session_date;
+            let dateStr = sess.session_date || sess.session_date;
             if (!dateStr) return;
+            // Handle Drizzle returning ISO date strings like '2026-10-02T00:00:00.000Z'
+            dateStr = typeof dateStr === 'string' ? dateStr.slice(0, 10) : new Date(dateStr).toISOString().slice(0, 10);
+            
             const sessionDate = new Date(`${dateStr}T12:00:00`);
             if (sessionDate < monday || sessionDate > sunday) return;
-            const key = dateStr.slice(0, 10);
+            const key = dateStr;
             if (!dayStats[key]) return;
             dayStats[key].total++;
             if (s.status === 'present' || s.status === 'partial') {

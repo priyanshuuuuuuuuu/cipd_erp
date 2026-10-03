@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import { sessions, feedbackResponses, courses, faculty, users } from '@/drizzle/schema';
+import { eq, inArray, desc } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
 import { getFeedbackDeadline, getFeedbackHoursLeft, isFeedbackExpired } from '@/lib/feedback-deadline';
 import { getAttendedCountBySession } from '@/lib/feedback-eligibility';
@@ -11,43 +13,45 @@ async function getHandler(req) {
     const { searchParams } = new URL(req.url);
     const status = searchParams.get('status'); // active, expired, all
 
-    const { data: sessions } = await supabaseAdmin
-      .from('sessions')
-      .select(`
-        id, title, session_date, start_time, end_time, feedback_deadline, status,
-        courses ( id, name ),
-        faculty ( id, users ( first_name, last_name ) )
-      `)
-      .eq('status', 'completed')
-      .order('session_date', { ascending: false });
+    // Fetch sessions
+    const sessionsData = await db.query.sessions.findMany({
+      columns: { id: true, title: true, sessionDate: true, startTime: true, endTime: true, feedbackDeadline: true, status: true },
+      where: eq(sessions.status, 'completed'),
+      with: {
+        course: { columns: { id: true, name: true } },
+        faculty: { columns: { id: true }, with: { user: { columns: { firstName: true, lastName: true } } } }
+      },
+      orderBy: [desc(sessions.sessionDate)]
+    });
 
-    const sessionIds = (sessions || []).map((s) => s.id);
+    const sessionIds = sessionsData.map(s => s.id);
 
-    const { data: allResponses } =
-      sessionIds.length > 0
-        ? await supabaseAdmin
-            .from('feedback_responses')
-            .select('session_id, student_id, rating')
-            .in('session_id', sessionIds)
-        : { data: [] };
+    let allResponses = [];
+    if (sessionIds.length > 0) {
+      allResponses = await db.query.feedbackResponses.findMany({
+        columns: { sessionId: true, studentId: true, rating: true },
+        where: inArray(feedbackResponses.sessionId, sessionIds)
+      });
+    }
 
     const attendedCountMap = await getAttendedCountBySession(
-      supabaseAdmin,
+      db,
       sessionIds.length > 0 ? sessionIds : null
     );
 
     const responsesBySession = {};
     (allResponses || []).forEach((r) => {
-      if (!responsesBySession[r.session_id]) responsesBySession[r.session_id] = [];
-      responsesBySession[r.session_id].push(r);
+      if (!responsesBySession[r.sessionId]) responsesBySession[r.sessionId] = [];
+      responsesBySession[r.sessionId].push(r);
     });
 
-    const forms = (sessions || []).map((s) => {
-      const deadline = getFeedbackDeadline(s);
-      const expired = isFeedbackExpired(s);
+    const forms = sessionsData.map((s) => {
+      const sessionObj = { session_date: s.sessionDate, end_time: s.endTime, feedback_deadline: s.feedbackDeadline };
+      const deadline = getFeedbackDeadline(sessionObj);
+      const expired = isFeedbackExpired(sessionObj);
 
       const sessionResponses = responsesBySession[s.id] || [];
-      const uniqueStudents = new Set(sessionResponses.map((r) => r.student_id)).size;
+      const uniqueStudents = new Set(sessionResponses.map((r) => r.studentId)).size;
       const attended = attendedCountMap[s.id] || 0;
       const ratings = sessionResponses.filter((r) => r.rating != null).map((r) => r.rating);
       const avgRating =
@@ -58,20 +62,20 @@ async function getHandler(req) {
       return {
         session_id: s.id,
         title: s.title,
-        session_date: s.session_date,
-        start_time: s.start_time,
-        end_time: s.end_time,
-        course: s.courses,
+        session_date: s.sessionDate,
+        start_time: s.startTime,
+        end_time: s.endTime,
+        course: s.course,
         faculty: s.faculty
           ? {
-              name: s.faculty.users
-                ? `${s.faculty.users.first_name} ${s.faculty.users.last_name}`
+              name: s.faculty.user
+                ? `${s.faculty.user.firstName} ${s.faculty.user.lastName}`
                 : 'TBA',
             }
           : null,
         deadline: deadline.toISOString(),
         expired,
-        hoursLeft: getFeedbackHoursLeft(s),
+        hoursLeft: getFeedbackHoursLeft(sessionObj),
         submissions: uniqueStudents,
         attended,
         enrolled: attended,
@@ -90,7 +94,7 @@ async function getHandler(req) {
         total: forms.length,
         active: forms.filter((f) => !f.expired).length,
         expired: forms.filter((f) => f.expired).length,
-        totalSubmissions: new Set((allResponses || []).map((r) => `${r.session_id}::${r.student_id}`)).size,
+        totalSubmissions: new Set((allResponses || []).map((r) => `${r.sessionId}::${r.studentId}`)).size,
       },
     });
   } catch (err) {
@@ -110,17 +114,13 @@ async function patchHandler(req) {
 
     const updates = {};
     if (feedback_deadline !== undefined) {
-      updates.feedback_deadline = feedback_deadline ? new Date(feedback_deadline).toISOString() : null;
+      updates.feedbackDeadline = feedback_deadline ? new Date(feedback_deadline).toISOString() : null;
     }
 
-    const { data, error } = await supabaseAdmin
-      .from('sessions')
-      .update(updates)
-      .eq('id', session_id)
-      .select()
-      .single();
-
-    if (error) throw error;
+    const [data] = await db.update(sessions)
+      .set(updates)
+      .where(eq(sessions.id, session_id))
+      .returning();
 
     return NextResponse.json({ session: data, message: 'Deadline updated' });
   } catch (err) {

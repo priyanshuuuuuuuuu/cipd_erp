@@ -1,4 +1,6 @@
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import { users, notifications } from '@/drizzle/schema';
+import { eq, and } from 'drizzle-orm';
 
 /**
  * Notify all active admins about a new leave request.
@@ -18,11 +20,10 @@ export async function notifyAdminsOfLeaveRequest({
   sessionTitle,
   reason,
 }) {
-  const { data: admins } = await supabaseAdmin
-    .from('users')
-    .select('id')
-    .eq('role', 'admin')
-    .eq('is_active', true);
+  const admins = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(and(eq(users.role, 'admin'), eq(users.isActive, true)));
 
   if (!admins?.length) return;
 
@@ -30,17 +31,18 @@ export async function notifyAdminsOfLeaveRequest({
     ? `session "${sessionTitle}" on ${leaveDate}`
     : `all sessions on ${leaveDate}`;
 
-  const notifications = admins.map((admin) => ({
-    recipient_id: admin.id,
+  const notificationRows = admins.map((admin) => ({
+    recipientId: admin.id,
     type: 'leave_request',
     title: `Leave request: ${studentName}`,
     message: `${studentName} requested leave for ${scope}. Reason: ${reason.slice(0, 200)}`,
-    sent_by: studentId,
+    sentBy: studentId,
   }));
 
-  const { error } = await supabaseAdmin.from('notifications').insert(notifications);
-  if (error) {
-    console.error('notifyAdminsOfLeaveRequest error:', error.message);
+  try {
+    await db.insert(notifications).values(notificationRows);
+  } catch (error) {
+    console.error('notifyAdminsOfLeaveRequest error:', error?.message || error);
   }
 
   return { notified: admins.length, leaveRequestId };
@@ -57,17 +59,17 @@ export async function notifyStudentLeaveDecision({
   reviewerId,
 }) {
   const approved = status === 'approved';
-  const { error } = await supabaseAdmin.from('notifications').insert({
-    recipient_id: studentId,
-    type: approved ? 'leave_approved' : 'leave_rejected',
-    title: approved ? 'Leave approved' : 'Leave rejected',
-    message: approved
-      ? `Your leave request for ${leaveDate} has been approved.${adminNotes ? ` Note: ${adminNotes}` : ''}`
-      : `Your leave request for ${leaveDate} was rejected.${adminNotes ? ` Reason: ${adminNotes}` : ''}`,
-    sent_by: reviewerId,
-  });
-
-  if (error) {
-    console.error('notifyStudentLeaveDecision error:', error.message);
+  try {
+    await db.insert(notifications).values({
+      recipientId: studentId,
+      type: approved ? 'leave_approved' : 'leave_rejected',
+      title: approved ? 'Leave approved' : 'Leave rejected',
+      message: approved
+        ? `Your leave request for ${leaveDate} has been approved.${adminNotes ? ` Note: ${adminNotes}` : ''}`
+        : `Your leave request for ${leaveDate} was rejected.${adminNotes ? ` Reason: ${adminNotes}` : ''}`,
+      sentBy: reviewerId,
+    });
+  } catch (error) {
+    console.error('notifyStudentLeaveDecision error:', error?.message || error);
   }
 }

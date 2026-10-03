@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import { students } from '@/drizzle/schema';
+import { eq } from 'drizzle-orm';
 import { withAuth } from '@/lib/middleware';
 
 async function handler(req) {
@@ -11,18 +13,19 @@ async function handler(req) {
       return NextResponse.json({ error: 'Invalid MAC address format. Use XX:XX:XX:XX:XX:XX' }, { status: 400 });
     }
 
-    const { data, error } = await supabaseAdmin
-      .from('students')
-      .update({
-        mac_address: mac_address.toUpperCase(),
-        mac_verified: false,
+    const [data] = await db
+      .update(students)
+      .set({
+        macAddress: mac_address.toUpperCase(),
+        macVerified: false,
       })
-      .eq('id', req.user.id)
-      .select()
-      .single();
+      .where(eq(students.id, req.user.id))
+      .returning({
+        mac_address: students.macAddress,
+        mac_verified: students.macVerified,
+      });
 
-    if (error) {
-      console.error('MAC update error:', error);
+    if (!data) {
       return NextResponse.json({ error: 'Failed to update MAC address' }, { status: 500 });
     }
 

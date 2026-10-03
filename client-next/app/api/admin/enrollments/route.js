@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { getSchemaClient, getCohortConfig } from '@/lib/supabase';
+import { getSchemaDb, getCohortConfig } from '@/lib/db';
+import { courseEnrollments, students, courses } from '@/drizzle/schema';
+import { eq, desc, and } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
 
 /**
@@ -26,22 +28,40 @@ async function getHandler(req) {
   try {
     const schema = resolveSchemaFromQuery(req);
     if (!schema) return NextResponse.json({ error: 'Invalid schema' }, { status: 400 });
-    const db = getSchemaClient(schema);
+    const db = getSchemaDb(schema);
 
     const { searchParams } = new URL(req.url);
     const courseId = searchParams.get('course_id');
 
-    let query = db.from('course_enrollments').select(`
-      id, enrolled_at, course_id, student_id,
-      courses ( id, name ),
-      student:student_id ( id, users ( first_name, last_name, email ) )
-    `);
-    if (courseId) query = query.eq('course_id', courseId);
+    const enrollmentsData = await db.query.courseEnrollments.findMany({
+      where: courseId ? eq(courseEnrollments.courseId, courseId) : undefined,
+      with: {
+        course: { columns: { id: true, name: true } },
+        student: {
+          columns: { id: true },
+          with: { user: { columns: { firstName: true, lastName: true, email: true } } }
+        }
+      },
+      orderBy: [desc(courseEnrollments.enrolledAt)]
+    });
 
-    const { data, error } = await query.order('enrolled_at', { ascending: false });
-    if (error) throw error;
+    const formatted = enrollmentsData.map(e => ({
+      id: e.id,
+      enrolled_at: e.enrolledAt,
+      course_id: e.courseId,
+      student_id: e.studentId,
+      courses: { id: e.course?.id, name: e.course?.name },
+      student: {
+        id: e.student?.id,
+        users: {
+          first_name: e.student?.user?.firstName,
+          last_name: e.student?.user?.lastName,
+          email: e.student?.user?.email
+        }
+      }
+    }));
 
-    return NextResponse.json({ enrollments: data || [] });
+    return NextResponse.json({ enrollments: formatted || [] });
   } catch (err) {
     console.error('Enrollments GET error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -54,25 +74,34 @@ async function postHandler(req) {
     const { student_id, course_id } = body;
     const schema = resolveSchemaFromBody(body);
     if (!schema) return NextResponse.json({ error: 'Invalid schema' }, { status: 400 });
-    const db = getSchemaClient(schema);
+    const db = getSchemaDb(schema);
 
     if (!student_id || !course_id) {
       return NextResponse.json({ error: 'student_id and course_id are required' }, { status: 400 });
     }
 
-    const { data: studentCheck } = await db.from('students').select('id').eq('id', student_id).single();
+    const studentCheck = await db.query.students.findFirst({
+      columns: { id: true },
+      where: eq(students.id, student_id)
+    });
     if (!studentCheck) return NextResponse.json({ error: 'Student not found' }, { status: 404 });
 
-    const { data: courseCheck } = await db.from('courses').select('id, name').eq('id', course_id).single();
+    const courseCheck = await db.query.courses.findFirst({
+      columns: { id: true, name: true },
+      where: eq(courses.id, course_id)
+    });
     if (!courseCheck) return NextResponse.json({ error: 'Course not found' }, { status: 404 });
 
-    const { data, error } = await db.from('course_enrollments').insert({ student_id, course_id }).select().single();
-    if (error) {
-      if (error.code === '23505') return NextResponse.json({ error: 'Student is already enrolled in this course' }, { status: 409 });
-      throw error;
-    }
+    try {
+      const [data] = await db.insert(courseEnrollments)
+        .values({ studentId: student_id, courseId: course_id })
+        .returning();
 
-    return NextResponse.json({ enrollment: data, message: `Student enrolled in ${courseCheck.name}` }, { status: 201 });
+      return NextResponse.json({ enrollment: data, message: `Student enrolled in ${courseCheck.name}` }, { status: 201 });
+    } catch (insertError) {
+      if (insertError.code === '23505') return NextResponse.json({ error: 'Student is already enrolled in this course' }, { status: 409 });
+      throw insertError;
+    }
   } catch (err) {
     console.error('Enrollment POST error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -85,14 +114,18 @@ async function deleteHandler(req) {
     const { student_id, course_id } = body;
     const schema = resolveSchemaFromBody(body);
     if (!schema) return NextResponse.json({ error: 'Invalid schema' }, { status: 400 });
-    const db = getSchemaClient(schema);
+    const db = getSchemaDb(schema);
 
     if (!student_id || !course_id) {
       return NextResponse.json({ error: 'student_id and course_id are required' }, { status: 400 });
     }
 
-    const { error } = await db.from('course_enrollments').delete().eq('student_id', student_id).eq('course_id', course_id);
-    if (error) throw error;
+    await db.delete(courseEnrollments).where(
+      and(
+        eq(courseEnrollments.studentId, student_id),
+        eq(courseEnrollments.courseId, course_id)
+      )
+    );
 
     return NextResponse.json({ message: 'Student unenrolled successfully' });
   } catch (err) {

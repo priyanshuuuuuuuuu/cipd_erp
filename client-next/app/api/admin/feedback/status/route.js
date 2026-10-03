@@ -1,36 +1,38 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import { courses, courseEnrollments, sessions, feedbackResponses } from '@/drizzle/schema';
+import { eq } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
 
 async function handler(req) {
   try {
     // ── 1. Fire all bulk queries in parallel (4 total, regardless of # courses) ──
     const [
-      { data: courses },
-      { data: enrollmentRows },
-      { data: allSessions },
-      { data: allFeedback },
+      courseList,
+      enrollmentRows,
+      allSessions,
+      allFeedback,
     ] = await Promise.all([
       // All courses
-      supabaseAdmin.from('courses').select('id, name'),
+      db.select({ id: courses.id, name: courses.name }).from(courses),
 
       // All enrollment rows — we only need course_id to count per course
-      supabaseAdmin.from('course_enrollments').select('course_id'),
+      db.select({ course_id: courseEnrollments.courseId }).from(courseEnrollments),
 
       // All completed sessions — course_id + session id
-      supabaseAdmin
-        .from('sessions')
-        .select('id, course_id')
-        .eq('status', 'completed'),
+      db
+        .select({ id: sessions.id, course_id: sessions.courseId })
+        .from(sessions)
+        .where(eq(sessions.status, 'completed')),
 
       // All feedback responses — session_id + student_id for deduplication
-      supabaseAdmin
-        .from('feedback_responses')
-        .select('session_id, student_id'),
+      db
+        .select({ session_id: feedbackResponses.sessionId, student_id: feedbackResponses.studentId })
+        .from(feedbackResponses),
     ]);
 
-    if (!courses || courses.length === 0) {
+    if (!courseList || courseList.length === 0) {
       return NextResponse.json({ feedback_status: [] });
     }
 
@@ -52,7 +54,7 @@ async function handler(req) {
     // ── 3. Aggregate per course (pure in-memory, no more DB calls) ────────────
     const statusList = [];
 
-    for (const course of courses) {
+    for (const course of courseList) {
       const sessionSet = sessionsByCourse[course.id];
       const totalEnrolled = enrolledCount[course.id] || 0;
 

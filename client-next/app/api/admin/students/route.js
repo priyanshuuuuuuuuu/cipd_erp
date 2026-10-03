@@ -1,6 +1,17 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { getSchemaClient, getCohortConfig } from '@/lib/supabase';
+import { getSchemaDb, getCohortConfig } from '@/lib/db';
+import {
+  students,
+  users,
+  courseEnrollments,
+  courses,
+  attendanceRecords,
+  feedbackResponses,
+  assignmentSubmissions,
+  notifications,
+} from '@/drizzle/schema';
+import { eq, ne, inArray, desc } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
 import { hashPassword } from '@/lib/auth';
 
@@ -24,61 +35,60 @@ async function getHandler(req) {
   try {
     const schema = resolveSchema(req);
     if (!schema) return NextResponse.json({ error: 'Invalid schema' }, { status: 400 });
-    const db = getSchemaClient(schema);
+    const schemaDb = getSchemaDb(schema);
 
-    const { data: students, error: stuErr } = await db
-      .from('students')
-      .select(`
-        id,
-        enrollment_no,
-        program_name,
-        mac_address,
-        mac_verified,
-        created_at,
-        users!inner (
-          id,
-          first_name,
-          last_name,
-          email,
-          is_active,
-          created_at
-        )
-      `)
-      .order('created_at', { ascending: false });
+    const studentsData = await schemaDb
+      .select({
+        id: students.id,
+        enrollment_no: students.enrollmentNo,
+        program_name: students.programName,
+        mac_address: students.macAddress,
+        mac_verified: students.macVerified,
+        created_at: students.createdAt,
+        user_id: users.id,
+        first_name: users.firstName,
+        last_name: users.lastName,
+        email: users.email,
+        is_active: users.isActive,
+        user_created_at: users.createdAt,
+      })
+      .from(students)
+      .innerJoin(users, eq(students.id, users.id))
+      .orderBy(desc(students.createdAt));
 
-    if (stuErr) throw stuErr;
-
-    const studentIds = (students || []).map(s => s.id);
+    const studentIds = studentsData.map(s => s.id);
     const enrollmentMap = {};
 
     if (studentIds.length > 0) {
-      const { data: enrollments } = await db
-        .from('course_enrollments')
-        .select(`
-          student_id,
-          course_id,
-          enrolled_at,
-          courses ( id, name, code )
-        `)
-        .in('student_id', studentIds);
+      const enrollments = await schemaDb
+        .select({
+          student_id: courseEnrollments.studentId,
+          course_id: courseEnrollments.courseId,
+          enrolled_at: courseEnrollments.enrolledAt,
+          course_name: courses.name,
+          course_code: courses.code,
+        })
+        .from(courseEnrollments)
+        .leftJoin(courses, eq(courseEnrollments.courseId, courses.id))
+        .where(inArray(courseEnrollments.studentId, studentIds));
 
-      (enrollments || []).forEach(e => {
+      enrollments.forEach(e => {
         if (!enrollmentMap[e.student_id]) enrollmentMap[e.student_id] = [];
         enrollmentMap[e.student_id].push({
           course_id: e.course_id,
-          course_name: e.courses?.name || 'Unknown',
-          course_code: e.courses?.code || '',
+          course_name: e.course_name || 'Unknown',
+          course_code: e.course_code || '',
           enrolled_at: e.enrolled_at,
         });
       });
     }
 
-    const result = (students || []).map(s => ({
+    const result = studentsData.map(s => ({
       id: s.id,
-      first_name: s.users?.first_name || '',
-      last_name: s.users?.last_name || '',
-      email: s.users?.email || '',
-      is_active: s.users?.is_active ?? true,
+      first_name: s.first_name || '',
+      last_name: s.last_name || '',
+      email: s.email || '',
+      is_active: s.is_active ?? true,
       enrollment_no: s.enrollment_no || '',
       program_name: s.program_name || '',
       mac_address: s.mac_address || '',
@@ -101,32 +111,50 @@ async function postHandler(req) {
     const { first_name, last_name, email, enrollment_no, program_name } = body;
     const schema = resolveSchemaFromBody(body);
     if (!schema) return NextResponse.json({ error: 'Invalid schema' }, { status: 400 });
-    const db = getSchemaClient(schema);
+    const schemaDb = getSchemaDb(schema);
 
     if (!first_name || !last_name || !email) {
       return NextResponse.json({ error: 'First name, last name, and email are required.' }, { status: 400 });
     }
 
-    const { data: existingUser } = await db.from('users').select('id').eq('email', email.toLowerCase().trim()).maybeSingle();
+    const [existingUser] = await schemaDb
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, email.toLowerCase().trim()))
+      .limit(1);
     if (existingUser) return NextResponse.json({ error: 'A user with this email already exists.' }, { status: 409 });
 
     if (enrollment_no?.trim()) {
-      const { data: existingEnroll } = await db.from('students').select('id').eq('enrollment_no', enrollment_no.trim()).maybeSingle();
+      const [existingEnroll] = await schemaDb
+        .select({ id: students.id })
+        .from(students)
+        .where(eq(students.enrollmentNo, enrollment_no.trim()))
+        .limit(1);
       if (existingEnroll) return NextResponse.json({ error: 'A student with this enrollment number already exists.' }, { status: 409 });
     }
 
     const password_hash = await hashPassword('12345678');
 
-    const { data: newUser, error: userErr } = await db
-      .from('users')
-      .insert({ first_name: first_name.trim(), last_name: last_name.trim(), email: email.toLowerCase().trim(), password_hash, role: 'student', is_active: true })
-      .select('id')
-      .single();
-    if (userErr) throw userErr;
+    const [newUser] = await schemaDb
+      .insert(users)
+      .values({
+        firstName: first_name.trim(),
+        lastName: last_name.trim(),
+        email: email.toLowerCase().trim(),
+        passwordHash: password_hash,
+        role: 'student',
+        isActive: true,
+      })
+      .returning({ id: users.id });
 
-    const { error: stuErr } = await db.from('students').insert({ id: newUser.id, enrollment_no: enrollment_no?.trim() || null, program_name: program_name?.trim() || null });
-    if (stuErr) {
-      await db.from('users').delete().eq('id', newUser.id);
+    try {
+      await schemaDb.insert(students).values({
+        id: newUser.id,
+        enrollmentNo: enrollment_no?.trim() || null,
+        programName: program_name?.trim() || null,
+      });
+    } catch (stuErr) {
+      await schemaDb.delete(users).where(eq(users.id, newUser.id));
       throw stuErr;
     }
 
@@ -144,7 +172,7 @@ async function patchHandler(req) {
     const { student_id, first_name, last_name, email, enrollment_no, program_name, mac_verified, is_active, mac_address } = body;
     const schema = resolveSchemaFromBody(body);
     if (!schema) return NextResponse.json({ error: 'Invalid schema' }, { status: 400 });
-    const db = getSchemaClient(schema);
+    const schemaDb = getSchemaDb(schema);
 
     if (!student_id) return NextResponse.json({ error: 'student_id is required.' }, { status: 400 });
 
@@ -155,44 +183,54 @@ async function patchHandler(req) {
     }
 
     if (email !== undefined) {
-      const { data: conflict } = await db.from('users').select('id').eq('email', email.toLowerCase().trim()).neq('id', student_id).maybeSingle();
-      if (conflict) return NextResponse.json({ error: 'This email is already used by another user.' }, { status: 409 });
+      const [conflict] = await schemaDb
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.email, email.toLowerCase().trim()))
+        .limit(1);
+      if (conflict && conflict.id !== student_id) {
+        return NextResponse.json({ error: 'This email is already used by another user.' }, { status: 409 });
+      }
     }
     if (enrollment_no !== undefined && enrollment_no !== '') {
-      const { data: conflict } = await db.from('students').select('id').eq('enrollment_no', enrollment_no.trim()).neq('id', student_id).maybeSingle();
-      if (conflict) return NextResponse.json({ error: 'This enrollment number is already taken.' }, { status: 409 });
+      const [conflict] = await schemaDb
+        .select({ id: students.id })
+        .from(students)
+        .where(eq(students.enrollmentNo, enrollment_no.trim()))
+        .limit(1);
+      if (conflict && conflict.id !== student_id) {
+        return NextResponse.json({ error: 'This enrollment number is already taken.' }, { status: 409 });
+      }
     }
 
     const userUpdates = {};
-    if (first_name !== undefined) userUpdates.first_name = first_name.trim();
-    if (last_name !== undefined) userUpdates.last_name = last_name.trim();
+    if (first_name !== undefined) userUpdates.firstName = first_name.trim();
+    if (last_name !== undefined) userUpdates.lastName = last_name.trim();
     if (email !== undefined) userUpdates.email = email.toLowerCase().trim();
-    if (is_active !== undefined) userUpdates.is_active = Boolean(is_active);
+    if (is_active !== undefined) userUpdates.isActive = Boolean(is_active);
 
     if (Object.keys(userUpdates).length > 0) {
-      const { error: userErr } = await db.from('users').update(userUpdates).eq('id', student_id);
-      if (userErr) throw userErr;
+      await schemaDb.update(users).set(userUpdates).where(eq(users.id, student_id));
     }
 
     const stuUpdates = {};
-    if (enrollment_no !== undefined) stuUpdates.enrollment_no = enrollment_no.trim() || null;
-    if (program_name !== undefined) stuUpdates.program_name = program_name.trim() || null;
-    if (mac_verified !== undefined) stuUpdates.mac_verified = Boolean(mac_verified);
+    if (enrollment_no !== undefined) stuUpdates.enrollmentNo = enrollment_no.trim() || null;
+    if (program_name !== undefined) stuUpdates.programName = program_name.trim() || null;
+    if (mac_verified !== undefined) stuUpdates.macVerified = Boolean(mac_verified);
     if (mac_address !== undefined) {
       if (mac_address === '' || mac_address === null) {
         // Clearing a MAC — also clear verification
-        stuUpdates.mac_address = null;
-        stuUpdates.mac_verified = false;
+        stuUpdates.macAddress = null;
+        stuUpdates.macVerified = false;
       } else {
         // Admin is setting a MAC directly — trust it immediately, no approval needed
-        stuUpdates.mac_address = mac_address.toUpperCase();
-        stuUpdates.mac_verified = true;
+        stuUpdates.macAddress = mac_address.toUpperCase();
+        stuUpdates.macVerified = true;
       }
     }
 
     if (Object.keys(stuUpdates).length > 0) {
-      const { error: stuErr } = await db.from('students').update(stuUpdates).eq('id', student_id);
-      if (stuErr) throw stuErr;
+      await schemaDb.update(students).set(stuUpdates).where(eq(students.id, student_id));
     }
 
     return NextResponse.json({ success: true });
@@ -212,37 +250,30 @@ async function deleteHandler(req) {
     const ids = student_ids || (student_id ? [student_id] : []);
     const schema = resolveSchemaFromBody(body);
     if (!schema) return NextResponse.json({ error: 'Invalid schema' }, { status: 400 });
-    const db = getSchemaClient(schema);
+    const schemaDb = getSchemaDb(schema);
 
     if (ids.length === 0) return NextResponse.json({ error: 'student_id or student_ids is required.' }, { status: 400 });
 
     // 1. Delete attendance_records (references students.id)
-    const { error: arErr } = await db.from('attendance_records').delete().in('student_id', ids);
-    if (arErr) throw new Error(`attendance_records: ${arErr.message}`);
+    await schemaDb.delete(attendanceRecords).where(inArray(attendanceRecords.studentId, ids));
 
     // 2. Delete feedback_responses (references students.id)
-    const { error: frErr } = await db.from('feedback_responses').delete().in('student_id', ids);
-    if (frErr) throw new Error(`feedback_responses: ${frErr.message}`);
+    await schemaDb.delete(feedbackResponses).where(inArray(feedbackResponses.studentId, ids));
 
     // 3. Delete assignment_submissions (references students.id)
-    const { error: asErr } = await db.from('assignment_submissions').delete().in('student_id', ids);
-    if (asErr) throw new Error(`assignment_submissions: ${asErr.message}`);
+    await schemaDb.delete(assignmentSubmissions).where(inArray(assignmentSubmissions.studentId, ids));
 
     // 4. Delete course_enrollments (references students.id)
-    const { error: ceErr } = await db.from('course_enrollments').delete().in('student_id', ids);
-    if (ceErr) throw new Error(`course_enrollments: ${ceErr.message}`);
+    await schemaDb.delete(courseEnrollments).where(inArray(courseEnrollments.studentId, ids));
 
     // 5. Delete notifications (references users.id as recipient)
-    const { error: notifErr } = await db.from('notifications').delete().in('recipient_id', ids);
-    if (notifErr) throw new Error(`notifications: ${notifErr.message}`);
+    await schemaDb.delete(notifications).where(inArray(notifications.recipientId, ids));
 
     // 6. Delete the students row (references users.id)
-    const { error: stuErr } = await db.from('students').delete().in('id', ids);
-    if (stuErr) throw new Error(`students: ${stuErr.message}`);
+    await schemaDb.delete(students).where(inArray(students.id, ids));
 
     // 7. Finally delete the users row
-    const { error: userErr } = await db.from('users').delete().in('id', ids);
-    if (userErr) throw new Error(`users: ${userErr.message}`);
+    await schemaDb.delete(users).where(inArray(users.id, ids));
 
     return NextResponse.json({ success: true, deleted: ids.length });
   } catch (err) {
@@ -255,3 +286,4 @@ export const GET = withRole(getHandler, ['admin']);
 export const POST = withRole(postHandler, ['admin']);
 export const PATCH = withRole(patchHandler, ['admin']);
 export const DELETE = withRole(deleteHandler, ['admin']);
+

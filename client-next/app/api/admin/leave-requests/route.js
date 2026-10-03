@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import { leaveRequests, students, users, sessions, courses } from '@/drizzle/schema';
+import { eq, and, inArray, desc } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
 
 async function getHandler(req) {
@@ -9,47 +11,68 @@ async function getHandler(req) {
     const status = searchParams.get('status');
     const date = searchParams.get('date');
 
-    let query = supabaseAdmin
-      .from('leave_requests')
-      .select('id, leave_date, session_id, student_id, reason, status, admin_notes, created_at, reviewed_at, reviewed_by')
-      .order('created_at', { ascending: false })
-      .limit(200);
-
+    const conditions = [];
     if (status && ['pending', 'approved', 'rejected'].includes(status)) {
-      query = query.eq('status', status);
+      conditions.push(eq(leaveRequests.status, status));
     }
     if (date) {
-      query = query.eq('leave_date', date);
+      conditions.push(eq(leaveRequests.leaveDate, date));
     }
 
-    const { data, error } = await query;
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-    if (error) {
-      console.error('Admin leave requests fetch error:', error.message);
-      return NextResponse.json({ error: 'Failed to fetch leave requests' }, { status: 500 });
+    const rows = await db
+      .select({
+        id: leaveRequests.id,
+        leave_date: leaveRequests.leaveDate,
+        session_id: leaveRequests.sessionId,
+        student_id: leaveRequests.studentId,
+        reason: leaveRequests.reason,
+        status: leaveRequests.status,
+        admin_notes: leaveRequests.adminNotes,
+        created_at: leaveRequests.createdAt,
+        reviewed_at: leaveRequests.reviewedAt,
+        reviewed_by: leaveRequests.reviewedBy,
+      })
+      .from(leaveRequests)
+      .where(whereClause)
+      .orderBy(desc(leaveRequests.createdAt))
+      .limit(200);
+
+    if (!rows || rows.length === 0) {
+      return NextResponse.json({
+        requests: [],
+        stats: { pending: 0, approved: 0, total: 0 },
+      });
     }
-
-    const rows = data || [];
 
     // ── 1. Resolve students ──────────────────────────────────────────────────
     const studentIds = [...new Set(rows.map((r) => r.student_id).filter(Boolean))];
     const studentMap = {};
     if (studentIds.length > 0) {
-      const { data: students } = await supabaseAdmin
-        .from('students')
-        .select('id, enrollment_no')
-        .in('id', studentIds);
-      const userIds = (students || []).map((s) => s.id);
-      const userMap = {};
-      if (userIds.length > 0) {
-        const { data: users } = await supabaseAdmin
-          .from('users')
-          .select('id, first_name, last_name, email')
-          .in('id', userIds);
-        (users || []).forEach((u) => { userMap[u.id] = u; });
-      }
-      (students || []).forEach((s) => {
-        studentMap[s.id] = { ...s, users: userMap[s.id] || null };
+      const studentRows = await db
+        .select({
+          id: students.id,
+          enrollment_no: students.enrollmentNo,
+          first_name: users.firstName,
+          last_name: users.lastName,
+          email: users.email,
+        })
+        .from(students)
+        .leftJoin(users, eq(students.id, users.id))
+        .where(inArray(students.id, studentIds));
+
+      studentRows.forEach((s) => {
+        studentMap[s.id] = {
+          id: s.id,
+          enrollment_no: s.enrollment_no,
+          users: s.first_name || s.email ? {
+            id: s.id,
+            first_name: s.first_name,
+            last_name: s.last_name,
+            email: s.email,
+          } : null,
+        };
       });
     }
 
@@ -57,21 +80,28 @@ async function getHandler(req) {
     const sessionIds = [...new Set(rows.map((r) => r.session_id).filter(Boolean))];
     const sessionMap = {};
     if (sessionIds.length > 0) {
-      const { data: sessions } = await supabaseAdmin
-        .from('sessions')
-        .select('id, title, start_time, end_time, course_id')
-        .in('id', sessionIds);
-      const courseIds = [...new Set((sessions || []).map((s) => s.course_id).filter(Boolean))];
-      const courseMap = {};
-      if (courseIds.length > 0) {
-        const { data: courses } = await supabaseAdmin
-          .from('courses')
-          .select('id, name')
-          .in('id', courseIds);
-        (courses || []).forEach((c) => { courseMap[c.id] = c; });
-      }
-      (sessions || []).forEach((s) => {
-        sessionMap[s.id] = { ...s, courses: s.course_id ? (courseMap[s.course_id] || null) : null };
+      const sessionRows = await db
+        .select({
+          id: sessions.id,
+          title: sessions.title,
+          start_time: sessions.startTime,
+          end_time: sessions.endTime,
+          course_id: sessions.courseId,
+          course_name: courses.name,
+        })
+        .from(sessions)
+        .leftJoin(courses, eq(sessions.courseId, courses.id))
+        .where(inArray(sessions.id, sessionIds));
+
+      sessionRows.forEach((s) => {
+        sessionMap[s.id] = {
+          id: s.id,
+          title: s.title,
+          start_time: s.start_time,
+          end_time: s.end_time,
+          course_id: s.course_id,
+          courses: s.course_id ? { id: s.course_id, name: s.course_name } : null,
+        };
       });
     }
 
@@ -79,11 +109,18 @@ async function getHandler(req) {
     const reviewerIds = [...new Set(rows.map((r) => r.reviewed_by).filter(Boolean))];
     const reviewerMap = {};
     if (reviewerIds.length > 0) {
-      const { data: reviewers } = await supabaseAdmin
-        .from('users')
-        .select('id, first_name, last_name')
-        .in('id', reviewerIds);
-      (reviewers || []).forEach((u) => { reviewerMap[u.id] = u; });
+      const reviewerRows = await db
+        .select({
+          id: users.id,
+          first_name: users.firstName,
+          last_name: users.lastName,
+        })
+        .from(users)
+        .where(inArray(users.id, reviewerIds));
+
+      reviewerRows.forEach((u) => {
+        reviewerMap[u.id] = u;
+      });
     }
 
     const enriched = rows.map((r) => ({

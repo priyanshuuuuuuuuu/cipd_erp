@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import { sessions } from '@/drizzle/schema';
+import { eq, desc } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
 import { rolloutFeedbackForSession } from '@/lib/feedback-rollout';
 
@@ -27,15 +29,15 @@ async function handler(req) {
     // ── Backfill all completed sessions ────────────────────────────────────
     if (body.all_completed) {
       // Get all completed sessions
-      const { data: sessions, error } = await supabaseAdmin
-        .from('sessions')
-        .select('id, title, session_date')
-        .eq('status', 'completed')
-        .order('session_date', { ascending: false });
-
-      if (error) {
-        return NextResponse.json({ error: 'Failed to fetch sessions' }, { status: 500 });
-      }
+      const completedSessions = await db
+        .select({
+          id: sessions.id,
+          title: sessions.title,
+          session_date: sessions.sessionDate,
+        })
+        .from(sessions)
+        .where(eq(sessions.status, 'completed'))
+        .orderBy(desc(sessions.sessionDate));
 
       const summary = [];
       let totalNotified = 0;
@@ -43,7 +45,7 @@ async function handler(req) {
       let totalAlreadyQueued = 0;
       let totalSkipped = 0;
 
-      for (const session of sessions || []) {
+      for (const session of completedSessions || []) {
         const result = await rolloutFeedbackForSession(session.id);
         totalNotified += result.notified;
         totalQueued += result.queued;
@@ -60,7 +62,7 @@ async function handler(req) {
       }
 
       return NextResponse.json({
-        message: `Backfill complete: ${sessions?.length || 0} sessions processed`,
+        message: `Backfill complete: ${completedSessions?.length || 0} sessions processed`,
         totalNotified,
         totalQueued,
         totalAlreadyQueued,

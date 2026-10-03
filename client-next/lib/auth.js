@@ -12,7 +12,8 @@ export async function hashPassword(password) {
 }
 
 export async function verifyPassword(password, hash) {
-  return bcrypt.compare(password, hash);
+  if (!password || !hash) return false;
+  return bcrypt.compare(password, hash.trim());
 }
 
 export function signToken(payload) {

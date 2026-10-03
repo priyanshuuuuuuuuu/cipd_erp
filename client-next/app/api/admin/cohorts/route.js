@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { withRole } from '@/lib/middleware';
-import { getCohortConfig } from '@/lib/supabase';
+import { getCohortConfig } from '@/lib/db';
 
 // GET /api/admin/cohorts
 // Returns the list of available cohort schemas and their display labels.

@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { getSchemaDb, getCohortConfig } from '@/lib/db';
+import { users, students, faculty } from '@/drizzle/schema';
+import { eq } from 'drizzle-orm';
 import { getUserFromRequest } from '@/lib/auth';
 
 export async function GET(req) {
@@ -10,14 +12,33 @@ export async function GET(req) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Fetch full user data based on role
-    const { data: userData, error } = await supabaseAdmin
-      .from('users')
-      .select('id, email, role, first_name, last_name, is_active')
-      .eq('id', user.id)
-      .single();
+    const { schemas } = getCohortConfig();
+    let userData = null;
+    let targetDb = null;
 
-    if (error || !userData) {
+    for (const schema of (schemas && schemas.length ? schemas : ['july'])) {
+      const schemaDb = getSchemaDb(schema);
+      const [found] = await schemaDb
+        .select({
+          id: users.id,
+          email: users.email,
+          role: users.role,
+          first_name: users.firstName,
+          last_name: users.lastName,
+          is_active: users.isActive,
+        })
+        .from(users)
+        .where(eq(users.id, user.id))
+        .limit(1);
+
+      if (found) {
+        userData = found;
+        targetDb = schemaDb;
+        break;
+      }
+    }
+
+    if (!userData) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
@@ -25,19 +46,28 @@ export async function GET(req) {
 
     // Fetch role-specific data
     if (userData.role === 'student') {
-      const { data: student } = await supabaseAdmin
-        .from('students')
-        .select('enrollment_no, program_name, mac_address, mac_verified')
-        .eq('id', user.id)
-        .single();
-      if (student) profile = { ...profile, ...student };
+      const [studentData] = await targetDb
+        .select({
+          enrollment_no: students.enrollmentNo,
+          program_name: students.programName,
+          mac_address: students.macAddress,
+          mac_verified: students.macVerified,
+        })
+        .from(students)
+        .where(eq(students.id, user.id))
+        .limit(1);
+      if (studentData) profile = { ...profile, ...studentData };
     } else if (userData.role === 'faculty') {
-      const { data: faculty } = await supabaseAdmin
-        .from('faculty')
-        .select('designation, years_experience, honorarium_rate_per_hour')
-        .eq('id', user.id)
-        .single();
-      if (faculty) profile = { ...profile, ...faculty };
+      const [facultyData] = await targetDb
+        .select({
+          designation: faculty.designation,
+          years_experience: faculty.yearsExperience,
+          honorarium_rate_per_hour: faculty.honorariumRatePerHour,
+        })
+        .from(faculty)
+        .where(eq(faculty.id, user.id))
+        .limit(1);
+      if (facultyData) profile = { ...profile, ...facultyData };
     }
 
     return NextResponse.json({ user: profile });
@@ -46,3 +76,4 @@ export async function GET(req) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
+

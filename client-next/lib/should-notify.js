@@ -1,3 +1,7 @@
+import { db } from '@/lib/db';
+import { users } from '@/drizzle/schema';
+import { inArray } from 'drizzle-orm';
+
 /** @typedef {'scheduleReminders'|'attendanceAlerts'|'assignmentDeadlines'|'feedbackRequests'|'gradeUpdates'|'systemAnnouncements'} NotificationPrefKey */
 
 export const DEFAULT_NOTIFICATION_PREFS = {
@@ -35,22 +39,28 @@ export function shouldNotify(preferences, type) {
 
 /**
  * Batch-fetch user preferences for notification gating.
- * @param {import('@supabase/supabase-js').SupabaseClient} supabaseAdmin
- * @param {string[]} userIds
+ * @param {any} [unusedClient]
+ * @param {string[]} [userIds]
  * @returns {Promise<Map<string, Record<string, unknown>>>}
  */
-export async function fetchPreferencesMap(supabaseAdmin, userIds) {
+export async function fetchPreferencesMap(unusedClient, userIds) {
+  // Support both (db, userIds) or (userIds) signature
+  const targetIds = Array.isArray(unusedClient) ? unusedClient : userIds;
   const map = new Map();
-  if (!userIds?.length) return map;
+  if (!targetIds?.length) return map;
 
-  const unique = [...new Set(userIds.filter(Boolean))];
-  const { data } = await supabaseAdmin
-    .from('users')
-    .select('id, preferences')
-    .in('id', unique);
+  const unique = [...new Set(targetIds.filter(Boolean))];
+  try {
+    const rows = await db
+      .select({ id: users.id, preferences: users.preferences })
+      .from(users)
+      .where(inArray(users.id, unique));
 
-  for (const row of data || []) {
-    map.set(row.id, row.preferences || {});
+    for (const row of rows || []) {
+      map.set(row.id, row.preferences || {});
+    }
+  } catch (err) {
+    console.error('fetchPreferencesMap error:', err);
   }
   return map;
 }
@@ -66,13 +76,16 @@ export function shouldNotifyUser(prefMap, userId, type) {
 }
 
 /**
- * @param {Array<{ recipient_id?: string }>} notifications
+ * @param {Array<{ recipient_id?: string, recipientId?: string }>} notifications
  * @param {Map<string, Record<string, unknown>>} prefMap
  * @param {string} type
- * @returns {Array<{ recipient_id?: string }>}
+ * @returns {Array<{ recipient_id?: string, recipientId?: string }>}
  */
 export function filterNotificationsByPrefs(notifications, prefMap, type) {
   return notifications.filter(
-    (n) => n.recipient_id && shouldNotifyUser(prefMap, n.recipient_id, type)
+    (n) => {
+      const id = n.recipient_id || n.recipientId;
+      return id && shouldNotifyUser(prefMap, id, type);
+    }
   );
 }

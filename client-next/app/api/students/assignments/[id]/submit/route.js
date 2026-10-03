@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import { assignments, courseEnrollments, assignmentSubmissions } from '@/drizzle/schema';
+import { eq, and } from 'drizzle-orm';
 import { withAuth } from '@/lib/middleware';
 import {
   validateUploadFile,
@@ -30,22 +32,31 @@ async function handler(req, { params }) {
 
     const file = validation.file;
 
-    const { data: assignment, error: asnErr } = await supabaseAdmin
-      .from('assignments')
-      .select('id, course_id, title, due_date, total_marks')
-      .eq('id', assignmentId)
-      .single();
+    const [assignment] = await db
+      .select({
+        id: assignments.id,
+        course_id: assignments.courseId,
+        title: assignments.title,
+        due_date: assignments.dueDate,
+      })
+      .from(assignments)
+      .where(eq(assignments.id, assignmentId))
+      .limit(1);
 
-    if (asnErr || !assignment) {
+    if (!assignment) {
       return NextResponse.json({ error: 'Assignment not found' }, { status: 404 });
     }
 
-    const { data: enrollment } = await supabaseAdmin
-      .from('course_enrollments')
-      .select('id')
-      .eq('course_id', assignment.course_id)
-      .eq('student_id', req.user.id)
-      .maybeSingle();
+    const [enrollment] = await db
+      .select({ id: courseEnrollments.id })
+      .from(courseEnrollments)
+      .where(
+        and(
+          eq(courseEnrollments.courseId, assignment.course_id),
+          eq(courseEnrollments.studentId, req.user.id)
+        )
+      )
+      .limit(1);
 
     if (!enrollment) {
       return NextResponse.json({ error: 'Not enrolled in this course' }, { status: 403 });
@@ -54,12 +65,16 @@ async function handler(req, { params }) {
     const safeName = sanitizeFilename(file.name);
     const storagePath = `${req.user.id}/${assignmentId}/${Date.now()}-${safeName}`;
 
-    const { data: existing } = await supabaseAdmin
-      .from('assignment_submissions')
-      .select('id, file_url')
-      .eq('assignment_id', assignmentId)
-      .eq('student_id', req.user.id)
-      .maybeSingle();
+    const [existing] = await db
+      .select({ id: assignmentSubmissions.id, file_url: assignmentSubmissions.fileUrl })
+      .from(assignmentSubmissions)
+      .where(
+        and(
+          eq(assignmentSubmissions.assignmentId, assignmentId),
+          eq(assignmentSubmissions.studentId, req.user.id)
+        )
+      )
+      .limit(1);
 
     await uploadToStorage(BUCKET, storagePath, file);
 
@@ -70,28 +85,36 @@ async function handler(req, { params }) {
       if (existing.file_url) {
         await deleteFromStorage(BUCKET, existing.file_url);
       }
-      const { data: updated, error: updateErr } = await supabaseAdmin
-        .from('assignment_submissions')
-        .update({ file_url: storagePath, submitted_at: submittedAt })
-        .eq('id', existing.id)
-        .select('assignment_id, file_url, submitted_at, grade, feedback')
-        .single();
+      const [updated] = await db
+        .update(assignmentSubmissions)
+        .set({ fileUrl: storagePath, submittedAt })
+        .where(eq(assignmentSubmissions.id, existing.id))
+        .returning({
+          assignment_id: assignmentSubmissions.assignmentId,
+          file_url: assignmentSubmissions.fileUrl,
+          submitted_at: assignmentSubmissions.submittedAt,
+          grade: assignmentSubmissions.grade,
+          feedback: assignmentSubmissions.feedback,
+        });
 
-      if (updateErr) throw updateErr;
       submission = updated;
     } else {
-      const { data: inserted, error: insertErr } = await supabaseAdmin
-        .from('assignment_submissions')
-        .insert({
-          assignment_id: assignmentId,
-          student_id: req.user.id,
-          file_url: storagePath,
-          submitted_at: submittedAt,
+      const [inserted] = await db
+        .insert(assignmentSubmissions)
+        .values({
+          assignmentId,
+          studentId: req.user.id,
+          fileUrl: storagePath,
+          submittedAt,
         })
-        .select('assignment_id, file_url, submitted_at, grade, feedback')
-        .single();
+        .returning({
+          assignment_id: assignmentSubmissions.assignmentId,
+          file_url: assignmentSubmissions.fileUrl,
+          submitted_at: assignmentSubmissions.submittedAt,
+          grade: assignmentSubmissions.grade,
+          feedback: assignmentSubmissions.feedback,
+        });
 
-      if (insertErr) throw insertErr;
       submission = inserted;
     }
 
@@ -100,7 +123,7 @@ async function handler(req, { params }) {
         id: assignment.id,
         title: assignment.title,
         due_date: assignment.due_date,
-        total_marks: assignment.total_marks,
+        total_marks: 100,
         submission,
         is_submitted: true,
         submission_status: submission.grade != null ? 'graded' : 'submitted',
@@ -118,3 +141,4 @@ async function handler(req, { params }) {
 }
 
 export const POST = withAuth(handler);
+

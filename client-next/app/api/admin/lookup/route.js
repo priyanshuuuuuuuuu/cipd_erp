@@ -1,39 +1,63 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import { courses, faculty, users, venues, sessionTypes, skills, categories } from '@/drizzle/schema';
+import { eq, asc } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
 
 async function handler(req) {
   try {
-    const [coursesRes, facultyRes, venuesRes, typesRes, skillsRes, categoriesRes] = await Promise.all([
-      supabaseAdmin.from('courses').select('id, name').order('name'),
-      supabaseAdmin.from('faculty').select('id, years_experience, users ( first_name, last_name )').order('id'),
-      supabaseAdmin.from('venues').select('id, name, building').order('name'),
-      supabaseAdmin.from('session_types').select('id, name').order('name'),
-      supabaseAdmin.from('skills').select('id, name, details, category_id, categories(id, name, course_id)').order('name'),
-      supabaseAdmin.from('categories').select('id, name, course_id').order('name'),
+    const [coursesList, facultyList, venuesList, typesList, skillsList, categoriesList] = await Promise.all([
+      db.select({ id: courses.id, name: courses.name }).from(courses).orderBy(asc(courses.name)),
+      
+      db.select({
+        id: faculty.id,
+        years_experience: faculty.yearsExperience,
+        first_name: users.firstName,
+        last_name: users.lastName,
+      })
+      .from(faculty)
+      .leftJoin(users, eq(faculty.id, users.id))
+      .orderBy(asc(faculty.id)),
+
+      db.select({ id: venues.id, name: venues.name, building: venues.building }).from(venues).orderBy(asc(venues.name)),
+
+      db.select({ id: sessionTypes.id, name: sessionTypes.name }).from(sessionTypes).orderBy(asc(sessionTypes.name)),
+
+      db.select({
+        id: skills.id,
+        name: skills.name,
+        details: skills.details,
+        category_id: skills.categoryId,
+        category_name: categories.name,
+      })
+      .from(skills)
+      .leftJoin(categories, eq(skills.categoryId, categories.id))
+      .orderBy(asc(skills.name)),
+
+      db.select({ id: categories.id, name: categories.name, course_id: categories.courseId }).from(categories).orderBy(asc(categories.name)),
     ]);
 
     return NextResponse.json({
-      courses: (coursesRes.data || []).map(c => ({ id: c.id, name: c.name })),
-      faculty: (facultyRes.data || []).map(f => ({
+      courses: coursesList.map(c => ({ id: c.id, name: c.name })),
+      faculty: facultyList.map(f => ({
         id: f.id,
-        name: `${f.users?.first_name || ''} ${f.users?.last_name || ''}`.trim(),
+        name: `${f.first_name || ''} ${f.last_name || ''}`.trim(),
         years_experience: f.years_experience,
       })),
-      venues: (venuesRes.data || []).map(v => ({
+      venues: venuesList.map(v => ({
         id: v.id,
         name: `${v.name}${v.building ? ', ' + v.building : ''}`,
       })),
-      sessionTypes: (typesRes.data || []).map(t => ({ id: t.id, name: t.name })),
-      skills: (skillsRes.data || []).map(s => ({
+      sessionTypes: typesList.map(t => ({ id: t.id, name: t.name })),
+      skills: skillsList.map(s => ({
         id: s.id,
         name: s.name,
         details: s.details,
         category_id: s.category_id,
-        category_name: s.categories?.name || null,
+        category_name: s.category_name || null,
       })),
-      categories: (categoriesRes.data || []).map(c => ({ id: c.id, name: c.name, course_id: c.course_id })),
+      categories: categoriesList.map(c => ({ id: c.id, name: c.name, course_id: c.course_id })),
     });
   } catch (err) {
     console.error('Lookup error:', err);

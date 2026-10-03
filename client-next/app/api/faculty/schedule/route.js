@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import { sessions, courses, venues } from '@/drizzle/schema';
+import { eq, and, ne, gte, asc } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
 import { getISTDateString } from '@/lib/ist-date';
 
@@ -9,35 +11,37 @@ async function handler(req) {
     const { searchParams } = new URL(req.url);
     const upcoming = searchParams.get('upcoming') === 'true';
 
-    let query = supabaseAdmin
-      .from('sessions')
-      .select(`
-        id, title, session_date, start_time, end_time, status, course_id,
-        courses ( id, name ),
-        venues ( id, name, building )
-      `)
-      .eq('faculty_id', req.user.id)
-      .order('session_date', { ascending: true })
-      .order('start_time', { ascending: true });
-
+    const conditions = [eq(sessions.facultyId, req.user.id)];
     if (upcoming) {
       const today = getISTDateString(); // IST date
-      query = query.gte('session_date', today).neq('status', 'cancelled');
+      conditions.push(gte(sessions.sessionDate, today));
+      conditions.push(ne(sessions.status, 'cancelled'));
     }
 
-    const { data: sessions, error } = await query;
+    const rows = await db
+      .select({
+        id: sessions.id,
+        title: sessions.title,
+        session_date: sessions.sessionDate,
+        start_time: sessions.startTime,
+        end_time: sessions.endTime,
+        status: sessions.status,
+        course_id: sessions.courseId,
+        course_name: courses.name,
+        venue_name: venues.name,
+      })
+      .from(sessions)
+      .leftJoin(courses, eq(sessions.courseId, courses.id))
+      .leftJoin(venues, eq(sessions.venueId, venues.id))
+      .where(and(...conditions))
+      .orderBy(asc(sessions.sessionDate), asc(sessions.startTime));
 
-    if (error) {
-      console.error('Faculty schedule error:', error);
-      return NextResponse.json({ error: 'Failed to fetch schedule' }, { status: 500 });
-    }
-
-    const mapped = (sessions || []).map((s) => ({
+    const mapped = (rows || []).map((s) => ({
       id: s.id,
       title: s.title || 'Untitled',
-      course: s.courses?.name || 'Unknown',
+      course: s.course_name || 'Unknown',
       course_id: s.course_id,
-      venue: s.venues?.name || 'TBA',
+      venue: s.venue_name || 'TBA',
       date: s.session_date,
       time: s.start_time?.slice(0, 5),
       endTime: s.end_time?.slice(0, 5),
@@ -52,3 +56,4 @@ async function handler(req) {
 }
 
 export const GET = withRole(handler, ['faculty']);
+

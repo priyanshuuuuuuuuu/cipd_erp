@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { timingSafeEqual } from 'crypto';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import { users } from '@/drizzle/schema';
+import { eq, and } from 'drizzle-orm';
 import { signToken } from '@/lib/auth';
 
 const STATE_COOKIE = 'cipd_google_signin_state';
@@ -66,14 +68,24 @@ export async function GET(request) {
 
     // Google identity alone is not an ERP account. A matching active student
     // record is required, so no account is created implicitly by this route.
-    const { data: user, error } = await supabaseAdmin
-      .from('users')
-      .select('id, email, role, first_name, last_name, is_active')
-      .eq('email', email)
-      .eq('role', 'student')
-      .maybeSingle();
+    const [user] = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        role: users.role,
+        first_name: users.firstName,
+        last_name: users.lastName,
+        is_active: users.isActive,
+      })
+      .from(users)
+      .where(
+        and(
+          eq(users.email, email),
+          eq(users.role, 'student')
+        )
+      )
+      .limit(1);
 
-    if (error) throw error;
     if (!user || !user.is_active) return redirectToLogin(request, 'not_eligible');
 
     const authUser = {

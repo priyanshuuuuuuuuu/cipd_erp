@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { getSchemaClient, getCohortConfig } from '@/lib/supabase';
+import { getSchemaDb, getCohortConfig } from '@/lib/db';
+import { students, users, courseEnrollments, courses, attendanceRecords, sessions } from '@/drizzle/schema';
+import { eq, and, inArray, desc } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
 
 // GET /api/admin/students/attendance-summary?student_id=<uuid>&schema=july
@@ -21,50 +23,75 @@ async function handler(req) {
     if (!schemas.includes(requestedSchema)) {
       return NextResponse.json({ error: 'Invalid schema' }, { status: 400 });
     }
-    const db = getSchemaClient(requestedSchema);
+    const schemaDb = getSchemaDb(requestedSchema);
 
-    const { data: student } = await db
-      .from('students')
-      .select('id, enrollment_no, program_name, users ( first_name, last_name, email )')
-      .eq('id', studentId)
-      .maybeSingle();
+    const [student] = await schemaDb
+      .select({
+        id: students.id,
+        enrollment_no: students.enrollmentNo,
+        program_name: students.programName,
+        first_name: users.firstName,
+        last_name: users.lastName,
+        email: users.email,
+      })
+      .from(students)
+      .leftJoin(users, eq(students.userId, users.id))
+      .where(eq(students.id, studentId))
+      .limit(1);
 
     if (!student) return NextResponse.json({ error: 'Student not found' }, { status: 404 });
 
-    const { data: enrollments } = await db
-      .from('course_enrollments')
-      .select('course_id, courses ( id, name )')
-      .eq('student_id', studentId);
+    const enrollments = await schemaDb
+      .select({
+        course_id: courseEnrollments.courseId,
+        course_name: courses.name,
+      })
+      .from(courseEnrollments)
+      .leftJoin(courses, eq(courseEnrollments.courseId, courses.id))
+      .where(eq(courseEnrollments.studentId, studentId));
 
-    const enrolledCourses = (enrollments || []).map(e => ({
-      id: e.courses?.id || e.course_id,
-      name: e.courses?.name || 'Unknown',
+    const enrolledCourses = enrollments.map(e => ({
+      id: e.course_id,
+      name: e.course_name || 'Unknown',
     }));
-    const enrolledCourseIds = enrolledCourses.map(c => c.id);
+    const enrolledCourseIds = enrolledCourses.map(c => c.id).filter(Boolean);
 
     let records = [];
     if (enrolledCourseIds.length > 0) {
-      const { data: recs } = await db
-        .from('attendance_records')
-        .select(`
-          status, points, session_id, ping_count,
-          sessions!inner (
-            id, session_date, start_time, end_time, title, course_id, status,
-            courses ( name )
+      records = await schemaDb
+        .select({
+          status: attendanceRecords.status,
+          points: attendanceRecords.points,
+          session_id: attendanceRecords.sessionId,
+          ping_count: attendanceRecords.pingCount,
+          session: {
+            id: sessions.id,
+            session_date: sessions.sessionDate,
+            start_time: sessions.startTime,
+            end_time: sessions.endTime,
+            title: sessions.title,
+            course_id: sessions.courseId,
+            status: sessions.status,
+          },
+          course_name: courses.name,
+        })
+        .from(attendanceRecords)
+        .innerJoin(sessions, eq(attendanceRecords.sessionId, sessions.id))
+        .leftJoin(courses, eq(sessions.courseId, courses.id))
+        .where(
+          and(
+            eq(attendanceRecords.studentId, studentId),
+            inArray(sessions.courseId, enrolledCourseIds),
+            eq(sessions.status, 'completed')
           )
-        `)
-        .eq('student_id', studentId)
-        .in('sessions.course_id', enrolledCourseIds)
-        .eq('sessions.status', 'completed')
-        .order('sessions(session_date)', { ascending: false });
-
-      records = recs || [];
+        )
+        .orderBy(desc(sessions.sessionDate));
     }
 
     // Per-course stats
     const countsByCourse = {};
     for (const r of records) {
-      const cid = r.sessions?.course_id;
+      const cid = r.session?.course_id;
       if (!cid) continue;
       if (!countsByCourse[cid]) countsByCourse[cid] = { attended: 0, absent: 0, leave: 0, total: 0, points: 0 };
       countsByCourse[cid].total++;
@@ -74,7 +101,7 @@ async function handler(req) {
       else countsByCourse[cid].absent++;
     }
 
-    const courses = enrolledCourses.map(c => {
+    const resCourses = enrolledCourses.map(c => {
       const counts = countsByCourse[c.id] || { attended: 0, absent: 0, leave: 0, total: 0, points: 0 };
       const maxPoints = counts.total * 5;
       const pct = maxPoints > 0 ? Math.max(0, Math.round((counts.points / maxPoints) * 1000) / 10) : 0;
@@ -98,7 +125,7 @@ async function handler(req) {
     // Streak
     const byDate = {};
     for (const r of records) {
-      const date = r.sessions?.session_date;
+      const date = r.session?.session_date;
       if (!date) continue;
       if (!byDate[date]) byDate[date] = [];
       byDate[date].push(r.status);
@@ -112,7 +139,7 @@ async function handler(req) {
 
     // Recent sessions (last 10)
     const recentSessions = records.slice(0, 10).map(r => {
-      const sess = r.sessions || {};
+      const sess = r.session || {};
       const dateStr = sess.session_date || '';
       const d = dateStr ? new Date(dateStr + 'T00:00:00') : null;
       return {
@@ -121,9 +148,9 @@ async function handler(req) {
         date_raw: dateStr,
         start_time: sess.start_time ? sess.start_time.slice(0, 5) : '',
         end_time: sess.end_time ? sess.end_time.slice(0, 5) : '',
-        title: sess.title || sess.courses?.name || 'Session',
-        course_name: sess.courses?.name || '',
-        course_code: makeCode(sess.courses?.name || ''),
+        title: sess.title || r.course_name || 'Session',
+        course_name: r.course_name || '',
+        course_code: makeCode(r.course_name || ''),
         status: r.status,
         ping_count: r.ping_count || 0,
         points: r.points != null ? Number(r.points) : null,
@@ -133,8 +160,8 @@ async function handler(req) {
     return NextResponse.json({
       student: {
         id: student.id,
-        name: `${student.users?.first_name || ''} ${student.users?.last_name || ''}`.trim(),
-        email: student.users?.email || '',
+        name: `${student.first_name || ''} ${student.last_name || ''}`.trim(),
+        email: student.email || '',
         enrollment_no: student.enrollment_no || '',
         program_name: student.program_name || '',
       },
@@ -150,7 +177,7 @@ async function handler(req) {
         maxPoints: overallTotal * 5,
       },
       streak,
-      courses,
+      courses: resCourses,
       recentSessions,
       schema: requestedSchema,
     });
@@ -161,3 +188,4 @@ async function handler(req) {
 }
 
 export const GET = withRole(handler, ['admin']);
+

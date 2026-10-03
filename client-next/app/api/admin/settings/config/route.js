@@ -1,19 +1,28 @@
+export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import { systemSettings } from '@/drizzle/schema';
+import { eq } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
 
 async function handler(req) {
   try {
     if (req.method === 'GET') {
-      const { data, error } = await supabaseAdmin
-        .from('system_settings')
-        .select('*')
-        .eq('id', 1)
-        .single();
+      const [data] = await db
+        .select({
+          id: systemSettings.id,
+          ping_interval: systemSettings.pingInterval,
+          pings_per_session: systemSettings.pingsPerSession,
+          presence_threshold: systemSettings.presenceThreshold,
+          attendance_window: systemSettings.attendanceWindow,
+          updated_at: systemSettings.updatedAt,
+          scanner_interval_minutes: systemSettings.scannerIntervalMinutes,
+          min_signal: systemSettings.minSignal,
+        })
+        .from(systemSettings)
+        .where(eq(systemSettings.id, 1))
+        .limit(1);
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 is multiple (or no) rows returned
-        throw error;
-      }
       return NextResponse.json(data || {});
     } 
     
@@ -23,25 +32,32 @@ async function handler(req) {
       const { scannerInterval, minSignal } = body;
 
       const updatePayload = {
-        updated_at: new Date().toISOString()
+        updatedAt: new Date().toISOString()
       };
       if (scannerInterval !== undefined) {
-        updatePayload.scanner_interval_minutes = scannerInterval;
-        updatePayload.ping_interval = scannerInterval; // keep old column in sync
+        updatePayload.scannerIntervalMinutes = scannerInterval;
+        updatePayload.pingInterval = scannerInterval; // keep old column in sync
       }
       if (minSignal !== undefined) {
-        updatePayload.min_signal = minSignal;
-        updatePayload.presence_threshold = minSignal; // keep old column in sync
+        updatePayload.minSignal = minSignal;
+        updatePayload.presenceThreshold = minSignal; // keep old column in sync
       }
 
-      const { data, error } = await supabaseAdmin
-        .from('system_settings')
-        .update(updatePayload)
-        .eq('id', 1)
-        .select()
-        .single();
+      const [data] = await db
+        .update(systemSettings)
+        .set(updatePayload)
+        .where(eq(systemSettings.id, 1))
+        .returning({
+          id: systemSettings.id,
+          ping_interval: systemSettings.pingInterval,
+          pings_per_session: systemSettings.pingsPerSession,
+          presence_threshold: systemSettings.presenceThreshold,
+          attendance_window: systemSettings.attendanceWindow,
+          updated_at: systemSettings.updatedAt,
+          scanner_interval_minutes: systemSettings.scannerIntervalMinutes,
+          min_signal: systemSettings.minSignal,
+        });
 
-      if (error) throw error;
       return NextResponse.json({ success: true, data });
     }
 

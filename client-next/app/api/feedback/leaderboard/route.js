@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import { attendanceRecords, students, users, feedbackResponses } from '@/drizzle/schema';
+import { eq } from 'drizzle-orm';
 import { withAuth } from '@/lib/middleware';
 
 /**
@@ -12,49 +14,48 @@ import { withAuth } from '@/lib/middleware';
 
 async function handler(req) {
   try {
-    const PAGE_SIZE = 1000;
-    let allRecords = [];
-    let from = 0;
+    const allRecords = await db
+      .select({
+        student_id: attendanceRecords.studentId,
+        session_id: attendanceRecords.sessionId,
+        points: attendanceRecords.points,
+        status: attendanceRecords.status,
+      })
+      .from(attendanceRecords);
 
-    while (true) {
-      const { data: page, error: recError } = await supabaseAdmin
-        .from('attendance_records')
-        .select('student_id, session_id, points, status')
-        .range(from, from + PAGE_SIZE - 1);
-
-      if (recError) throw new Error('attendance_records: ' + recError.message);
-      if (!page || page.length === 0) break;
-      allRecords = allRecords.concat(page);
-      if (page.length < PAGE_SIZE) break;
-      from += PAGE_SIZE;
-    }
-
-    const { data: allStudents, error: studentsError } = await supabaseAdmin
-      .from('students')
-      .select('id, enrollment_no, users!inner ( first_name, last_name, is_active )')
-      .eq('users.is_active', true);
-
-    if (studentsError) throw new Error('students: ' + studentsError.message);
+    const allStudents = await db
+      .select({
+        id: students.id,
+        enrollment_no: students.enrollmentNo,
+        first_name: users.firstName,
+        last_name: users.lastName,
+      })
+      .from(students)
+      .innerJoin(users, eq(students.id, users.id))
+      .where(eq(users.isActive, true));
 
     const studentMap = {};
     (allStudents || []).forEach((s) => {
       studentMap[s.id] = {
         name:
-          `${s.users?.first_name || ''} ${s.users?.last_name || ''}`.trim() ||
+          `${s.first_name || ''} ${s.last_name || ''}`.trim() ||
           'Unknown',
         enrollment_no: s.enrollment_no || '',
       };
     });
 
-    const { data: feedbackResponses, error: fbError } = await supabaseAdmin
-      .from('feedback_responses')
-      .select('student_id, session_id');
-
-    if (fbError) throw new Error('feedback_responses: ' + fbError.message);
+    const fbResponses = await db
+      .select({
+        student_id: feedbackResponses.studentId,
+        session_id: feedbackResponses.sessionId,
+      })
+      .from(feedbackResponses);
 
     const feedbackSet = new Set();
-    (feedbackResponses || []).forEach((r) => {
-      feedbackSet.add(`${r.student_id}:${r.session_id}`);
+    (fbResponses || []).forEach((r) => {
+      if (r.student_id && r.session_id) {
+        feedbackSet.add(`${r.student_id}:${r.session_id}`);
+      }
     });
 
     const distinctSessions = new Set(allRecords.map((r) => r.session_id));
@@ -65,6 +66,7 @@ async function handler(req) {
     for (const rec of allRecords) {
       const { student_id: studentId, session_id: sessionId, points, status } =
         rec;
+      if (!studentId || !sessionId) continue;
       const student = studentMap[studentId];
       if (!student) continue;
 
@@ -130,3 +132,4 @@ async function handler(req) {
 }
 
 export const GET = withAuth(handler);
+

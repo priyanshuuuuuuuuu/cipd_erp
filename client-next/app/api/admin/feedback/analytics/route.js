@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import { sessions, feedbackResponses, feedbackQuestions, students, courses, faculty, users } from '@/drizzle/schema';
+import { eq, inArray, or, desc, asc, and, isNotNull } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
 import { getAttendedCountBySession } from '@/lib/feedback-eligibility';
 
@@ -11,50 +13,58 @@ async function getHandler(req) {
 
     // ===== DETAIL VIEW for a specific session =====
     if (sessionId) {
-      const { data: session } = await supabaseAdmin
-        .from('sessions')
-        .select(`
-          id, title, session_date, course_id,
-          courses ( name ),
-          faculty ( id, users ( first_name, last_name ) )
-        `)
-        .eq('id', sessionId)
-        .single();
+      const session = await db.query.sessions.findFirst({
+        columns: { id: true, title: true, sessionDate: true, courseId: true },
+        where: eq(sessions.id, sessionId),
+        with: {
+          course: { columns: { name: true } },
+          faculty: { columns: { id: true }, with: { user: { columns: { firstName: true, lastName: true } } } }
+        }
+      });
 
       if (!session) {
         return NextResponse.json({ error: 'Session not found' }, { status: 404 });
       }
 
       // Get attended count for this session (eligible students)
-      const attendedCountMap = await getAttendedCountBySession(supabaseAdmin, [sessionId]);
+      const attendedCountMap = await getAttendedCountBySession(db, [sessionId]);
       const attended = attendedCountMap[sessionId] || 0;
 
       // Get all feedback responses for this session (plain, no joins)
-      const { data: responses } = await supabaseAdmin
-        .from('feedback_responses')
-        .select('student_id, question_id, rating, yes_no, text_answer, submitted_at')
-        .eq('session_id', sessionId);
+      const responses = await db.query.feedbackResponses.findMany({
+        columns: { studentId: true, questionId: true, rating: true, yesNo: true, textAnswer: true, submittedAt: true },
+        where: eq(feedbackResponses.sessionId, sessionId)
+      });
 
       // Get all questions for lookup
-      const questionIds = [...new Set((responses || []).map(r => r.question_id))];
-      const { data: questions } = questionIds.length > 0
-        ? await supabaseAdmin.from('feedback_questions').select('id, question, type, category').in('id', questionIds)
-        : { data: [] };
+      const questionIds = [...new Set((responses || []).map(r => r.questionId).filter(Boolean))];
+      let questionsData = [];
+      if (questionIds.length > 0) {
+        questionsData = await db.query.feedbackQuestions.findMany({
+          columns: { id: true, question: true, type: true, category: true },
+          where: inArray(feedbackQuestions.id, questionIds)
+        });
+      }
       const qMap = {};
-      (questions || []).forEach(q => { qMap[q.id] = q; });
+      (questionsData || []).forEach(q => { qMap[q.id] = q; });
 
       // Get student details for lookup
-      const studentIds = [...new Set((responses || []).map(r => r.student_id))];
-      const { data: students } = studentIds.length > 0
-        ? await supabaseAdmin.from('students').select('user_id, enrollment_no, users:user_id ( first_name, last_name )').in('user_id', studentIds)
-        : { data: [] };
+      const studentIds = [...new Set((responses || []).map(r => r.studentId).filter(Boolean))];
+      let studentsData = [];
+      if (studentIds.length > 0) {
+        studentsData = await db.query.students.findMany({
+          columns: { id: true, enrollmentNo: true },
+          where: inArray(students.id, studentIds),
+          with: { user: { columns: { firstName: true, lastName: true } } }
+        });
+      }
       const sMap = {};
-      (students || []).forEach(s => { sMap[s.user_id] = s; });
+      (studentsData || []).forEach(s => { sMap[s.id] = s; });
 
       // ===== Per-question analytics =====
       const questionMap = {};
       (responses || []).forEach(r => {
-        const q = qMap[r.question_id];
+        const q = qMap[r.questionId];
         if (!q) return;
         if (!questionMap[q.id]) {
           questionMap[q.id] = {
@@ -71,8 +81,8 @@ async function getHandler(req) {
       const questionAnalytics = Object.values(questionMap).map(q => {
         const total = q.responses.length;
         if (q.type === 'yes_no') {
-          const yesCount = q.responses.filter(r => r.yes_no === true).length;
-          const noCount = q.responses.filter(r => r.yes_no === false).length;
+          const yesCount = q.responses.filter(r => r.yesNo === true).length;
+          const noCount = q.responses.filter(r => r.yesNo === false).length;
           return {
             ...q, responses: undefined, total,
             yesCount, noCount,
@@ -89,7 +99,7 @@ async function getHandler(req) {
           }));
           return { ...q, responses: undefined, total, avgRating: avg, distribution: dist };
         } else if (q.type === 'mcq') {
-          const answers = q.responses.map(r => r.text_answer).filter(Boolean);
+          const answers = q.responses.map(r => r.textAnswer).filter(Boolean);
           const counts = {};
           answers.forEach(a => { counts[a] = (counts[a] || 0) + 1; });
           const dist = Object.entries(counts).map(([value, count]) => ({
@@ -98,15 +108,15 @@ async function getHandler(req) {
           return { ...q, responses: undefined, total, distribution: dist };
         } else {
           // text
-          const texts = q.responses.filter(r => r.text_answer).map(r => ({
-            text: r.text_answer,
-            student: sMap[r.student_id]?.enrollment_no || r.student_id?.slice(0, 8),
+          const texts = q.responses.filter(r => r.textAnswer).map(r => ({
+            text: r.textAnswer,
+            student: sMap[r.studentId]?.enrollmentNo || r.studentId?.slice(0, 8),
           }));
           return { ...q, responses: undefined, total, textResponses: texts };
         }
       });
 
-      // ===== Overall rating distribution (from rating columns) =====
+      // ===== Overall rating distribution =====
       const allRatings = (responses || []).filter(r => r.rating != null).map(r => r.rating);
       const ratingDist = [5, 4, 3, 2, 1].map(r => ({
         rating: r,
@@ -124,43 +134,53 @@ async function getHandler(req) {
 
       const studentRatingMap = {};
       (responses || []).forEach((r) => {
-        if (r.rating != null && studentRatingMap[r.student_id] == null) {
-          studentRatingMap[r.student_id] = r.rating;
+        if (r.rating != null && studentRatingMap[r.studentId] == null) {
+          studentRatingMap[r.studentId] = r.rating;
         }
       });
 
       const descriptive = (responses || [])
-        .filter((r) => r.text_answer && qMap[r.question_id]?.type === 'text')
+        .filter((r) => r.textAnswer && qMap[r.questionId]?.type === 'text')
         .map((r) => ({
-          student: sMap[r.student_id]?.enrollment_no || r.student_id?.slice(0, 8),
-          rating: studentRatingMap[r.student_id] ?? null,
-          text: r.text_answer,
+          student: sMap[r.studentId]?.enrollmentNo || r.studentId?.slice(0, 8),
+          rating: studentRatingMap[r.studentId] ?? null,
+          text: r.textAnswer,
         }));
 
-      // Unique students who submitted (for student-wise dropdown)
+      // Unique students who submitted
       const studentMap2 = {};
       (responses || []).forEach(r => {
-        if (!studentMap2[r.student_id]) {
-          const s = sMap[r.student_id];
-          const name = s?.users
-            ? `${s.users.first_name} ${s.users.last_name}`
-            : s?.enrollment_no || 'Unknown';
-          studentMap2[r.student_id] = {
-            id: r.student_id,
+        if (!studentMap2[r.studentId]) {
+          const s = sMap[r.studentId];
+          const name = s?.user
+            ? `${s.user.firstName} ${s.user.lastName}`
+            : s?.enrollmentNo || 'Unknown';
+          studentMap2[r.studentId] = {
+            id: r.studentId,
             name,
-            enrollmentNo: s?.enrollment_no || '',
+            enrollmentNo: s?.enrollmentNo || '',
           };
         }
       });
       const submittedStudents = Object.values(studentMap2);
 
-      return NextResponse.json({
-        session: {
-          ...session,
-          faculty_name: session.faculty?.users
-            ? `${session.faculty.users.first_name} ${session.faculty.users.last_name}`
+      const formattedSession = {
+        id: session.id,
+        title: session.title,
+        session_date: session.sessionDate,
+        course_id: session.courseId,
+        courses: { name: session.course?.name },
+        faculty: session.faculty ? {
+            id: session.faculty.id,
+            users: { first_name: session.faculty.user?.firstName, last_name: session.faculty.user?.lastName }
+        } : null,
+        faculty_name: session.faculty?.user
+            ? `${session.faculty.user.firstName} ${session.faculty.user.lastName}`
             : 'TBA',
-        },
+      };
+
+      return NextResponse.json({
+        session: formattedSession,
         avgRating,
         ratingDistribution: ratingDistWithPct,
         questionAnalytics,
@@ -172,64 +192,56 @@ async function getHandler(req) {
       });
     }
 
-    // ===== OVERVIEW — summary across all completed sessions =====
+    // ===== OVERVIEW =====
 
-    // Keep completed sessions in the dashboard, and also include any session
-    // that already has feedback. This avoids hiding a new response when a
-    // session's status transition is still catching up.
-    const { data: responseSessionRows, error: responseSessionError } = await supabaseAdmin
-      .from('feedback_responses')
-      .select('session_id');
-    if (responseSessionError) throw responseSessionError;
+    const responseSessionRows = await db.query.feedbackResponses.findMany({
+      columns: { sessionId: true }
+    });
+    const responseSessionIds = [...new Set((responseSessionRows || []).map((row) => row.sessionId).filter(Boolean))];
+    
+    let whereClause = eq(sessions.status, 'completed');
+    if (responseSessionIds.length > 0) {
+      whereClause = or(eq(sessions.status, 'completed'), inArray(sessions.id, responseSessionIds));
+    }
 
-    const responseSessionIds = [...new Set((responseSessionRows || []).map((row) => row.session_id).filter(Boolean))];
-    let sessionsQuery = supabaseAdmin
-      .from('sessions')
-      .select(`
-        id, title, session_date, course_id,
-        courses ( name ),
-        faculty ( id, users ( first_name, last_name ) )
-      `);
+    const sessionsData = await db.query.sessions.findMany({
+      columns: { id: true, title: true, sessionDate: true, courseId: true },
+      where: whereClause,
+      with: {
+        course: { columns: { name: true } },
+        faculty: { columns: { id: true }, with: { user: { columns: { firstName: true, lastName: true } } } }
+      },
+      orderBy: [desc(sessions.sessionDate)]
+    });
 
-    sessionsQuery = responseSessionIds.length > 0
-      ? sessionsQuery.or(`status.eq.completed,id.in.(${responseSessionIds.join(',')})`)
-      : sessionsQuery.eq('status', 'completed');
+    const sessionIds = (sessionsData || []).map((s) => s.id);
 
-    const { data: sessions, error: sessionsError } = await sessionsQuery
-      .order('session_date', { ascending: false });
-    if (sessionsError) throw sessionsError;
-
-    const sessionIds = (sessions || []).map((s) => s.id);
-
-    const { data: allResponses } =
-      sessionIds.length > 0
-        ? await supabaseAdmin
-            .from('feedback_responses')
-            .select('student_id, session_id, rating, yes_no, text_answer, submitted_at, question_id')
-            .in('session_id', sessionIds)
-        : { data: [] };
+    let allResponses = [];
+    if (sessionIds.length > 0) {
+        allResponses = await db.query.feedbackResponses.findMany({
+            columns: { studentId: true, sessionId: true, rating: true, yesNo: true, textAnswer: true, submittedAt: true, questionId: true },
+            where: inArray(feedbackResponses.sessionId, sessionIds)
+        });
+    }
 
     const attendedCountMap = await getAttendedCountBySession(
-      supabaseAdmin,
+      db,
       sessionIds.length > 0 ? sessionIds : null
     );
 
     const responsesBySession = {};
     (allResponses || []).forEach((r) => {
-      if (!responsesBySession[r.session_id]) responsesBySession[r.session_id] = [];
-      responsesBySession[r.session_id].push(r);
+      if (!responsesBySession[r.sessionId]) responsesBySession[r.sessionId] = [];
+      responsesBySession[r.sessionId].push(r);
     });
 
-    // Extract ratings from the rating column
     const ratings = (allResponses || []).filter(r => r.rating != null).map(r => r.rating);
     const avgRating = ratings.length > 0
       ? Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 10) / 10
       : 0;
 
-    // Count text_answer responses
-    const totalDescriptive = (allResponses || []).filter(r => r.text_answer).length;
+    const totalDescriptive = (allResponses || []).filter(r => r.textAnswer).length;
 
-    // Rating distribution
     const ratingDist = [5, 4, 3, 2, 1].map(r => ({
       rating: r,
       count: ratings.filter(rating => rating === r).length,
@@ -240,35 +252,31 @@ async function getHandler(req) {
       pct: totalRatings > 0 ? Math.round((r.count / totalRatings) * 100) : 0,
     }));
 
-    // Total unique (session, student) pairs = total submissions
     const submissionPairs = new Set(
-      (allResponses || []).map(r => `${r.session_id}::${r.student_id}`)
+      (allResponses || []).map(r => `${r.sessionId}::${r.studentId}`)
     );
     const totalSubmissions = submissionPairs.size;
 
-    // Total expected submissions (sum of attended students per completed session)
     let totalExpected = 0;
-    (sessions || []).forEach((s) => {
+    (sessionsData || []).forEach((s) => {
       totalExpected += attendedCountMap[s.id] || 0;
     });
 
-    // Submission rate
     const onTimeRate = totalExpected > 0 ? Math.round((totalSubmissions / totalExpected) * 100) : 0;
 
-    // Per-lecture breakdown
-    const lectures = (sessions || []).map((s) => {
+    const lectures = (sessionsData || []).map((s) => {
       const sessionResponses = responsesBySession[s.id] || [];
       const sessionRatings = sessionResponses.filter((r) => r.rating != null).map((r) => r.rating);
-      const sessionDesc = sessionResponses.filter((r) => r.text_answer).length;
-      const uniqueStudents = new Set(sessionResponses.map((r) => r.student_id)).size;
+      const sessionDesc = sessionResponses.filter((r) => r.textAnswer).length;
+      const uniqueStudents = new Set(sessionResponses.map((r) => r.studentId)).size;
       const attended = attendedCountMap[s.id] || 0;
 
       return {
         id: s.id,
-        lecture: `${s.courses?.name || ''} – ${s.title}`,
-        date: s.session_date,
-        faculty: s.faculty?.users
-          ? `${s.faculty.users.first_name} ${s.faculty.users.last_name}`
+        lecture: `${s.course?.name || ''} – ${s.title}`,
+        date: s.sessionDate,
+        faculty: s.faculty?.user
+          ? `${s.faculty.user.firstName} ${s.faculty.user.lastName}`
           : 'TBA',
         avg: sessionRatings.length > 0
           ? Math.round((sessionRatings.reduce((a, b) => a + b, 0) / sessionRatings.length) * 10) / 10
@@ -281,7 +289,6 @@ async function getHandler(req) {
       };
     });
 
-    // Trend data — last 7 completed sessions that have feedback
     const lecturesWithFeedback = lectures.filter(l => l.submissions > 0);
     const trendLectures = lecturesWithFeedback.slice(0, 7).reverse();
     const trendData = trendLectures.map((l, i) => ({
@@ -291,30 +298,29 @@ async function getHandler(req) {
       sub: l.totalEnrolled > 0 ? Math.round((l.submissions / l.totalEnrolled) * 100) : 0,
     }));
 
-    // One activity row per student/session submission, not one per answer. Student
-    // identity intentionally stays out of the overview to preserve anonymity.
     const lectureById = new Map(lectures.map((lecture) => [lecture.id, lecture]));
     const latestSubmissionByPair = new Map();
     (allResponses || []).forEach((response) => {
-      const key = `${response.session_id}:${response.student_id}`;
+      const key = `${response.sessionId}:${response.studentId}`;
       const previous = latestSubmissionByPair.get(key);
-      if (!previous || new Date(response.submitted_at).getTime() > new Date(previous.submitted_at).getTime()) {
+      if (!previous || new Date(response.submittedAt).getTime() > new Date(previous.submittedAt).getTime()) {
         latestSubmissionByPair.set(key, response);
       }
     });
+    
     const recentSubmissions = [...latestSubmissionByPair.values()]
-      .sort((a, b) => new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime())
+      .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())
       .slice(0, 6)
       .map((response) => ({
-        id: `${response.session_id}:${response.student_id}`,
-        session_id: response.session_id,
-        lecture: lectureById.get(response.session_id)?.lecture || 'Feedback response',
-        submitted_at: response.submitted_at,
+        id: `${response.sessionId}:${response.studentId}`,
+        session_id: response.sessionId,
+        lecture: lectureById.get(response.sessionId)?.lecture || 'Feedback response',
+        submitted_at: response.submittedAt,
       }));
 
     return NextResponse.json({
       summary: {
-        totalLectures: (sessions || []).length,
+        totalLectures: (sessionsData || []).length,
         avgRating,
         onTimeRate,
         descriptiveCount: totalDescriptive,

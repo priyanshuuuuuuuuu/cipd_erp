@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db as defaultDb, getSchemaDb, getCohortConfig } from '@/lib/db';
+import { users, students } from '@/drizzle/schema';
+import { eq } from 'drizzle-orm';
 import { withAuth } from '@/lib/middleware';
 
 // Never cache this route — mac_verified can change at any time via admin approval
@@ -11,23 +13,47 @@ const NO_CACHE_HEADERS = {
 
 async function handler(req) {
   try {
-    const { data: user, error: userErr } = await supabaseAdmin
-      .from('users')
-      .select('id, email, first_name, last_name, role, is_active')
-      .eq('id', req.user.id)
-      .single();
+    let db = defaultDb;
+    let userFound = false;
 
-    if (userErr || !user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404, headers: NO_CACHE_HEADERS });
+    if (req.user?.schema) {
+      db = getSchemaDb(req.user.schema);
+      const [u] = await db
+        .select({ id: users.id, email: users.email, first_name: users.firstName, last_name: users.lastName, role: users.role, is_active: users.isActive })
+        .from(users).where(eq(users.id, req.user.id));
+      if (u) userFound = u;
+    } else {
+      const { schemas } = getCohortConfig();
+      for (const s of (schemas && schemas.length ? schemas : ['july'])) {
+        const schemaDb = getSchemaDb(s);
+        const [u] = await schemaDb
+          .select({ id: users.id, email: users.email, first_name: users.firstName, last_name: users.lastName, role: users.role, is_active: users.isActive })
+          .from(users).where(eq(users.id, req.user.id));
+        if (u) {
+          userFound = u;
+          db = schemaDb;
+          break;
+        }
+      }
     }
 
-    const { data: student, error: studentErr } = await supabaseAdmin
-      .from('students')
-      .select('enrollment_no, program_name, mac_address, mac_verified, device_hash')
-      .eq('id', req.user.id)
-      .single();
+    if (!userFound) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404, headers: NO_CACHE_HEADERS });
+    }
+    const user = userFound;
 
-    if (studentErr || !student) {
+    const [student] = await db
+      .select({
+        enrollment_no: students.enrollmentNo,
+        program_name: students.programName,
+        mac_address: students.macAddress,
+        mac_verified: students.macVerified,
+        device_hash: students.deviceHash,
+      })
+      .from(students)
+      .where(eq(students.id, req.user.id));
+
+    if (!student) {
       return NextResponse.json({ error: 'Student profile not found' }, { status: 404, headers: NO_CACHE_HEADERS });
     }
 

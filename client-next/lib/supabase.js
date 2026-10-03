@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import config, { DEFAULT_SCHEMA } from '../config';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -18,7 +19,7 @@ export const supabase = new Proxy({}, {
         throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY');
       }
       _supabase = createClient(supabaseUrl, supabaseAnonKey, {
-        db: { schema: 'july' },
+        db: { schema: DEFAULT_SCHEMA },
         global: {
           fetch: (url, options) => {
             return fetch(url, { ...options, cache: 'no-store' });
@@ -41,7 +42,7 @@ export const supabaseAdmin = new Proxy({}, {
         throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
       }
       _supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-        db: { schema: 'july' },
+        db: { schema: DEFAULT_SCHEMA },
         auth: {
           autoRefreshToken: false,
           persistSession: false,
@@ -65,13 +66,13 @@ const _schemaClients = new Map();
 
 /**
  * Returns (and caches) a service-role Supabase client for the given schema.
- * Falls back to 'july' if schema is undefined/null/empty.
+ * Falls back to DEFAULT_SCHEMA if schema is undefined/null/empty.
  *
  * @param {string} schema - Supabase schema name (e.g. 'july', 'public')
  * @returns {import('@supabase/supabase-js').SupabaseClient}
  */
-export function getSchemaClient(schema = 'july') {
-  const key = schema || 'july';
+export function getSchemaClient(schema = DEFAULT_SCHEMA) {
+  const key = schema || DEFAULT_SCHEMA;
   if (!_schemaClients.has(key)) {
     if (!supabaseUrl || !supabaseServiceKey) {
       throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
@@ -97,7 +98,7 @@ export function getSchemaClient(schema = 'july') {
  * @returns {{ schemas: string[], labels: Record<string,string> }}
  */
 export function getCohortConfig() {
-  const raw = process.env.COHORT_SCHEMAS || 'july';
+  const raw = process.env.COHORT_SCHEMAS || DEFAULT_SCHEMA;
   const schemas = raw.split(',').map(s => s.trim()).filter(Boolean);
 
   let labels = {};

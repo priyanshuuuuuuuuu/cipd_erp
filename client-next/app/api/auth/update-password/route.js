@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import { users } from '@/drizzle/schema';
+import { eq } from 'drizzle-orm';
 import { withAuth } from '@/lib/middleware';
 import { hashPassword, verifyPassword } from '@/lib/auth';
 
@@ -23,13 +25,13 @@ async function handler(req) {
     }
 
     // Fetch the stored hash for this user
-    const { data: user, error: fetchErr } = await supabaseAdmin
-      .from('users')
-      .select('id, password_hash')
-      .eq('id', req.user.id)
-      .single();
+    const [user] = await db
+      .select({ id: users.id, password_hash: users.passwordHash })
+      .from(users)
+      .where(eq(users.id, req.user.id))
+      .limit(1);
 
-    if (fetchErr || !user) {
+    if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
@@ -53,12 +55,10 @@ async function handler(req) {
 
     // Hash and save new password
     const newHash = await hashPassword(newPassword);
-    const { error: updateErr } = await supabaseAdmin
-      .from('users')
-      .update({ password_hash: newHash, updated_at: new Date().toISOString() })
-      .eq('id', req.user.id);
-
-    if (updateErr) throw updateErr;
+    await db
+      .update(users)
+      .set({ passwordHash: newHash, updatedAt: new Date().toISOString() })
+      .where(eq(users.id, req.user.id));
 
     return NextResponse.json({ message: 'Password updated successfully' });
   } catch (err) {
@@ -68,3 +68,4 @@ async function handler(req) {
 }
 
 export const POST = withAuth(handler);
+

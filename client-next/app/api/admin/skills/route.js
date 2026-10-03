@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import { skills, categories } from '@/drizzle/schema';
+import { eq } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
 
 // GET  /api/admin/skills?category_id=xxx  — list skills (optionally filtered by category)
@@ -11,17 +13,30 @@ async function handler(req) {
       const { searchParams } = new URL(req.url);
       const categoryId = searchParams.get('category_id');
 
-      let query = supabaseAdmin
-        .from('skills')
-        .select('id, name, details, category_id, categories(id, name, course_id)')
-        .order('name');
+      const rows = await db
+        .select({
+          id: skills.id,
+          name: skills.name,
+          details: skills.details,
+          category_id: skills.categoryId,
+          catId: categories.id,
+          catName: categories.name,
+          catCourseId: categories.courseId,
+        })
+        .from(skills)
+        .leftJoin(categories, eq(skills.categoryId, categories.id))
+        .where(categoryId ? eq(skills.categoryId, categoryId) : undefined)
+        .orderBy(skills.name);
 
-      if (categoryId) query = query.eq('category_id', categoryId);
+      const formatted = rows.map(r => ({
+        id: r.id,
+        name: r.name,
+        details: r.details,
+        category_id: r.category_id,
+        categories: r.catId ? { id: r.catId, name: r.catName, course_id: r.catCourseId } : null,
+      }));
 
-      const { data, error } = await query;
-      if (error) throw error;
-
-      return NextResponse.json({ skills: data || [] });
+      return NextResponse.json({ skills: formatted });
     } catch (err) {
       console.error('Skills GET error:', err);
       return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -35,25 +50,25 @@ async function handler(req) {
         return NextResponse.json({ error: 'Skill name is required' }, { status: 400 });
       }
 
-      const { data, error } = await supabaseAdmin
-        .from('skills')
-        .insert({
+      const [data] = await db
+        .insert(skills)
+        .values({
           name: name.trim(),
-          category_id: category_id || null,
+          categoryId: category_id || null,
           details: details?.trim() || null,
         })
-        .select('id, name, details, category_id')
-        .single();
-
-      if (error) {
-        if (error.code === '23505') {
-          return NextResponse.json({ error: 'A skill with this name already exists' }, { status: 409 });
-        }
-        throw error;
-      }
+        .returning({
+          id: skills.id,
+          name: skills.name,
+          details: skills.details,
+          category_id: skills.categoryId,
+        });
 
       return NextResponse.json({ skill: data }, { status: 201 });
     } catch (err) {
+      if (err?.code === '23505' || err?.message?.includes('unique constraint') || err?.cause?.code === '23505') {
+        return NextResponse.json({ error: 'A skill with this name already exists' }, { status: 409 });
+      }
       console.error('Skills POST error:', err);
       return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
@@ -64,3 +79,4 @@ async function handler(req) {
 
 export const GET  = withRole(handler, ['admin']);
 export const POST = withRole(handler, ['admin']);
+

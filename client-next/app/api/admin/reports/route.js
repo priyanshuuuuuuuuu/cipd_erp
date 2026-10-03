@@ -1,84 +1,85 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import { sessions, courses, faculty, users, feedbackResponses } from '@/drizzle/schema';
+import { eq, gte, isNotNull, desc, and, count } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
 import { getISTMonthStart } from '@/lib/ist-date';
 
 async function handler(request) {
-    try {
-        // 1. Fetch recent completed sessions with course + faculty info
-        const { data: sessions, error: sessErr } = await supabaseAdmin
-            .from('sessions')
-            .select(`
-                id,
-                session_date,
-                status,
-                course_id,
-                courses ( name ),
-                faculty:faculty_id ( users!inner ( first_name, last_name ) )
-            `)
-            .eq('status', 'completed')
-            .order('session_date', { ascending: false })
-            .limit(10);
+  try {
+    const startOfMonth = getISTMonthStart();
 
-        if (sessErr) throw sessErr;
+    const [recentSessions, [{ value: totalCompleted }], [{ value: thisMonth }], ratingsData] = await Promise.all([
+      db
+        .select({
+          id: sessions.id,
+          session_date: sessions.sessionDate,
+          status: sessions.status,
+          course_id: sessions.courseId,
+          course_name: courses.name,
+          first_name: users.firstName,
+          last_name: users.lastName,
+        })
+        .from(sessions)
+        .leftJoin(courses, eq(sessions.courseId, courses.id))
+        .leftJoin(faculty, eq(sessions.facultyId, faculty.id))
+        .leftJoin(users, eq(faculty.id, users.id))
+        .where(eq(sessions.status, 'completed'))
+        .orderBy(desc(sessions.sessionDate))
+        .limit(10),
 
-        // 2. Total completed sessions (all time)
-        const { count: totalCompleted } = await supabaseAdmin
-            .from('sessions')
-            .select('*', { count: 'exact', head: true })
-            .eq('status', 'completed');
+      db
+        .select({ value: count() })
+        .from(sessions)
+        .where(eq(sessions.status, 'completed')),
 
-        // 3. Sessions completed this month (IST)
-        const startOfMonth = getISTMonthStart();
-        const { count: thisMonth } = await supabaseAdmin
-            .from('sessions')
-            .select('*', { count: 'exact', head: true })
-            .eq('status', 'completed')
-            .gte('session_date', startOfMonth);
+      db
+        .select({ value: count() })
+        .from(sessions)
+        .where(and(eq(sessions.status, 'completed'), gte(sessions.sessionDate, startOfMonth))),
 
-        // 4. Average feedback rating across all sessions
-        const { data: ratings } = await supabaseAdmin
-            .from('feedback_responses')
-            .select('rating')
-            .not('rating', 'is', null);
+      db
+        .select({ rating: feedbackResponses.rating })
+        .from(feedbackResponses)
+        .where(isNotNull(feedbackResponses.rating)),
+    ]);
 
-        const allRatings = (ratings || []).map(r => r.rating);
-        const avgRating = allRatings.length > 0
-            ? (allRatings.reduce((a, b) => a + b, 0) / allRatings.length).toFixed(1)
-            : '—';
+    const allRatings = (ratingsData || []).map(r => r.rating).filter(r => r != null);
+    const avgRating = allRatings.length > 0
+      ? (allRatings.reduce((a, b) => a + b, 0) / allRatings.length).toFixed(1)
+      : '—';
 
-        // 5. Build report rows from sessions
-        const recentReports = (sessions || []).map((s, i) => {
-            const facultyName = s.faculty?.users
-                ? `Prof. ${s.faculty.users.first_name} ${s.faculty.users.last_name}`
-                : 'Unknown';
-            const courseName = s.courses?.name || 'Unknown Course';
-            const dateStr = new Date(s.session_date).toLocaleDateString('en-GB', {
-                day: '2-digit', month: 'short', year: 'numeric'
-            });
-            const typeOptions = ['Attendance Summary', 'Course Feedback', 'Faculty Evaluation'];
-            return {
-                id: s.id,
-                name: `${facultyName} — ${courseName}`,
-                type: typeOptions[i % typeOptions.length],
-                date: dateStr,
-                status: 'Available',
-            };
-        });
+    const recentReports = (recentSessions || []).map((s, i) => {
+      const facultyName = s.first_name || s.last_name
+        ? `Prof. ${s.first_name || ''} ${s.last_name || ''}`.trim()
+        : 'Unknown';
+      const courseName = s.course_name || 'Unknown Course';
+      const dateStr = s.session_date
+        ? new Date(s.session_date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+        : '';
+      const typeOptions = ['Attendance Summary', 'Course Feedback', 'Faculty Evaluation'];
+      return {
+        id: s.id,
+        name: `${facultyName} — ${courseName}`,
+        type: typeOptions[i % typeOptions.length],
+        date: dateStr,
+        status: 'Available',
+      };
+    });
 
-        const metrics = {
-            totalReports: totalCompleted || 0,
-            generatedThisMonth: thisMonth || 0,
-            avgRating: avgRating !== '—' ? `${avgRating}/5` : '—',
-        };
+    const metrics = {
+      totalReports: Number(totalCompleted || 0),
+      generatedThisMonth: Number(thisMonth || 0),
+      avgRating: avgRating !== '—' ? `${avgRating}/5` : '—',
+    };
 
-        return NextResponse.json({ recentReports, metrics });
+    return NextResponse.json({ recentReports, metrics });
 
-    } catch (error) {
-        console.error('Reports API Error:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+  } catch (error) {
+    console.error('Reports API Error:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 }
 
 export const GET = withRole(handler, ['admin']);

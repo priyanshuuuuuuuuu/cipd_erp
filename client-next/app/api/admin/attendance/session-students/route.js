@@ -1,6 +1,17 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import {
+  sessions,
+  courses,
+  venues,
+  course_enrollments,
+  students,
+  users,
+  attendance_records,
+} from '@/drizzle/schema';
+import { eq } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
 import { normalizeMac } from '@/lib/attendance-mac';
 import {
@@ -23,18 +34,41 @@ async function handler(req) {
       return NextResponse.json({ error: 'session_id is required' }, { status: 400 });
     }
 
-    const { data: session, error: sessErr } = await supabaseAdmin
-      .from('sessions')
-      .select(`
-        id, title, session_date, start_time, end_time, status, course_id,
-        courses ( id, name ),
-        venues ( id, name, building, router_bssid )
-      `)
-      .eq('id', sessionId)
-      .single();
+    const [session] = await db
+      .select({
+        id: sessions.id,
+        title: sessions.title,
+        session_date: sessions.session_date,
+        start_time: sessions.start_time,
+        end_time: sessions.end_time,
+        status: sessions.status,
+        course_id: sessions.course_id,
+        courses: {
+          id: courses.id,
+          name: courses.name,
+        },
+        venues: {
+          id: venues.id,
+          name: venues.name,
+          building: venues.building,
+          router_bssid: venues.router_bssid,
+        },
+      })
+      .from(sessions)
+      .leftJoin(courses, eq(sessions.course_id, courses.id))
+      .leftJoin(venues, eq(sessions.venue_id, venues.id))
+      .where(eq(sessions.id, sessionId))
+      .limit(1);
 
-    if (sessErr || !session) {
+    if (!session) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+    }
+
+    if (session && !session.venues?.id) {
+      session.venues = null;
+    }
+    if (session && !session.courses?.id) {
+      session.courses = null;
     }
 
     const courseId = session.courses?.id || session.course_id;
@@ -71,21 +105,32 @@ async function handler(req) {
 
     const { macTimeline, orderedSnapshotIds } = buildMacTimeline(snapshots || []);
 
-    const { data: enrollments } = await supabaseAdmin
-      .from('course_enrollments')
-      .select('student_id')
-      .eq('course_id', courseId);
+    const enrollments = await db
+      .select({ student_id: course_enrollments.student_id })
+      .from(course_enrollments)
+      .where(eq(course_enrollments.course_id, courseId));
 
     const enrolledStudentIds = new Set(
       (enrollments || []).map((e) => e.student_id)
     );
 
-    const { data: allStudents } = await supabaseAdmin
-      .from('students')
-      .select(
-        'id, enrollment_no, program_name, mac_address, mac_verified, users!inner ( first_name, last_name, email, is_active )'
-      )
-      .eq('users.is_active', true);
+    const allStudents = await db
+      .select({
+        id: students.id,
+        enrollment_no: students.enrollment_no,
+        program_name: students.program_name,
+        mac_address: students.mac_address,
+        mac_verified: students.mac_verified,
+        users: {
+          first_name: users.first_name,
+          last_name: users.last_name,
+          email: users.email,
+          is_active: users.is_active,
+        },
+      })
+      .from(students)
+      .innerJoin(users, eq(students.user_id, users.id))
+      .where(eq(users.is_active, true));
 
     const studentMap = {};
     (allStudents || []).forEach((s) => {
@@ -105,12 +150,17 @@ async function handler(req) {
       verifiedEnrolled.map((s) => s.id)
     );
 
-    const { data: existingRecords } = await supabaseAdmin
-      .from('attendance_records')
-      .select(
-        'student_id, status, points, admin_override, penalty, penalty_reason'
-      )
-      .eq('session_id', sessionId);
+    const existingRecords = await db
+      .select({
+        student_id: attendance_records.student_id,
+        status: attendance_records.status,
+        points: attendance_records.points,
+        admin_override: attendance_records.admin_override,
+        penalty: attendance_records.penalty,
+        penalty_reason: attendance_records.penalty_reason,
+      })
+      .from(attendance_records)
+      .where(eq(attendance_records.session_id, sessionId));
 
     const existingMap = {};
     (existingRecords || []).forEach((r) => {
@@ -122,12 +172,21 @@ async function handler(req) {
       { isOngoing, finalizeAbsent, upsert: true, now }
     );
 
-    const { data: refreshedRecords } = await supabaseAdmin
-      .from('attendance_records')
-      .select(
-        'student_id, status, points, ping_count, first_seen_at, last_seen_at, duration_minutes, admin_override, penalty, penalty_reason'
-      )
-      .eq('session_id', sessionId);
+    const refreshedRecords = await db
+      .select({
+        student_id: attendance_records.student_id,
+        status: attendance_records.status,
+        points: attendance_records.points,
+        ping_count: attendance_records.ping_count,
+        first_seen_at: attendance_records.first_seen_at,
+        last_seen_at: attendance_records.last_seen_at,
+        duration_minutes: attendance_records.duration_minutes,
+        admin_override: attendance_records.admin_override,
+        penalty: attendance_records.penalty,
+        penalty_reason: attendance_records.penalty_reason,
+      })
+      .from(attendance_records)
+      .where(eq(attendance_records.session_id, sessionId));
 
     const recordMap = {};
     (refreshedRecords || []).forEach((r) => {

@@ -1,4 +1,6 @@
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import { sessions, courses, faculty, users, attendanceRecords, notifications } from '@/drizzle/schema';
+import { eq, and, inArray } from 'drizzle-orm';
 import { getFeedbackDeadline } from '@/lib/feedback-deadline';
 import { fetchPreferencesMap, shouldNotifyUser } from '@/lib/should-notify';
 import {
@@ -27,22 +29,42 @@ export async function rolloutFeedbackForSession(sessionId, onlyStudentIds = null
   };
 
   try {
-    const { data: session, error: sessionError } = await supabaseAdmin
-      .from('sessions')
-      .select('id, title, session_date, start_time, end_time, feedback_deadline, course_id, courses ( id, name ), faculty ( id, users ( first_name, last_name ) )')
-      .eq('id', sessionId)
-      .single();
+    const [session] = await db
+      .select({
+        id: sessions.id,
+        title: sessions.title,
+        session_date: sessions.sessionDate,
+        start_time: sessions.startTime,
+        end_time: sessions.endTime,
+        feedback_deadline: sessions.feedbackDeadline,
+        course_id: sessions.courseId,
+        course_name: courses.name,
+        faculty_first_name: users.firstName,
+        faculty_last_name: users.lastName,
+      })
+      .from(sessions)
+      .leftJoin(courses, eq(sessions.courseId, courses.id))
+      .leftJoin(faculty, eq(sessions.facultyId, faculty.id))
+      .leftJoin(users, eq(faculty.id, users.id))
+      .where(eq(sessions.id, sessionId))
+      .limit(1);
 
-    if (sessionError || !session) {
-      result.errors.push('Session not found: ' + (sessionError?.message || 'unknown error'));
+    if (!session) {
+      result.errors.push('Session not found: unknown error');
       return result;
     }
 
-    const deadline = getFeedbackDeadline(session);
+    const formattedSession = {
+      ...session,
+      courses: { id: session.course_id, name: session.course_name },
+      faculty: { users: { first_name: session.faculty_first_name, last_name: session.faculty_last_name } },
+    };
+
+    const deadline = getFeedbackDeadline(formattedSession);
 
     // Sandbox mail is intentionally isolated from production students.
     if (result.sandbox) {
-      const queued = await enqueueFeedbackMessages(session, deadline.toISOString(), []);
+      const queued = await enqueueFeedbackMessages(formattedSession, deadline.toISOString(), []);
       result.queued = queued.queued;
       result.alreadyQueued = queued.alreadyQueued;
       result.recipients = queued.recipients;
@@ -51,49 +73,45 @@ export async function rolloutFeedbackForSession(sessionId, onlyStudentIds = null
 
     let presentStudentIds = onlyStudentIds;
     if (!presentStudentIds) {
-      const { data: attended, error: attendanceError } = await supabaseAdmin
-        .from('attendance_records')
-        .select('student_id')
-        .eq('session_id', sessionId)
-        .in('status', ['present', 'partial']);
+      const attended = await db
+        .select({ student_id: attendanceRecords.studentId })
+        .from(attendanceRecords)
+        .where(and(
+          eq(attendanceRecords.sessionId, sessionId),
+          inArray(attendanceRecords.status, ['present', 'partial'])
+        ));
 
-      if (attendanceError) {
-        result.errors.push('Attendance lookup failed: ' + attendanceError.message);
-        return result;
-      }
       presentStudentIds = (attended || []).map((row) => row.student_id);
     }
 
     if (!presentStudentIds?.length) return result;
 
-    const { data: existingNotifications, error: existingError } = await supabaseAdmin
-      .from('notifications')
-      .select('recipient_id')
-      .eq('session_id', sessionId)
-      .eq('type', 'feedback_available');
-
-    if (existingError) {
-      result.errors.push('Notification lookup failed: ' + existingError.message);
-      return result;
-    }
+    const existingNotifications = await db
+      .select({ recipient_id: notifications.recipientId })
+      .from(notifications)
+      .where(and(
+        eq(notifications.sessionId, sessionId),
+        eq(notifications.type, 'feedback_available')
+      ));
 
     const alreadyNotified = new Set((existingNotifications || []).map((row) => row.recipient_id));
     const pendingIds = presentStudentIds.filter((id) => !alreadyNotified.has(id));
     result.skipped = presentStudentIds.length - pendingIds.length;
 
-    const { data: students, error: studentsError } = await supabaseAdmin
-      .from('users')
-      .select('id, first_name, last_name, email')
-      .in('id', presentStudentIds)
-      .eq('is_active', true);
+    const allStudents = await db
+      .select({
+        id: users.id,
+        first_name: users.firstName,
+        last_name: users.lastName,
+        email: users.email,
+      })
+      .from(users)
+      .where(and(
+        inArray(users.id, presentStudentIds),
+        eq(users.isActive, true)
+      ));
 
-    if (studentsError) {
-      result.errors.push('Student lookup failed: ' + studentsError.message);
-      return result;
-    }
-
-    const allStudents = students || [];
-    const preferences = await fetchPreferencesMap(supabaseAdmin, allStudents.map((student) => student.id));
+    const preferences = await fetchPreferencesMap(allStudents.map((student) => student.id));
     const emailStudents = allStudents.filter((student) =>
       shouldNotifyUser(preferences, student.id, 'feedback_available')
     );
@@ -103,28 +121,26 @@ export async function rolloutFeedbackForSession(sessionId, onlyStudentIds = null
     );
 
     if (inAppStudents.length) {
-      const notifications = inAppStudents.map((student) => ({
-        recipient_id: student.id,
+      const notifRows = inAppStudents.map((student) => ({
+        recipientId: student.id,
         type: 'feedback_available',
-        title: '📝 Feedback: ' + (session.courses?.name || session.title),
-        message: 'Your feedback form for "' + session.title + '" is ready. Deadline: '
+        title: '📝 Feedback: ' + (formattedSession.courses?.name || formattedSession.title),
+        message: 'Your feedback form for "' + formattedSession.title + '" is ready. Deadline: '
           + deadline.toLocaleString('en-IN') + '. Submit now!',
-        course_id: session.course_id,
-        session_id: session.id,
-        is_read: false,
+        courseId: formattedSession.course_id,
+        sessionId: formattedSession.id,
+        isRead: false,
       }));
 
-      const { error: notificationError } = await supabaseAdmin
-        .from('notifications')
-        .insert(notifications);
-
-      if (notificationError) {
+      try {
+        await db.insert(notifications).values(notifRows);
+      } catch (notificationError) {
         result.errors.push('Notification insert failed: ' + notificationError.message);
         return result;
       }
     }
 
-    const queued = await enqueueFeedbackMessages(session, deadline.toISOString(), emailStudents);
+    const queued = await enqueueFeedbackMessages(formattedSession, deadline.toISOString(), emailStudents);
     result.queued = queued.queued;
     result.alreadyQueued = queued.alreadyQueued;
     result.notified = inAppStudents.length;

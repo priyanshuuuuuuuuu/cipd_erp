@@ -794,3 +794,52 @@ export async function verifyEmailConnection() {
     return { ok: false, error: err.message };
   }
 }
+
+// ── Attendance Summary (Post-Session) ─────────────────────────────────────────
+export async function sendAttendanceSummaryEmail(studentEmail, studentName, session, firstSeenAt) {
+  const firstName = (studentName || '').split(' ')[0] || 'Student';
+  const course    = session.courses?.name || session.title || '—';
+  const timeStr   = firstSeenAt
+    ? new Date(firstSeenAt).toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    : 'Unknown';
+
+  const content = `
+        <!-- HERO -->
+        <tr>
+          <td class="hero-pad" style="background:${DARK};padding:40px 40px 36px;">
+            <p style="margin:0 0 6px;font-family:'Inter',Helvetica,Arial,sans-serif;font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.4);">Attendance Summary</p>
+            <p class="hero-title" style="margin:0 0 8px;font-family:'Inter',Helvetica,Arial,sans-serif;font-size:32px;font-weight:900;color:#ffffff;letter-spacing:-0.5px;line-height:1.1;">Session Completed</p>
+            <p style="margin:0;font-family:'Inter',Helvetica,Arial,sans-serif;font-size:14px;color:rgba(255,255,255,0.5);">Hi ${firstName}, here is your attendance summary for <strong style="color:rgba(255,255,255,0.8);">${course}</strong>.</p>
+          </td>
+        </tr>
+
+        <!-- MESSAGE CARD -->
+        <tr>
+          <td style="padding:28px 28px 24px;">
+            <table width="100%" cellpadding="0" cellspacing="0" role="presentation"
+              style="border:1px solid ${BORDER};border-radius:10px;overflow:hidden;">
+              <tr><td style="height:3px;background:${INK};"></td></tr>
+              <tr>
+                <td style="padding:20px 22px;">
+                  <p style="margin:0 0 8px;font-family:'Inter',Helvetica,Arial,sans-serif;font-size:15px;font-weight:800;color:${INK};">You were marked present.</p>
+                  <p style="margin:0;font-family:'Inter',Helvetica,Arial,sans-serif;font-size:13px;color:${MUTED};line-height:1.7;">You were first seen by the Wi-Fi scanners at <strong>${timeStr}</strong> during the session.</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- CTA -->
+        <tr>
+          <td style="padding:0 28px 36px;text-align:center;">
+            ${ctaButton('View Dashboard', `${APP_URL}/dashboard`)}
+          </td>
+        </tr>`;
+
+  await transporter.sendMail({
+    from: fromAddress(),
+    to: studentEmail,
+    subject: `Attendance Summary: ${course} — CiPD 360`,
+    html: shell(content, `You were first seen at ${timeStr} during ${course}.`),
+  });
+}

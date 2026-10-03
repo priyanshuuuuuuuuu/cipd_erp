@@ -1,9 +1,20 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import {
+  sessions,
+  courses,
+  faculty,
+  users,
+  attendanceRecords,
+  feedbackResponses,
+  notifications,
+} from '@/drizzle/schema';
+import { eq, and, inArray, count } from 'drizzle-orm';
 import { sendFeedbackReminderEmail } from '@/lib/emailer';
 import { getFeedbackDeadline } from '@/lib/feedback-deadline';
 import { fetchPreferencesMap, shouldNotifyUser } from '@/lib/should-notify';
+
 /**
  * GET /api/cron/feedback-reminder
  * Runs periodically — finds feedback forms where deadline is ~4 hours away,
@@ -20,23 +31,34 @@ export async function GET(req) {
     const now = new Date();
 
     // Get all completed sessions
-    const { data: sessions } = await supabaseAdmin
-      .from('sessions')
-      .select(`
-        id, title, session_date, start_time, end_time, feedback_deadline, course_id,
-        courses ( id, name ),
-        faculty ( id, users ( first_name, last_name ) )
-      `)
-      .eq('status', 'completed');
+    const sessionRows = await db
+      .select({
+        id: sessions.id,
+        title: sessions.title,
+        session_date: sessions.sessionDate,
+        start_time: sessions.startTime,
+        end_time: sessions.endTime,
+        feedback_deadline: sessions.feedbackDeadline,
+        course_id: sessions.courseId,
+        course_name: courses.name,
+        faculty_id: faculty.id,
+        faculty_first_name: users.firstName,
+        faculty_last_name: users.lastName,
+      })
+      .from(sessions)
+      .leftJoin(courses, eq(sessions.courseId, courses.id))
+      .leftJoin(faculty, eq(sessions.facultyId, faculty.id))
+      .leftJoin(users, eq(faculty.id, users.id))
+      .where(eq(sessions.status, 'completed'));
 
-    if (!sessions || sessions.length === 0) {
+    if (!sessionRows || sessionRows.length === 0) {
       return NextResponse.json({ message: 'No completed sessions', sent: 0 });
     }
 
     let totalSent = 0;
     const errors = [];
 
-    for (const session of sessions) {
+    for (const session of sessionRows) {
       const deadline = getFeedbackDeadline(session);
 
       // Check if deadline is 3-5 hours away (4-hour reminder window)
@@ -44,62 +66,80 @@ export async function GET(req) {
       if (hoursLeft < 3 || hoursLeft > 5) continue;
 
       // Get students who attended but haven't submitted
-      const { data: attended } = await supabaseAdmin
-        .from('attendance_records')
-        .select('student_id')
-        .eq('session_id', session.id)
-        .in('status', ['present', 'partial']);
+      const attended = await db
+        .select({ student_id: attendanceRecords.studentId })
+        .from(attendanceRecords)
+        .where(
+          and(
+            eq(attendanceRecords.sessionId, session.id),
+            inArray(attendanceRecords.status, ['present', 'partial'])
+          )
+        );
 
       if (!attended || attended.length === 0) continue;
 
-      const attendedIds = attended.map(a => a.student_id);
+      const attendedIds = attended.map(a => a.student_id).filter(Boolean);
+      if (attendedIds.length === 0) continue;
 
-      const { data: submitted } = await supabaseAdmin
-        .from('feedback_responses')
-        .select('student_id')
-        .eq('session_id', session.id);
+      const submitted = await db
+        .select({ student_id: feedbackResponses.studentId })
+        .from(feedbackResponses)
+        .where(eq(feedbackResponses.sessionId, session.id));
 
-      const submittedIds = new Set((submitted || []).map(s => s.student_id));
+      const submittedIds = new Set(submitted.map(s => s.student_id).filter(Boolean));
       const pendingIds = attendedIds.filter(id => !submittedIds.has(id));
 
       if (pendingIds.length === 0) continue;
 
       // Check if we already sent a reminder for this session (avoid duplicates)
-      const { count: existingReminders } = await supabaseAdmin
-        .from('notifications')
-        .select('*', { count: 'exact', head: true })
-        .eq('session_id', session.id)
-        .eq('type', 'feedback_deadline_reminder');
+      const [remCount] = await db
+        .select({ count: count() })
+        .from(notifications)
+        .where(
+          and(
+            eq(notifications.sessionId, session.id),
+            eq(notifications.type, 'feedback_deadline_reminder')
+          )
+        );
 
-      if (existingReminders > 0) continue;
+      if (Number(remCount?.count || 0) > 0) continue;
 
       // Get student details
-      const { data: students } = await supabaseAdmin
-        .from('users')
-        .select('id, first_name, last_name, email')
-        .in('id', pendingIds)
-        .eq('is_active', true);
+      const studentList = await db
+        .select({
+          id: users.id,
+          first_name: users.firstName,
+          last_name: users.lastName,
+          email: users.email,
+        })
+        .from(users)
+        .where(
+          and(
+            inArray(users.id, pendingIds),
+            eq(users.isActive, true)
+          )
+        );
 
       const prefMap = await fetchPreferencesMap(
-        supabaseAdmin,
-        (students || []).map((s) => s.id)
+        db,
+        studentList.map((s) => s.id)
       );
 
-      for (const student of (students || [])) {
+      for (const student of studentList) {
         if (!shouldNotifyUser(prefMap, student.id, 'feedback_deadline_reminder')) continue;
 
         try {
           const name = `${student.first_name || ''} ${student.last_name || ''}`.trim() || 'Student';
 
           // Insert notification
-          await supabaseAdmin.from('notifications').insert({
-            recipient_id: student.id,
+          await db.insert(notifications).values({
+            recipientId: student.id,
             type: 'feedback_deadline_reminder',
-            title: `⏰ Feedback due soon: ${session.courses?.name || session.title}`,
+            title: `⏰ Feedback due soon: ${session.course_name || session.title}`,
             message: `Your feedback for "${session.title}" is due in ~${Math.round(hoursLeft)} hours. Submit now!`,
-            course_id: session.course_id,
-            session_id: session.id,
-            is_read: false,
+            courseId: session.course_id,
+            sessionId: session.id,
+            isRead: false,
           });
 
           // Send email (fire-and-forget)
@@ -124,3 +164,4 @@ export async function GET(req) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+

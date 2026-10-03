@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db as defaultDb, getSchemaDb, getCohortConfig } from '@/lib/db';
+import { attendanceRecords, sessions as sessionsTable, courses } from '@/drizzle/schema';
+import { eq, and, desc, count } from 'drizzle-orm';
 import { withAuth } from '@/lib/middleware';
 
 async function handler(req) {
@@ -12,39 +14,68 @@ async function handler(req) {
     const limit = parseInt(searchParams.get('limit') || '50', 10);
     const offset = (page - 1) * limit;
 
-    let query = supabaseAdmin
-      .from('attendance_records')
-      .select(
-        `
-        id, status, points, ping_count, calculated_at,
-        first_seen_at, last_seen_at, duration_minutes,
-        sessions (
-          id, title, session_date, start_time, end_time, status,
-          courses ( id, name )
-        )
-      `,
-        { count: 'exact' }
-      )
-      .eq('student_id', req.user.id)
-      .eq('sessions.status', 'completed')
-      .order('calculated_at', { ascending: false });
-
+    const conditions = [
+      eq(attendanceRecords.studentId, req.user.id),
+      eq(sessionsTable.status, 'completed'),
+    ];
     if (dateFilter) {
-      query = query.eq('sessions.session_date', dateFilter);
+      conditions.push(eq(sessionsTable.sessionDate, dateFilter));
     }
 
-    const { data: records, error, count } = await query.range(
-      offset,
-      offset + limit - 1
-    );
-
-    if (error) {
-      console.error('Attendance sessions error:', JSON.stringify(error));
-      return NextResponse.json(
-        { error: 'Failed to fetch sessions', detail: error.message },
-        { status: 500 }
-      );
+    let db = defaultDb;
+    if (req.user?.schema) {
+      db = getSchemaDb(req.user.schema);
+    } else {
+      const { schemas } = getCohortConfig();
+      // Fast fallback to find the student's schema if missing in JWT
+      for (const s of (schemas && schemas.length ? schemas : ['july'])) {
+        const schemaDb = getSchemaDb(s);
+        const [{ value }] = await schemaDb.select({ value: count() }).from(attendanceRecords).where(eq(attendanceRecords.studentId, req.user.id));
+        if (value > 0) {
+          db = schemaDb;
+          break;
+        }
+      }
     }
+
+    const [{ value: totalCount }] = await db
+      .select({ value: count() })
+      .from(attendanceRecords)
+      .innerJoin(sessionsTable, eq(attendanceRecords.sessionId, sessionsTable.id))
+      .where(and(...conditions));
+
+    const total = Number(totalCount || 0);
+
+    const records = await db
+      .select({
+        id: attendanceRecords.id,
+        status: attendanceRecords.status,
+        points: attendanceRecords.points,
+        ping_count: attendanceRecords.pingCount,
+        calculated_at: attendanceRecords.calculatedAt,
+        first_seen_at: attendanceRecords.firstSeenAt,
+        last_seen_at: attendanceRecords.lastSeenAt,
+        duration_minutes: attendanceRecords.durationMinutes,
+        sessions: {
+          id: sessionsTable.id,
+          title: sessionsTable.title,
+          session_date: sessionsTable.sessionDate,
+          start_time: sessionsTable.startTime,
+          end_time: sessionsTable.endTime,
+          status: sessionsTable.status,
+          courses: {
+            id: courses.id,
+            name: courses.name,
+          },
+        },
+      })
+      .from(attendanceRecords)
+      .innerJoin(sessionsTable, eq(attendanceRecords.sessionId, sessionsTable.id))
+      .leftJoin(courses, eq(sessionsTable.courseId, courses.id))
+      .where(and(...conditions))
+      .orderBy(desc(attendanceRecords.calculatedAt))
+      .limit(limit)
+      .offset(offset);
 
     let filtered = records || [];
 
@@ -58,14 +89,14 @@ async function handler(req) {
 
     filtered.sort((a, b) => {
       const da = a.sessions?.session_date || '';
-      const db = b.sessions?.session_date || '';
-      if (da !== db) return db.localeCompare(da);
+      const dbDate = b.sessions?.session_date || '';
+      if (da !== dbDate) return dbDate.localeCompare(da);
       return (a.sessions?.start_time || '').localeCompare(
         b.sessions?.start_time || ''
       );
     });
 
-    const sessions = filtered.map((r) => ({
+    const sessionsList = filtered.map((r) => ({
       id: r.id,
       status: r.status,
       points: r.points,
@@ -87,12 +118,12 @@ async function handler(req) {
     }));
 
     return NextResponse.json({
-      sessions,
+      sessions: sessionsList,
       pagination: {
         page,
         limit,
-        total: count || 0,
-        pages: Math.ceil((count || 0) / limit),
+        total,
+        pages: Math.ceil(total / limit),
       },
       source: 'attendance_records',
     });

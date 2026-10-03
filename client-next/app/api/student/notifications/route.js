@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import { notifications, courses, sessions } from '@/drizzle/schema';
+import { eq, and, inArray, count, desc } from 'drizzle-orm';
 import { withAuth } from '@/lib/middleware';
 
 // GET - Fetch notifications for the logged-in student
@@ -10,37 +12,55 @@ async function handler(req) {
     const { searchParams } = new URL(req.url);
     const unreadOnly = searchParams.get('unread') === 'true';
 
-    let query = supabaseAdmin
-      .from('notifications')
-      .select(`
-        id, type, title, message, is_read, created_at,
-        course:course_id ( name ),
-        session:session_id ( title, session_date, start_time )
-      `)
-      .eq('recipient_id', user.id)
-      .order('created_at', { ascending: false })
+    const conditions = [eq(notifications.recipientId, user.id)];
+    if (unreadOnly) {
+      conditions.push(eq(notifications.isRead, false));
+    }
+
+    const rows = await db
+      .select({
+        id: notifications.id,
+        type: notifications.type,
+        title: notifications.title,
+        message: notifications.message,
+        is_read: notifications.isRead,
+        created_at: notifications.createdAt,
+        course_name: courses.name,
+        session_title: sessions.title,
+        session_date: sessions.sessionDate,
+        start_time: sessions.startTime,
+      })
+      .from(notifications)
+      .leftJoin(courses, eq(notifications.courseId, courses.id))
+      .leftJoin(sessions, eq(notifications.sessionId, sessions.id))
+      .where(and(...conditions))
+      .orderBy(desc(notifications.createdAt))
       .limit(50);
 
-    if (unreadOnly) {
-      query = query.eq('is_read', false);
-    }
+    const formatted = rows.map(r => ({
+      id: r.id,
+      type: r.type,
+      title: r.title,
+      message: r.message,
+      is_read: r.is_read,
+      created_at: r.created_at,
+      course: r.course_name ? { name: r.course_name } : null,
+      session: r.session_title ? { title: r.session_title, session_date: r.session_date, start_time: r.start_time } : null,
+    }));
 
-    const { data: notifications, error } = await query;
-
-    if (error) {
-      console.error('Student notifications error:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    const { count: unreadCount } = await supabaseAdmin
-      .from('notifications')
-      .select('*', { count: 'exact', head: true })
-      .eq('recipient_id', user.id)
-      .eq('is_read', false);
+    const [unreadResult] = await db
+      .select({ count: count() })
+      .from(notifications)
+      .where(
+        and(
+          eq(notifications.recipientId, user.id),
+          eq(notifications.isRead, false)
+        )
+      );
 
     return NextResponse.json({
-      notifications: notifications || [],
-      unread_count: unreadCount || 0,
+      notifications: formatted,
+      unread_count: Number(unreadResult?.count || 0),
     });
   } catch (err) {
     console.error('Student notifications error:', err);
@@ -55,17 +75,25 @@ async function patchHandler(req) {
     const { notification_ids, mark_all } = await req.json();
 
     if (mark_all) {
-      await supabaseAdmin
-        .from('notifications')
-        .update({ is_read: true })
-        .eq('recipient_id', user.id)
-        .eq('is_read', false);
+      await db
+        .update(notifications)
+        .set({ isRead: true })
+        .where(
+          and(
+            eq(notifications.recipientId, user.id),
+            eq(notifications.isRead, false)
+          )
+        );
     } else if (notification_ids && notification_ids.length > 0) {
-      await supabaseAdmin
-        .from('notifications')
-        .update({ is_read: true })
-        .in('id', notification_ids)
-        .eq('recipient_id', user.id);
+      await db
+        .update(notifications)
+        .set({ isRead: true })
+        .where(
+          and(
+            inArray(notifications.id, notification_ids),
+            eq(notifications.recipientId, user.id)
+          )
+        );
     }
 
     return NextResponse.json({ message: 'Notifications updated' });
@@ -77,3 +105,4 @@ async function patchHandler(req) {
 
 export const GET = withAuth(handler);
 export const PATCH = withAuth(patchHandler);
+

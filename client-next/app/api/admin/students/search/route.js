@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import { users } from '@/drizzle/schema';
+import { eq, and, ilike, or } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
 
 async function handler(req) {
@@ -12,16 +14,27 @@ async function handler(req) {
       return NextResponse.json({ students: [] });
     }
 
-    const { data, error } = await supabaseAdmin
-      .from('users')
-      .select('id, first_name, last_name, email')
-      .eq('role', 'student')
-      .eq('is_active', true)
-      .or(`first_name.ilike.%${q}%,last_name.ilike.%${q}%,email.ilike.%${q}%`)
-      .order('first_name')
+    const data = await db
+      .select({
+        id: users.id,
+        first_name: users.firstName,
+        last_name: users.lastName,
+        email: users.email,
+      })
+      .from(users)
+      .where(
+        and(
+          eq(users.role, 'student'),
+          eq(users.isActive, true),
+          or(
+            ilike(users.firstName, `%${q}%`),
+            ilike(users.lastName, `%${q}%`),
+            ilike(users.email, `%${q}%`)
+          )
+        )
+      )
+      .orderBy(users.firstName)
       .limit(10);
-
-    if (error) throw error;
 
     return NextResponse.json({ students: data || [] });
   } catch (err) {
@@ -31,3 +44,4 @@ async function handler(req) {
 }
 
 export const GET = withRole(handler, ['admin']);
+

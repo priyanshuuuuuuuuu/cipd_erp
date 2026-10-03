@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import { sessions, attendanceRecords } from '@/drizzle/schema';
+import { eq, gte, lte, and, not } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
 
 /**
@@ -30,18 +32,19 @@ async function handler(req) {
       );
     }
 
-    const { data: session, error: sessErr } = await supabaseAdmin
-      .from('sessions')
-      .select('id, session_date, courses ( id, name )')
-      .eq('id', session_id)
-      .single();
+    const session = await db.query.sessions.findFirst({
+      where: eq(sessions.id, session_id),
+      columns: { id: true, sessionDate: true },
+      with: {
+        course: { columns: { id: true, name: true } },
+      },
+    });
 
-    if (sessErr || !session) {
+    if (!session) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
     if (action === 'present') {
-      // Allow admin to specify custom points; default to 5 if not provided
       let assignedPoints = 5;
       if (customPoints !== undefined && customPoints !== null) {
         const parsed = parseFloat(customPoints);
@@ -54,24 +57,29 @@ async function handler(req) {
         assignedPoints = parsed;
       }
 
-      const { error } = await supabaseAdmin.from('attendance_records').upsert(
-        {
-          session_id,
-          student_id,
+      await db
+        .insert(attendanceRecords)
+        .values({
+          sessionId: session_id,
+          studentId: student_id,
           status: 'present',
-          points: assignedPoints,
-          admin_override: true,
+          points: String(assignedPoints), // numeric column usually expects string in drizzle
+          adminOverride: true,
           penalty: false,
-          penalty_reason: null,
-          calculated_at: new Date().toISOString(),
-        },
-        { onConflict: 'session_id,student_id' }
-      );
-
-      if (error) {
-        console.error('Override present error:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
-      }
+          penaltyReason: null,
+          calculatedAt: new Date().toISOString(),
+        })
+        .onConflictDoUpdate({
+          target: [attendanceRecords.sessionId, attendanceRecords.studentId],
+          set: {
+            status: 'present',
+            points: String(assignedPoints),
+            adminOverride: true,
+            penalty: false,
+            penaltyReason: null,
+            calculatedAt: new Date().toISOString(),
+          },
+        });
 
       return NextResponse.json({
         message: 'Student marked present by admin',
@@ -81,24 +89,29 @@ async function handler(req) {
     }
 
     if (action === 'leave') {
-      const { error } = await supabaseAdmin.from('attendance_records').upsert(
-        {
-          session_id,
-          student_id,
+      await db
+        .insert(attendanceRecords)
+        .values({
+          sessionId: session_id,
+          studentId: student_id,
           status: 'leave',
-          points: 0,
-          admin_override: true,
+          points: '0',
+          adminOverride: true,
           penalty: false,
-          penalty_reason: null,
-          calculated_at: new Date().toISOString(),
-        },
-        { onConflict: 'session_id,student_id' }
-      );
-
-      if (error) {
-        console.error('Override leave error:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
-      }
+          penaltyReason: null,
+          calculatedAt: new Date().toISOString(),
+        })
+        .onConflictDoUpdate({
+          target: [attendanceRecords.sessionId, attendanceRecords.studentId],
+          set: {
+            status: 'leave',
+            points: '0',
+            adminOverride: true,
+            penalty: false,
+            penaltyReason: null,
+            calculatedAt: new Date().toISOString(),
+          },
+        });
 
       return NextResponse.json({
         message: 'Student marked on approved leave by admin',
@@ -108,28 +121,31 @@ async function handler(req) {
     }
 
     if (action === 'absent') {
-      const { error: thisErr } = await supabaseAdmin
-        .from('attendance_records')
-        .upsert(
-          {
-            session_id,
-            student_id,
+      await db
+        .insert(attendanceRecords)
+        .values({
+          sessionId: session_id,
+          studentId: student_id,
+          status: 'absent',
+          points: '-2',
+          adminOverride: true,
+          penalty: true,
+          penaltyReason: 'Faking attendance — marked absent by admin',
+          calculatedAt: new Date().toISOString(),
+        })
+        .onConflictDoUpdate({
+          target: [attendanceRecords.sessionId, attendanceRecords.studentId],
+          set: {
             status: 'absent',
-            points: -2,
-            admin_override: true,
+            points: '-2',
+            adminOverride: true,
             penalty: true,
-            penalty_reason: 'Faking attendance — marked absent by admin',
-            calculated_at: new Date().toISOString(),
+            penaltyReason: 'Faking attendance — marked absent by admin',
+            calculatedAt: new Date().toISOString(),
           },
-          { onConflict: 'session_id,student_id' }
-        );
+        });
 
-      if (thisErr) {
-        console.error('Override absent error:', thisErr);
-        return NextResponse.json({ error: thisErr.message }, { status: 500 });
-      }
-
-      const sessionDate = new Date(session.session_date + 'T00:00:00+05:30');
+      const sessionDate = new Date(session.sessionDate + 'T00:00:00+05:30');
       const oneWeekBefore = new Date(sessionDate);
       oneWeekBefore.setDate(oneWeekBefore.getDate() - 7);
       const oneWeekAfter = new Date(sessionDate);
@@ -138,34 +154,49 @@ async function handler(req) {
       const weekBeforeStr = oneWeekBefore.toISOString().split('T')[0];
       const weekAfterStr = oneWeekAfter.toISOString().split('T')[0];
 
-      const { data: penaltySessions } = await supabaseAdmin
-        .from('sessions')
-        .select('id, session_date, title')
-        .eq('course_id', session.courses?.id)
-        .gte('session_date', weekBeforeStr)
-        .lte('session_date', weekAfterStr);
+      const penaltySessions = await db
+        .select({ id: sessions.id, sessionDate: sessions.sessionDate, title: sessions.title })
+        .from(sessions)
+        .where(
+          and(
+            eq(sessions.courseId, session.course?.id),
+            gte(sessions.sessionDate, weekBeforeStr),
+            lte(sessions.sessionDate, weekAfterStr)
+          )
+        );
 
-      const penaltyRecords = (penaltySessions || [])
+      const penaltyRecords = penaltySessions
         .filter((s) => s.id !== session_id)
         .map((s) => ({
-          session_id: s.id,
-          student_id,
+          sessionId: s.id,
+          studentId: student_id,
           status: 'absent',
-          points: 0,
-          admin_override: false,
+          points: '0',
+          adminOverride: false,
           penalty: true,
-          penalty_reason: `Penalty: faking attendance on ${session.session_date} (${session.courses?.name || 'course'})`,
-          calculated_at: new Date().toISOString(),
+          penaltyReason: `Penalty: faking attendance on ${session.sessionDate} (${session.course?.name || 'course'})`,
+          calculatedAt: new Date().toISOString(),
         }));
 
       let penaltyCount = 0;
       if (penaltyRecords.length > 0) {
-        const { error: penErr } = await supabaseAdmin
-          .from('attendance_records')
-          .upsert(penaltyRecords, { onConflict: 'session_id,student_id' });
-
-        if (!penErr) penaltyCount = penaltyRecords.length;
-        else console.error('Penalty upsert error:', penErr);
+        for (const record of penaltyRecords) {
+           await db
+            .insert(attendanceRecords)
+            .values(record)
+            .onConflictDoUpdate({
+              target: [attendanceRecords.sessionId, attendanceRecords.studentId],
+              set: {
+                status: record.status,
+                points: record.points,
+                adminOverride: record.adminOverride,
+                penalty: record.penalty,
+                penaltyReason: record.penaltyReason,
+                calculatedAt: record.calculatedAt,
+              },
+            });
+        }
+        penaltyCount = penaltyRecords.length;
       }
 
       return NextResponse.json({

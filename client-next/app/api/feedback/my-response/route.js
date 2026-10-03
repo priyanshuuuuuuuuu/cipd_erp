@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import { feedbackResponses, feedbackQuestions, sessions, courses } from '@/drizzle/schema';
+import { eq, and } from 'drizzle-orm';
 import { withAuth } from '@/lib/middleware';
 
 /**
@@ -18,36 +20,54 @@ async function handler(req) {
       return NextResponse.json({ error: 'session_id is required' }, { status: 400 });
     }
 
-    // Use explicit FK hint: feedback_questions:question_id — same as admin route
-    const { data: responses, error } = await supabaseAdmin
-      .from('feedback_responses')
-      .select(`
-        question_id, rating, yes_no, text_answer,
-        feedback_questions:question_id ( id, question, type, category )
-      `)
-      .eq('student_id', studentId)
-      .eq('session_id', sessionId)
-      .order('question_id');
-
-    if (error) {
-      console.error('my-response fetch error:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+    const rows = await db
+      .select({
+        question_id: feedbackResponses.questionId,
+        rating: feedbackResponses.rating,
+        yes_no: feedbackResponses.yesNo,
+        text_answer: feedbackResponses.textAnswer,
+        fq_id: feedbackQuestions.id,
+        fq_question: feedbackQuestions.question,
+        fq_type: feedbackQuestions.type,
+        fq_category: feedbackQuestions.category,
+      })
+      .from(feedbackResponses)
+      .leftJoin(feedbackQuestions, eq(feedbackResponses.questionId, feedbackQuestions.id))
+      .where(
+        and(
+          eq(feedbackResponses.studentId, studentId),
+          eq(feedbackResponses.sessionId, sessionId)
+        )
+      )
+      .orderBy(feedbackResponses.questionId);
 
     // Also fetch session info for display
-    const { data: session } = await supabaseAdmin
-      .from('sessions')
-      .select('id, title, session_date, courses(name)')
-      .eq('id', sessionId)
-      .single();
+    const [sessionRow] = await db
+      .select({
+        id: sessions.id,
+        title: sessions.title,
+        session_date: sessions.sessionDate,
+        course_name: courses.name,
+      })
+      .from(sessions)
+      .leftJoin(courses, eq(sessions.courseId, courses.id))
+      .where(eq(sessions.id, sessionId))
+      .limit(1);
+
+    const session = sessionRow ? {
+      id: sessionRow.id,
+      title: sessionRow.title,
+      session_date: sessionRow.session_date,
+      courses: { name: sessionRow.course_name },
+    } : null;
 
     // Format identically to admin route so frontend can reuse the same pattern
-    const formatted = (responses || []).map(r => ({
+    const formatted = (rows || []).map(r => ({
       id: r.question_id,
       rating: r.rating,
       yes_no: r.yes_no,
       text_answer: r.text_answer,
-      feedback_questions: r.feedback_questions,
+      feedback_questions: r.fq_id ? { id: r.fq_id, question: r.fq_question, type: r.fq_type, category: r.fq_category } : null,
     }));
 
     return NextResponse.json({ responses: formatted, session });
@@ -58,3 +78,4 @@ async function handler(req) {
 }
 
 export const GET = withAuth(handler);
+

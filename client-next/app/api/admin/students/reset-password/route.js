@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { getSchemaClient, getCohortConfig } from '@/lib/supabase';
+import { getSchemaDb, getCohortConfig } from '@/lib/db';
+import { users } from '@/drizzle/schema';
+import { eq } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
 import jwt from 'jsonwebtoken';
 import { enqueuePasswordResetEmail } from '@/lib/notification-stream';
@@ -34,12 +36,17 @@ async function handler(req) {
     // Find the user across schemas
     let foundUser = null;
     for (const s of searchSchemas) {
-      const db = getSchemaClient(s);
-      const { data } = await db
-        .from('users')
-        .select('id, email, first_name, last_name')
-        .eq('id', student_id)
-        .maybeSingle();
+      const schemaDb = getSchemaDb(s);
+      const [data] = await schemaDb
+        .select({
+          id: users.id,
+          email: users.email,
+          first_name: users.firstName,
+          last_name: users.lastName,
+        })
+        .from(users)
+        .where(eq(users.id, student_id))
+        .limit(1);
 
       if (data) {
         foundUser = data;
@@ -77,3 +84,4 @@ async function handler(req) {
 }
 
 export const POST = withRole(handler, ['admin']);
+

@@ -1,8 +1,12 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase'; // Retained for wifi_snapshots rule
+import { db } from '@/lib/db';
+import { sessions } from '@/drizzle/schema';
+import { eq, and, ne, or, lt, asc } from 'drizzle-orm';
 import { rolloutFeedbackForSession } from '@/lib/feedback-rollout';
 import { processSessionAttendance } from '@/lib/process-session-attendance';
+import { enqueueAttendanceSummaryMessages } from '@/lib/notification-stream';
 
 /**
  * Server-side cron endpoint: processes attendance for all ongoing/recent sessions.
@@ -22,21 +26,24 @@ export async function GET(req) {
     const today = nowIST.toISOString().split('T')[0];
     const currentTime = `${String(nowIST.getHours()).padStart(2, '0')}:${String(nowIST.getMinutes()).padStart(2, '0')}:${String(nowIST.getSeconds()).padStart(2, '0')}`;
 
-    const { data: sessions, error: sessErr } = await supabaseAdmin
-      .from('sessions')
-      .select('id, title, session_date, start_time, end_time, status, course_id')
-      .eq('session_date', today)
-      .order('start_time', { ascending: true });
-
-    if (sessErr) {
-      console.error('Cron: sessions fetch error:', sessErr);
-      return NextResponse.json({ error: sessErr.message }, { status: 500 });
-    }
+    const activeSessionsList = await db
+      .select({
+        id: sessions.id,
+        title: sessions.title,
+        session_date: sessions.sessionDate,
+        start_time: sessions.startTime,
+        end_time: sessions.endTime,
+        status: sessions.status,
+        course_id: sessions.courseId,
+      })
+      .from(sessions)
+      .where(eq(sessions.sessionDate, today))
+      .orderBy(asc(sessions.startTime));
 
     const tenMinAgo = new Date(now.getTime() - 10 * 60000);
     const tenMinAgoTime = `${String(tenMinAgo.getHours()).padStart(2, '0')}:${String(tenMinAgo.getMinutes()).padStart(2, '0')}:00`;
 
-    const activeSessions = (sessions || []).filter((s) => {
+    const activeSessions = (activeSessionsList || []).filter((s) => {
       const isOngoing =
         s.start_time <= currentTime && s.end_time > currentTime;
       const justEnded =
@@ -74,10 +81,10 @@ export async function GET(req) {
       );
 
       if (!isOngoing && session.status !== 'completed') {
-        await supabaseAdmin
-          .from('sessions')
-          .update({ status: 'completed' })
-          .eq('id', session.id);
+        await db
+          .update(sessions)
+          .set({ status: 'completed' })
+          .where(eq(sessions.id, session.id));
 
         const presentStudentIds = result.records
           .filter((r) => r.status === 'present' || r.status === 'partial')
@@ -94,16 +101,38 @@ export async function GET(req) {
         } catch (error) {
           console.error('Feedback auto-rollout error:', error.message);
         }
+
+        try {
+          const summary = await enqueueAttendanceSummaryMessages(session, result.records);
+          console.log(
+            'Cron: Attendance summary queued for "' + session.title + '" — ' + summary.queued + ' email job(s)'
+          );
+        } catch (error) {
+          console.error('Attendance summary auto-rollout error:', error.message);
+        }
       }
     }
 
-    const { data: missedSessions } = await supabaseAdmin
-      .from('sessions')
-      .select('id, title, session_date, start_time, end_time, status, course_id')
-      .not('status', 'eq', 'completed')
-      .not('status', 'eq', 'cancelled')
-      .or(
-        `session_date.lt.${today},and(session_date.eq.${today},end_time.lt.${currentTime})`
+    const missedSessions = await db
+      .select({
+        id: sessions.id,
+        title: sessions.title,
+        session_date: sessions.sessionDate,
+        start_time: sessions.startTime,
+        end_time: sessions.endTime,
+        status: sessions.status,
+        course_id: sessions.courseId,
+      })
+      .from(sessions)
+      .where(
+        and(
+          ne(sessions.status, 'completed'),
+          ne(sessions.status, 'cancelled'),
+          or(
+            lt(sessions.sessionDate, today),
+            and(eq(sessions.sessionDate, today), lt(sessions.endTime, currentTime))
+          )
+        )
       );
 
     const activeSessionIds = new Set(activeSessions.map((s) => s.id));
@@ -119,8 +148,9 @@ export async function GET(req) {
       );
 
       for (const session of missed) {
+        let missedResult = null;
         try {
-          await processSessionAttendance(session, {
+          missedResult = await processSessionAttendance(session, {
             isOngoing: false,
             finalizeAbsent: true,
             upsert: true,
@@ -133,12 +163,12 @@ export async function GET(req) {
           );
         }
 
-        const { error: updateErr } = await supabaseAdmin
-          .from('sessions')
-          .update({ status: 'completed' })
-          .eq('id', session.id);
-
-        if (updateErr) {
+        try {
+          await db
+            .update(sessions)
+            .set({ status: 'completed' })
+            .where(eq(sessions.id, session.id));
+        } catch (updateErr) {
           console.error(
             `Cron: Failed to mark session ${session.id} completed:`,
             updateErr.message
@@ -157,10 +187,24 @@ export async function GET(req) {
           console.error('Cron [missed]: Rollout error for ' + session.id + ':', error.message);
         }
 
+        if (missedResult && missedResult.records) {
+          try {
+            const summary = await enqueueAttendanceSummaryMessages(session, missedResult.records);
+            if (summary.queued > 0) {
+              console.log(
+                'Cron [missed]: Attendance summary queued for "' + session.title + '" — ' + summary.queued + ' email job(s)'
+              );
+            }
+          } catch (error) {
+            console.error('Cron [missed]: Attendance summary rollout error for ' + session.id + ':', error.message);
+          }
+        }
+
         missedCompletedCount++;
       }
     }
 
+    // DO NOT MIGRATE - using Supabase as per migration rule for wifi_snapshots
     const { data: latestSnap } = await supabaseAdmin
       .schema('public').from('wifi_snapshots')
       .select('captured_at')

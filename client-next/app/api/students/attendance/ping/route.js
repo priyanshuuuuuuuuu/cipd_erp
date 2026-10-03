@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import { sessions as sessionsTable, attendancePingLogs } from '@/drizzle/schema';
+import { eq } from 'drizzle-orm';
 import { withAuth } from '@/lib/middleware';
 
 async function handler(req) {
@@ -12,31 +14,23 @@ async function handler(req) {
     }
 
     // Verify session exists and is active
-    const { data: session } = await supabaseAdmin
-      .from('sessions')
-      .select('id, status')
-      .eq('id', session_id)
-      .single();
+    const [session] = await db
+      .select({ id: sessionsTable.id, status: sessionsTable.status })
+      .from(sessionsTable)
+      .where(eq(sessionsTable.id, session_id));
 
     if (!session) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
     // Log the ping
-    const { error } = await supabaseAdmin
-      .from('attendance_ping_logs')
-      .insert({
-        session_id,
-        student_id: req.user.id,
-        device_hash: device_hash || null,
-        bssid: bssid || null,
-        signal_strength: signal_strength || null,
-      });
-
-    if (error) {
-      console.error('Ping log error:', error);
-      return NextResponse.json({ error: 'Failed to log ping' }, { status: 500 });
-    }
+    await db.insert(attendancePingLogs).values({
+      sessionId: session_id,
+      studentId: req.user.id,
+      deviceHash: device_hash || null,
+      bssid: bssid || null,
+      signalStrength: signal_strength || null,
+    });
 
     return NextResponse.json({ message: 'Ping recorded successfully' });
   } catch (err) {

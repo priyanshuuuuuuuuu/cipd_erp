@@ -1,34 +1,48 @@
+export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import { venues } from '@/drizzle/schema';
+import { eq, asc } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
 
 async function handler(req) {
   try {
     if (req.method === 'GET') {
-      const { data, error } = await supabaseAdmin
-        .from('venues')
-        .select('*')
-        .order('created_at', { ascending: true });
+      const rows = await db
+        .select({
+          id: venues.id,
+          name: venues.name,
+          building: venues.building,
+          router_bssid: venues.routerBssid,
+          created_at: venues.createdAt,
+          is_active: venues.isActive,
+        })
+        .from(venues)
+        .orderBy(asc(venues.createdAt));
 
-      if (error) throw error;
-      return NextResponse.json(data || []);
+      return NextResponse.json(rows || []);
     } 
     
     if (req.method === 'POST') {
       const { bssid, venue } = await req.json();
       
-      const { data, error } = await supabaseAdmin
-        .from('venues')
-        .insert([{ 
-            router_bssid: bssid, 
-            name: venue,
-            building: 'Default',
-            is_active: true
-        }])
-        .select()
-        .single();
+      const [data] = await db
+        .insert(venues)
+        .values({ 
+          routerBssid: bssid, 
+          name: venue,
+          building: 'Default',
+          isActive: true,
+        })
+        .returning({
+          id: venues.id,
+          name: venues.name,
+          building: venues.building,
+          router_bssid: venues.routerBssid,
+          created_at: venues.createdAt,
+          is_active: venues.isActive,
+        });
 
-      if (error) throw error;
       return NextResponse.json({ success: true, data });
     }
 
@@ -36,16 +50,15 @@ async function handler(req) {
       const { id, is_active, router_bssid, name } = await req.json();
       
       const updateData = {};
-      if (is_active !== undefined) updateData.is_active = is_active;
-      if (router_bssid !== undefined) updateData.router_bssid = router_bssid;
+      if (is_active !== undefined) updateData.isActive = is_active;
+      if (router_bssid !== undefined) updateData.routerBssid = router_bssid;
       if (name !== undefined) updateData.name = name;
 
-      const { error } = await supabaseAdmin
-        .from('venues')
-        .update(updateData)
-        .eq('id', id);
+      await db
+        .update(venues)
+        .set(updateData)
+        .where(eq(venues.id, id));
 
-      if (error) throw error;
       return NextResponse.json({ success: true });
     }
 
@@ -55,12 +68,10 @@ async function handler(req) {
       
       if (!id) return NextResponse.json({ error: 'Missing ID' }, { status: 400 });
 
-      const { error } = await supabaseAdmin
-        .from('venues')
-        .delete()
-        .eq('id', id);
+      await db
+        .delete(venues)
+        .where(eq(venues.id, id));
 
-      if (error) throw error;
       return NextResponse.json({ success: true });
     }
 

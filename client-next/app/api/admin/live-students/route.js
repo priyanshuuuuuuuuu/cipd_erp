@@ -1,13 +1,16 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import { students, users } from '@/drizzle/schema';
+import { eq, and, isNotNull } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
 
 const STALE_THRESHOLD_MINUTES = 10; // consider data stale after 10 min
 
 async function handler(req) {
   try {
-    // 1. Fetch the latest 2 wifi_snapshot entries to compare timestamps
+    // 1. Fetch the latest 2 wifi_snapshot entries to compare timestamps (PRESERVED IN SUPABASE PER MIGRATION RULE)
     const { data: snapshots, error: snapErr } = await supabaseAdmin
       .schema('public').from('wifi_snapshots')
       .select('id, captured_at, iw_dump')
@@ -81,18 +84,43 @@ async function handler(req) {
     const isValidMac = (mac) => /^([A-F0-9]{2}:){5}[A-F0-9]{2}$/.test(mac);
     const validClients = clients.filter(c => c.mac && c.mac.trim() !== '' && isValidMac(normalizeMac(c.mac)));
 
-    // 5. Fetch all active students who have a mac_address, join with users for name
-    const { data: allStudents } = await supabaseAdmin
-      .from('students')
-      .select('id, enrollment_no, program_name, mac_address, mac_verified, users!inner ( first_name, last_name, email, is_active )')
-      .not('mac_address', 'is', null)
-      .eq('users.is_active', true);
+    // 5. Fetch all active students who have a mac_address, join with users for name (MIGRATED TO DRIZZLE)
+    const allStudentsRows = await db
+      .select({
+        id: students.id,
+        enrollment_no: students.enrollmentNo,
+        program_name: students.programName,
+        mac_address: students.macAddress,
+        mac_verified: students.macVerified,
+        first_name: users.firstName,
+        last_name: users.lastName,
+        email: users.email,
+        is_active: users.isActive,
+      })
+      .from(students)
+      .innerJoin(users, eq(students.id, users.id))
+      .where(and(
+        isNotNull(students.macAddress),
+        eq(users.isActive, true)
+      ));
 
     // 6. Build MAC -> student map
     const macToStudent = {};
-    (allStudents || []).forEach(s => {
+    (allStudentsRows || []).forEach(s => {
       if (s.mac_address) {
-        macToStudent[normalizeMac(s.mac_address)] = s;
+        macToStudent[normalizeMac(s.mac_address)] = {
+          id: s.id,
+          enrollment_no: s.enrollment_no,
+          program_name: s.program_name,
+          mac_address: s.mac_address,
+          mac_verified: s.mac_verified,
+          users: {
+            first_name: s.first_name,
+            last_name: s.last_name,
+            email: s.email,
+            is_active: s.is_active,
+          },
+        };
       }
     });
 

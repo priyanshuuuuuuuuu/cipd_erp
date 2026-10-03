@@ -1,34 +1,39 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import { students, users } from '@/drizzle/schema';
+import { eq, and, isNotNull, asc } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
 
 async function handler(req) {
   try {
     // ── GET: list all pending MAC approval requests ──────────────────────────
     if (req.method === 'GET') {
-      const { data, error } = await supabaseAdmin
-        .from('students')
-        .select(`
-          id,
-          enrollment_no,
-          mac_address,
-          mac_verified,
-          users ( first_name, last_name, email )
-        `)
-        .not('mac_address', 'is', null)
-        .eq('mac_verified', false)
-        .order('enrollment_no', { ascending: true });
-
-      if (error) throw error;
+      const data = await db
+        .select({
+          id: students.id,
+          enrollment_no: students.enrollmentNo,
+          mac_address: students.macAddress,
+          mac_verified: students.macVerified,
+          first_name: users.firstName,
+          last_name: users.lastName,
+          email: users.email,
+        })
+        .from(students)
+        .leftJoin(users, eq(students.id, users.id))
+        .where(and(
+          isNotNull(students.macAddress),
+          eq(students.macVerified, false)
+        ))
+        .orderBy(asc(students.enrollmentNo));
 
       const pending = (data || []).map((s) => ({
         id: s.id,
         enrollment_no: s.enrollment_no,
         mac_address: s.mac_address,
         mac_verified: s.mac_verified,
-        name: `${s.users?.first_name || ''} ${s.users?.last_name || ''}`.trim() || 'Unknown',
-        email: s.users?.email || '',
+        name: `${s.first_name || ''} ${s.last_name || ''}`.trim() || 'Unknown',
+        email: s.email || '',
       }));
 
       return NextResponse.json({ pending });
@@ -47,21 +52,20 @@ async function handler(req) {
 
       let updatePayload;
       if (action === 'approve') {
-        updatePayload = { mac_verified: true };
+        updatePayload = { macVerified: true };
       } else {
-        // Reject: clear the MAC so the student must re-register
-        updatePayload = { mac_address: null, mac_verified: false };
+        updatePayload = { macAddress: null, macVerified: false };
       }
 
-      // IMPORTANT: .select() is required so Supabase v2 actually confirms the row was updated.
-      // Without .select(), Supabase returns no error even if no rows matched the .eq() filter.
-      const { data: updated, error } = await supabaseAdmin
-        .from('students')
-        .update(updatePayload)
-        .eq('id', studentId)
-        .select('id, mac_address, mac_verified');
-
-      if (error) throw error;
+      const updated = await db
+        .update(students)
+        .set(updatePayload)
+        .where(eq(students.id, studentId))
+        .returning({
+          id: students.id,
+          mac_address: students.macAddress,
+          mac_verified: students.macVerified,
+        });
 
       if (!updated || updated.length === 0) {
         console.error(`MAC approval: no student row matched id=${studentId}`);

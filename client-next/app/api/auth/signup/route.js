@@ -1,18 +1,20 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import { users, students } from '@/drizzle/schema';
+import { eq, like, desc } from 'drizzle-orm';
 import { hashPassword, signToken } from '@/lib/auth';
 
 async function generateEnrollmentNo() {
   // Find the highest existing CiPD_ enrollment number
-  const { data } = await supabaseAdmin
-    .from('students')
-    .select('enrollment_no')
-    .like('enrollment_no', 'CiPD_%')
-    .order('enrollment_no', { ascending: false });
+  const rows = await db
+    .select({ enrollment_no: students.enrollmentNo })
+    .from(students)
+    .where(like(students.enrollmentNo, 'CiPD_%'))
+    .orderBy(desc(students.enrollmentNo));
 
   let maxNum = 0;
-  for (const row of data || []) {
+  for (const row of rows || []) {
     const match = row.enrollment_no?.match(/^CiPD_(\d+)$/);
     if (match) {
       const n = parseInt(match[1], 10);
@@ -45,11 +47,11 @@ export async function POST(req) {
     }
 
     // Check if email already exists
-    const { data: existing } = await supabaseAdmin
-      .from('users')
-      .select('id')
-      .eq('email', email.toLowerCase())
-      .single();
+    const [existing] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, email.toLowerCase()))
+      .limit(1);
 
     if (existing) {
       return NextResponse.json({ error: 'An account with this email already exists' }, { status: 409 });
@@ -59,21 +61,19 @@ export async function POST(req) {
     const passwordHash = await hashPassword(password);
 
     // Insert into users table
-    const { data: newUser, error: userError } = await supabaseAdmin
-      .from('users')
-      .insert({
+    const [newUser] = await db
+      .insert(users)
+      .values({
         email: email.toLowerCase(),
-        password_hash: passwordHash,
+        passwordHash,
         role: 'student',
-        first_name: firstName.trim(),
-        last_name: lastName.trim(),
-        is_active: true,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        isActive: true,
       })
-      .select()
-      .single();
+      .returning();
 
-    if (userError) {
-      console.error('Signup user insert error:', userError);
+    if (!newUser) {
       return NextResponse.json({ error: 'Failed to create account' }, { status: 500 });
     }
 
@@ -81,19 +81,27 @@ export async function POST(req) {
     const enrollmentNo = await generateEnrollmentNo();
 
     // Upsert into students table
-    const { error: studentError } = await supabaseAdmin
-      .from('students')
-      .upsert({
-        id: newUser.id,
-        enrollment_no: enrollmentNo,
-        program_name: programName?.trim() || null,
-        mac_verified: false,
-      }, { onConflict: 'id' });
-
-    if (studentError) {
-      console.error('Signup student upsert error:', studentError.message, studentError.details);
+    try {
+      await db
+        .insert(students)
+        .values({
+          id: newUser.id,
+          enrollmentNo,
+          programName: programName?.trim() || null,
+          macVerified: false,
+        })
+        .onConflictDoUpdate({
+          target: students.id,
+          set: {
+            enrollmentNo,
+            programName: programName?.trim() || null,
+            macVerified: false,
+          },
+        });
+    } catch (studentError) {
+      console.error('Signup student upsert error:', studentError);
       // Rollback user creation
-      await supabaseAdmin.from('users').delete().eq('id', newUser.id);
+      await db.delete(users).where(eq(users.id, newUser.id));
       return NextResponse.json({
         error: `Failed to create student profile: ${studentError.message}`,
       }, { status: 500 });
@@ -104,8 +112,8 @@ export async function POST(req) {
       id: newUser.id,
       email: newUser.email,
       role: 'student',
-      firstName: newUser.first_name,
-      lastName: newUser.last_name,
+      firstName: newUser.firstName,
+      lastName: newUser.lastName,
       enrollmentNo,
     };
     const token = signToken(payload);
@@ -125,3 +133,4 @@ export async function POST(req) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
+

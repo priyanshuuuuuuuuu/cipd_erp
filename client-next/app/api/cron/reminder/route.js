@@ -1,6 +1,16 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import {
+  sessions,
+  courses,
+  faculty,
+  users,
+  venues,
+  courseEnrollments,
+  notifications,
+} from '@/drizzle/schema';
+import { eq, ne, and, inArray } from 'drizzle-orm';
 import { sendDayBeforeReminderEmail } from '@/lib/emailer';
 import { fetchPreferencesMap, shouldNotifyUser } from '@/lib/should-notify';
 import { getISTNow } from '@/lib/ist-date';
@@ -24,65 +34,97 @@ export async function GET(req) {
     const tomorrowStr = tomorrow.toISOString().split('T')[0]; // YYYY-MM-DD (IST)
 
     // Fetch all sessions scheduled for tomorrow
-    const { data: sessions, error } = await supabaseAdmin
-      .from('sessions')
-      .select(`
-        id, title, session_date, start_time, end_time, course_id,
-        courses ( id, name ),
-        faculty ( id, users ( first_name, last_name ) ),
-        venues ( id, name, building )
-      `)
-      .eq('session_date', tomorrowStr)
-      .neq('status', 'cancelled');
+    const sessionRows = await db
+      .select({
+        id: sessions.id,
+        title: sessions.title,
+        session_date: sessions.sessionDate,
+        start_time: sessions.startTime,
+        end_time: sessions.endTime,
+        course_id: sessions.courseId,
+        course_name: courses.name,
+        faculty_id: faculty.id,
+        faculty_first_name: users.firstName,
+        faculty_last_name: users.lastName,
+        venue_id: venues.id,
+        venue_name: venues.name,
+        venue_building: venues.building,
+      })
+      .from(sessions)
+      .leftJoin(courses, eq(sessions.courseId, courses.id))
+      .leftJoin(faculty, eq(sessions.facultyId, faculty.id))
+      .leftJoin(users, eq(faculty.id, users.id))
+      .leftJoin(venues, eq(sessions.venueId, venues.id))
+      .where(
+        and(
+          eq(sessions.sessionDate, tomorrowStr),
+          ne(sessions.status, 'cancelled')
+        )
+      );
 
-    if (error) throw error;
-    if (!sessions || sessions.length === 0) {
+    if (!sessionRows || sessionRows.length === 0) {
       return NextResponse.json({ message: 'No sessions tomorrow', sent: 0 });
     }
 
     let totalSent = 0;
     const errors = [];
 
-    for (const session of sessions) {
+    for (const session of sessionRows) {
       // Get all students enrolled in this course
-      const { data: enrollments } = await supabaseAdmin
-        .from('course_enrollments')
-        .select('student_id')
-        .eq('course_id', session.course_id);
+      const enrollments = await db
+        .select({ student_id: courseEnrollments.studentId })
+        .from(courseEnrollments)
+        .where(eq(courseEnrollments.courseId, session.course_id));
 
       if (!enrollments || enrollments.length === 0) continue;
 
-      const studentIds = enrollments.map(e => e.student_id);
+      const studentIds = enrollments.map(e => e.student_id).filter(Boolean);
+      if (studentIds.length === 0) continue;
 
       // Fetch student emails from users table
-      const { data: students } = await supabaseAdmin
-        .from('users')
-        .select('id, first_name, last_name, email')
-        .in('id', studentIds)
-        .eq('is_active', true);
+      const studentList = await db
+        .select({
+          id: users.id,
+          first_name: users.firstName,
+          last_name: users.lastName,
+          email: users.email,
+        })
+        .from(users)
+        .where(
+          and(
+            inArray(users.id, studentIds),
+            eq(users.isActive, true)
+          )
+        );
 
       const prefMap = await fetchPreferencesMap(
-        supabaseAdmin,
-        (students || []).map((s) => s.id)
+        db,
+        studentList.map((s) => s.id)
       );
 
-      for (const student of (students || [])) {
+      for (const student of studentList) {
         if (!shouldNotifyUser(prefMap, student.id, 'class_reminder')) continue;
 
         try {
           const name = `${student.first_name || ''} ${student.last_name || ''}`.trim() || 'Student';
-          await sendDayBeforeReminderEmail(student.email, name, session);
+          const sessionPayload = {
+            ...session,
+            courses: { name: session.course_name },
+            venues: { name: session.venue_name, building: session.venue_building },
+            faculty: { users: { first_name: session.faculty_first_name, last_name: session.faculty_last_name } },
+          };
+          await sendDayBeforeReminderEmail(student.email, name, sessionPayload);
           totalSent++;
 
           // Also log into notifications table
-          await supabaseAdmin.from('notifications').insert({
-            recipient_id: student.id,
+          await db.insert(notifications).values({
+            recipientId: student.id,
             type: 'class_reminder',
             title: `Class Tomorrow: ${session.title}`,
-            message: `Reminder: ${session.title} is on ${session.session_date} at ${session.start_time?.slice(0, 5)} in ${session.venues?.name || 'TBA'}.`,
-            course_id: session.course_id,
-            session_id: session.id,
-            is_read: false,
+            message: `Reminder: ${session.title} is on ${session.session_date} at ${session.start_time?.slice(0, 5)} in ${session.venue_name || 'TBA'}.`,
+            courseId: session.course_id,
+            sessionId: session.id,
+            isRead: false,
           });
         } catch (emailErr) {
           console.error(`Reminder email failed for ${student.email}:`, emailErr.message);
@@ -94,7 +136,7 @@ export async function GET(req) {
     return NextResponse.json({
       message: 'Daily reminders processed',
       date: tomorrowStr,
-      sessions: sessions.length,
+      sessions: sessionRows.length,
       emailsSent: totalSent,
       errors: errors.length > 0 ? errors : undefined,
     });
@@ -103,3 +145,4 @@ export async function GET(req) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+

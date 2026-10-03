@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import { sessions, sessionMaterials } from '@/drizzle/schema';
+import { eq } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
 import {
   validateUploadFile,
@@ -36,16 +38,18 @@ async function handler(req) {
 
     const file = validation.file;
 
+    let facultyId = null;
     if (sessionId) {
-      const { data: session } = await supabaseAdmin
-        .from('sessions')
-        .select('id, course_id, faculty_id')
-        .eq('id', sessionId)
-        .single();
+      const [session] = await db
+        .select({ id: sessions.id, course_id: sessions.courseId, faculty_id: sessions.facultyId })
+        .from(sessions)
+        .where(eq(sessions.id, sessionId))
+        .limit(1);
 
       if (!session || session.course_id !== courseId) {
         return NextResponse.json({ error: 'Session not found for this course' }, { status: 400 });
       }
+      facultyId = session.faculty_id || null;
     }
 
     const sessionFolder = sessionId || 'general';
@@ -54,33 +58,30 @@ async function handler(req) {
 
     await uploadToStorage(BUCKET, storagePath, file);
 
-    let facultyId = null;
-    if (sessionId) {
-      const { data: session } = await supabaseAdmin
-        .from('sessions')
-        .select('faculty_id')
-        .eq('id', sessionId)
-        .single();
-      facultyId = session?.faculty_id || null;
-    }
-
-    const { data: material, error: insertErr } = await supabaseAdmin
-      .from('session_materials')
-      .insert({
+    const [material] = await db
+      .insert(sessionMaterials)
+      .values({
         title,
-        course_id: courseId,
-        session_id: sessionId,
-        faculty_id: facultyId,
-        uploaded_by: req.user.id,
-        file_url: storagePath,
-        file_type: mimeToFileType(file.type),
+        courseId,
+        sessionId,
+        facultyId,
+        uploadedBy: req.user.id,
+        fileUrl: storagePath,
+        fileType: mimeToFileType(file.type),
         content,
       })
-      .select('id, title, file_url, file_type, content, created_at, course_id, session_id')
-      .single();
+      .returning({
+        id: sessionMaterials.id,
+        title: sessionMaterials.title,
+        file_url: sessionMaterials.fileUrl,
+        file_type: sessionMaterials.fileType,
+        content: sessionMaterials.content,
+        created_at: sessionMaterials.createdAt,
+        course_id: sessionMaterials.courseId,
+        session_id: sessionMaterials.sessionId,
+      });
 
-    if (insertErr) {
-      console.error('Material insert error:', insertErr);
+    if (!material) {
       return NextResponse.json({ error: 'Failed to save material record' }, { status: 500 });
     }
 

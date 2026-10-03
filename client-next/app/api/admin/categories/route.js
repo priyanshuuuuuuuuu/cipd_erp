@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import { categories } from '@/drizzle/schema';
+import { eq } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
 
 // GET  /api/admin/categories?course_id=xxx  — list categories (optionally filtered by course)
@@ -11,17 +13,22 @@ async function handler(req) {
       const { searchParams } = new URL(req.url);
       const courseId = searchParams.get('course_id');
 
-      let query = supabaseAdmin
-        .from('categories')
-        .select('id, name, course_id, courses(name)')
-        .order('name');
+      const categoriesData = await db.query.categories.findMany({
+        where: courseId ? eq(categories.courseId, courseId) : undefined,
+        with: {
+          course: { columns: { name: true } }
+        },
+        orderBy: (categories, { asc }) => [asc(categories.name)]
+      });
+      
+      const formatted = categoriesData.map(c => ({
+        id: c.id,
+        name: c.name,
+        course_id: c.courseId,
+        courses: { name: c.course?.name }
+      }));
 
-      if (courseId) query = query.eq('course_id', courseId);
-
-      const { data, error } = await query;
-      if (error) throw error;
-
-      return NextResponse.json({ categories: data || [] });
+      return NextResponse.json({ categories: formatted });
     } catch (err) {
       console.error('Categories GET error:', err);
       return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -38,20 +45,18 @@ async function handler(req) {
         return NextResponse.json({ error: 'course_id is required' }, { status: 400 });
       }
 
-      const { data, error } = await supabaseAdmin
-        .from('categories')
-        .insert({ name: name.trim(), course_id })
-        .select('id, name, course_id')
-        .single();
+      try {
+        const [newCategory] = await db.insert(categories)
+          .values({ name: name.trim(), courseId: course_id })
+          .returning({ id: categories.id, name: categories.name, course_id: categories.courseId });
 
-      if (error) {
-        if (error.code === '23505') {
+        return NextResponse.json({ category: newCategory }, { status: 201 });
+      } catch (insertError) {
+        if (insertError.code === '23505') {
           return NextResponse.json({ error: 'Category already exists for this course' }, { status: 409 });
         }
-        throw error;
+        throw insertError;
       }
-
-      return NextResponse.json({ category: data }, { status: 201 });
     } catch (err) {
       console.error('Categories POST error:', err);
       return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

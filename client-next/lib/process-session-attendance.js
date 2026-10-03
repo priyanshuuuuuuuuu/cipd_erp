@@ -1,3 +1,14 @@
+import { db } from '@/lib/db';
+import {
+  systemSettings,
+  leaveRequests,
+  courseEnrollments,
+  students,
+  users,
+  attendanceRecords,
+  sessions as sessionsTable,
+} from '@/drizzle/schema';
+import { eq, and, inArray, isNotNull, sql } from 'drizzle-orm';
 import { supabaseAdmin } from '@/lib/supabase';
 import { normalizeMac, isValidMac } from '@/lib/attendance-mac';
 import { calculatePoints, resolveAttendanceStatus } from '@/lib/attendance-points';
@@ -6,11 +17,15 @@ import { calculatePoints, resolveAttendanceStatus } from '@/lib/attendance-point
  * Load system settings for attendance processing.
  */
 export async function loadAttendanceSettings() {
-  const { data: settings } = await supabaseAdmin
-    .from('system_settings')
-    .select('scanner_interval_minutes, min_signal, ping_interval, presence_threshold')
-    .eq('id', 1)
-    .single();
+  const [settings] = await db
+    .select({
+      scanner_interval_minutes: systemSettings.scannerIntervalMinutes,
+      min_signal: systemSettings.minSignal,
+      ping_interval: systemSettings.pingInterval,
+      presence_threshold: systemSettings.presenceThreshold,
+    })
+    .from(systemSettings)
+    .where(eq(systemSettings.id, 1));
 
   return {
     scannerIntervalMin:
@@ -45,8 +60,6 @@ export function buildMacTimeline(snapshots) {
       if (!c.mac || c.mac.trim() === '') return;
       const mac = normalizeMac(c.mac);
       if (!isValidMac(mac)) return;
-      // Signal strength filter intentionally removed:
-      // nmap devices have signal=null which parsed to 0 and were incorrectly excluded.
       const sig = parseInt(c.signal, 10) || 0;
 
       if (!macTimeline[mac]) macTimeline[mac] = [];
@@ -73,17 +86,20 @@ export async function loadApprovedLeaves(sessionId, sessionDate, studentIds) {
   const leaveMap = new Set();
   if (!studentIds.length) return leaveMap;
 
-  const { data: leaves, error } = await supabaseAdmin
-    .from('leave_requests')
-    .select('student_id, session_id, leave_date')
-    .eq('status', 'approved')
-    .eq('leave_date', sessionDate)
-    .in('student_id', studentIds);
-
-  if (error) {
-    console.error('loadApprovedLeaves error:', error.message);
-    return leaveMap;
-  }
+  const leaves = await db
+    .select({
+      student_id: leaveRequests.studentId,
+      session_id: leaveRequests.sessionId,
+      leave_date: leaveRequests.leaveDate,
+    })
+    .from(leaveRequests)
+    .where(
+      and(
+        eq(leaveRequests.status, 'approved'),
+        eq(leaveRequests.leaveDate, sessionDate),
+        inArray(leaveRequests.studentId, studentIds)
+      )
+    );
 
   (leaves || []).forEach((l) => {
     if (!l.session_id || l.session_id === sessionId) {
@@ -148,10 +164,10 @@ export async function processSessionAttendance(session, options = {}) {
 
   const { macTimeline, orderedSnapshotIds } = buildMacTimeline(snapshots || []);
 
-  const { data: enrollments } = await supabaseAdmin
-    .from('course_enrollments')
-    .select('student_id')
-    .eq('course_id', courseId);
+  const enrollments = await db
+    .select({ student_id: courseEnrollments.studentId })
+    .from(courseEnrollments)
+    .where(eq(courseEnrollments.courseId, courseId));
 
   const enrolledStudentIds = (enrollments || []).map((e) => e.student_id);
   if (enrolledStudentIds.length === 0) {
@@ -164,26 +180,38 @@ export async function processSessionAttendance(session, options = {}) {
     };
   }
 
-  const { data: students } = await supabaseAdmin
-    .from('students')
-    .select('id, enrollment_no, mac_address, mac_verified, users!inner ( is_active )')
-    .in('id', enrolledStudentIds)
-    .eq('mac_verified', true)
-    .not('mac_address', 'is', null)
-    .eq('users.is_active', true);
-
-  const verifiedStudents = students || [];
+  const verifiedStudents = await db
+    .select({
+      id: students.id,
+      enrollment_no: students.enrollmentNo,
+      mac_address: students.macAddress,
+      mac_verified: students.macVerified,
+    })
+    .from(students)
+    .innerJoin(users, eq(students.id, users.id))
+    .where(
+      and(
+        inArray(students.id, enrolledStudentIds),
+        eq(students.macVerified, true),
+        isNotNull(students.macAddress),
+        eq(users.isActive, true)
+      )
+    );
 
   const approvedLeaves = await loadApprovedLeaves(
     session.id,
     date,
-    verifiedStudents.map((s) => s.id)
+    (verifiedStudents || []).map((s) => s.id)
   );
 
-  const { data: existingRecords } = await supabaseAdmin
-    .from('attendance_records')
-    .select('student_id, admin_override, penalty')
-    .eq('session_id', session.id);
+  const existingRecords = await db
+    .select({
+      student_id: attendanceRecords.studentId,
+      admin_override: attendanceRecords.adminOverride,
+      penalty: attendanceRecords.penalty,
+    })
+    .from(attendanceRecords)
+    .where(eq(attendanceRecords.sessionId, session.id));
 
   const overriddenIds = new Set(
     (existingRecords || [])
@@ -194,7 +222,7 @@ export async function processSessionAttendance(session, options = {}) {
   const records = [];
   const summary = { present: 0, partial: 0, absent: 0, leave: 0, skipped: 0 };
 
-  for (const student of verifiedStudents) {
+  for (const student of (verifiedStudents || [])) {
     if (overriddenIds.has(student.id)) {
       summary.skipped++;
       continue;
@@ -226,8 +254,6 @@ export async function processSessionAttendance(session, options = {}) {
 
     const actualSnapshots = orderedSnapshotIds.length;
     const totalSnapshots = Math.max(actualSnapshots, expectedTotalSnapshots || 0);
-    const presencePercent =
-      totalSnapshots > 0 ? (pingCount / totalSnapshots) * 100 : 0;
 
     const scoring = calculatePoints({
       firstSeenAt: firstSeen,
@@ -274,17 +300,35 @@ export async function processSessionAttendance(session, options = {}) {
   }
 
   if (upsert && records.length > 0) {
-    const upsertRows = records.map(({ _breakdown, ...row }) => row);
-    const { error: upsertErr } = await supabaseAdmin
-      .from('attendance_records')
-      .upsert(upsertRows, {
-        onConflict: 'session_id,student_id',
-        ignoreDuplicates: false,
+    const upsertRows = records.map(({ _breakdown, ...row }) => ({
+      sessionId: row.session_id,
+      studentId: row.student_id,
+      pingCount: row.ping_count,
+      points: String(row.points),
+      status: row.status,
+      calculatedAt: row.calculated_at,
+      firstSeenAt: row.first_seen_at,
+      lastSeenAt: row.last_seen_at,
+      durationMinutes: String(row.duration_minutes),
+      avgSignalStrength: String(row.avg_signal_strength),
+    }));
+
+    await db
+      .insert(attendanceRecords)
+      .values(upsertRows)
+      .onConflictDoUpdate({
+        target: [attendanceRecords.sessionId, attendanceRecords.studentId],
+        set: {
+          pingCount: sql`excluded.ping_count`,
+          points: sql`excluded.points`,
+          status: sql`excluded.status`,
+          calculatedAt: sql`excluded.calculated_at`,
+          firstSeenAt: sql`excluded.first_seen_at`,
+          lastSeenAt: sql`excluded.last_seen_at`,
+          durationMinutes: sql`excluded.duration_minutes`,
+          avgSignalStrength: sql`excluded.avg_signal_strength`,
+        },
       });
-    if (upsertErr) {
-      console.error(`Attendance upsert error for session ${session.id}:`, upsertErr);
-      throw upsertErr;
-    }
   }
 
   return {
@@ -301,12 +345,18 @@ export async function processSessionAttendance(session, options = {}) {
  * @param {string} sessionId
  */
 export async function fetchSessionForProcessing(sessionId) {
-  const { data: session, error } = await supabaseAdmin
-    .from('sessions')
-    .select('id, title, session_date, start_time, end_time, status, course_id')
-    .eq('id', sessionId)
-    .single();
+  const [session] = await db
+    .select({
+      id: sessionsTable.id,
+      title: sessionsTable.title,
+      session_date: sessionsTable.sessionDate,
+      start_time: sessionsTable.startTime,
+      end_time: sessionsTable.endTime,
+      status: sessionsTable.status,
+      course_id: sessionsTable.courseId,
+    })
+    .from(sessionsTable)
+    .where(eq(sessionsTable.id, sessionId));
 
-  if (error || !session) return null;
-  return session;
+  return session || null;
 }

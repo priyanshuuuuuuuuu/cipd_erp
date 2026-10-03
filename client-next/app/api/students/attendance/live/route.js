@@ -1,5 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
+import { db } from '@/lib/db';
+import { students, courseEnrollments, sessions as sessionsTable, courses, leaveRequests } from '@/drizzle/schema';
+import { eq, and, inArray, ne, lte, gt, asc } from 'drizzle-orm';
 import { supabaseAdmin } from '@/lib/supabase';
 import { withAuth } from '@/lib/middleware';
 import { normalizeMac } from '@/lib/attendance-mac';
@@ -13,11 +16,10 @@ async function handler(req) {
   try {
     const studentId = req.user.id;
 
-    const { data: student } = await supabaseAdmin
-      .from('students')
-      .select('mac_address, mac_verified')
-      .eq('id', studentId)
-      .single();
+    const [student] = await db
+      .select({ mac_address: students.macAddress, mac_verified: students.macVerified })
+      .from(students)
+      .where(eq(students.id, studentId));
 
     const macVerified = student?.mac_verified && student?.mac_address;
     const studentMac = macVerified ? normalizeMac(student.mac_address) : null;
@@ -27,39 +29,57 @@ async function handler(req) {
     const today = nowIST.toISOString().split('T')[0];
     const currentTime = `${String(nowIST.getHours()).padStart(2, '0')}:${String(nowIST.getMinutes()).padStart(2, '0')}:${String(nowIST.getSeconds()).padStart(2, '0')}`;
 
-    const { data: enrollments } = await supabaseAdmin
-      .from('course_enrollments')
-      .select('course_id')
-      .eq('student_id', studentId);
+    const enrollments = await db
+      .select({ course_id: courseEnrollments.courseId })
+      .from(courseEnrollments)
+      .where(eq(courseEnrollments.studentId, studentId));
 
     const courseIds = (enrollments || []).map((e) => e.course_id);
     if (courseIds.length === 0) {
       return NextResponse.json({ sessions: [], date: today });
     }
 
-    const { data: sessions } = await supabaseAdmin
-      .from('sessions')
-      .select(`
-        id, title, session_date, start_time, end_time, status, course_id,
-        courses ( id, name )
-      `)
-      .in('course_id', courseIds)
-      .eq('session_date', today)
-      .neq('status', 'cancelled')
-      .lte('start_time', currentTime)
-      .gt('end_time', currentTime)
-      .order('start_time', { ascending: true });
+    const sessions = await db
+      .select({
+        id: sessionsTable.id,
+        title: sessionsTable.title,
+        session_date: sessionsTable.sessionDate,
+        start_time: sessionsTable.startTime,
+        end_time: sessionsTable.endTime,
+        status: sessionsTable.status,
+        course_id: sessionsTable.courseId,
+        courses: {
+          id: courses.id,
+          name: courses.name,
+        },
+      })
+      .from(sessionsTable)
+      .leftJoin(courses, eq(sessionsTable.courseId, courses.id))
+      .where(
+        and(
+          inArray(sessionsTable.courseId, courseIds),
+          eq(sessionsTable.sessionDate, today),
+          ne(sessionsTable.status, 'cancelled'),
+          lte(sessionsTable.startTime, currentTime),
+          gt(sessionsTable.endTime, currentTime)
+        )
+      )
+      .orderBy(asc(sessionsTable.startTime));
 
     if (!sessions?.length) {
       return NextResponse.json({ sessions: [], date: today });
     }
 
-    const { data: leaves } = await supabaseAdmin
-      .from('leave_requests')
-      .select('session_id, status')
-      .eq('student_id', studentId)
-      .eq('leave_date', today)
-      .in('status', ['pending', 'approved']);
+    const leaves = await db
+      .select({ session_id: leaveRequests.sessionId, status: leaveRequests.status })
+      .from(leaveRequests)
+      .where(
+        and(
+          eq(leaveRequests.studentId, studentId),
+          eq(leaveRequests.leaveDate, today),
+          inArray(leaveRequests.status, ['pending', 'approved'])
+        )
+      );
 
     const leaveBySession = {};
     (leaves || []).forEach((l) => {

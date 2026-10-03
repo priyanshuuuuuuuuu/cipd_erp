@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { getSchemaDb, getCohortConfig } from '@/lib/db';
+import { users, students } from '@/drizzle/schema';
+import { eq } from 'drizzle-orm';
 import { verifyPassword, signToken } from '@/lib/auth';
 
 export async function POST(req) {
@@ -14,32 +16,51 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Email/Enrollment No. and password are required' }, { status: 400 });
     }
 
-    let user = null;
+    const { schemas } = getCohortConfig();
 
+    let user = null;
+    let matchedSchema = null;
     const isEmail = identifier.includes('@');
 
-    if (isEmail) {
-      // ── Path 1: Email login (all roles) ──────────────────────────────────
-      const { data, error } = await supabaseAdmin
-        .from('users')
-        .select('*')
-        .eq('email', identifier.toLowerCase())
-        .single();
+    for (const schema of (schemas && schemas.length ? schemas : ['july'])) {
+      const schemaDb = getSchemaDb(schema);
 
-      if (!error && data) user = data;
-    } else {
-      // ── Path 2: Enrollment number login (students only) ───────────────────
-      // JOIN students onto users where students.enrollment_no matches identifier.
-      // students.id is a FK → users.id, so we embed the users row via a relation.
-      const { data, error } = await supabaseAdmin
-        .from('students')
-        .select('id, enrollment_no, users!inner(id, email, password_hash, role, first_name, last_name, is_active, preferences)')
-        .eq('enrollment_no', identifier)
-        .single();
+      if (isEmail) {
+        // ── Path 1: Email login (all roles) ──────────────────────────────────
+        const [found] = await schemaDb
+          .select()
+          .from(users)
+          .where(eq(users.email, identifier.toLowerCase()))
+          .limit(1);
 
-      if (!error && data?.users) {
-        // Flatten: merge the nested users row into a single object
-        user = { ...data.users };
+        if (found) {
+          user = found;
+          matchedSchema = schema;
+          break;
+        }
+      } else {
+        // ── Path 2: Enrollment number login (students only) ───────────────────
+        const [found] = await schemaDb
+          .select({
+            id: users.id,
+            email: users.email,
+            passwordHash: users.passwordHash,
+            role: users.role,
+            firstName: users.firstName,
+            lastName: users.lastName,
+            isActive: users.isActive,
+            preferences: users.preferences,
+          })
+          .from(students)
+          .innerJoin(users, eq(students.id, users.id))
+          .where(eq(students.enrollmentNo, identifier))
+          .limit(1);
+
+        if (found) {
+          user = found;
+          matchedSchema = schema;
+          break;
+        }
       }
     }
 
@@ -47,12 +68,15 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
-    if (!user.is_active) {
+    const isActive = user.isActive ?? user.is_active;
+    if (!isActive) {
       return NextResponse.json({ error: 'Account is deactivated' }, { status: 403 });
     }
 
     // Verify password
-    const valid = await verifyPassword(password.trim(), user.password_hash);
+    const passwordHash = user.passwordHash || user.password_hash;
+    const valid = await verifyPassword(password.trim(), passwordHash);
+
     if (!valid) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
@@ -62,19 +86,18 @@ export async function POST(req) {
       id: user.id,
       email: user.email,
       role: user.role,
-      firstName: user.first_name,
-      lastName: user.last_name,
+      firstName: user.firstName ?? user.first_name,
+      lastName: user.lastName ?? user.last_name,
+      schema: matchedSchema,
     };
 
     const token = signToken(payload);
 
     // Return token in JSON body only — client stores it in role-scoped localStorage.
-    // We intentionally do NOT set a shared 'token' cookie because multiple roles
-    // (student + admin) may be open in the same browser, and a shared cookie would
-    // cause the server to identify API calls as the wrong user.
     return NextResponse.json({ token, user: payload });
   } catch (err) {
     console.error('Login error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
+

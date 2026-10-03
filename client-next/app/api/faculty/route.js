@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import { faculty, users } from '@/drizzle/schema';
+import { eq } from 'drizzle-orm';
 import { withAuth } from '@/lib/middleware';
 
 async function handler(req) {
@@ -8,27 +10,29 @@ async function handler(req) {
     const { searchParams } = new URL(req.url);
     const department = searchParams.get('department');
 
-    const query = supabaseAdmin
-      .from('faculty')
-      .select(`
-        id, designation, department, photo_url, years_experience, honorarium_rate_per_hour,
-        users ( id, email, first_name, last_name, is_active )
-      `);
-
-    const { data: facultyList, error } = await query;
-
-    if (error) {
-      console.error('Faculty list error:', error);
-      return NextResponse.json({ error: 'Failed to fetch faculty' }, { status: 500 });
-    }
+    const facultyList = await db
+      .select({
+        id: faculty.id,
+        designation: faculty.designation,
+        department: faculty.department,
+        photo_url: faculty.photoUrl,
+        years_experience: faculty.yearsExperience,
+        honorarium_rate_per_hour: faculty.honorariumRatePerHour,
+        first_name: users.firstName,
+        last_name: users.lastName,
+        email: users.email,
+        is_active: users.isActive,
+      })
+      .from(faculty)
+      .leftJoin(users, eq(faculty.id, users.id));
 
     // Flatten the data
-    const faculty = (facultyList || []).map(f => ({
+    const formatted = (facultyList || []).map(f => ({
       id: f.id,
-      first_name: f.users?.first_name,
-      last_name: f.users?.last_name,
-      email: f.users?.email,
-      is_active: f.users?.is_active,
+      first_name: f.first_name,
+      last_name: f.last_name,
+      email: f.email,
+      is_active: f.is_active,
       designation: f.designation,
       department: f.department || null,
       photo_url: f.photo_url || null,
@@ -36,7 +40,7 @@ async function handler(req) {
       honorarium_rate_per_hour: f.honorarium_rate_per_hour,
     }));
 
-    return NextResponse.json({ faculty });
+    return NextResponse.json({ faculty: formatted });
   } catch (err) {
     console.error('Faculty error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -44,3 +48,4 @@ async function handler(req) {
 }
 
 export const GET = withAuth(handler);
+

@@ -1,6 +1,8 @@
 export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
-import { getSchemaClient, getCohortConfig } from "@/lib/supabase";
+import { getSchemaDb, getCohortConfig } from "@/lib/db";
+import { students, users, sessions, courses, attendanceRecords } from "@/drizzle/schema";
+import { eq, and, gte, lte, inArray, asc } from "drizzle-orm";
 import { withRole } from "@/lib/middleware";
 import * as XLSX from "xlsx";
 
@@ -43,43 +45,52 @@ async function handler(req) {
     if (!schemas.includes(requestedSchema)) {
       return NextResponse.json({ error: "Invalid schema" }, { status: 400 });
     }
-    const db = getSchemaClient(requestedSchema);
+    const schemaDb = getSchemaDb(requestedSchema);
 
     // 1. Active students
-    const { data: studentsRaw, error: stuErr } = await db
-      .from("students")
-      .select("id, enrollment_no, users!inner ( first_name, last_name, is_active )")
-      .eq("users.is_active", true)
-      .order("enrollment_no", { ascending: true });
-    if (stuErr) throw stuErr;
+    const studentsRaw = await schemaDb
+      .select({
+        id: students.id,
+        enrollment_no: students.enrollmentNo,
+        first_name: users.firstName,
+        last_name: users.lastName,
+      })
+      .from(students)
+      .innerJoin(users, eq(students.id, users.id))
+      .where(eq(users.isActive, true))
+      .orderBy(asc(students.enrollmentNo));
 
-    const students = (studentsRaw || []).map(s => ({
+    const studentList = (studentsRaw || []).map(s => ({
       id: s.id,
       enrollment_no: s.enrollment_no || "",
-      name: `${s.users?.first_name || ""} ${s.users?.last_name || ""}`.trim(),
+      name: `${s.first_name || ""} ${s.last_name || ""}`.trim(),
     }));
 
     // 2. Completed sessions
-    let sessQuery = db
-      .from("sessions")
-      .select("id, title, session_date, start_time, courses ( name )")
-      .eq("status", "completed")
-      .order("session_date", { ascending: true })
-      .order("start_time",   { ascending: true });
-    if (dateFrom) sessQuery = sessQuery.gte("session_date", dateFrom);
-    if (dateTo)   sessQuery = sessQuery.lte("session_date", dateTo);
+    const conditions = [eq(sessions.status, "completed")];
+    if (dateFrom) conditions.push(gte(sessions.sessionDate, dateFrom));
+    if (dateTo)   conditions.push(lte(sessions.sessionDate, dateTo));
 
-    const { data: sessionsRaw, error: sessErr } = await sessQuery;
-    if (sessErr) throw sessErr;
+    const sessionsRaw = await schemaDb
+      .select({
+        id: sessions.id,
+        title: sessions.title,
+        session_date: sessions.sessionDate,
+        course_name: courses.name,
+      })
+      .from(sessions)
+      .leftJoin(courses, eq(sessions.courseId, courses.id))
+      .where(and(...conditions))
+      .orderBy(asc(sessions.sessionDate), asc(sessions.startTime));
 
-    const sessions = (sessionsRaw || []).map(s => ({
+    const sessionsList = (sessionsRaw || []).map(s => ({
       id: s.id,
       title: s.title || "—",
       session_date: s.session_date,
-      course_name: s.courses?.name || "",
+      course_name: s.course_name || "",
     }));
 
-    if (sessions.length === 0) {
+    if (sessionsList.length === 0) {
       return NextResponse.json(
         { error: "No completed sessions found for the selected filters." },
         { status: 404 }
@@ -87,16 +98,23 @@ async function handler(req) {
     }
 
     // 3. Attendance records (batch by session chunks)
-    const sessionIds = sessions.map(s => s.id);
-    const studentIds = students.map(s => s.id);
+    const sessionIds = sessionsList.map(s => s.id);
+    const studentIds = studentList.map(s => s.id);
     const allRecords = [];
     const CHUNK = 200;
     for (let i = 0; i < sessionIds.length; i += CHUNK) {
-      const { data: recs } = await db
-        .from("attendance_records")
-        .select("student_id, session_id, points, status")
-        .in("session_id", sessionIds.slice(i, i + CHUNK))
-        .in("student_id", studentIds);
+      const recs = await schemaDb
+        .select({
+          student_id: attendanceRecords.studentId,
+          session_id: attendanceRecords.sessionId,
+          points: attendanceRecords.points,
+          status: attendanceRecords.status,
+        })
+        .from(attendanceRecords)
+        .where(and(
+          inArray(attendanceRecords.sessionId, sessionIds.slice(i, i + CHUNK)),
+          inArray(attendanceRecords.studentId, studentIds)
+        ));
       if (recs) allRecords.push(...recs);
     }
 
@@ -112,16 +130,16 @@ async function handler(req) {
 
     // 5. Build AOA (array-of-arrays)
     const FIXED = ["Enrollment No", "Student Name", "Actual Score", "Total Positive Score"];
-    const dateRow  = [...FIXED, ...sessions.map(s => fmtDate(s.session_date))];
-    const titleRow = ["", "", "", "", ...sessions.map(s => s.title)];
+    const dateRow  = [...FIXED, ...sessionsList.map(s => fmtDate(s.session_date))];
+    const titleRow = ["", "", "", "", ...sessionsList.map(s => s.title)];
     const wsData   = [dateRow, titleRow];
 
-    for (const student of students) {
+    for (const student of studentList) {
       let actualScore = 0;
       let posScore = 0;
       const sessionCells = [];
 
-      for (const session of sessions) {
+      for (const session of sessionsList) {
         const rec = recordMap[student.id]?.[session.id];
         if (rec != null && rec.points != null) {
           actualScore += rec.points;
@@ -144,15 +162,15 @@ async function handler(req) {
       { wch: 26 },
       { wch: 14 },
       { wch: 20 },
-      ...sessions.map(() => ({ wch: 14 })),
+      ...sessionsList.map(() => ({ wch: 14 })),
     ];
 
     // Freeze top 2 rows + left 4 cols
     ws["!freeze"] = { xSplit: 4, ySplit: 2 };
 
     // Styles
-    const numCols = FIXED.length + sessions.length;
-    const numRows = 2 + students.length;
+    const numCols = FIXED.length + sessionsList.length;
+    const numRows = 2 + studentList.length;
 
     const dateRowStyle = {
       font:      { bold: true, color: { rgb: "FFFFFFFF" } },
@@ -181,9 +199,9 @@ async function handler(req) {
         if (ws[addr]) ws[addr].s = fixedStyle;
       }
     }
-    for (let ri = 0; ri < students.length; ri++) {
-      for (let ci = 0; ci < sessions.length; ci++) {
-        const rec = recordMap[students[ri].id]?.[sessions[ci].id];
+    for (let ri = 0; ri < studentList.length; ri++) {
+      for (let ci = 0; ci < sessionsList.length; ci++) {
+        const rec = recordMap[studentList[ri].id]?.[sessionsList[ci].id];
         if (!rec) continue;
         const addr = XLSX.utils.encode_cell({ r: ri + 2, c: ci + FIXED.length });
         if (!ws[addr]) continue;

@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import { leaveRequests } from '@/drizzle/schema';
+import { eq } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
 import { notifyStudentLeaveDecision } from '@/lib/leave-notifications';
 
@@ -17,13 +19,18 @@ async function patchHandler(req, { params }) {
       );
     }
 
-    const { data: existing, error: fetchErr } = await supabaseAdmin
-      .from('leave_requests')
-      .select('id, student_id, leave_date, status')
-      .eq('id', id)
-      .single();
+    const [existing] = await db
+      .select({
+        id: leaveRequests.id,
+        student_id: leaveRequests.studentId,
+        leave_date: leaveRequests.leaveDate,
+        status: leaveRequests.status,
+      })
+      .from(leaveRequests)
+      .where(eq(leaveRequests.id, id))
+      .limit(1);
 
-    if (fetchErr || !existing) {
+    if (!existing) {
       return NextResponse.json({ error: 'Leave request not found' }, { status: 404 });
     }
 
@@ -34,20 +41,24 @@ async function patchHandler(req, { params }) {
       );
     }
 
-    const { data: updated, error: updateErr } = await supabaseAdmin
-      .from('leave_requests')
-      .update({
+    const [updated] = await db
+      .update(leaveRequests)
+      .set({
         status,
-        admin_notes: admin_notes?.trim() || null,
-        reviewed_by: req.user.id,
-        reviewed_at: new Date().toISOString(),
+        adminNotes: admin_notes?.trim() || null,
+        reviewedBy: req.user.id,
+        reviewedAt: new Date(),
       })
-      .eq('id', id)
-      .select('id, student_id, leave_date, status, admin_notes')
-      .single();
+      .where(eq(leaveRequests.id, id))
+      .returning({
+        id: leaveRequests.id,
+        student_id: leaveRequests.studentId,
+        leave_date: leaveRequests.leaveDate,
+        status: leaveRequests.status,
+        admin_notes: leaveRequests.adminNotes,
+      });
 
-    if (updateErr) {
-      console.error('Leave review error:', updateErr.message);
+    if (!updated) {
       return NextResponse.json({ error: 'Failed to update leave request' }, { status: 500 });
     }
 

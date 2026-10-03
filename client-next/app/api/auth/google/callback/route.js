@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import { googleTokens } from '@/drizzle/schema';
+import { eq } from 'drizzle-orm';
 import { createHmac, timingSafeEqual } from 'crypto';
 
 function getOAuth2Client() {
@@ -79,26 +81,26 @@ export async function GET(req) {
 
     // Build the upsert payload — only include refresh_token if Google returned one
     const upsertData = {
-      user_id:      userId,
+      userId,
       role,
-      access_token: tokens.access_token,
-      expiry_time:  tokens.expiry_date,
-      updated_at:   new Date().toISOString(),
+      accessToken: tokens.access_token,
+      expiryTime: tokens.expiry_date,
+      updatedAt: new Date().toISOString(),
     };
     if (tokens.refresh_token) {
-      upsertData.refresh_token = tokens.refresh_token;
+      upsertData.refreshToken = tokens.refresh_token;
     }
 
     // If no refresh_token and no existing row, we can't proceed safely
     if (!tokens.refresh_token) {
       // Check if existing row exists with a refresh_token
-      const { data: existing } = await supabaseAdmin
-        .from('google_tokens')
-        .select('refresh_token')
-        .eq('user_id', userId)
-        .maybeSingle();
+      const [existing] = await db
+        .select({ refreshToken: googleTokens.refreshToken })
+        .from(googleTokens)
+        .where(eq(googleTokens.userId, userId))
+        .limit(1);
 
-      if (!existing?.refresh_token) {
+      if (!existing?.refreshToken) {
         // No existing refresh_token either — redirect to reconnect
         console.warn('[GC Callback] No refresh token available at all. User must re-authorize.');
         return NextResponse.redirect(
@@ -113,21 +115,13 @@ export async function GET(req) {
     }
 
     // Upsert tokens into the google_tokens table
-    const { error: dbError } = await supabaseAdmin
-      .from('google_tokens')
-      .upsert(upsertData, { onConflict: 'user_id', ignoreDuplicates: false });
-
-    if (dbError) {
-      console.error('[GC Callback] DB upsert error:', dbError);
-      return NextResponse.redirect(
-        new URL(
-          role === 'admin'
-            ? '/admin/settings?gc_error=db_error'
-            : '/dashboard?gc_error=db_error',
-          process.env.NEXT_PUBLIC_APP_URL
-        )
-      );
-    }
+    await db
+      .insert(googleTokens)
+      .values(upsertData)
+      .onConflictDoUpdate({
+        target: googleTokens.userId,
+        set: upsertData,
+      });
 
     // Success — redirect based on role
     const redirectPath = role === 'admin' ? '/admin/settings?gc_connected=1' : '/dashboard?gc_connected=1';
@@ -141,3 +135,4 @@ export async function GET(req) {
     );
   }
 }
+

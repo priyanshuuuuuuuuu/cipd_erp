@@ -1,5 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
+import { db } from '@/lib/db';
+import { sessions, courses, faculty, venues, students, users } from '@/drizzle/schema';
+import { eq, and, asc, isNotNull } from 'drizzle-orm';
 import { supabaseAdmin } from '@/lib/supabase';
 import { withRole } from '@/lib/middleware';
 import { getISTDateString, getISTTimeString } from '@/lib/ist-date';
@@ -17,28 +20,54 @@ async function handler(req) {
     const date = searchParams.get('date') || getISTDateString(); // IST date
 
     // Fetch sessions for the given date with course, faculty, venue info
-    const { data: sessions, error: sessErr } = await supabaseAdmin
-      .from('sessions')
-      .select(`
-        id, title, session_date, start_time, end_time, status,
-        courses ( id, name ),
-        faculty ( id, users ( first_name, last_name ) ),
-        venues ( id, name, building, router_bssid )
-      `)
-      .eq('session_date', date)
-      .order('start_time', { ascending: true });
-
-    if (sessErr) {
-      console.error('Sessions fetch error:', sessErr);
-      return NextResponse.json({ error: 'Failed to fetch sessions' }, { status: 500 });
-    }
+    const sessionList = await db
+      .select({
+        id: sessions.id,
+        title: sessions.title,
+        session_date: sessions.session_date,
+        start_time: sessions.start_time,
+        end_time: sessions.end_time,
+        status: sessions.status,
+        courses: {
+          id: courses.id,
+          name: courses.name,
+        },
+        faculty: {
+          id: faculty.id,
+          users: {
+            first_name: users.first_name,
+            last_name: users.last_name,
+          },
+        },
+        venues: {
+          id: venues.id,
+          name: venues.name,
+          building: venues.building,
+          router_bssid: venues.router_bssid,
+        },
+      })
+      .from(sessions)
+      .leftJoin(courses, eq(sessions.course_id, courses.id))
+      .leftJoin(faculty, eq(sessions.faculty_id, faculty.id))
+      .leftJoin(users, eq(faculty.user_id, users.id))
+      .leftJoin(venues, eq(sessions.venue_id, venues.id))
+      .where(eq(sessions.session_date, date))
+      .orderBy(asc(sessions.start_time));
 
     // Fetch all students with MAC addresses (for matching)
-    const { data: allStudents } = await supabaseAdmin
-      .from('students')
-      .select('id, mac_address, users!inner ( is_active )')
-      .not('mac_address', 'is', null)
-      .eq('users.is_active', true);
+    const allStudents = await db
+      .select({
+        id: students.id,
+        mac_address: students.mac_address,
+      })
+      .from(students)
+      .innerJoin(users, eq(students.user_id, users.id))
+      .where(
+        and(
+          isNotNull(students.mac_address),
+          eq(users.is_active, true)
+        )
+      );
 
     const studentMacs = new Set(
       (allStudents || [])
@@ -49,7 +78,7 @@ async function handler(req) {
     const currentTime = getISTTimeString(); // HH:MM:SS in IST
     const today = getISTDateString();       // YYYY-MM-DD in IST
 
-    const enrichedSessions = await Promise.all((sessions || []).map(async (session) => {
+    const enrichedSessions = await Promise.all((sessionList || []).map(async (session) => {
       const isToday = date === today;
       const isOngoing = isToday && session.start_time <= currentTime && session.end_time > currentTime;
       const isCompleted = session.status === 'completed' || (!isOngoing && (date < today || (isToday && session.end_time <= currentTime)));

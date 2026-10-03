@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import { googleTokens } from '@/drizzle/schema';
+import { eq } from 'drizzle-orm';
 import { withAuth } from '@/lib/middleware';
 
 function getOAuth2Client() {
@@ -26,15 +28,18 @@ function getOAuth2Client() {
  */
 async function handler(req) {
   // --- 1. Find admin's Google token ---
-  // Look up the token stored for the admin user
-  const { data: adminTokenRow, error: tokenErr } = await supabaseAdmin
-    .from('google_tokens')
-    .select('user_id, access_token, refresh_token, expiry_time')
-    .eq('role', 'admin')   // we'll store role alongside the token
-    .limit(1)
-    .maybeSingle();
+  const [adminTokenRow] = await db
+    .select({
+      userId: googleTokens.userId,
+      accessToken: googleTokens.accessToken,
+      refreshToken: googleTokens.refreshToken,
+      expiryTime: googleTokens.expiryTime,
+    })
+    .from(googleTokens)
+    .where(eq(googleTokens.role, 'admin'))
+    .limit(1);
 
-  if (tokenErr || !adminTokenRow) {
+  if (!adminTokenRow) {
     // Admin has not connected Google Classroom yet
     return NextResponse.json({ connected: false, assignments: [] }, { status: 200 });
   }
@@ -42,21 +47,21 @@ async function handler(req) {
   // --- 2. Set up OAuth2 with admin's token ---
   const oauth2Client = getOAuth2Client();
   oauth2Client.setCredentials({
-    access_token:  adminTokenRow.access_token,
-    refresh_token: adminTokenRow.refresh_token,
-    expiry_date:   adminTokenRow.expiry_time,
+    access_token:  adminTokenRow.accessToken,
+    refresh_token: adminTokenRow.refreshToken,
+    expiry_date:   adminTokenRow.expiryTime,
   });
 
   // Auto-save refreshed tokens
   oauth2Client.on('tokens', async (newTokens) => {
-    const update = { updated_at: new Date().toISOString() };
-    if (newTokens.access_token)  update.access_token  = newTokens.access_token;
-    if (newTokens.expiry_date)   update.expiry_time   = newTokens.expiry_date;
-    if (newTokens.refresh_token) update.refresh_token = newTokens.refresh_token;
-    await supabaseAdmin
-      .from('google_tokens')
-      .update(update)
-      .eq('user_id', adminTokenRow.user_id);
+    const update = { updatedAt: new Date().toISOString() };
+    if (newTokens.access_token)  update.accessToken  = newTokens.access_token;
+    if (newTokens.expiry_date)   update.expiryTime   = newTokens.expiry_date;
+    if (newTokens.refresh_token) update.refreshToken = newTokens.refresh_token;
+    await db
+      .update(googleTokens)
+      .set(update)
+      .where(eq(googleTokens.userId, adminTokenRow.userId));
   });
 
   const classroom = google.classroom({ version: 'v1', auth: oauth2Client });
@@ -165,10 +170,9 @@ async function handler(req) {
 
     // Token invalid — clear it so admin know to reconnect
     if (err.code === 401 || err.status === 401 || err.message?.includes('invalid_grant')) {
-      await supabaseAdmin
-        .from('google_tokens')
-        .delete()
-        .eq('user_id', adminTokenRow.user_id);
+      await db
+        .delete(googleTokens)
+        .where(eq(googleTokens.userId, adminTokenRow.userId));
 
       return NextResponse.json({ connected: false, assignments: [], adminMustReconnect: true });
     }
@@ -178,3 +182,4 @@ async function handler(req) {
 }
 
 export const GET = withAuth(handler);
+

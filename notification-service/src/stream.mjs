@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { config } from './config.mjs';
-import { sendFeedbackAvailableEmail } from '../../client-next/lib/emailer.js';
+import { sendFeedbackAvailableEmail, sendPasswordResetEmail, sendAttendanceSummaryEmail } from '../../client-next/lib/emailer.js';
 
 const db = createClient(config.supabaseUrl, config.serviceRoleKey, {
   db: { schema: config.schema },
@@ -81,7 +81,7 @@ export async function drainStream(limit = 20) {
 
   for (const job of jobs) {
     try {
-      if (job.event_type !== 'feedback_available' || job.channel !== 'email') {
+      if (!['feedback_available', 'password_reset', 'attendance_summary'].includes(job.event_type) || job.channel !== 'email') {
         throw new Error('Unsupported event ' + job.event_type + ' over ' + job.channel);
       }
 
@@ -89,13 +89,29 @@ export async function drainStream(limit = 20) {
         throw new Error('Sandbox blocked non-test recipient: ' + job.recipient_email);
       }
 
-      const info = await sendFeedbackAvailableEmail(
-        job.recipient_email,
-        job.recipient_name || 'Student',
-        job.payload.session,
-        job.payload.deadline,
-        { messageId: '<cipd-feedback-' + job.id + '@iiitd.ac.in>' }
-      );
+      let info;
+      if (job.event_type === 'feedback_available') {
+        info = await sendFeedbackAvailableEmail(
+          job.recipient_email,
+          job.recipient_name || 'Student',
+          job.payload.session,
+          job.payload.deadline,
+          { messageId: '<cipd-feedback-' + job.id + '@iiitd.ac.in>' }
+        );
+      } else if (job.event_type === 'password_reset') {
+        info = await sendPasswordResetEmail({
+          to: job.recipient_email,
+          firstName: job.recipient_name || 'Student',
+          resetUrl: job.payload.resetUrl || 'https://cipd-erp-ic24.vercel.app/reset-password?token=' + job.payload.resetToken
+        });
+      } else if (job.event_type === 'attendance_summary') {
+        info = await sendAttendanceSummaryEmail(
+          job.recipient_email,
+          job.recipient_name || 'Student',
+          job.payload.session,
+          job.payload.firstSeenAt
+        );
+      }
 
       const { error } = await db
         .from('notification_stream')

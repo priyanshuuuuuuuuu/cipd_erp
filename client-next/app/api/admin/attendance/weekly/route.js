@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import { sessions, attendanceRecords } from '@/drizzle/schema';
+import { inArray } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
 
 async function handler(req) {
@@ -28,10 +30,10 @@ async function handler(req) {
     }
 
     // Get all sessions for this week by explicit dates
-    const { data: sessions } = await supabaseAdmin
-      .from('sessions')
-      .select('id, session_date')
-      .in('session_date', dates);
+    const sessionsData = await db.query.sessions.findMany({
+      columns: { id: true, sessionDate: true },
+      where: inArray(sessions.sessionDate, dates)
+    });
 
     const dayMap = {
       'Mon': { total: 0, present: 0 },
@@ -43,29 +45,22 @@ async function handler(req) {
     };
 
     let records = [];
-    if (sessions && sessions.length > 0) {
-      const sessionIds = sessions.map(s => s.id);
+    if (sessionsData && sessionsData.length > 0) {
+      const sessionIds = sessionsData.map(s => s.id);
       
-      const { data, error } = await supabaseAdmin
-        .from('attendance_records')
-        .select('session_id, status')
-        .in('session_id', sessionIds);
-        
-      if (error) {
-        console.error("Supabase API Error:", error);
-        return NextResponse.json({ error: "Supabase error", details: error }, { status: 500 });
-      }
+      records = await db.query.attendanceRecords.findMany({
+        columns: { sessionId: true, status: true },
+        where: inArray(attendanceRecords.sessionId, sessionIds)
+      });
       
-      records = data || [];
-
-      sessions.forEach(s => {
+      sessionsData.forEach(s => {
         // Safe parsing: 2026-03-09 -> Mon
-        const [year, month, day] = s.session_date.split('-');
+        const [year, month, day] = s.sessionDate.split('-');
         const dateObj = new Date(year, month - 1, day);
         const dayName = dayNames[dateObj.getDay()];
         
         if (dayMap[dayName]) {
-          const sessionRecords = records.filter(r => r.session_id === s.id);
+          const sessionRecords = records.filter(r => r.sessionId === s.id);
           dayMap[dayName].total += sessionRecords.length;
           dayMap[dayName].present += sessionRecords.filter(r => r.status === 'present').length;
         }
@@ -86,14 +81,14 @@ async function handler(req) {
     const avgPct = totalRecords > 0 ? (totalPresent / totalRecords * 100).toFixed(1) : 0;
 
     // Count absent today
-    const safeSessions = sessions || [];
+    const safeSessions = sessionsData || [];
     const yNow = now.getFullYear();
     const mNow = String(now.getMonth() + 1).padStart(2, '0');
     const dNow = String(now.getDate()).padStart(2, '0');
     const todayStr = `${yNow}-${mNow}-${dNow}`;
-    const todaySessions = safeSessions.filter(s => s.session_date === todayStr);
+    const todaySessions = safeSessions.filter(s => s.sessionDate === todayStr);
     const todaySessionIds = todaySessions.map(s => s.id);
-    const todayAbsent = records.filter(r => todaySessionIds.includes(r.session_id) && r.status !== 'present').length;
+    const todayAbsent = records.filter(r => todaySessionIds.includes(r.sessionId) && r.status !== 'present').length;
 
     return NextResponse.json({
       weekly,

@@ -1,222 +1,215 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import {
+  sessions,
+  courses,
+  faculty,
+  users,
+  venues,
+  sessionTypes,
+  sessionSkills,
+  courseEnrollments,
+} from '@/drizzle/schema';
+import { eq, gte, lte, inArray, and, asc, sql } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
 import { getISTDateString, getISTWeekRange } from '@/lib/ist-date';
 
 async function handler(request) {
-    const { searchParams } = new URL(request.url);
-    const filter = searchParams.get('filter') || 'all'; // 'all', 'today', 'week', 'scheduled', 'pending'
+  const { searchParams } = new URL(request.url);
+  const filter = searchParams.get('filter') || 'all';
 
-    try {
-        let query = supabaseAdmin
-            .from('sessions')
-            .select(`
-                id,
-                title,
-                session_date,
-                start_time,
-                end_time,
-                feedback_deadline,
-                status,
-                course_id,
-                faculty_id,
-                venue_id,
-                session_type_id,
-                courses ( id, name ),
-                faculty:faculty_id ( id, users!inner ( first_name, last_name ) ),
-                venues ( id, name ),
-                session_types ( id, name )
-            `);
+  try {
+    const conditions = [];
+    const todayStr = getISTDateString();
 
-        // Filter processing
-        const todayStr = getISTDateString(); // IST date (not UTC)
+    if (filter === 'today') {
+      conditions.push(eq(sessions.sessionDate, todayStr));
+    } else if (filter === 'week') {
+      const { start: monday, end: sunday } = getISTWeekRange();
+      conditions.push(gte(sessions.sessionDate, monday));
+      conditions.push(lte(sessions.sessionDate, sunday));
+    } else if (filter === 'window') {
+      const days = parseInt(searchParams.get('days') || '2', 10);
+      const now = new Date();
+      const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+      const nowIstMs = now.getTime() + IST_OFFSET_MS;
+      const startIstStr = new Date(nowIstMs - days * 24 * 3600 * 1000).toISOString().slice(0, 10);
+      const endIstStr = new Date(nowIstMs + days * 24 * 3600 * 1000).toISOString().slice(0, 10);
 
-        if (filter === 'today') {
-            query = query.eq('session_date', todayStr);
-        } else if (filter === 'week') {
-            const { start: monday, end: sunday } = getISTWeekRange();
-            query = query
-                .gte('session_date', monday)
-                .lte('session_date', sunday);
-        } else if (filter === 'window') {
-            const days = parseInt(searchParams.get('days') || '2', 10);
-            const now = new Date();
-            const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
-            const nowIstMs = now.getTime() + IST_OFFSET_MS;
-            const startIstStr = new Date(nowIstMs - days * 24 * 3600 * 1000).toISOString().slice(0, 10);
-            const endIstStr = new Date(nowIstMs + days * 24 * 3600 * 1000).toISOString().slice(0, 10);
-            
-            query = query
-                .gte('session_date', startIstStr)
-                .lte('session_date', endIstStr);
-        } else if (['scheduled', 'pending', 'cancelled'].includes(filter)) {
-            const dbStatus = filter;
-            query = query.eq('status', dbStatus);
-        }
+      conditions.push(gte(sessions.sessionDate, startIstStr));
+      conditions.push(lte(sessions.sessionDate, endIstStr));
+    } else if (['scheduled', 'pending', 'cancelled'].includes(filter)) {
+      conditions.push(eq(sessions.status, filter));
+    }
 
-        const { data, error } = await query
-            .order('session_date', { ascending: true })
-            .order('start_time', { ascending: true });
+    const rows = await db
+      .select({
+        id: sessions.id,
+        title: sessions.title,
+        session_date: sessions.sessionDate,
+        start_time: sessions.startTime,
+        end_time: sessions.endTime,
+        feedback_deadline: sessions.feedbackDeadline,
+        status: sessions.status,
+        course_id: sessions.courseId,
+        faculty_id: sessions.facultyId,
+        venue_id: sessions.venueId,
+        session_type_id: sessions.sessionTypeId,
+        course_name: courses.name,
+        first_name: users.firstName,
+        last_name: users.lastName,
+        venue_name: venues.name,
+        session_type_name: sessionTypes.name,
+      })
+      .from(sessions)
+      .leftJoin(courses, eq(sessions.courseId, courses.id))
+      .leftJoin(faculty, eq(sessions.facultyId, faculty.id))
+      .leftJoin(users, eq(faculty.id, users.id))
+      .leftJoin(venues, eq(sessions.venueId, venues.id))
+      .leftJoin(sessionTypes, eq(sessions.sessionTypeId, sessionTypes.id))
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(asc(sessions.sessionDate), asc(sessions.startTime));
 
-        if (error) throw error;
+    const sessionIds = (rows || []).map(s => s.id);
+    const skillsMap = {};
 
-        // Fetch skill_ids for all sessions in one batch query
-        const sessionIds = (data || []).map(s => s.id);
-        const skillsMap = {}; // { session_id: [skill_id, ...] }
+    if (sessionIds.length > 0) {
+      try {
+        const ssData = await db
+          .select({
+            session_id: sessionSkills.sessionId,
+            skill_id: sessionSkills.skillId,
+          })
+          .from(sessionSkills)
+          .where(inArray(sessionSkills.sessionId, sessionIds));
 
-        if (sessionIds.length > 0) {
-            try {
-                const { data: ssData } = await supabaseAdmin
-                    .from('session_skills')
-                    .select('session_id, skill_id')
-                    .in('session_id', sessionIds);
+        (ssData || []).forEach(row => {
+          if (!skillsMap[row.session_id]) skillsMap[row.session_id] = [];
+          skillsMap[row.session_id].push(row.skill_id);
+        });
+      } catch (_) {}
+    }
 
-                (ssData || []).forEach(row => {
-                    if (!skillsMap[row.session_id]) skillsMap[row.session_id] = [];
-                    skillsMap[row.session_id].push(row.skill_id);
-                });
-            } catch (_) {
-                // table may not exist yet — skills just won't be populated
-            }
-        }
-        // Fetch durable email-job state in one batch query. The migration may not
-        // yet be applied in a development database, so retain the schedule view
-        // even when that optional status data is unavailable.
-        const deliveryMap = {};
-        if (sessionIds.length > 0) {
-            try {
-                const { data: messages, error: messagesError } = await supabaseAdmin
-                    .from('notification_stream')
-                    .select('session_id, status')
-                    .in('session_id', sessionIds);
-
-                if (messagesError) throw messagesError;
-                (messages || []).forEach(message => {
-                    if (!message.session_id) return;
-                    if (!deliveryMap[message.session_id]) {
-                        deliveryMap[message.session_id] = {
-                            total: 0, queued: 0, processing: 0, retry: 0,
-                            sent: 0, failed: 0, state: 'not_sent',
-                        };
-                    }
-                    const delivery = deliveryMap[message.session_id];
-                    delivery.total += 1;
-                    if (Object.prototype.hasOwnProperty.call(delivery, message.status)) {
-                        delivery[message.status] += 1;
-                    }
-                });
-
-                Object.values(deliveryMap).forEach(delivery => {
-                    const outstanding = delivery.queued + delivery.processing + delivery.retry;
-                    delivery.state = outstanding > 0
-                        ? 'sending'
-                        : delivery.failed > 0
-                            ? 'failed'
-                            : delivery.sent > 0 ? 'sent' : 'not_sent';
-                });
-            } catch (streamError) {
-                console.warn('Notification stream status unavailable:', streamError.message);
-            }
-        }
-
-        // Fetch real enrollment counts in one batch query
-        const courseIds = [...new Set((data || []).map(s => s.course_id).filter(Boolean))];
-        const enrollmentMap = {};
-
-        if (courseIds.length > 0) {
-            const { data: enrollments } = await supabaseAdmin
-                .from('course_enrollments')
-                .select('course_id')
-                .in('course_id', courseIds);
-
-            (enrollments || []).forEach(e => {
-                enrollmentMap[e.course_id] = (enrollmentMap[e.course_id] || 0) + 1;
-            });
-        }
-
-        // Current time in IST (UTC+5:30) as a comparable "YYYY-MM-DDTHH:MM" string
-        const nowUtcMs = Date.now();
-        const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000; // +05:30
-        const nowIstMs = nowUtcMs + IST_OFFSET_MS;
-        const nowIst = new Date(nowIstMs); // treat as UTC internally but represents IST wall-clock
-        const nowIstStr = nowIst.toISOString().slice(0, 16); // "YYYY-MM-DDTHH:MM"
-
-        const sessions = (data || []).map(s => {
-            let computedStatus = s.status === 'scheduled'
-                ? 'Scheduled'
-                : s.status.charAt(0).toUpperCase() + s.status.slice(1);
-
-            if (s.status === 'scheduled' && s.session_date && s.start_time && s.end_time) {
-                // Compare session start/end (stored in IST) against current IST wall-clock time
-                const sessionStartStr = `${s.session_date}T${s.start_time.slice(0, 5)}`;
-                const sessionEndStr   = `${s.session_date}T${s.end_time.slice(0, 5)}`;
-
-                if (nowIstStr >= sessionEndStr) {
-                    // Class has fully ended — mark for DB write-back
-                    computedStatus = 'Completed';
-                    s._shouldMarkCompleted = true; // flag for DB update below
-                } else if (nowIstStr >= sessionStartStr) {
-                    // Class is currently ongoing
-                    computedStatus = 'Ongoing';
-                }
-            }
-
-            return {
-                id: s.id,
-                _shouldMarkCompleted: s._shouldMarkCompleted || false,
-                // Display values
-                course: s.courses?.name || 'Unknown',
-                sessionType: s.session_types?.name || null,
-                faculty: s.faculty?.users
-                    ? `Prof. ${s.faculty.users.first_name} ${s.faculty.users.last_name}`
-                    : 'Unknown',
-                venue: s.venues?.name || 'TBA',
-                date: s.session_date,
-                time: s.start_time?.slice(0, 5),
-                endTime: s.end_time?.slice(0, 5),
-                feedback_deadline: s.feedback_deadline || null,
-                feedback_delivery: deliveryMap[s.id] || {
-                    total: 0, queued: 0, processing: 0, retry: 0,
-                    sent: 0, failed: 0, state: 'not_sent',
-                },
-                students: enrollmentMap[s.course_id] || 0,
-                status: computedStatus,
-                // Raw IDs / values for edit form pre-fill
-                title: s.title || '',
-                course_id: s.course_id || '',
-                faculty_id: s.faculty_id || '',
-                venue_id: s.venue_id || '',
-                session_type_id: s.session_type_id || '',
-                skill_ids: skillsMap[s.id] || [],
+    const deliveryMap = {};
+    if (sessionIds.length > 0) {
+      try {
+        const messages = await db.execute(
+          sql`SELECT session_id, status FROM notification_stream WHERE session_id IN ${sessionIds}`
+        );
+        (messages || []).forEach(message => {
+          if (!message.session_id) return;
+          if (!deliveryMap[message.session_id]) {
+            deliveryMap[message.session_id] = {
+              total: 0, queued: 0, processing: 0, retry: 0,
+              sent: 0, failed: 0, state: 'not_sent',
             };
+          }
+          const delivery = deliveryMap[message.session_id];
+          delivery.total += 1;
+          if (Object.prototype.hasOwnProperty.call(delivery, message.status)) {
+            delivery[message.status] += 1;
+          }
         });
 
-        // ── Auto-complete: write 'completed' back to DB for sessions that have
-        // ended but still carry status='scheduled'. Fire-and-forget so the
-        // API response is not delayed.
-        const toComplete = sessions.filter(s => s._shouldMarkCompleted).map(s => s.id);
-        if (toComplete.length > 0) {
-            Promise.all(
-                toComplete.map(id =>
-                    supabaseAdmin
-                        .from('sessions')
-                        .update({ status: 'completed' })
-                        .eq('id', id)
-                        .eq('status', 'scheduled') // guard: only update if still scheduled
-                )
-            ).catch(err => console.error('Auto-complete sessions write-back error:', err));
-        }
-
-        // Strip internal flag before returning to client
-        const clientSessions = sessions.map(({ _shouldMarkCompleted, ...rest }) => rest);
-
-        return NextResponse.json({ sessions: clientSessions });
-
-    } catch (error) {
-        console.error('Schedule API Error:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        Object.values(deliveryMap).forEach(delivery => {
+          const outstanding = delivery.queued + delivery.processing + delivery.retry;
+          delivery.state = outstanding > 0
+            ? 'sending'
+            : delivery.failed > 0
+              ? 'failed'
+              : delivery.sent > 0 ? 'sent' : 'not_sent';
+        });
+      } catch (streamError) {
+        // Table or query unavailable
+      }
     }
+
+    const courseIds = [...new Set((rows || []).map(s => s.course_id).filter(Boolean))];
+    const enrollmentMap = {};
+
+    if (courseIds.length > 0) {
+      const enrollments = await db
+        .select({ course_id: courseEnrollments.courseId })
+        .from(courseEnrollments)
+        .where(inArray(courseEnrollments.courseId, courseIds));
+
+      (enrollments || []).forEach(e => {
+        if (!e.course_id) return;
+        enrollmentMap[e.course_id] = (enrollmentMap[e.course_id] || 0) + 1;
+      });
+    }
+
+    const nowUtcMs = Date.now();
+    const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+    const nowIstMs = nowUtcMs + IST_OFFSET_MS;
+    const nowIst = new Date(nowIstMs);
+    const nowIstStr = nowIst.toISOString().slice(0, 16);
+
+    const sessionList = (rows || []).map(s => {
+      let computedStatus = s.status === 'scheduled'
+        ? 'Scheduled'
+        : s.status.charAt(0).toUpperCase() + s.status.slice(1);
+
+      let _shouldMarkCompleted = false;
+      if (s.status === 'scheduled' && s.session_date && s.start_time && s.end_time) {
+        const sessionStartStr = `${s.session_date}T${s.start_time.slice(0, 5)}`;
+        const sessionEndStr   = `${s.session_date}T${s.end_time.slice(0, 5)}`;
+
+        if (nowIstStr >= sessionEndStr) {
+          computedStatus = 'Completed';
+          _shouldMarkCompleted = true;
+        } else if (nowIstStr >= sessionStartStr) {
+          computedStatus = 'Ongoing';
+        }
+      }
+
+      const facultyName = s.first_name || s.last_name
+        ? `Prof. ${s.first_name || ''} ${s.last_name || ''}`.trim()
+        : 'Unknown';
+
+      return {
+        id: s.id,
+        _shouldMarkCompleted,
+        course: s.course_name || 'Unknown',
+        sessionType: s.session_type_name || null,
+        faculty: facultyName,
+        venue: s.venue_name || 'TBA',
+        date: s.session_date,
+        time: s.start_time?.slice(0, 5),
+        endTime: s.end_time?.slice(0, 5),
+        feedback_deadline: s.feedback_deadline || null,
+        feedback_delivery: deliveryMap[s.id] || {
+          total: 0, queued: 0, processing: 0, retry: 0,
+          sent: 0, failed: 0, state: 'not_sent',
+        },
+        students: enrollmentMap[s.course_id] || 0,
+        status: computedStatus,
+        title: s.title || '',
+        course_id: s.course_id || '',
+        faculty_id: s.faculty_id || '',
+        venue_id: s.venue_id || '',
+        session_type_id: s.session_type_id || '',
+        skill_ids: skillsMap[s.id] || [],
+      };
+    });
+
+    const toComplete = sessionList.filter(s => s._shouldMarkCompleted).map(s => s.id);
+    if (toComplete.length > 0) {
+      db.update(sessions)
+        .set({ status: 'completed' })
+        .where(and(inArray(sessions.id, toComplete), eq(sessions.status, 'scheduled')))
+        .catch(err => console.error('Auto-complete sessions write-back error:', err));
+    }
+
+    const clientSessions = sessionList.map(({ _shouldMarkCompleted, ...rest }) => rest);
+
+    return NextResponse.json({ sessions: clientSessions });
+
+  } catch (error) {
+    console.error('Schedule API Error:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 }
 
 export const GET = withRole(handler, ['admin']);

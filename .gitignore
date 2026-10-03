@@ -67,3 +67,4 @@ backups/
 *.dump
 *.pem
 *.key
+.agents/AGENTS.md

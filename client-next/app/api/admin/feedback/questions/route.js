@@ -1,18 +1,23 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import { feedbackQuestions } from '@/drizzle/schema';
+import { eq, asc } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
 
 async function getHandler(req) {
   try {
-    const { data: questions, error } = await supabaseAdmin
-      .from('feedback_questions')
-      .select('id, question, category, type, active, created_at')
-      .order('created_at', { ascending: true });
+    const questions = await db.query.feedbackQuestions.findMany({
+      columns: { id: true, question: true, category: true, type: true, active: true, createdAt: true },
+      orderBy: [asc(feedbackQuestions.createdAt)]
+    });
 
-    if (error) throw error;
+    const mapped = questions.map(q => ({
+      ...q,
+      created_at: q.createdAt
+    }));
 
-    return NextResponse.json({ questions: questions || [] });
+    return NextResponse.json({ questions: mapped });
   } catch (err) {
     console.error('Feedback questions error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -27,20 +32,16 @@ async function postHandler(req) {
       return NextResponse.json({ error: 'question and type are required' }, { status: 400 });
     }
 
-    const { data, error } = await supabaseAdmin
-      .from('feedback_questions')
-      .insert({
+    const [data] = await db.insert(feedbackQuestions)
+      .values({
         question,
         category: category || null,
         type,
         active: active !== false,
       })
-      .select()
-      .single();
+      .returning();
 
-    if (error) throw error;
-
-    return NextResponse.json({ question: data }, { status: 201 });
+    return NextResponse.json({ question: { ...data, created_at: data.createdAt } }, { status: 201 });
   } catch (err) {
     console.error('Create question error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -61,16 +62,12 @@ async function patchHandler(req) {
     if (type !== undefined) updates.type = type;
     if (active !== undefined) updates.active = active;
 
-    const { data, error } = await supabaseAdmin
-      .from('feedback_questions')
-      .update(updates)
-      .eq('id', id)
-      .select()
-      .single();
+    const [data] = await db.update(feedbackQuestions)
+      .set(updates)
+      .where(eq(feedbackQuestions.id, id))
+      .returning();
 
-    if (error) throw error;
-
-    return NextResponse.json({ question: data });
+    return NextResponse.json({ question: { ...data, created_at: data.createdAt } });
   } catch (err) {
     console.error('Update question error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -86,12 +83,7 @@ async function deleteHandler(req) {
       return NextResponse.json({ error: 'question id is required' }, { status: 400 });
     }
 
-    const { error } = await supabaseAdmin
-      .from('feedback_questions')
-      .delete()
-      .eq('id', id);
-
-    if (error) throw error;
+    await db.delete(feedbackQuestions).where(eq(feedbackQuestions.id, id));
 
     return NextResponse.json({ message: 'Question deleted' });
   } catch (err) {

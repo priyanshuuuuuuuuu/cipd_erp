@@ -1,6 +1,16 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import {
+  sessions,
+  courses,
+  faculty,
+  users,
+  venues,
+  feedbackQuestions,
+  feedbackResponses,
+} from '@/drizzle/schema';
+import { eq, ne, and, inArray, asc, desc } from 'drizzle-orm';
 import { withAuth } from '@/lib/middleware';
 import { getFeedbackDeadline, getFeedbackHoursLeft, isFeedbackExpired } from '@/lib/feedback-deadline';
 import { getEligibleSessionIdsForStudent } from '@/lib/feedback-eligibility';
@@ -13,14 +23,20 @@ async function handler(req) {
   try {
     const studentId = req.user.id;
 
-    const eligibleSessionIds = await getEligibleSessionIdsForStudent(supabaseAdmin, studentId);
+    const eligibleSessionIds = await getEligibleSessionIdsForStudent(db, studentId);
 
     if (eligibleSessionIds.length === 0) {
-      const { data: questions } = await supabaseAdmin
-        .from('feedback_questions')
-        .select('id, question, category, type, active')
-        .eq('active', true)
-        .order('created_at', { ascending: true });
+      const questions = await db
+        .select({
+          id: feedbackQuestions.id,
+          question: feedbackQuestions.question,
+          category: feedbackQuestions.category,
+          type: feedbackQuestions.type,
+          active: feedbackQuestions.active,
+        })
+        .from(feedbackQuestions)
+        .where(eq(feedbackQuestions.active, true))
+        .orderBy(asc(feedbackQuestions.createdAt));
 
       return NextResponse.json({
         forms: [],
@@ -29,20 +45,30 @@ async function handler(req) {
       });
     }
 
-    const { data: eligibleSessions } = await supabaseAdmin
-      .from('sessions')
-      .select('id')
-      .in('id', eligibleSessionIds)
-      .neq('status', 'cancelled');
+    const eligibleSessions = await db
+      .select({ id: sessions.id })
+      .from(sessions)
+      .where(
+        and(
+          inArray(sessions.id, eligibleSessionIds),
+          ne(sessions.status, 'cancelled')
+        )
+      );
 
-    const attendedSessionIds = (eligibleSessions || []).map((s) => s.id);
+    const attendedSessionIds = eligibleSessions.map((s) => s.id);
 
     if (attendedSessionIds.length === 0) {
-      const { data: questions } = await supabaseAdmin
-        .from('feedback_questions')
-        .select('id, question, category, type, active')
-        .eq('active', true)
-        .order('created_at', { ascending: true });
+      const questions = await db
+        .select({
+          id: feedbackQuestions.id,
+          question: feedbackQuestions.question,
+          category: feedbackQuestions.category,
+          type: feedbackQuestions.type,
+          active: feedbackQuestions.active,
+        })
+        .from(feedbackQuestions)
+        .where(eq(feedbackQuestions.active, true))
+        .orderBy(asc(feedbackQuestions.createdAt));
 
       return NextResponse.json({
         forms: [],
@@ -51,30 +77,52 @@ async function handler(req) {
       });
     }
 
-    const { data: submittedRows } = await supabaseAdmin
-      .from('feedback_responses')
-      .select('session_id')
-      .eq('student_id', studentId)
-      .in('session_id', attendedSessionIds);
+    const submittedRows = await db
+      .select({ session_id: feedbackResponses.sessionId })
+      .from(feedbackResponses)
+      .where(
+        and(
+          eq(feedbackResponses.studentId, studentId),
+          inArray(feedbackResponses.sessionId, attendedSessionIds)
+        )
+      );
 
-    const submittedSessionIds = [...new Set((submittedRows || []).map((f) => f.session_id))];
+    const submittedSessionIds = [...new Set(submittedRows.map((f) => f.session_id).filter(Boolean))];
     const pendingSessionIds = attendedSessionIds.filter((id) => !submittedSessionIds.includes(id));
 
     let pendingForms = [];
     if (pendingSessionIds.length > 0) {
-      const { data: sessions } = await supabaseAdmin
-        .from('sessions')
-        .select(`
-          id, title, session_date, start_time, end_time, feedback_deadline, status,
-          courses ( id, name ),
-          faculty ( id, users ( first_name, last_name ) ),
-          venues ( id, name )
-        `)
-        .in('id', pendingSessionIds)
-        .neq('status', 'cancelled')
-        .order('session_date', { ascending: false });
+      const pendingSessionRows = await db
+        .select({
+          id: sessions.id,
+          title: sessions.title,
+          session_date: sessions.sessionDate,
+          start_time: sessions.startTime,
+          end_time: sessions.endTime,
+          feedback_deadline: sessions.feedbackDeadline,
+          status: sessions.status,
+          course_id: courses.id,
+          course_name: courses.name,
+          faculty_id: faculty.id,
+          faculty_first_name: users.firstName,
+          faculty_last_name: users.lastName,
+          venue_id: venues.id,
+          venue_name: venues.name,
+        })
+        .from(sessions)
+        .leftJoin(courses, eq(sessions.courseId, courses.id))
+        .leftJoin(faculty, eq(sessions.facultyId, faculty.id))
+        .leftJoin(users, eq(faculty.id, users.id))
+        .leftJoin(venues, eq(sessions.venueId, venues.id))
+        .where(
+          and(
+            inArray(sessions.id, pendingSessionIds),
+            ne(sessions.status, 'cancelled')
+          )
+        )
+        .orderBy(desc(sessions.sessionDate));
 
-      pendingForms = (sessions || []).map((s) => {
+      pendingForms = pendingSessionRows.map((s) => {
         const deadline = getFeedbackDeadline(s);
         const expired = isFeedbackExpired(s);
 
@@ -84,9 +132,9 @@ async function handler(req) {
           session_date: s.session_date,
           start_time: s.start_time,
           end_time: s.end_time,
-          course: s.courses,
-          faculty: s.faculty,
-          venue: s.venues,
+          course: s.course_id ? { id: s.course_id, name: s.course_name } : null,
+          faculty: s.faculty_id ? { id: s.faculty_id, users: { first_name: s.faculty_first_name, last_name: s.faculty_last_name } } : null,
+          venue: s.venue_id ? { id: s.venue_id, name: s.venue_name } : null,
           deadline: deadline.toISOString(),
           expired,
           hoursLeft: getFeedbackHoursLeft(s),
@@ -97,32 +145,48 @@ async function handler(req) {
 
     let submittedForms = [];
     if (submittedSessionIds.length > 0) {
-      const { data: sessions } = await supabaseAdmin
-        .from('sessions')
-        .select(`
-          id, title, session_date, start_time, end_time,
-          courses ( id, name ),
-          faculty ( id, users ( first_name, last_name ) )
-        `)
-        .in('id', submittedSessionIds)
-        .order('session_date', { ascending: false })
+      const submittedSessionRows = await db
+        .select({
+          id: sessions.id,
+          title: sessions.title,
+          session_date: sessions.sessionDate,
+          start_time: sessions.startTime,
+          end_time: sessions.endTime,
+          course_id: courses.id,
+          course_name: courses.name,
+          faculty_id: faculty.id,
+          faculty_first_name: users.firstName,
+          faculty_last_name: users.lastName,
+        })
+        .from(sessions)
+        .leftJoin(courses, eq(sessions.courseId, courses.id))
+        .leftJoin(faculty, eq(sessions.facultyId, faculty.id))
+        .leftJoin(users, eq(faculty.id, users.id))
+        .where(inArray(sessions.id, submittedSessionIds))
+        .orderBy(desc(sessions.sessionDate))
         .limit(10);
 
-      submittedForms = (sessions || []).map((s) => ({
+      submittedForms = submittedSessionRows.map((s) => ({
         session_id: s.id,
         title: s.title,
         session_date: s.session_date,
-        course: s.courses,
-        faculty: s.faculty,
+        course: s.course_id ? { id: s.course_id, name: s.course_name } : null,
+        faculty: s.faculty_id ? { id: s.faculty_id, users: { first_name: s.faculty_first_name, last_name: s.faculty_last_name } } : null,
         submitted: true,
       }));
     }
 
-    const { data: questions } = await supabaseAdmin
-      .from('feedback_questions')
-      .select('id, question, category, type, active')
-      .eq('active', true)
-      .order('created_at', { ascending: true });
+    const questions = await db
+      .select({
+        id: feedbackQuestions.id,
+        question: feedbackQuestions.question,
+        category: feedbackQuestions.category,
+        type: feedbackQuestions.type,
+        active: feedbackQuestions.active,
+      })
+      .from(feedbackQuestions)
+      .where(eq(feedbackQuestions.active, true))
+      .orderBy(asc(feedbackQuestions.createdAt));
 
     const activePending = pendingForms.filter((f) => !f.expired).length;
     const expiredCount = pendingForms.filter((f) => f.expired).length;
@@ -144,3 +208,4 @@ async function handler(req) {
 }
 
 export const GET = withAuth(handler);
+

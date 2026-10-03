@@ -1,17 +1,18 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import { sessionTypes } from '@/drizzle/schema';
+import { asc } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
 
 // GET — list all session types
 async function getHandler() {
   try {
-    const { data, error } = await supabaseAdmin
-      .from('session_types')
-      .select('id, name')
-      .order('name');
+    const data = await db
+      .select({ id: sessionTypes.id, name: sessionTypes.name })
+      .from(sessionTypes)
+      .orderBy(asc(sessionTypes.name));
 
-    if (error) throw error;
     return NextResponse.json({ sessionTypes: data || [] });
   } catch (err) {
     console.error('session-types GET error:', err);
@@ -28,21 +29,19 @@ async function postHandler(req) {
       return NextResponse.json({ error: 'Type name is required.' }, { status: 400 });
     }
 
-    const { data, error } = await supabaseAdmin
-      .from('session_types')
-      .insert({ name: name.trim() })
-      .select('id, name')
-      .single();
+    try {
+      const [inserted] = await db
+        .insert(sessionTypes)
+        .values({ name: name.trim() })
+        .returning({ id: sessionTypes.id, name: sessionTypes.name });
 
-    if (error) {
-      // Unique constraint violation
-      if (error.code === '23505') {
+      return NextResponse.json({ sessionType: inserted }, { status: 201 });
+    } catch (dbErr) {
+      if (dbErr.code === '23505' || dbErr.message?.includes('unique constraint') || dbErr.message?.includes('duplicate key')) {
         return NextResponse.json({ error: 'A type with that name already exists.' }, { status: 409 });
       }
-      throw error;
+      throw dbErr;
     }
-
-    return NextResponse.json({ sessionType: data }, { status: 201 });
   } catch (err) {
     console.error('session-types POST error:', err);
     return NextResponse.json({ error: err.message }, { status: 500 });

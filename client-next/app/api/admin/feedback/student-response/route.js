@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import { feedbackResponses, feedbackQuestions, students, users } from '@/drizzle/schema';
+import { eq, and } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
 
 async function getHandler(req) {
@@ -14,30 +16,44 @@ async function getHandler(req) {
     }
 
     // Get all responses for this student + session, with question details
-    const { data: responses } = await supabaseAdmin
-      .from('feedback_responses')
-      .select(`
-        question_id, rating, yes_no, text_answer, submitted_at,
-        feedback_questions:question_id ( id, question, type, category )
-      `)
-      .eq('session_id', sessionId)
-      .eq('student_id', studentId)
-      .order('question_id');
+    const responses = await db
+      .select({
+        question_id: feedbackResponses.questionId,
+        rating: feedbackResponses.rating,
+        yes_no: feedbackResponses.yesNo,
+        text_answer: feedbackResponses.textAnswer,
+        submitted_at: feedbackResponses.submittedAt,
+        question: feedbackQuestions.question,
+        type: feedbackQuestions.type,
+        category: feedbackQuestions.category,
+      })
+      .from(feedbackResponses)
+      .leftJoin(feedbackQuestions, eq(feedbackResponses.questionId, feedbackQuestions.id))
+      .where(and(
+        eq(feedbackResponses.sessionId, sessionId),
+        eq(feedbackResponses.studentId, studentId)
+      ))
+      .orderBy(feedbackResponses.questionId);
 
     // Get student info
-    const { data: student } = await supabaseAdmin
-      .from('students')
-      .select('enrollment_no, users:user_id ( first_name, last_name )')
-      .eq('user_id', studentId)
-      .single();
+    const [student] = await db
+      .select({
+        enrollment_no: students.enrollmentNo,
+        first_name: users.firstName,
+        last_name: users.lastName,
+      })
+      .from(students)
+      .leftJoin(users, eq(students.userId, users.id))
+      .where(eq(students.userId, studentId))
+      .limit(1);
 
     const formattedResponses = (responses || []).map(r => ({
-      question: r.feedback_questions?.question,
-      type: r.feedback_questions?.type,
-      category: r.feedback_questions?.category,
-      answer: r.feedback_questions?.type === 'yes_no' ? (r.yes_no ? 'Yes' : 'No')
-        : r.feedback_questions?.type === 'rating' ? `${r.rating}/5`
-        : r.feedback_questions?.type === 'mcq' ? (r.text_answer || '—')
+      question: r.question,
+      type: r.type,
+      category: r.category,
+      answer: r.type === 'yes_no' ? (r.yes_no ? 'Yes' : 'No')
+        : r.type === 'rating' ? `${r.rating}/5`
+        : r.type === 'mcq' ? (r.text_answer || '—')
         : (r.text_answer || '—'),
       raw: { rating: r.rating, yes_no: r.yes_no, text_answer: r.text_answer },
       submitted_at: r.submitted_at,
@@ -45,7 +61,7 @@ async function getHandler(req) {
 
     return NextResponse.json({
       student: {
-        name: student?.users ? `${student.users.first_name} ${student.users.last_name}` : 'Unknown',
+        name: student ? `${student.first_name || ''} ${student.last_name || ''}`.trim() : 'Unknown',
         enrollmentNo: student?.enrollment_no || '',
       },
       responses: formattedResponses,

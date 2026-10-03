@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import { users } from '@/drizzle/schema';
+import { eq } from 'drizzle-orm';
 import { withAuth } from '@/lib/middleware';
 
 // Default preferences shape — used as fallback if user has none
@@ -21,13 +23,12 @@ const DEFAULT_PREFERENCES = {
 
 async function getHandler(req) {
   try {
-    const { data: user, error } = await supabaseAdmin
-      .from('users')
-      .select('preferences')
-      .eq('id', req.user.id)
-      .single();
+    const [user] = await db
+      .select({ preferences: users.preferences })
+      .from(users)
+      .where(eq(users.id, req.user.id));
 
-    if (error || !user) {
+    if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
@@ -66,11 +67,10 @@ async function patchHandler(req) {
     }
 
     // Fetch current prefs first so we do a deep merge (not a full replace)
-    const { data: current } = await supabaseAdmin
-      .from('users')
-      .select('preferences')
-      .eq('id', req.user.id)
-      .single();
+    const [current] = await db
+      .select({ preferences: users.preferences })
+      .from(users)
+      .where(eq(users.id, req.user.id));
 
     const currentPrefs = current?.preferences || {};
     const merged = { ...currentPrefs };
@@ -79,12 +79,10 @@ async function patchHandler(req) {
       merged[key] = { ...(currentPrefs[key] || {}), ...updates[key] };
     }
 
-    const { error: updateErr } = await supabaseAdmin
-      .from('users')
-      .update({ preferences: merged, updated_at: new Date().toISOString() })
-      .eq('id', req.user.id);
-
-    if (updateErr) throw updateErr;
+    await db
+      .update(users)
+      .set({ preferences: merged, updatedAt: new Date().toISOString() })
+      .where(eq(users.id, req.user.id));
 
     return NextResponse.json({
       message: 'Preferences updated',

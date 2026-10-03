@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import { sessions, feedbackResponses } from '@/drizzle/schema';
+import { eq, and, count } from 'drizzle-orm';
 import { withAuth } from '@/lib/middleware';
 import { getFeedbackDeadline, isFeedbackExpired } from '@/lib/feedback-deadline';
 import { isStudentEligibleForSessionFeedback } from '@/lib/feedback-eligibility';
@@ -14,13 +16,19 @@ async function handler(req) {
       return NextResponse.json({ error: 'session_id and responses array are required' }, { status: 400 });
     }
 
-    const { data: session, error: sessionError } = await supabaseAdmin
-      .from('sessions')
-      .select('id, session_date, end_time, feedback_deadline, status')
-      .eq('id', session_id)
-      .single();
+    const [session] = await db
+      .select({
+        id: sessions.id,
+        session_date: sessions.sessionDate,
+        end_time: sessions.endTime,
+        feedback_deadline: sessions.feedbackDeadline,
+        status: sessions.status,
+      })
+      .from(sessions)
+      .where(eq(sessions.id, session_id))
+      .limit(1);
 
-    if (sessionError || !session) {
+    if (!session) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
@@ -28,7 +36,7 @@ async function handler(req) {
       return NextResponse.json({ error: 'Feedback is not available for cancelled sessions' }, { status: 403 });
     }
 
-    const eligible = await isStudentEligibleForSessionFeedback(supabaseAdmin, studentId, session_id);
+    const eligible = await isStudentEligibleForSessionFeedback(db, studentId, session_id);
     if (!eligible) {
       return NextResponse.json(
         { error: 'You are not eligible to submit feedback for this session. Only students marked present may submit.' },
@@ -46,18 +54,17 @@ async function handler(req) {
       );
     }
 
-    const { count: existingCount, error: existingError } = await supabaseAdmin
-      .from('feedback_responses')
-      .select('id', { count: 'exact', head: true })
-      .eq('session_id', session_id)
-      .eq('student_id', studentId);
+    const [existingRes] = await db
+      .select({ count: count() })
+      .from(feedbackResponses)
+      .where(
+        and(
+          eq(feedbackResponses.sessionId, session_id),
+          eq(feedbackResponses.studentId, studentId)
+        )
+      );
 
-    if (existingError) {
-      console.error('Feedback duplicate check error:', existingError);
-      return NextResponse.json({ error: 'Failed to submit feedback' }, { status: 500 });
-    }
-
-    if (existingCount > 0) {
+    if (Number(existingRes?.count || 0) > 0) {
       return NextResponse.json(
         { error: 'Feedback has already been submitted for this session' },
         { status: 409 }
@@ -65,24 +72,24 @@ async function handler(req) {
     }
 
     const records = responses.map((r) => ({
-      session_id,
-      student_id: studentId,
-      question_id: r.question_id,
+      sessionId: session_id,
+      studentId: studentId,
+      questionId: r.question_id,
       rating: r.rating || null,
-      yes_no: r.yes_no !== undefined ? r.yes_no : null,
-      text_answer: r.text_answer || null,
+      yesNo: r.yes_no !== undefined ? r.yes_no : null,
+      textAnswer: r.text_answer || null,
     }));
 
-    const { error } = await supabaseAdmin.from('feedback_responses').insert(records);
-
-    if (error) {
-      if (error.code === '23505') {
+    try {
+      await db.insert(feedbackResponses).values(records);
+    } catch (insertErr) {
+      if (insertErr?.code === '23505' || insertErr?.message?.includes('unique constraint')) {
         return NextResponse.json(
           { error: 'Feedback has already been submitted for this session' },
           { status: 409 }
         );
       }
-      console.error('Feedback submit error:', error);
+      console.error('Feedback submit insert error:', insertErr);
       return NextResponse.json({ error: 'Failed to submit feedback' }, { status: 500 });
     }
 
@@ -94,3 +101,4 @@ async function handler(req) {
 }
 
 export const POST = withAuth(handler);
+

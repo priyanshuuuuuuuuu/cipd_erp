@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import { courseEnrollments, courses, attendanceRecords, sessions as sessionsTable } from '@/drizzle/schema';
+import { eq, and, inArray } from 'drizzle-orm';
 import { withAuth } from '@/lib/middleware';
 
 function makeCode(name = '') {
@@ -16,12 +18,17 @@ async function handler(req) {
   try {
     const studentId = req.user.id;
 
-    const { data: enrollments, error: enrollErr } = await supabaseAdmin
-      .from('course_enrollments')
-      .select('course_id, courses ( id, name )')
-      .eq('student_id', studentId);
-
-    if (enrollErr) console.error('Enrollment fetch error:', enrollErr.message);
+    const enrollments = await db
+      .select({
+        course_id: courseEnrollments.courseId,
+        courses: {
+          id: courses.id,
+          name: courses.name,
+        },
+      })
+      .from(courseEnrollments)
+      .leftJoin(courses, eq(courseEnrollments.courseId, courses.id))
+      .where(eq(courseEnrollments.studentId, studentId));
 
     const enrolledCourses = (enrollments || []).map((e) => ({
       id: e.courses?.id || e.course_id,
@@ -32,20 +39,27 @@ async function handler(req) {
 
     let records = [];
     if (enrolledCourseIds.length > 0) {
-      const { data: recs, error: recErr } = await supabaseAdmin
-        .from('attendance_records')
-        .select(`
-          status, points, session_id,
-          sessions!inner (
-            id, session_date, course_id, status
+      records = await db
+        .select({
+          status: attendanceRecords.status,
+          points: attendanceRecords.points,
+          session_id: attendanceRecords.sessionId,
+          sessions: {
+            id: sessionsTable.id,
+            session_date: sessionsTable.sessionDate,
+            course_id: sessionsTable.courseId,
+            status: sessionsTable.status,
+          },
+        })
+        .from(attendanceRecords)
+        .innerJoin(sessionsTable, eq(attendanceRecords.sessionId, sessionsTable.id))
+        .where(
+          and(
+            eq(attendanceRecords.studentId, studentId),
+            inArray(sessionsTable.courseId, enrolledCourseIds),
+            eq(sessionsTable.status, 'completed')
           )
-        `)
-        .eq('student_id', studentId)
-        .in('sessions.course_id', enrolledCourseIds)
-        .eq('sessions.status', 'completed');
-
-      if (recErr) console.error('Attendance records fetch error:', recErr.message);
-      records = recs || [];
+        );
     }
 
     const countsByCourse = {};
@@ -67,7 +81,7 @@ async function handler(req) {
       }
     }
 
-    const courses = enrolledCourses
+    const courseSummaryList = enrolledCourses
       .map((c) => {
         const counts = countsByCourse[c.id] || {
           attended: 0,
@@ -214,7 +228,7 @@ async function handler(req) {
         points: Math.round(overallPoints * 10) / 10,
       },
       streak,
-      courses,
+      courses: courseSummaryList,
       calendarData,
       weeklyData,
       source: 'attendance_records',

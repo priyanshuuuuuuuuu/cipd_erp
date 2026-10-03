@@ -157,7 +157,8 @@ export default function AttendancePage() {
 
     const sessions = sessionHistory.map((s, i) => {
         const sess = s.sessions || {};
-        const sessionDate = sess.session_date ? new Date(sess.session_date + 'T00:00:00') : null;
+        const dateStr = typeof sess.session_date === 'string' ? sess.session_date.slice(0, 10) : (sess.session_date ? new Date(sess.session_date).toISOString().slice(0, 10) : null);
+        const sessionDate = dateStr ? new Date(dateStr + 'T00:00:00') : null;
         const courseName = sess.courses?.name || '';
         const courseCode = courseName ? courseName.split(/[\s&]+/).filter(Boolean).map(w => w[0]).join('').slice(0, 4).toUpperCase() : `C${i + 1}`;
         return {

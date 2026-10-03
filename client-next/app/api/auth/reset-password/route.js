@@ -1,6 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { getSchemaClient, getCohortConfig } from '@/lib/supabase';
+import { getSchemaDb, getCohortConfig } from '@/lib/db';
+import { users } from '@/drizzle/schema';
+import { eq } from 'drizzle-orm';
 import { hashPassword } from '@/lib/auth';
 import jwt from 'jsonwebtoken';
 
@@ -55,21 +57,20 @@ export async function POST(req) {
     let found = false;
 
     for (const schema of schemas) {
-      const db = getSchemaClient(schema);
-      const { data: user } = await db
-        .from('users')
-        .select('id')
-        .eq('id', userId)
-        .maybeSingle();
+      const schemaDb = getSchemaDb(schema);
+      const [user] = await schemaDb
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
 
       if (user) {
         const newHash = await hashPassword(newPassword);
-        const { error: updateErr } = await db
-          .from('users')
-          .update({ password_hash: newHash })
-          .eq('id', userId);
+        await schemaDb
+          .update(users)
+          .set({ passwordHash: newHash })
+          .where(eq(users.id, userId));
 
-        if (updateErr) throw updateErr;
         found = true;
         break;
       }
@@ -85,3 +86,4 @@ export async function POST(req) {
     return NextResponse.json({ error: 'Internal server error.' }, { status: 500 });
   }
 }
+

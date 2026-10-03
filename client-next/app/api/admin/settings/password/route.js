@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import { users } from '@/drizzle/schema';
+import { eq } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
 import { verifyPassword, hashPassword } from '@/lib/auth';
 
@@ -17,14 +19,14 @@ async function handler(req) {
       console.log('Password Reset: UserID from token =', userId);
 
       // 2. Fetch the user's current password hash from the custom users table
-      const { data: user, error: fetchError } = await supabaseAdmin
-        .from('users')
-        .select('password_hash, role')
-        .eq('id', userId)
-        .single();
+      const [user] = await db
+        .select({ password_hash: users.passwordHash, role: users.role })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
         
-      if (fetchError || !user) {
-        console.error('Password Reset: User not found or fetch error:', fetchError);
+      if (!user) {
+        console.error('Password Reset: User not found in database');
         return NextResponse.json({ error: 'User not found in database' }, { status: 404 });
       }
 
@@ -41,14 +43,10 @@ async function handler(req) {
       // 4. Hash the new password and update
       const newHash = await hashPassword(newPassword);
 
-      const { error: updateError } = await supabaseAdmin
-        .from('users')
-        .update({ password_hash: newHash, updated_at: new Date().toISOString() })
-        .eq('id', userId);
-
-      if (updateError) {
-        throw updateError;
-      }
+      await db
+        .update(users)
+        .set({ passwordHash: newHash, updatedAt: new Date().toISOString() })
+        .where(eq(users.id, userId));
 
       return NextResponse.json({ success: true, message: 'Password updated successfully' });
     }
@@ -61,3 +59,4 @@ async function handler(req) {
 }
 
 export const POST = withRole(handler, ['admin']);
+

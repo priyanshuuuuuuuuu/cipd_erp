@@ -1,6 +1,9 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { db } from '@/lib/db';
+import { students, users } from '@/drizzle/schema';
+import { isNotNull, eq } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
 
 async function handler(req) {
@@ -16,11 +19,22 @@ async function handler(req) {
     const offset = (page - 1) * pageSize;
     const isSearch = search.length > 0;
 
-    // Fetch students for MAC matching
-    const { data: allStudents } = await supabaseAdmin
-      .from('students')
-      .select('id, enrollment_no, program_name, mac_address, users ( first_name, last_name, email )')
-      .not('mac_address', 'is', null);
+    // Fetch students for MAC matching via Drizzle ORM
+    const allStudents = await db
+      .select({
+        id: students.id,
+        enrollment_no: students.enrollmentNo,
+        program_name: students.programName,
+        mac_address: students.macAddress,
+        users: {
+          first_name: users.firstName,
+          last_name: users.lastName,
+          email: users.email,
+        },
+      })
+      .from(students)
+      .leftJoin(users, eq(students.id, users.id))
+      .where(isNotNull(students.macAddress));
 
     const normalizeMac = (mac) => {
       if (!mac) return '';
@@ -32,12 +46,12 @@ async function handler(req) {
       if (s.mac_address) macToStudent[normalizeMac(s.mac_address)] = s;
     });
 
-    // Total snapshot count for stats
+    // Total snapshot count for stats (MUST REMAIN ON SUPABASE PER RULE)
     const { count: totalSnapshotCount } = await supabaseAdmin
       .schema('public').from('wifi_snapshots')
       .select('id', { count: 'exact', head: true });
 
-    // Helper: build base query with date filters
+    // Helper: build base query with date filters (MUST REMAIN ON SUPABASE PER RULE)
     const buildQuery = () => {
       let q = supabaseAdmin
         .schema('public').from('wifi_snapshots')
@@ -173,3 +187,4 @@ async function handler(req) {
 }
 
 export const GET = withRole(handler, ['admin']);
+
