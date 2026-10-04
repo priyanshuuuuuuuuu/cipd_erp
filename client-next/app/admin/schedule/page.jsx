@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import '../../Dashboard.css';
 import {
     LayoutGrid, Calendar, MessageSquare, Settings, LogOut, Bell, Search, Menu,
@@ -10,6 +10,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '@/lib/api';
+import Papa from 'papaparse';
 
 export default function AdminSchedulePage() {
     const router = useRouter();
@@ -44,6 +45,264 @@ export default function AdminSchedulePage() {
     const [lookupData, setLookupData] = useState({ courses: [], faculty: [], venues: [], sessionTypes: [], skills: [], categories: [] });
     const [scheduleLoading, setScheduleLoading] = useState(false);
     const [scheduleError, setScheduleError] = useState('');
+
+    const [parsedCsvSessions, setParsedCsvSessions] = useState([]);
+    const [csvEditingIndex, setCsvEditingIndex] = useState(null);
+    const [bulkScheduleLoading, setBulkScheduleLoading] = useState(false);
+    const csvInputRef = useRef(null);
+
+    const parseAmPmTime = (str) => {
+        if (!str) return '';
+        str = str.trim().toLowerCase();
+        const isPm = str.includes('pm');
+        const isAm = str.includes('am');
+        str = str.replace('am', '').replace('pm', '').trim();
+        let [h, m] = str.split(':');
+        h = parseInt(h, 10);
+        m = m ? parseInt(m, 10) : 0;
+        
+        if (isNaN(h)) return '';
+
+        if (isPm && h !== 12) h += 12;
+        if (isAm && h === 12) h = 0;
+
+        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    };
+
+    const handleCsvUpload = (e) => {
+        const file = e.target.files[0];
+        if (!file) {
+            console.log("No file selected.");
+            return;
+        }
+        
+        // Reset the input value so the same file can be uploaded again if needed
+        if (csvInputRef.current) {
+            csvInputRef.current.value = '';
+        }
+
+        console.log("Starting CSV parsing for file:", file.name, "Size:", file.size);
+
+        Papa.parse(file, {
+            complete: (result) => {
+                console.log("PapaParse complete. Total rows parsed:", result.data.length);
+                const data = result.data;
+                const sessions = [];
+                
+                let headerRowIndex = -1;
+                let sessionStartIndex = -1;
+                for (let i = 0; i < data.length; i++) {
+                    const row = data[i];
+                    if (!row) continue;
+                    for (let j = 0; j < row.length; j++) {
+                        const cell = row[j] ? row[j].toString().trim().toLowerCase() : '';
+                        if (cell.startsWith('session') && cell.includes('/')) {
+                            console.log(`Found session header at row ${i}, col ${j}: "${row[j]}"`);
+                            headerRowIndex = i;
+                            sessionStartIndex = j;
+                            break;
+                        }
+                    }
+                    if (headerRowIndex !== -1) break;
+                }
+
+                if (headerRowIndex === -1) {
+                    console.error("Failed to find header row. Looked for a cell starting with 'Session' and containing '/'.");
+                    console.log("First 5 rows of data for debugging:", data.slice(0, 5));
+                    alert("Could not find header row (looking for 'Session XX / ...') in CSV");
+                    return;
+                }
+
+                console.log(`Header row index: ${headerRowIndex}, Sessions start at column: ${sessionStartIndex}`);
+
+                const timeSlots = [];
+                const headers = data[headerRowIndex];
+                
+                // Find dynamic column indices for Theme and Domain
+                let themeColIndex = -1;
+                let domainColIndex = -1;
+                for (let j = 0; j < sessionStartIndex; j++) {
+                    const h = headers[j] ? headers[j].toString().trim().toLowerCase() : '';
+                    if (h.includes('theme') || h.includes('course')) themeColIndex = j;
+                    if (h.includes('domain')) domainColIndex = j;
+                }
+
+                for (let j = sessionStartIndex; j < headers.length; j++) {
+                    const header = headers[j];
+                    if (header && header.includes('/')) {
+                        const parts = header.split('/');
+                        if (parts.length > 1) {
+                            const timeStr = parts[1].trim();
+                            const tParts = timeStr.split('-');
+                            if (tParts.length === 2) {
+                                let start = parseAmPmTime(tParts[0]);
+                                let end = parseAmPmTime(tParts[1]);
+                                console.log(`Parsed timeslot [Col ${j}]: ${parts[0].trim()} | ${start} - ${end}`);
+                                timeSlots.push({ colIndex: j, start, end, label: parts[0].trim() });
+                            } else {
+                                console.warn(`Failed to parse time range in header: ${timeStr}`);
+                            }
+                        }
+                    }
+                }
+
+                for (let i = headerRowIndex + 1; i < data.length; i++) {
+                    const row = data[i];
+                    if (!row || row.length < 2) continue;
+                    
+                    const dayStr = row[1];
+                    if (dayStr && dayStr.includes('-')) {
+                        const dateMatch = dayStr.match(/(\d{1,2}-[a-zA-Z]+-\d{4}|\d{1,2}-\d{1,2}-\d{4})/);
+                        if (dateMatch) {
+                            const dateStr = dateMatch[1];
+                            console.log(`Found date string at row ${i}: ${dateStr}`);
+                            
+                            let parsedDate;
+                            if (/^\d{1,2}-\d{1,2}-\d{4}$/.test(dateStr)) {
+                                const [d, m, y] = dateStr.split('-');
+                                parsedDate = new Date(`${y}-${m}-${d}`);
+                            } else {
+                                parsedDate = new Date(dateStr);
+                            }
+
+                            if (isNaN(parsedDate)) {
+                                console.warn(`Invalid date format parsed: ${dateStr}`);
+                                continue;
+                            }
+                            
+                            const yyyy = parsedDate.getFullYear();
+                            const mm = String(parsedDate.getMonth() + 1).padStart(2, '0');
+                            const dd = String(parsedDate.getDate()).padStart(2, '0');
+                            const isoDate = `${yyyy}-${mm}-${dd}`;
+
+                            const domain = domainColIndex !== -1 ? row[domainColIndex] : (sessionStartIndex > 2 ? row[2] : '');
+                            const theme = themeColIndex !== -1 ? row[themeColIndex] : (sessionStartIndex > 3 ? row[3] : '');
+
+                            let facultyRow = null;
+                            if (i + 1 < data.length) {
+                                const nextRow = data[i+1];
+                                const isFaculty = nextRow.some((cell, idx) => idx < sessionStartIndex && cell?.toString().trim().toLowerCase().includes('faculty / instructor'));
+                                if (isFaculty) {
+                                    facultyRow = nextRow;
+                                    console.log(`Found faculty row for date ${isoDate} at row ${i+1}`);
+                                }
+                            }
+
+                            for (const slot of timeSlots) {
+                                const title = row[slot.colIndex]?.trim();
+                                if (title && title !== '-' && title !== '') {
+                                    const faculty = facultyRow ? facultyRow[slot.colIndex]?.trim() : '';
+                                    console.log(`Adding session: ${title} | ${isoDate} ${slot.start}-${slot.end} | Faculty: ${faculty}`);
+                                    sessions.push({
+                                        date: isoDate,
+                                        start_time: slot.start,
+                                        end_time: slot.end,
+                                        title: title.replace(/\n/g, ' '),
+                                        faculty: faculty,
+                                        domain,
+                                        theme
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+
+                sessions.forEach(s => {
+                    if (s.faculty) {
+                        let mainFacultyName = s.faculty.split('/')[0].trim().toLowerCase();
+                        mainFacultyName = mainFacultyName.replace(/^(mr\.|mrs\.|ms\.|dr\.|prof\.|mr|mrs|ms|dr|prof)\s+/i, '').trim();
+                        
+                        const foundFaculty = lookupData.faculty.find(f => {
+                            const fName = f.name.toLowerCase().trim();
+                            return fName === mainFacultyName || fName.includes(mainFacultyName) || mainFacultyName.includes(fName);
+                        });
+                        s.matched_faculty_id = foundFaculty ? foundFaculty.id : '';
+                        s.matched_faculty_name = foundFaculty ? foundFaculty.name : '';
+                    } else {
+                        s.matched_faculty_id = '';
+                        s.matched_faculty_name = '';
+                    }
+                    
+                    if (s.theme) {
+                        const themeClean = s.theme.replace(/[\n/]+/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+                        const foundCourse = lookupData.courses.find(c => {
+                            const cName = c.name.toLowerCase().trim();
+                            return cName === themeClean || cName.includes(themeClean) || themeClean.includes(cName);
+                        });
+                        s.matched_course_id = foundCourse ? foundCourse.id : '';
+                        s.matched_course_name = foundCourse ? foundCourse.name : '';
+                    } else {
+                        s.matched_course_id = '';
+                        s.matched_course_name = '';
+                    }
+                });
+
+                console.log(`Successfully parsed ${sessions.length} sessions.`);
+                setParsedCsvSessions(sessions);
+                setCsvEditingIndex(null);
+                setShowScheduleModal(true);
+            }
+        });
+    };
+
+    const handleBulkSchedule = async () => {
+        const invalidIdx = parsedCsvSessions.findIndex(s => !s.matched_course_id || !s.title || !s.date || !s.start_time);
+        if (invalidIdx !== -1) {
+            setScheduleError(`Session "${parsedCsvSessions[invalidIdx].title || 'Untitled'}" is missing required fields (Course, Title, Date, or Time). Please edit it first.`);
+            return;
+        }
+
+        setBulkScheduleLoading(true);
+        setScheduleError('');
+        try {
+            for (const s of parsedCsvSessions) {
+                let endTime = s.end_time;
+                if (!endTime && s.start_time) {
+                    const [h, m] = s.start_time.split(':').map(Number);
+                    const endH = String((h + 1) % 24).padStart(2, '0');
+                    endTime = `${endH}:${String(m).padStart(2, '0')}`;
+                }
+
+                await api.post('/api/admin/sessions', {
+                    course_id: s.matched_course_id,
+                    faculty_id: s.matched_faculty_id || null,
+                    venue_id: s.venue_id || null,
+                    session_type_id: null,
+                    title: s.title.trim(),
+                    session_date: s.date,
+                    start_time: s.start_time,
+                    end_time: endTime,
+                    skill_ids: [],
+                });
+            }
+            setShowScheduleModal(false);
+            setParsedCsvSessions([]);
+            fetchSessions({ silent: true });
+        } catch (e) {
+            setScheduleError(e.message || 'Failed to bulk schedule classes.');
+        } finally {
+            setBulkScheduleLoading(false);
+        }
+    };
+
+    const handleSelectCsvSession = (session) => {
+        let matchedFacultyId = '';
+        if (session.faculty) {
+            const mainFacultyName = session.faculty.split('/')[0].trim().toLowerCase();
+            const found = lookupData.faculty.find(f => f.name.toLowerCase().includes(mainFacultyName));
+            if (found) matchedFacultyId = found.id;
+        }
+
+        setNewClass(prev => ({
+            ...prev,
+            title: session.title,
+            date: session.date,
+            start_time: session.start_time,
+            end_time: session.end_time,
+            faculty_id: matchedFacultyId
+        }));
+    };
 
     const [newSkillSearchText, setNewSkillSearchText] = useState('');
     const [newSkillSearchOpen, setNewSkillSearchOpen] = useState(false);
@@ -559,6 +818,7 @@ export default function AdminSchedulePage() {
             setShowScheduleModal(false);
             setNewClass({ course_id: '', faculty_id: '', date: '', start_time: '', end_time: '', venue_id: '', title: '', session_type_id: '', skill_ids: [] });
             setScheduleError('');
+            setParsedCsvSessions([]);
             setShowAddType(false);
             setNewTypeName('');
             setNewSkillSearchText('');
@@ -752,7 +1012,15 @@ export default function AdminSchedulePage() {
                                 <button onClick={() => setViewMode('list')} style={{ padding: '5px 10px', border: 'none', background: viewMode === 'list' ? '#111' : '#fff', color: viewMode === 'list' ? '#fff' : '#888', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.72rem', fontWeight: 600 }}><List size={13} /> List</button>
                                 <button onClick={() => setViewMode('calendar')} style={{ padding: '5px 10px', border: 'none', borderLeft: '1px solid #e8e8e8', background: viewMode === 'calendar' ? '#111' : '#fff', color: viewMode === 'calendar' ? '#fff' : '#888', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.72rem', fontWeight: 600 }}><CalendarDays size={13} /> Calendar</button>
                             </div>
-                            <button onClick={() => { setShowScheduleModal(true); setScheduleError(''); }} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '7px 16px', borderRadius: '8px', border: 'none', background: '#111', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600, color: '#fff' }}><Plus size={14} /> Schedule Class</button>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                {/* Hidden file input */}
+                                <input type="file" accept=".csv" onChange={handleCsvUpload} ref={csvInputRef} style={{ display: 'none' }} />
+                                
+                                <button onClick={() => csvInputRef.current && csvInputRef.current.click()} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '7px 16px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600, color: '#1e293b' }}>
+                                    <Upload size={14} /> Import CSV
+                                </button>
+                                <button onClick={() => { setShowScheduleModal(true); setScheduleError(''); setParsedCsvSessions([]); }} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '7px 16px', borderRadius: '8px', border: 'none', background: '#111', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600, color: '#fff' }}><Plus size={14} /> Schedule Class</button>
+                            </div>
                         </div>
                     </div>
 
@@ -981,249 +1249,367 @@ export default function AdminSchedulePage() {
                 </div>
             </div>
 
-            {/* ══ Schedule New Class Modal ═════════════════════════════════════ */}
+              {/* ══ Schedule New Class Modal ═════════════════════════════════════ */}
             {showScheduleModal && (
-                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }} onClick={() => { setShowScheduleModal(false); setScheduleError(''); }}>
-                    <div style={{ background: '#fff', borderRadius: '16px', width: '480px', maxWidth: '90vw', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.15)' }} onClick={e => e.stopPropagation()}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.5rem', borderBottom: '1px solid #f0f0f0', position: 'sticky', top: 0, background: '#fff', zIndex: 1 }}>
-                            <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>Schedule New Class</h3>
-                            <button onClick={() => { setShowScheduleModal(false); setScheduleError(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888' }}><X size={18} /></button>
+                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }} onClick={() => { setShowScheduleModal(false); setScheduleError(''); setParsedCsvSessions([]); }}>
+                    <div style={{ background: '#fff', borderRadius: '16px', width: parsedCsvSessions.length > 0 ? '90vw' : '480px', maxWidth: '1200px', maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.15)', transition: 'width 0.3s ease' }} onClick={e => e.stopPropagation()}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.5rem', borderBottom: '1px solid #f0f0f0', background: '#fff', zIndex: 1, flexShrink: 0 }}>
+                            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>{parsedCsvSessions.length > 0 ? `CSV Import Overview (${parsedCsvSessions.length} Classes)` : 'Schedule New Class'}</h3>
+                            <button onClick={() => { setShowScheduleModal(false); setScheduleError(''); setParsedCsvSessions([]); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888' }}><X size={18} /></button>
                         </div>
-                        <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                            {scheduleError && (
-                                <div style={{ padding: '10px 14px', borderRadius: '8px', background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', fontSize: '0.82rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <AlertCircle size={14} />{scheduleError}
-                                </div>
-                            )}
-                            <div>
-                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>Course *</label>
-                                <select value={newClass.course_id} onChange={e => setNewClass({ ...newClass, course_id: e.target.value })} style={{ ...inp, cursor: 'pointer', background: '#fff' }}>
-                                    <option value=''>Select a course...</option>
-                                    {lookupData.courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                </select>
-                            </div>
-                            <div>
-                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>Lecture Title *</label>
-                                <input type='text' placeholder='e.g. Lec 15 - AVL Trees' value={newClass.title} onChange={e => setNewClass({ ...newClass, title: e.target.value })} style={inp}
-                                    onFocus={e => e.target.style.borderColor = '#111'} onBlur={e => e.target.style.borderColor = '#e5e7eb'} />
-                            </div>
-                            <div style={{ position: 'relative' }}>
-                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>Faculty</label>
-                                {/* Searchable faculty picker */}
-                                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                                    <input
-                                        type="text"
-                                        placeholder={newClass.faculty_id
-                                            ? (lookupData.faculty.find(f => f.id === newClass.faculty_id)?.name || 'Select faculty...')
-                                            : 'Search faculty...'}
-                                        value={newFacultySearch}
-                                        onChange={e => { setNewFacultySearch(e.target.value); setNewFacultyOpen(true); }}
-                                        onFocus={() => setNewFacultyOpen(true)}
-                                        onBlur={() => setTimeout(() => setNewFacultyOpen(false), 200)}
-                                        style={{ ...inp, paddingRight: '30px', cursor: 'text' }}
-                                    />
-                                    {newClass.faculty_id && !newFacultyOpen ? (
-                                        <button
-                                            type="button"
-                                            onMouseDown={e => { e.preventDefault(); setNewClass({ ...newClass, faculty_id: '' }); setNewFacultySearch(''); }}
-                                            style={{ position: 'absolute', right: '8px', background: 'none', border: 'none', cursor: 'pointer', color: '#aaa', display: 'flex', alignItems: 'center', padding: 0 }}
-                                        ><X size={14} /></button>
-                                    ) : (
-                                        <Search size={14} color="#aaa" style={{ position: 'absolute', right: '10px', pointerEvents: 'none' }} />
-                                    )}
-                                </div>
-                                {newFacultyOpen && (
-                                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #ddd', borderRadius: '8px', zIndex: 20, maxHeight: '200px', overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.10)', marginTop: '4px' }}>
-                                        {/* Clear selection option */}
-                                        <div
-                                            onMouseDown={e => { e.preventDefault(); setNewClass({ ...newClass, faculty_id: '' }); setNewFacultySearch(''); setNewFacultyOpen(false); }}
-                                            style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #f0f0f0', fontSize: '0.8rem', color: '#aaa', fontStyle: 'italic' }}
-                                            onMouseEnter={e => e.currentTarget.style.background = '#f9f9f9'}
-                                            onMouseLeave={e => e.currentTarget.style.background = '#fff'}
-                                        >— No faculty —</div>
-                                        {lookupData.faculty
-                                            .filter(f => f.name.toLowerCase().includes(newFacultySearch.toLowerCase()))
-                                            .map(f => (
-                                                <div
-                                                    key={f.id}
-                                                    onMouseDown={e => { e.preventDefault(); setNewClass({ ...newClass, faculty_id: f.id }); setNewFacultySearch(''); setNewFacultyOpen(false); }}
-                                                    style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #f9f9f9', fontSize: '0.8rem', color: '#333', background: newClass.faculty_id === f.id ? '#f5f3ff' : '#fff', fontWeight: newClass.faculty_id === f.id ? 600 : 400 }}
-                                                    onMouseEnter={e => e.currentTarget.style.background = '#f5f3ff'}
-                                                    onMouseLeave={e => e.currentTarget.style.background = newClass.faculty_id === f.id ? '#f5f3ff' : '#fff'}
-                                                >
-                                                    {f.name}
+                        
+                        {parsedCsvSessions.length > 0 ? (
+                            <div style={{ flex: 1, padding: '1.5rem', overflowY: 'auto', background: '#f8fafc' }}>
+                                {scheduleError && (
+                                    <div style={{ padding: '10px 14px', borderRadius: '8px', background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', fontSize: '0.85rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '15px' }}>
+                                        <AlertCircle size={16} />{scheduleError}
+                                    </div>
+                                )}
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '15px' }}>
+                                    {parsedCsvSessions.map((s, i) => (
+                                        <div key={i} style={{ padding: '15px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '10px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', position: 'relative' }}>
+                                            {csvEditingIndex === i ? (
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                    <input type="text" value={s.title} onChange={e => {
+                                                        const newArr = [...parsedCsvSessions];
+                                                        newArr[i].title = e.target.value;
+                                                        setParsedCsvSessions(newArr);
+                                                    }} style={{ ...inp, padding: '6px' }} placeholder="Title" />
+                                                    
+                                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                                        <input type="date" value={s.date} onChange={e => {
+                                                            const newArr = [...parsedCsvSessions];
+                                                            newArr[i].date = e.target.value;
+                                                            setParsedCsvSessions(newArr);
+                                                        }} style={{ ...inp, padding: '6px' }} />
+                                                        <input type="time" value={s.start_time} onChange={e => {
+                                                            const newArr = [...parsedCsvSessions];
+                                                            newArr[i].start_time = e.target.value;
+                                                            setParsedCsvSessions(newArr);
+                                                        }} style={{ ...inp, padding: '6px' }} />
+                                                    </div>
+
+                                                    <select value={s.matched_course_id} onChange={e => {
+                                                        const newArr = [...parsedCsvSessions];
+                                                        newArr[i].matched_course_id = e.target.value;
+                                                        newArr[i].matched_course_name = lookupData.courses.find(c => c.id === e.target.value)?.name || '';
+                                                        setParsedCsvSessions(newArr);
+                                                    }} style={{ ...inp, padding: '6px' }}>
+                                                        <option value="">Select Course...</option>
+                                                        {lookupData.courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                                    </select>
+
+                                                    <select value={s.matched_faculty_id} onChange={e => {
+                                                        const newArr = [...parsedCsvSessions];
+                                                        newArr[i].matched_faculty_id = e.target.value;
+                                                        newArr[i].matched_faculty_name = lookupData.faculty.find(f => f.id === e.target.value)?.name || '';
+                                                        setParsedCsvSessions(newArr);
+                                                    }} style={{ ...inp, padding: '6px' }}>
+                                                        <option value="">Select Faculty...</option>
+                                                        {lookupData.faculty.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                                                    </select>
+                                                    
+                                                    <select value={s.venue_id || ''} onChange={e => {
+                                                        const newArr = [...parsedCsvSessions];
+                                                        newArr[i].venue_id = e.target.value;
+                                                        newArr[i].venue_name = lookupData.venues.find(v => v.id === e.target.value)?.name || '';
+                                                        setParsedCsvSessions(newArr);
+                                                    }} style={{ ...inp, padding: '6px' }}>
+                                                        <option value="">Select Venue...</option>
+                                                        {lookupData.venues.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                                                    </select>
+                                                    <button onClick={() => setCsvEditingIndex(null)} style={{ marginTop: '5px', padding: '6px', background: '#111', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600 }}>Done Editing</button>
                                                 </div>
-                                            ))}
-                                        {lookupData.faculty.filter(f => f.name.toLowerCase().includes(newFacultySearch.toLowerCase())).length === 0 && (
-                                            <div style={{ padding: '8px 12px', fontSize: '0.8rem', color: '#999', textAlign: 'center' }}>No faculty found</div>
-                                        )}
+                                            ) : (
+                                                <>
+                                                    <button onClick={() => setCsvEditingIndex(i)} style={{ position: 'absolute', top: '12px', right: '12px', background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}><Edit3 size={14} /></button>
+                                                    <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#0f172a', paddingRight: '20px', marginBottom: '8px' }}>{s.title}</div>
+                                                    
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: '#64748b', marginBottom: '8px' }}>
+                                                        <Calendar size={12} /> {s.date} <Clock size={12} style={{ marginLeft: '4px' }} /> {s.start_time} - {s.end_time}
+                                                    </div>
+
+                                                    <div style={{ fontSize: '0.75rem', marginBottom: '4px' }}>
+                                                        <span style={{ color: '#64748b', fontWeight: 600 }}>Course:</span>{' '}
+                                                        {s.matched_course_id ? (
+                                                            <span style={{ color: '#16a34a', fontWeight: 600, background: '#dcfce7', padding: '2px 6px', borderRadius: '4px' }}>{s.matched_course_name}</span>
+                                                        ) : (
+                                                            <span style={{ color: '#dc2626', fontWeight: 600, background: '#fee2e2', padding: '2px 6px', borderRadius: '4px' }}>Not Found ({s.theme || 'N/A'})</span>
+                                                        )}
+                                                    </div>
+
+                                                    <div style={{ fontSize: '0.75rem', marginBottom: '4px' }}>
+                                                        <span style={{ color: '#64748b', fontWeight: 600 }}>Faculty:</span>{' '}
+                                                        {s.matched_faculty_id ? (
+                                                            <span style={{ color: '#16a34a', fontWeight: 600, background: '#dcfce7', padding: '2px 6px', borderRadius: '4px' }}>{s.matched_faculty_name}</span>
+                                                        ) : (
+                                                            <span style={{ color: '#dc2626', fontWeight: 600, background: '#fee2e2', padding: '2px 6px', borderRadius: '4px' }}>Not Found ({s.faculty || 'N/A'})</span>
+                                                        )}
+                                                    </div>
+
+                                                    <div style={{ fontSize: '0.75rem' }}>
+                                                        <span style={{ color: '#64748b', fontWeight: 600 }}>Venue:</span>{' '}
+                                                        {s.venue_id ? (
+                                                            <span style={{ color: '#16a34a', fontWeight: 600, background: '#dcfce7', padding: '2px 6px', borderRadius: '4px' }}>{s.venue_name}</span>
+                                                        ) : (
+                                                            <span style={{ color: '#94a3b8', fontWeight: 600, background: '#f1f5f9', padding: '2px 6px', borderRadius: '4px' }}>Not Set</span>
+                                                        )}
+                                                    </div>
+                                                </>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : (
+                            <div style={{ flex: 1, padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '14px', overflowY: 'auto' }}>
+                                {/* CSV Upload Section */}
+                                <div style={{ marginBottom: '15px' }}>
+                                    <label style={{ display: 'flex', width: '100%', justifyContent: 'center', alignItems: 'center', gap: '8px', padding: '12px', borderRadius: '8px', border: '1px dashed #3B2D82', background: '#f5f3ff', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, color: '#3B2D82', transition: 'all 0.2s' }}>
+                                        <Upload size={16} /> Import from Timetable CSV
+                                        <input type="file" accept=".csv" onChange={handleCsvUpload} style={{ display: 'none' }} />
+                                    </label>
+                                    <div style={{ textAlign: 'center', fontSize: '0.7rem', color: '#888', marginTop: '6px' }}>or fill the details manually below</div>
+                                </div>
+                                {scheduleError && (
+                                    <div style={{ padding: '10px 14px', borderRadius: '8px', background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', fontSize: '0.82rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <AlertCircle size={14} />{scheduleError}
                                     </div>
                                 )}
-                                {/* Show selected faculty name below when dropdown is closed */}
-                                {newClass.faculty_id && !newFacultyOpen && (
-                                    <div style={{ fontSize: '0.72rem', color: '#3B2D82', marginTop: '4px', fontWeight: 600 }}>
-                                        ✓ {lookupData.faculty.find(f => f.id === newClass.faculty_id)?.name}
-                                    </div>
-                                )}
-                            </div>
-                            <div>
-                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>Date *</label>
-                                <input type='date' value={newClass.date} onChange={e => setNewClass({ ...newClass, date: e.target.value })} style={inp}
-                                    onFocus={e => e.target.style.borderColor = '#111'} onBlur={e => e.target.style.borderColor = '#e5e7eb'} />
-                            </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                                 <div>
-                                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>Start Time *</label>
-                                    <input type='time' value={newClass.start_time} onChange={e => setNewClass({ ...newClass, start_time: e.target.value })} style={inp}
+                                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>Course *</label>
+                                    <select value={newClass.course_id} onChange={e => setNewClass({ ...newClass, course_id: e.target.value })} style={{ ...inp, cursor: 'pointer', background: '#fff' }}>
+                                        <option value=''>Select a course...</option>
+                                        {lookupData.courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>Lecture Title *</label>
+                                    <input type='text' placeholder='e.g. Lec 15 - AVL Trees' value={newClass.title} onChange={e => setNewClass({ ...newClass, title: e.target.value })} style={inp}
                                         onFocus={e => e.target.style.borderColor = '#111'} onBlur={e => e.target.style.borderColor = '#e5e7eb'} />
                                 </div>
-                                <div>
-                                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>End Time</label>
-                                    <input type='time' value={newClass.end_time} onChange={e => setNewClass({ ...newClass, end_time: e.target.value })} style={inp}
-                                        onFocus={e => e.target.style.borderColor = '#111'} onBlur={e => e.target.style.borderColor = '#e5e7eb'} />
-                                </div>
-                            </div>
-                            <div>
-                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>Venue</label>
-                                <select value={newClass.venue_id} onChange={e => setNewClass({ ...newClass, venue_id: e.target.value })} style={{ ...inp, cursor: 'pointer', background: '#fff' }}>
-                                    <option value=''>Select venue...</option>
-                                    {lookupData.venues.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
-                                </select>
-                            </div>
-                            {typeField(
-                                newClass.session_type_id,
-                                setNewClass,
-                                showAddType, setShowAddType,
-                                newTypeName, setNewTypeName,
-                                addTypeLoading, setAddTypeLoading,
-                                addTypeError, setAddTypeError,
-                                handleAddType
-                            )}
-                            {/* Skills Section for New Class */}
-                            <div>
-                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>
-                                    Skills Covered <span style={{ fontSize: '0.7rem', color: '#888', fontWeight: 'normal' }}>(Optional, max 4)</span>
-                                </label>
-
-                                {/* Selected Skills pills */}
-                                {(newClass.skill_ids || []).length > 0 && (
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
-                                        {newClass.skill_ids.map(id => {
-                                            const sk = lookupData.skills.find(x => x.id === id);
-                                            return sk ? (
-                                                <div key={id} style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#f5f3ff', color: '#3B2D82', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600, border: '1px solid #ddd6fe' }}>
-                                                    {sk.name}
-                                                    <button type="button" onClick={() => toggleNewClassSkill(id)} style={{ background: 'none', border: 'none', padding: 0, margin: 0, color: '#a78bfa', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-                                                        <X size={12} />
-                                                    </button>
-                                                </div>
-                                            ) : null;
-                                        })}
-                                    </div>
-                                )}
-
-                                {/* Dropdown to pick skills */}
                                 <div style={{ position: 'relative' }}>
+                                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>Faculty</label>
+                                    {/* Searchable faculty picker */}
                                     <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                                         <input
                                             type="text"
-                                            placeholder={(newClass.skill_ids || []).length >= 4 ? "Maximum 4 skills selected" : "Search to add a skill..."}
-                                            value={newSkillSearchText}
-                                            onChange={e => {
-                                                setNewSkillSearchText(e.target.value);
-                                                setNewSkillSearchOpen(true);
-                                            }}
-                                            onFocus={() => {
-                                                if ((newClass.skill_ids || []).length < 4) {
-                                                    setNewSkillSearchOpen(true);
-                                                }
-                                            }}
-                                            onBlur={() => {
-                                                setTimeout(() => setNewSkillSearchOpen(false), 200);
-                                            }}
-                                            disabled={(newClass.skill_ids || []).length >= 4}
-                                            style={{
-                                                ...inp, width: '100%',
-                                                opacity: (newClass.skill_ids || []).length >= 4 ? 0.5 : 1,
-                                                paddingRight: '30px'
-                                            }}
+                                            placeholder={newClass.faculty_id
+                                                ? (lookupData.faculty.find(f => f.id === newClass.faculty_id)?.name || 'Select faculty...')
+                                                : 'Search faculty...'}
+                                            value={newFacultySearch}
+                                            onChange={e => { setNewFacultySearch(e.target.value); setNewFacultyOpen(true); }}
+                                            onFocus={() => setNewFacultyOpen(true)}
+                                            onBlur={() => setTimeout(() => setNewFacultyOpen(false), 200)}
+                                            style={{ ...inp, paddingRight: '30px', cursor: 'text' }}
                                         />
-                                        <Search size={14} color="#aaa" style={{ position: 'absolute', right: '10px' }} />
+                                        {newClass.faculty_id && !newFacultyOpen ? (
+                                            <button
+                                                type="button"
+                                                onMouseDown={e => { e.preventDefault(); setNewClass({ ...newClass, faculty_id: '' }); setNewFacultySearch(''); }}
+                                                style={{ position: 'absolute', right: '8px', background: 'none', border: 'none', cursor: 'pointer', color: '#aaa', display: 'flex', alignItems: 'center', padding: 0 }}
+                                            ><X size={14} /></button>
+                                        ) : (
+                                            <Search size={14} color="#aaa" style={{ position: 'absolute', right: '10px', pointerEvents: 'none' }} />
+                                        )}
                                     </div>
-                                    {newSkillSearchOpen && (newClass.skill_ids || []).length < 4 && (
-                                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #ddd', borderRadius: '8px', zIndex: 10, maxHeight: '200px', overflowY: 'auto', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', marginTop: '4px' }}>
-                                            {lookupData.skills
-                                                .filter(sk => !(newClass.skill_ids || []).includes(sk.id))
-                                                .filter(sk => sk.name.toLowerCase().includes(newSkillSearchText.toLowerCase()))
-                                                .map(sk => (
+                                    {newFacultyOpen && (
+                                        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #ddd', borderRadius: '8px', zIndex: 20, maxHeight: '200px', overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.10)', marginTop: '4px' }}>
+                                            {/* Clear selection option */}
+                                            <div
+                                                onMouseDown={e => { e.preventDefault(); setNewClass({ ...newClass, faculty_id: '' }); setNewFacultySearch(''); setNewFacultyOpen(false); }}
+                                                style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #f0f0f0', fontSize: '0.8rem', color: '#aaa', fontStyle: 'italic' }}
+                                                onMouseEnter={e => e.currentTarget.style.background = '#f9f9f9'}
+                                                onMouseLeave={e => e.currentTarget.style.background = '#fff'}
+                                            >— No faculty —</div>
+                                            {lookupData.faculty
+                                                .filter(f => f.name.toLowerCase().includes(newFacultySearch.toLowerCase()))
+                                                .map(f => (
                                                     <div
-                                                        key={sk.id}
-                                                        onMouseDown={(e) => {
-                                                            e.preventDefault();
-                                                            toggleNewClassSkill(sk.id);
-                                                            setNewSkillSearchText('');
-                                                            setNewSkillSearchOpen(false);
-                                                        }}
-                                                        style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #f9f9f9', fontSize: '0.8rem', color: '#333' }}
-                                                        onMouseEnter={e => e.target.style.background = '#f5f3ff'}
-                                                        onMouseLeave={e => e.target.style.background = '#fff'}
+                                                        key={f.id}
+                                                        onMouseDown={e => { e.preventDefault(); setNewClass({ ...newClass, faculty_id: f.id }); setNewFacultySearch(''); setNewFacultyOpen(false); }}
+                                                        style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #f9f9f9', fontSize: '0.8rem', color: '#333', background: newClass.faculty_id === f.id ? '#f5f3ff' : '#fff', fontWeight: newClass.faculty_id === f.id ? 600 : 400 }}
+                                                        onMouseEnter={e => e.currentTarget.style.background = '#f5f3ff'}
+                                                        onMouseLeave={e => e.currentTarget.style.background = newClass.faculty_id === f.id ? '#f5f3ff' : '#fff'}
                                                     >
-                                                        {sk.name}
+                                                        {f.name}
                                                     </div>
                                                 ))}
-                                            {lookupData.skills.filter(sk => !(newClass.skill_ids || []).includes(sk.id)).filter(sk => sk.name.toLowerCase().includes(newSkillSearchText.toLowerCase())).length === 0 && (
-                                                <div style={{ padding: '8px 12px', fontSize: '0.8rem', color: '#999', textAlign: 'center' }}>No skills found...</div>
+                                            {lookupData.faculty.filter(f => f.name.toLowerCase().includes(newFacultySearch.toLowerCase())).length === 0 && (
+                                                <div style={{ padding: '8px 12px', fontSize: '0.8rem', color: '#999', textAlign: 'center' }}>No faculty found</div>
                                             )}
                                         </div>
                                     )}
+                                    {/* Show selected faculty name below when dropdown is closed */}
+                                    {newClass.faculty_id && !newFacultyOpen && (
+                                        <div style={{ fontSize: '0.72rem', color: '#3B2D82', marginTop: '4px', fontWeight: 600 }}>
+                                            ✓ {lookupData.faculty.find(f => f.id === newClass.faculty_id)?.name}
+                                        </div>
+                                    )}
                                 </div>
-
-                                {/* Inline add new skill */}
-                                {!newShowAddSkill ? (
-                                    <button
-                                        type="button"
-                                        onClick={() => { setNewShowAddSkill(true); setNewAddSkillError(''); }}
-                                        style={{ marginTop: '6px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.75rem', color: '#3B2D82', fontWeight: 600, padding: '2px 0', display: 'flex', alignItems: 'center', gap: '4px' }}
-                                    >
-                                        <Plus size={12} /> Add new skill
-                                    </button>
-                                ) : (
-                                    <div style={{ marginTop: '8px', display: 'flex', gap: '6px', alignItems: 'center' }}>
-                                        <input
-                                            autoFocus
-                                            type="text"
-                                            placeholder="e.g. Node.js"
-                                            value={newNewSkillName}
-                                            onChange={e => { setNewNewSkillName(e.target.value); setNewAddSkillError(''); }}
-                                            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddNewClassSkill(); } if (e.key === 'Escape') setNewShowAddSkill(false); }}
-                                            style={{ flex: 1, padding: '6px 10px', borderRadius: '7px', border: `1px solid ${newAddSkillError ? '#fca5a5' : '#e5e7eb'}`, fontSize: '0.82rem', fontFamily: 'inherit', outline: 'none' }}
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={handleAddNewClassSkill}
-                                            disabled={newAddSkillLoading || !newNewSkillName.trim()}
-                                            style={{ padding: '6px 12px', borderRadius: '7px', border: 'none', background: '#3B2D82', color: '#fff', cursor: newAddSkillLoading ? 'not-allowed' : 'pointer', fontSize: '0.78rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}
-                                        >
-                                            {newAddSkillLoading ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <Plus size={12} />}
-                                            Save
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => { setNewShowAddSkill(false); setNewNewSkillName(''); setNewAddSkillError(''); }}
-                                            style={{ padding: '6px 8px', borderRadius: '7px', border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', color: '#888' }}
-                                        >
-                                            <X size={12} />
-                                        </button>
+                                <div>
+                                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>Date *</label>
+                                    <input type='date' value={newClass.date} onChange={e => setNewClass({ ...newClass, date: e.target.value })} style={inp}
+                                        onFocus={e => e.target.style.borderColor = '#111'} onBlur={e => e.target.style.borderColor = '#e5e7eb'} />
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                    <div>
+                                        <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>Start Time *</label>
+                                        <input type='time' value={newClass.start_time} onChange={e => setNewClass({ ...newClass, start_time: e.target.value })} style={inp}
+                                            onFocus={e => e.target.style.borderColor = '#111'} onBlur={e => e.target.style.borderColor = '#e5e7eb'} />
                                     </div>
+                                    <div>
+                                        <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>End Time</label>
+                                        <input type='time' value={newClass.end_time} onChange={e => setNewClass({ ...newClass, end_time: e.target.value })} style={inp}
+                                            onFocus={e => e.target.style.borderColor = '#111'} onBlur={e => e.target.style.borderColor = '#e5e7eb'} />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>Venue</label>
+                                    <select value={newClass.venue_id} onChange={e => setNewClass({ ...newClass, venue_id: e.target.value })} style={{ ...inp, cursor: 'pointer', background: '#fff' }}>
+                                        <option value=''>Select venue...</option>
+                                        {lookupData.venues.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                                    </select>
+                                </div>
+                                {typeField(
+                                    newClass.session_type_id,
+                                    setNewClass,
+                                    showAddType, setShowAddType,
+                                    newTypeName, setNewTypeName,
+                                    addTypeLoading, setAddTypeLoading,
+                                    addTypeError, setAddTypeError,
+                                    handleAddType
                                 )}
-                                {newAddSkillError && <div style={{ fontSize: '0.72rem', color: '#dc2626', marginTop: '4px' }}>⚠ {newAddSkillError}</div>}
+                                {/* Skills Section for New Class */}
+                                <div>
+                                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>
+                                        Skills Covered <span style={{ fontSize: '0.7rem', color: '#888', fontWeight: 'normal' }}>(Optional, max 4)</span>
+                                    </label>
+                                    {/* Selected Skills pills */}
+                                    {(newClass.skill_ids || []).length > 0 && (
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '8px' }}>
+                                            {newClass.skill_ids.map(id => {
+                                                const sk = lookupData.skills.find(x => x.id === id);
+                                                return sk ? (
+                                                    <div key={id} style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#f5f3ff', color: '#3B2D82', padding: '4px 8px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600, border: '1px solid #ddd6fe' }}>
+                                                        {sk.name}
+                                                        <button type="button" onClick={() => toggleNewClassSkill(id)} style={{ background: 'none', border: 'none', padding: 0, margin: 0, color: '#a78bfa', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                                                            <X size={12} />
+                                                        </button>
+                                                    </div>
+                                                ) : null;
+                                            })}
+                                        </div>
+                                    )}
+                                    {/* Dropdown to pick skills */}
+                                    <div style={{ position: 'relative' }}>
+                                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                            <input
+                                                type="text"
+                                                placeholder={(newClass.skill_ids || []).length >= 4 ? "Maximum 4 skills selected" : "Search to add a skill..."}
+                                                value={newSkillSearchText}
+                                                onChange={e => {
+                                                    setNewSkillSearchText(e.target.value);
+                                                    setNewSkillSearchOpen(true);
+                                                }}
+                                                onFocus={() => {
+                                                    if ((newClass.skill_ids || []).length < 4) {
+                                                        setNewSkillSearchOpen(true);
+                                                    }
+                                                }}
+                                                onBlur={() => {
+                                                    setTimeout(() => setNewSkillSearchOpen(false), 200);
+                                                }}
+                                                disabled={(newClass.skill_ids || []).length >= 4}
+                                                style={{
+                                                    ...inp, width: '100%',
+                                                    opacity: (newClass.skill_ids || []).length >= 4 ? 0.5 : 1,
+                                                    paddingRight: '30px'
+                                                }}
+                                            />
+                                            <Search size={14} color="#aaa" style={{ position: 'absolute', right: '10px' }} />
+                                        </div>
+                                        {newSkillSearchOpen && (newClass.skill_ids || []).length < 4 && (
+                                            <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #ddd', borderRadius: '8px', zIndex: 10, maxHeight: '200px', overflowY: 'auto', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', marginTop: '4px' }}>
+                                                {lookupData.skills
+                                                    .filter(sk => !(newClass.skill_ids || []).includes(sk.id))
+                                                    .filter(sk => sk.name.toLowerCase().includes(newSkillSearchText.toLowerCase()))
+                                                    .map(sk => (
+                                                        <div
+                                                            key={sk.id}
+                                                            onMouseDown={(e) => {
+                                                                e.preventDefault();
+                                                                toggleNewClassSkill(sk.id);
+                                                                setNewSkillSearchText('');
+                                                                setNewSkillSearchOpen(false);
+                                                            }}
+                                                            style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #f9f9f9', fontSize: '0.8rem', color: '#333' }}
+                                                            onMouseEnter={e => e.target.style.background = '#f5f3ff'}
+                                                            onMouseLeave={e => e.target.style.background = '#fff'}
+                                                        >
+                                                            {sk.name}
+                                                        </div>
+                                                    ))}
+                                                {lookupData.skills.filter(sk => !(newClass.skill_ids || []).includes(sk.id)).filter(sk => sk.name.toLowerCase().includes(newSkillSearchText.toLowerCase())).length === 0 && (
+                                                    <div style={{ padding: '8px 12px', fontSize: '0.8rem', color: '#999', textAlign: 'center' }}>No skills found...</div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                    {/* Inline add new skill */}
+                                    {!newShowAddSkill ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => { setNewShowAddSkill(true); setNewAddSkillError(''); }}
+                                            style={{ marginTop: '6px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.75rem', color: '#3B2D82', fontWeight: 600, padding: '2px 0', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                        >
+                                            <Plus size={12} /> Add new skill
+                                        </button>
+                                    ) : (
+                                        <div style={{ marginTop: '8px', display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                            <input
+                                                autoFocus
+                                                type="text"
+                                                placeholder="e.g. Node.js"
+                                                value={newNewSkillName}
+                                                onChange={e => { setNewNewSkillName(e.target.value); setNewAddSkillError(''); }}
+                                                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddNewClassSkill(); } if (e.key === 'Escape') setNewShowAddSkill(false); }}
+                                                style={{ flex: 1, padding: '6px 10px', borderRadius: '7px', border: `1px solid ${newAddSkillError ? '#fca5a5' : '#e5e7eb'}`, fontSize: '0.82rem', fontFamily: 'inherit', outline: 'none' }}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={handleAddNewClassSkill}
+                                                disabled={newAddSkillLoading || !newNewSkillName.trim()}
+                                                style={{ padding: '6px 12px', borderRadius: '7px', border: 'none', background: '#3B2D82', color: '#fff', cursor: newAddSkillLoading ? 'not-allowed' : 'pointer', fontSize: '0.78rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}
+                                            >
+                                                {newAddSkillLoading ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <Plus size={12} />}
+                                                Save
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => { setNewShowAddSkill(false); setNewNewSkillName(''); setNewAddSkillError(''); }}
+                                                style={{ padding: '6px 8px', borderRadius: '7px', border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', color: '#888' }}
+                                            >
+                                                <X size={12} />
+                                            </button>
+                                        </div>
+                                    )}
+                                    {newAddSkillError && <div style={{ fontSize: '0.72rem', color: '#dc2626', marginTop: '4px' }}>⚠ {newAddSkillError}</div>}
+                                </div>
                             </div>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', padding: '1rem 1.5rem', borderTop: '1px solid #f0f0f0' }}>
-                            <button onClick={() => { setShowScheduleModal(false); setScheduleError(''); }} disabled={scheduleLoading} style={{ padding: '8px 20px', borderRadius: '8px', border: '1px solid #eee', background: '#fff', cursor: scheduleLoading ? 'not-allowed' : 'pointer', fontSize: '0.85rem', fontWeight: 500, color: '#555' }}>Cancel</button>
-                            <button onClick={handleScheduleSubmit} disabled={scheduleLoading} style={{ padding: '8px 20px', borderRadius: '8px', border: 'none', background: scheduleLoading ? '#555' : '#111', cursor: scheduleLoading ? 'not-allowed' : 'pointer', fontSize: '0.85rem', fontWeight: 600, color: '#fff', display: 'flex', alignItems: 'center', gap: '5px', minWidth: '150px', justifyContent: 'center' }}>
-                                {scheduleLoading ? <><RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} /> Scheduling...</> : <><Plus size={14} /> Schedule & Notify</>}
-                            </button>
+                        )}
+
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', padding: '1rem 1.5rem', borderTop: '1px solid #f0f0f0', background: '#fff', flexShrink: 0 }}>
+                            <button onClick={() => { setShowScheduleModal(false); setScheduleError(''); setParsedCsvSessions([]); }} disabled={scheduleLoading || bulkScheduleLoading} style={{ padding: '8px 20px', borderRadius: '8px', border: '1px solid #eee', background: '#fff', cursor: scheduleLoading || bulkScheduleLoading ? 'not-allowed' : 'pointer', fontSize: '0.85rem', fontWeight: 500, color: '#555' }}>Cancel</button>
+                            {parsedCsvSessions.length > 0 ? (
+                                <button onClick={handleBulkSchedule} disabled={bulkScheduleLoading} style={{ padding: '8px 20px', borderRadius: '8px', border: 'none', background: bulkScheduleLoading ? '#555' : '#16a34a', cursor: bulkScheduleLoading ? 'not-allowed' : 'pointer', fontSize: '0.85rem', fontWeight: 600, color: '#fff', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                    {bulkScheduleLoading ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Scheduling All...</> : <><CheckCircle size={14} /> Schedule All Classes</>}
+                                </button>
+                            ) : (
+                                <button onClick={handleScheduleSubmit} disabled={scheduleLoading} style={{ padding: '8px 20px', borderRadius: '8px', border: 'none', background: scheduleLoading ? '#555' : '#111', cursor: scheduleLoading ? 'not-allowed' : 'pointer', fontSize: '0.85rem', fontWeight: 600, color: '#fff', display: 'flex', alignItems: 'center', gap: '5px', minWidth: '150px', justifyContent: 'center' }}>
+                                    {scheduleLoading ? <><RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} /> Scheduling...</> : <><Plus size={14} /> Schedule & Notify</>}
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>

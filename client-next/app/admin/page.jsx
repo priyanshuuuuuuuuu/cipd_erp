@@ -6,7 +6,7 @@ import {
     LayoutGrid, Calendar, BookOpen, Users, MessageSquare, Settings, LogOut, Bell, Search, Menu,
     ChevronLeft, ChevronRight, Wifi, Clock, FileBarChart, RefreshCw, Activity, CheckCircle,
     AlertTriangle, Filter, Plus, Send, Mail, MapPin, User, AlertCircle, X, BarChart3, Trophy, GraduationCap,
-    CalendarX, CheckSquare, XSquare
+    CalendarX, CheckSquare, XSquare, Upload
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
@@ -342,9 +342,14 @@ export default function AdminDashboard() {
                         <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', borderTop: '3px solid #3B2D82', boxShadow: '0 2px 8px rgba(0,0,0,0.02)', overflow: 'hidden' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.5rem', borderBottom: '1px solid #f0f0f0' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1rem', fontWeight: 700 }}><Calendar size={16} /> Today&apos;s Classes</div>
-                                <button onClick={() => setShowScheduleModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 14px', borderRadius: '8px', border: 'none', background: '#111', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, color: '#fff' }}>
-                                    <Plus size={13} /> Schedule Class
-                                </button>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <button onClick={() => router.push('/admin/schedule')} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 14px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, color: '#1e293b' }}>
+                                        <Upload size={13} /> Import CSV
+                                    </button>
+                                    <button onClick={() => setShowScheduleModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 14px', borderRadius: '8px', border: 'none', background: '#111', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, color: '#fff' }}>
+                                        <Plus size={13} /> Schedule Class
+                                    </button>
+                                </div>
                             </div>
                             <div>
                                 {loadingSessions ? (
