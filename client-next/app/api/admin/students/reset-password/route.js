@@ -30,7 +30,7 @@ async function handler(req) {
     }
 
     // Resolve which schemas to search
-    const { schemas } = getCohortConfig();
+    const { schemas } = await getCohortConfig();
     const searchSchemas = schema && schemas.includes(schema) ? [schema] : schemas;
 
     // Find the user across schemas

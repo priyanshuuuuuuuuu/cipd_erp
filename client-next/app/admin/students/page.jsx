@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { DEFAULT_SCHEMA } from '@/config';
 import '../../Dashboard.css';
 import {
     LayoutGrid, Calendar, MessageSquare, Settings, LogOut, Bell, Search, Menu,
@@ -120,7 +121,7 @@ function BulkDeleteConfirmModal({ count, onConfirm, onClose, deleting }) {
 }
 
 // ─── Student Edit / Detail Drawer ──────────────────────────────────────────
-function StudentDrawer({ student, courses, onClose, onSaved, schema = 'july' }) {
+function StudentDrawer({ student, courses, onClose, onSaved, schema = DEFAULT_SCHEMA }) {
     const [tab, setTab] = useState('details'); // 'details' | 'enrollments'
     const [form, setForm] = useState({
         first_name: student.first_name,
@@ -496,7 +497,7 @@ function StudentDrawer({ student, courses, onClose, onSaved, schema = 'july' }) 
 }
 
 // ─── Add Student Modal ─────────────────────────────────────────────────────
-function AddStudentModal({ onClose, onAdded, schema = 'july' }) {
+function AddStudentModal({ onClose, onAdded, schema = DEFAULT_SCHEMA }) {
     const [form, setForm] = useState({ first_name: '', last_name: '', email: '', enrollment_no: '', program_name: '' });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -783,8 +784,8 @@ export default function AdminStudentsPage() {
     const [error, setError] = useState('');
 
     // Cohort/schema selector
-    const [schema, setSchema] = useState('july');
-    const [cohorts, setCohorts] = useState([{ value: 'july', label: 'July 2026' }]);
+    const [schema, setSchema] = useState(DEFAULT_SCHEMA);
+    const [cohorts, setCohorts] = useState([{ value: DEFAULT_SCHEMA, label: DEFAULT_SCHEMA.charAt(0).toUpperCase() + DEFAULT_SCHEMA.slice(1) }]);
     const [cohortsLoading, setCohortsLoading] = useState(true);
 
     const [searchTerm, setSearchTerm] = useState('');
@@ -961,7 +962,7 @@ export default function AdminStudentsPage() {
                                             color: schema === c.value ? '#fff' : '#64748b',
                                             boxShadow: schema === c.value ? '0 2px 8px rgba(27,108,168,0.3)' : 'none' }}>
                                         {c.label}
-                                        {c.value !== 'july' && <span style={{ fontSize: '0.58rem', marginLeft: 5, opacity: 0.75 }}>● Archive</span>}
+                                        {c.value !== DEFAULT_SCHEMA && <span style={{ fontSize: '0.58rem', marginLeft: 5, opacity: 0.75 }}>● Archive</span>}
                                     </button>
                                 ))}
                             </div>

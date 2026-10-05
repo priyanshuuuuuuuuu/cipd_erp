@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { db, runWithSchema, getActiveSchema } from '@/lib/db';
 import { users, students } from '@/drizzle/schema';
 import { eq, like, desc } from 'drizzle-orm';
 import { hashPassword, signToken } from '@/lib/auth';
@@ -25,7 +25,7 @@ async function generateEnrollmentNo() {
   return `CiPD_${maxNum + 1}`;
 }
 
-export async function POST(req) {
+async function signupHandler(req) {
   try {
     const { firstName, lastName, email, password, programName } = await req.json();
 
@@ -134,3 +134,8 @@ export async function POST(req) {
   }
 }
 
+
+// New signups join the currently active cohort.
+export async function POST(req) {
+  return runWithSchema(await getActiveSchema(), () => signupHandler(req));
+}

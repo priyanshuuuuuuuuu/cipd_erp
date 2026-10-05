@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { db, runWithSchema, getActiveSchema } from '@/lib/db';
 import {
   sessions,
   courses,
@@ -20,7 +20,7 @@ import { getISTNow } from '@/lib/ist-date';
  * Called once daily (e.g. 8 AM) — finds all sessions tomorrow, emails enrolled students.
  * Must pass header:  x-cron-secret: <CRON_SECRET from .env.local>
  */
-export async function GET(req) {
+async function cronHandler(req) {
   // Security: verify cron secret
   const secret = req.headers.get('x-cron-secret');
   if (secret !== process.env.CRON_SECRET) {
@@ -146,3 +146,8 @@ export async function GET(req) {
   }
 }
 
+
+// Cron jobs operate on the currently active cohort.
+export async function GET(req) {
+  return runWithSchema(await getActiveSchema(), () => cronHandler(req));
+}

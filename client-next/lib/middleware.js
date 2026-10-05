@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server';
 import { getUserFromRequest } from './auth';
+import { runWithSchema } from './db';
+import { resolveRequestSchema } from './cohorts';
 
 /**
  * Wraps a route handler to require authentication.
- * Attaches user payload to the handler's context.
+ * Attaches user payload to the handler's context and runs the handler
+ * inside the cohort schema selected for this request (see resolveRequestSchema),
+ * so the shared `db` export targets the right cohort.
  */
 export function withAuth(handler) {
   return async (req, context) => {
@@ -11,8 +15,11 @@ export function withAuth(handler) {
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    req.user = user;
-    return handler(req, context);
+    const schema = await resolveRequestSchema(req, user);
+    // Routes that read req.user.schema (from the JWT) must follow the selected cohort.
+    req.user = { ...user, schema };
+    req.cohort = schema;
+    return runWithSchema(schema, () => handler(req, context));
   };
 }
 

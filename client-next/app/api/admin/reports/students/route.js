@@ -1,10 +1,11 @@
 export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
-import { getSchemaDb, getCohortConfig } from "@/lib/db";
+import { getSchemaDb, getCohortConfig, getRequestSchema } from "@/lib/db";
 import { students, users, sessions, courses, attendanceRecords } from "@/drizzle/schema";
 import { eq, and, gte, lte, inArray, asc } from "drizzle-orm";
 import { withRole } from "@/lib/middleware";
 import * as XLSX from "xlsx";
+import { DEFAULT_SCHEMA } from "@/config";
 
 // helpers
 function fmtDate(d) {
@@ -37,11 +38,11 @@ function statusFontColor(status) {
 async function handler(req) {
   try {
     const { searchParams } = new URL(req.url);
-    const requestedSchema = searchParams.get("schema") || "july";
+    const requestedSchema = searchParams.get("schema") || getRequestSchema() || DEFAULT_SCHEMA;
     const dateFrom = searchParams.get("dateFrom") || null;
     const dateTo   = searchParams.get("dateTo")   || null;
 
-    const { schemas } = getCohortConfig();
+    const { schemas } = await getCohortConfig();
     if (!schemas.includes(requestedSchema)) {
       return NextResponse.json({ error: "Invalid schema" }, { status: 400 });
     }

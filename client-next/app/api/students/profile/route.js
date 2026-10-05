@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
+import { DEFAULT_SCHEMA } from '@/config';
 import { db as defaultDb, getSchemaDb, getCohortConfig } from '@/lib/db';
 import { users, students } from '@/drizzle/schema';
 import { eq } from 'drizzle-orm';
@@ -23,8 +24,8 @@ async function handler(req) {
         .from(users).where(eq(users.id, req.user.id));
       if (u) userFound = u;
     } else {
-      const { schemas } = getCohortConfig();
-      for (const s of (schemas && schemas.length ? schemas : ['july'])) {
+      const { schemas } = await getCohortConfig();
+      for (const s of (schemas && schemas.length ? schemas : [DEFAULT_SCHEMA])) {
         const schemaDb = getSchemaDb(s);
         const [u] = await schemaDb
           .select({ id: users.id, email: users.email, first_name: users.firstName, last_name: users.lastName, role: users.role, is_active: users.isActive })

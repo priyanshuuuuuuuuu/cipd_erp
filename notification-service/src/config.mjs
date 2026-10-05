@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import { resolve } from 'node:path';
+import { DEFAULT_SCHEMA } from '../../client-next/config.js';
 
 dotenv.config({ path: resolve(process.cwd(), '.env') });
 dotenv.config({ path: resolve(process.cwd(), '../client-next/.env'), override: false });
@@ -21,7 +22,7 @@ if (sender !== 'cipd@iiitd.ac.in') {
 export const config = {
   supabaseUrl,
   serviceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY,
-  schema: process.env.SUPABASE_SCHEMA || 'july',
+  schema: process.env.SUPABASE_SCHEMA || DEFAULT_SCHEMA,
   sender,
   port: Number(process.env.PORT || 3100),
   workerIntervalMs: Math.max(10000, Number(process.env.NOTIFICATION_WORKER_INTERVAL_MS || 30000)),

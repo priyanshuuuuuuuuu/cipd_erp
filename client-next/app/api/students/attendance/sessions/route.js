@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
+import { DEFAULT_SCHEMA } from '@/config';
 import { db as defaultDb, getSchemaDb, getCohortConfig } from '@/lib/db';
 import { attendanceRecords, sessions as sessionsTable, courses } from '@/drizzle/schema';
 import { eq, and, desc, count } from 'drizzle-orm';
@@ -26,9 +27,9 @@ async function handler(req) {
     if (req.user?.schema) {
       db = getSchemaDb(req.user.schema);
     } else {
-      const { schemas } = getCohortConfig();
+      const { schemas } = await getCohortConfig();
       // Fast fallback to find the student's schema if missing in JWT
-      for (const s of (schemas && schemas.length ? schemas : ['july'])) {
+      for (const s of (schemas && schemas.length ? schemas : [DEFAULT_SCHEMA])) {
         const schemaDb = getSchemaDb(s);
         const [{ value }] = await schemaDb.select({ value: count() }).from(attendanceRecords).where(eq(attendanceRecords.studentId, req.user.id));
         if (value > 0) {

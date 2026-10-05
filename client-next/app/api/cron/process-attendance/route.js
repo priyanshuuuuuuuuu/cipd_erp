@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase'; // Retained for wifi_snapshots rule
-import { db } from '@/lib/db';
+import { db, runWithSchema, getActiveSchema } from '@/lib/db';
 import { sessions } from '@/drizzle/schema';
 import { eq, and, ne, or, lt, asc } from 'drizzle-orm';
 import { rolloutFeedbackForSession } from '@/lib/feedback-rollout';
@@ -13,7 +13,7 @@ import { enqueueAttendanceSummaryMessages } from '@/lib/notification-stream';
  * Called automatically every 6 minutes by the background worker.
  */
 
-export async function GET(req) {
+async function cronHandler(req) {
   const authHeader = req.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;
   if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
@@ -225,4 +225,9 @@ export async function GET(req) {
     console.error('Cron: process-attendance error:', err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
+}
+
+// Cron jobs operate on the currently active cohort.
+export async function GET(req) {
+  return runWithSchema(await getActiveSchema(), () => cronHandler(req));
 }

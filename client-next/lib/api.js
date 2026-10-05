@@ -29,12 +29,28 @@ function getToken() {
   // Legacy fallback
   return localStorage.getItem('token');
 }
+
+/** Cohort (schema) the user selected in the cohort switcher, scoped per role. */
+export function getCohortRole() {
+  if (typeof window === 'undefined') return 'student';
+  const path = window.location.pathname;
+  if (path.startsWith('/admin')) return 'admin';
+  if (path.startsWith('/faculty')) return 'faculty';
+  return 'student';
+}
+
+function getCohort() {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(`${getCohortRole()}_cohort`);
+}
 // test
 export async function apiFetch(path, options = {}) {
   const token = getToken();
+  const cohort = getCohort();
   const headers = {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(cohort ? { 'x-cohort': cohort } : {}),
     ...(options.headers || {}),
   };
 
@@ -78,9 +94,13 @@ export async function apiFetch(path, options = {}) {
  */
 export async function apiUpload(path, formData) {
   const token = getToken();
+  const cohort = getCohort();
   const res = await fetch(`${API_BASE}${path}`, {
     method: 'POST',
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(cohort ? { 'x-cohort': cohort } : {}),
+    },
     body: formData,
     cache: 'no-store',
   });

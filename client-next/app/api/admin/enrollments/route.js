@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { getSchemaDb, getCohortConfig } from '@/lib/db';
+import { DEFAULT_SCHEMA } from '@/config';
+import { getSchemaDb, getCohortConfig, getRequestSchema } from '@/lib/db';
 import { courseEnrollments, students, courses } from '@/drizzle/schema';
 import { eq, desc, and } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
@@ -11,22 +12,22 @@ import { withRole } from '@/lib/middleware';
  * DELETE /api/admin/enrollments  body: { student_id, course_id, schema? }
  */
 
-function resolveSchemaFromQuery(req) {
+async function resolveSchemaFromQuery(req) {
   const { searchParams } = new URL(req.url);
-  const requested = searchParams.get('schema') || 'july';
-  const { schemas } = getCohortConfig();
+  const requested = searchParams.get('schema') || getRequestSchema() || DEFAULT_SCHEMA;
+  const { schemas } = await getCohortConfig();
   return schemas.includes(requested) ? requested : null;
 }
 
-function resolveSchemaFromBody(body) {
-  const requested = body.schema || 'july';
-  const { schemas } = getCohortConfig();
+async function resolveSchemaFromBody(body) {
+  const requested = body.schema || getRequestSchema() || DEFAULT_SCHEMA;
+  const { schemas } = await getCohortConfig();
   return schemas.includes(requested) ? requested : null;
 }
 
 async function getHandler(req) {
   try {
-    const schema = resolveSchemaFromQuery(req);
+    const schema = await resolveSchemaFromQuery(req);
     if (!schema) return NextResponse.json({ error: 'Invalid schema' }, { status: 400 });
     const db = getSchemaDb(schema);
 
@@ -72,7 +73,7 @@ async function postHandler(req) {
   try {
     const body = await req.json();
     const { student_id, course_id } = body;
-    const schema = resolveSchemaFromBody(body);
+    const schema = await resolveSchemaFromBody(body);
     if (!schema) return NextResponse.json({ error: 'Invalid schema' }, { status: 400 });
     const db = getSchemaDb(schema);
 
@@ -112,7 +113,7 @@ async function deleteHandler(req) {
   try {
     const body = await req.json();
     const { student_id, course_id } = body;
-    const schema = resolveSchemaFromBody(body);
+    const schema = await resolveSchemaFromBody(body);
     if (!schema) return NextResponse.json({ error: 'Invalid schema' }, { status: 400 });
     const db = getSchemaDb(schema);
 

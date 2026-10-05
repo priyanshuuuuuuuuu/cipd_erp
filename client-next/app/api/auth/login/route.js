@@ -4,6 +4,8 @@ import { getSchemaDb, getCohortConfig } from '@/lib/db';
 import { users, students } from '@/drizzle/schema';
 import { eq } from 'drizzle-orm';
 import { verifyPassword, signToken } from '@/lib/auth';
+import { DEFAULT_SCHEMA } from '@/config';
+import { pickDefaultCohort } from '@/lib/cohorts';
 
 export async function POST(req) {
   try {
@@ -16,13 +18,14 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Email/Enrollment No. and password are required' }, { status: 400 });
     }
 
-    const { schemas } = getCohortConfig();
+    const { schemas, active } = await getCohortConfig();
 
     let user = null;
     let matchedSchema = null;
+    const matches = []; // { schema, found } for every cohort the user belongs to
     const isEmail = identifier.includes('@');
 
-    for (const schema of (schemas && schemas.length ? schemas : ['july'])) {
+    for (const schema of (schemas && schemas.length ? schemas : [DEFAULT_SCHEMA])) {
       const schemaDb = getSchemaDb(schema);
 
       if (isEmail) {
@@ -33,11 +36,7 @@ export async function POST(req) {
           .where(eq(users.email, identifier.toLowerCase()))
           .limit(1);
 
-        if (found) {
-          user = found;
-          matchedSchema = schema;
-          break;
-        }
+        if (found) matches.push({ schema, found });
       } else {
         // ── Path 2: Enrollment number login (students only) ───────────────────
         const [found] = await schemaDb
@@ -56,12 +55,19 @@ export async function POST(req) {
           .where(eq(students.enrollmentNo, identifier))
           .limit(1);
 
-        if (found) {
-          user = found;
-          matchedSchema = schema;
-          break;
-        }
+        if (found) matches.push({ schema, found });
       }
+    }
+
+    if (matches.length) {
+      const chosen = pickDefaultCohort(
+        matches[0].found.role,
+        matches.map(m => m.schema),
+        active,
+      );
+      const match = matches.find(m => m.schema === chosen) || matches[0];
+      user = match.found;
+      matchedSchema = match.schema;
     }
 
     if (!user) {

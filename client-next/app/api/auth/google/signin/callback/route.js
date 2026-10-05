@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { timingSafeEqual } from 'crypto';
-import { db } from '@/lib/db';
+import { db, runWithSchema, getActiveSchema } from '@/lib/db';
 import { users } from '@/drizzle/schema';
 import { eq, and } from 'drizzle-orm';
 import { signToken } from '@/lib/auth';
@@ -39,7 +39,7 @@ function getOAuthClient(request) {
   );
 }
 
-export async function GET(request) {
+async function signinCallbackHandler(request) {
   const { searchParams } = new URL(request.url);
   const providerError = searchParams.get('error');
   const code = searchParams.get('code');
@@ -113,4 +113,7 @@ export async function GET(request) {
     console.error('[Google sign-in] Callback failed:', error.message);
     return redirectToLogin(request, 'failed');
   }
+}
+export async function GET(request) {
+  return runWithSchema(await getActiveSchema(), () => signinCallbackHandler(request));
 }

@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { db, runWithSchema, getActiveSchema } from '@/lib/db';
 import {
   sessions,
   courses,
@@ -21,7 +21,7 @@ import { fetchPreferencesMap, shouldNotifyUser } from '@/lib/should-notify';
  * sends reminder emails + notifications to students who haven't submitted yet.
  * Secured by CRON_SECRET header.
  */
-export async function GET(req) {
+async function cronHandler(req) {
   const secret = req.headers.get('x-cron-secret');
   if (secret !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -165,3 +165,8 @@ export async function GET(req) {
   }
 }
 
+
+// Cron jobs operate on the currently active cohort.
+export async function GET(req) {
+  return runWithSchema(await getActiveSchema(), () => cronHandler(req));
+}

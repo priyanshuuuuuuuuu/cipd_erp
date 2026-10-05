@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
-import { db } from '@/lib/db';
+import { db, runWithSchema, getActiveSchema } from '@/lib/db';
 import { googleTokens } from '@/drizzle/schema';
 import { eq } from 'drizzle-orm';
 import { createHmac, timingSafeEqual } from 'crypto';
@@ -41,7 +41,7 @@ function verifySignedState(state) {
   }
 }
 
-export async function GET(req) {
+async function callbackHandler(req) {
   const { searchParams } = new URL(req.url);
   const code  = searchParams.get('code');
   const state = searchParams.get('state');
@@ -136,3 +136,7 @@ export async function GET(req) {
   }
 }
 
+
+export async function GET(req) {
+  return runWithSchema(await getActiveSchema(), () => callbackHandler(req));
+}

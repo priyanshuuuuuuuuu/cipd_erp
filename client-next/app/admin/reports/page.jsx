@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { DEFAULT_SCHEMA } from '@/config';
 import '../../Dashboard.css';
 import {
     LayoutGrid, Calendar, MessageSquare, Settings, LogOut, Bell, Menu,
@@ -319,7 +320,7 @@ export default function AdminReportsPage() {
 
     // ── Students tab state ────────────────────────────────────────────────────
     const [cohorts,          setCohorts]          = useState([]);
-    const [studSchema,       setStudSchema]       = useState('july');
+    const [studSchema,       setStudSchema]       = useState(DEFAULT_SCHEMA);
     const [studDateFrom,     setStudDateFrom]     = useState('');
     const [studDateTo,       setStudDateTo]       = useState('');
     const [studExporting,    setStudExporting]    = useState(false);
@@ -339,9 +340,9 @@ export default function AdminReportsPage() {
             // d = { schemas: string[], labels: Record<string,string> }
             if (d?.schemas) {
                 setCohorts(d.schemas.map(s => ({ schema: s, label: d.labels?.[s] || (s.charAt(0).toUpperCase() + s.slice(1)) })));
-                setStudSchema(d.schemas[0] || 'july');
+                setStudSchema(d.schemas[0] || DEFAULT_SCHEMA);
             }
-        }).catch(() => setCohorts([{ schema: 'july', label: 'July' }]));
+        }).catch(() => setCohorts([{ schema: DEFAULT_SCHEMA, label: DEFAULT_SCHEMA}]));
     }, []);
 
     useEffect(() => { fetchData(); }, [fetchData]);
@@ -1042,7 +1043,7 @@ export default function AdminReportsPage() {
                                                 style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.82rem', fontFamily: 'inherit', background: '#fafafa', outline: 'none', cursor: 'pointer', minWidth: 130 }}>
                                                 {cohorts.length > 0
                                                     ? cohorts.map(c => <option key={c.schema} value={c.schema}>{c.label}</option>)
-                                                    : <option value="july">July</option>}
+                                                    : <option value={DEFAULT_SCHEMA}>Default</option>}
                                             </select>
                                         </div>
 

@@ -53,7 +53,7 @@ export async function POST(req) {
     const userId = payload.user_id;
 
     // Find the user across all schemas
-    const { schemas } = getCohortConfig();
+    const { schemas } = await getCohortConfig();
     let found = false;
 
     for (const schema of schemas) {

@@ -1,21 +1,25 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { adminDashboardSummary, sessions } from '@/drizzle/schema';
+import { students, faculty, sessions } from '@/drizzle/schema';
 import { eq, and, ne, desc, sql } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
 import { getISTDateString } from '@/lib/ist-date';
 
 async function handler(req) {
   try {
-    // Use the admin_dashboard_summary view
-    const summaryRows = await db.select({
-      total_students: adminDashboardSummary.totalStudents,
-      total_faculty: adminDashboardSummary.totalFaculty,
-      total_sessions: adminDashboardSummary.totalSessions
-    }).from(adminDashboardSummary).limit(1);
-    
-    const summary = summaryRows[0];
+    // Counts come straight from the current cohort's tables (the public view isn't cohort-aware)
+    const [[studentsRes], [facultyRes], [sessionsRes]] = await Promise.all([
+      db.select({ count: sql`count(*)` }).from(students),
+      db.select({ count: sql`count(*)` }).from(faculty),
+      db.select({ count: sql`count(*)` }).from(sessions),
+    ]);
+
+    const summary = {
+      total_students: Number(studentsRes?.count || 0),
+      total_faculty: Number(facultyRes?.count || 0),
+      total_sessions: Number(sessionsRes?.count || 0),
+    };
 
     // Get today's session count (IST date)
     const today = getISTDateString();

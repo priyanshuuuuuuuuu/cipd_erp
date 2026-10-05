@@ -4,13 +4,16 @@ import '../../Dashboard.css';
 import {
     LayoutGrid, Calendar, MessageSquare, Settings as SettingsIcon, LogOut, Bell, Search, Menu,
     ChevronLeft, ChevronRight, Wifi, Clock, FileBarChart, CheckCircle, Save, Users,
-    Plus, Trash2, Edit3, Shield, X, Eye, EyeOff, AlertCircle, ExternalLink, Trophy, GraduationCap
+    Plus, Trash2, Edit3, Shield, X, Eye, EyeOff, AlertCircle, ExternalLink, Trophy, GraduationCap,
+    Layers, Check
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
+import { useCohort } from '../../contexts/CohortContext';
 
 export default function AdminSettingsPage() {
     const router = useRouter();
+    const { cohorts, activeCohort, selectedCohort, switchCohort, makeActive, openCreateModal } = useCohort();
     const [gcStatus, setGcStatus] = useState(null); // 'success', 'db_error', etc.
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -202,6 +205,93 @@ export default function AdminSettingsPage() {
                             <img src="/logo.png" alt="Logo" style={{ height: '30px' }} />
                         </div>
                     </header>
+
+                    {/* Cohort & Database Schema Management */}
+                    <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', borderTop: '3px solid #6366f1', overflow: 'hidden', marginBottom: '1.5rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.8rem 1.5rem', borderBottom: '1px solid #f0f0f0' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.95rem', fontWeight: 700 }}><Layers size={16} /> Cohorts & Database Schema Management</div>
+                            <button
+                                onClick={openCreateModal}
+                                style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '8px', border: 'none', background: '#0f172a', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700, color: '#fff' }}
+                            >
+                                <Plus size={13} /> Start Fresh Cohort
+                            </button>
+                        </div>
+                        <div style={{ padding: '1rem 1.5rem', background: '#fafafa', borderBottom: '1px solid #f0f0f0', fontSize: '0.78rem', color: '#64748b', lineHeight: 1.5 }}>
+                            Each cohort is isolated in its own PostgreSQL schema. Switch between cohorts to view past attendance, sessions, and student data, or activate a cohort so new students and cron jobs target it.
+                        </div>
+                        <div style={{ overflowX: 'auto' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                                <thead>
+                                    <tr style={{ background: '#fafafa' }}>
+                                        {['Cohort Label', 'PostgreSQL Schema', 'System Status', 'UI State', 'Actions'].map(h => (
+                                            <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: '0.68rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#aaa', borderBottom: '1px solid #f0f0f0' }}>{h}</th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {cohorts.map(c => {
+                                        const isActive = c.schema === activeCohort;
+                                        const isViewing = c.schema === selectedCohort;
+                                        return (
+                                            <tr key={c.schema} style={{ borderBottom: '1px solid #f5f5f5', background: isViewing ? '#f8fafc' : '#fff' }}>
+                                                <td style={{ padding: '12px 16px', fontWeight: 700, color: '#1e293b' }}>
+                                                    {c.label}
+                                                </td>
+                                                <td style={{ padding: '12px 16px', fontFamily: 'monospace', fontWeight: 600, fontSize: '0.8rem', color: '#64748b' }}>
+                                                    {c.schema}
+                                                </td>
+                                                <td style={{ padding: '12px 16px' }}>
+                                                    {isActive ? (
+                                                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '3px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 700, background: '#dcfce7', color: '#15803d' }}>
+                                                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#16a34a' }} /> Active Cohort
+                                                        </span>
+                                                    ) : (
+                                                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '3px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 500, background: '#f1f5f9', color: '#64748b' }}>
+                                                            Archived
+                                                        </span>
+                                                    )}
+                                                </td>
+                                                <td style={{ padding: '12px 16px' }}>
+                                                    {isViewing ? (
+                                                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '3px 8px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 700, background: '#eff6ff', color: '#2563eb' }}>
+                                                            <Check size={12} /> Currently Viewing
+                                                        </span>
+                                                    ) : (
+                                                        <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>—</span>
+                                                    )}
+                                                </td>
+                                                <td style={{ padding: '12px 16px' }}>
+                                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                                        {!isViewing && (
+                                                            <button
+                                                                onClick={() => switchCohort(c.schema)}
+                                                                style={{ padding: '4px 10px', borderRadius: '6px', border: '1px solid #e2e8f0', background: '#fff', color: '#0f172a', fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer' }}
+                                                            >
+                                                                Switch UI
+                                                            </button>
+                                                        )}
+                                                        {!isActive && (
+                                                            <button
+                                                                onClick={() => {
+                                                                    if (confirm(`Promote "${c.label}" to the active cohort?`)) {
+                                                                        makeActive(c.schema);
+                                                                    }
+                                                                }}
+                                                                style={{ padding: '4px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#f8fafc', color: '#475569', fontSize: '0.72rem', fontWeight: 600, cursor: 'pointer' }}
+                                                            >
+                                                                Set as Active
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
 
                     {/* Attendance Detection Config */}
                     <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', borderTop: '3px solid #00A5A0', overflow: 'hidden', marginBottom: '1.5rem' }}>

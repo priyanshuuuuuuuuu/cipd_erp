@@ -4,6 +4,8 @@ import { getSchemaDb, getCohortConfig } from '@/lib/db';
 import { users, students, faculty } from '@/drizzle/schema';
 import { eq } from 'drizzle-orm';
 import { getUserFromRequest } from '@/lib/auth';
+import { resolveRequestSchema } from '@/lib/cohorts';
+import { DEFAULT_SCHEMA } from '@/config';
 
 export async function GET(req) {
   try {
@@ -12,11 +14,14 @@ export async function GET(req) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { schemas } = getCohortConfig();
+    const { schemas } = await getCohortConfig();
+    const resolved = await resolveRequestSchema(req, user);
+    const searchOrder = [resolved, ...(schemas && schemas.length ? schemas : [DEFAULT_SCHEMA]).filter(s => s !== resolved)];
     let userData = null;
     let targetDb = null;
+    let userSchema = null;
 
-    for (const schema of (schemas && schemas.length ? schemas : ['july'])) {
+    for (const schema of searchOrder) {
       const schemaDb = getSchemaDb(schema);
       const [found] = await schemaDb
         .select({
@@ -34,6 +39,7 @@ export async function GET(req) {
       if (found) {
         userData = found;
         targetDb = schemaDb;
+        userSchema = schema;
         break;
       }
     }
@@ -70,7 +76,7 @@ export async function GET(req) {
       if (facultyData) profile = { ...profile, ...facultyData };
     }
 
-    return NextResponse.json({ user: profile });
+    return NextResponse.json({ user: { ...profile, cohort: userSchema } });
   } catch (err) {
     console.error('Auth me error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

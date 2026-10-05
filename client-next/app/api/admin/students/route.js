@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { getSchemaDb, getCohortConfig } from '@/lib/db';
+import { DEFAULT_SCHEMA } from '@/config';
+import { getSchemaDb, getCohortConfig, getRequestSchema } from '@/lib/db';
 import {
   students,
   users,
@@ -16,24 +17,24 @@ import { withRole } from '@/lib/middleware';
 import { hashPassword } from '@/lib/auth';
 
 /** Resolve and validate schema from request. Returns null if invalid. */
-function resolveSchema(req) {
+async function resolveSchema(req) {
   const { searchParams } = new URL(req.url);
-  const requested = searchParams.get('schema') || 'july';
-  const { schemas } = getCohortConfig();
+  const requested = searchParams.get('schema') || getRequestSchema() || DEFAULT_SCHEMA;
+  const { schemas } = await getCohortConfig();
   return schemas.includes(requested) ? requested : null;
 }
 
 /** Same but reads schema from request body (for POST/PATCH/DELETE with JSON body) */
-function resolveSchemaFromBody(body) {
-  const requested = body.schema || 'july';
-  const { schemas } = getCohortConfig();
+async function resolveSchemaFromBody(body) {
+  const requested = body.schema || getRequestSchema() || DEFAULT_SCHEMA;
+  const { schemas } = await getCohortConfig();
   return schemas.includes(requested) ? requested : null;
 }
 
 // ─── GET /api/admin/students?schema=july ─────────────────────────────────
 async function getHandler(req) {
   try {
-    const schema = resolveSchema(req);
+    const schema = await resolveSchema(req);
     if (!schema) return NextResponse.json({ error: 'Invalid schema' }, { status: 400 });
     const schemaDb = getSchemaDb(schema);
 
@@ -109,7 +110,7 @@ async function postHandler(req) {
   try {
     const body = await req.json();
     const { first_name, last_name, email, enrollment_no, program_name } = body;
-    const schema = resolveSchemaFromBody(body);
+    const schema = await resolveSchemaFromBody(body);
     if (!schema) return NextResponse.json({ error: 'Invalid schema' }, { status: 400 });
     const schemaDb = getSchemaDb(schema);
 
@@ -170,7 +171,7 @@ async function patchHandler(req) {
   try {
     const body = await req.json();
     const { student_id, first_name, last_name, email, enrollment_no, program_name, mac_verified, is_active, mac_address } = body;
-    const schema = resolveSchemaFromBody(body);
+    const schema = await resolveSchemaFromBody(body);
     if (!schema) return NextResponse.json({ error: 'Invalid schema' }, { status: 400 });
     const schemaDb = getSchemaDb(schema);
 
@@ -248,7 +249,7 @@ async function deleteHandler(req) {
     const body = await req.json();
     const { student_id, student_ids } = body;
     const ids = student_ids || (student_id ? [student_id] : []);
-    const schema = resolveSchemaFromBody(body);
+    const schema = await resolveSchemaFromBody(body);
     if (!schema) return NextResponse.json({ error: 'Invalid schema' }, { status: 400 });
     const schemaDb = getSchemaDb(schema);
 
