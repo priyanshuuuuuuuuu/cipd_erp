@@ -47,7 +47,7 @@ async function patchHandler(req, { params }) {
         status,
         adminNotes: admin_notes?.trim() || null,
         reviewedBy: req.user.id,
-        reviewedAt: new Date(),
+        reviewedAt: new Date().toISOString(),
       })
       .where(eq(leaveRequests.id, id))
       .returning({

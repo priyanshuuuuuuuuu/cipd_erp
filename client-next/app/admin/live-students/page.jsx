@@ -15,7 +15,7 @@ export default function AdminLiveStudentsPage() {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [data, setData] = useState({
-        students: [], unidentified: [], stats: { totalDevices: 0, identifiedStudents: 0, unidentifiedDevices: 0, avgSignal: 0 },
+        students: [], recentStudents: [], unidentified: [], stats: { totalDevices: 0, identifiedStudents: 0, unidentifiedDevices: 0, avgSignal: 0 },
         lastSnapshot: null, lastUpdated: null, isStale: false, isUnchanged: false, staleMessage: null, minutesAgo: null,
     });
     const [loading, setLoading] = useState(true);
@@ -158,6 +158,12 @@ export default function AdminLiveStudentsPage() {
         return s.name?.toLowerCase().includes(term) || s.enrollmentNo?.toLowerCase().includes(term) || s.macAddress?.toLowerCase().includes(term) || s.email?.toLowerCase().includes(term);
     });
 
+    const filteredRecent = (data.recentStudents || []).filter(s => {
+        if (!searchTerm) return true;
+        const term = searchTerm.toLowerCase();
+        return s.name?.toLowerCase().includes(term) || s.enrollmentNo?.toLowerCase().includes(term) || s.macAddress?.toLowerCase().includes(term) || s.email?.toLowerCase().includes(term);
+    });
+
     const sidebarNav = (
         <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobileMenuOpen ? 'open' : ''}`}>
             <div>
@@ -168,7 +174,8 @@ export default function AdminLiveStudentsPage() {
                         {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
                     </div>
                 </div>
-                <nav className="nav-menu">
+                <div id="cohort-switcher-portal" style={{ padding: '0 1rem 1rem', display: isCollapsed ? 'none' : 'block', width: '100%', boxSizing: 'border-box' }}></div>
+                        <nav className="nav-menu">
                         <div style={{ fontSize: '0.6rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', color: '#555', padding: '8px 1rem 4px' }}><span>Main</span></div>
                         <div className="nav-item" onClick={() => navTo('/admin')} style={{ cursor: 'pointer' }}><LayoutGrid size={18} /> <span>Dashboard</span></div>
                         <div className="nav-item" onClick={() => navTo('/admin/schedule')} style={{ cursor: 'pointer' }}><Calendar size={18} /> <span>Schedule Management</span></div>
@@ -288,7 +295,7 @@ export default function AdminLiveStudentsPage() {
                         <div className="ls-table-header" style={{ padding: '0.8rem 1.5rem', borderBottom: '1px solid #f0f0f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.95rem', fontWeight: 700 }}>
                                 <Activity size={16} /> Connected Students
-                                <span style={{ fontSize: '0.7rem', color: '#888', fontWeight: 500 }}>({filtered.length} students)</span>
+                                <span style={{ fontSize: '0.7rem', color: '#888', fontWeight: 500 }}>({filtered.length} live now{filteredRecent.length > 0 ? `, ${filteredRecent.length} recently active` : ''})</span>
                             </div>
                             <div className="ls-search-wrap" style={{ position: 'relative', minWidth: '220px' }}>
                                 <Search size={14} color="#aaa" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
@@ -314,55 +321,119 @@ export default function AdminLiveStudentsPage() {
                                                 ))}
                                             </tr>
                                         ))}</>
-                                    ) : filtered.length === 0 ? (
+                                    ) : filtered.length === 0 && filteredRecent.length === 0 ? (
                                         <tr><td colSpan={8} style={{ padding: '3rem', textAlign: 'center', color: '#aaa' }}>
                                             <Users size={24} color="#ddd" />
                                             <div style={{ fontSize: '0.85rem', fontWeight: 600, marginTop: '8px' }}>
                                                 {searchTerm ? 'No students match your search' : 'No students currently connected'}
                                             </div>
                                         </td></tr>
-                                    ) : filtered.map((s, i) => {
-                                        const sig = getSignalInfo(s.signal);
-                                        return (
-                                            <tr key={s.studentId || i} className="attendance-row" style={{ borderBottom: '1px solid #f5f5f5' }}>
-                                                <td style={{ padding: '10px 16px' }}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                        <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#f0fdf4', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.75rem', flexShrink: 0 }}>
-                                                            {s.firstName?.[0]?.toUpperCase() || s.name?.[0]?.toUpperCase() || '?'}
-                                                        </div>
-                                                        <div>
-                                                            <div style={{ fontWeight: 600, color: '#111', fontSize: '0.84rem' }}>{s.name}</div>
-                                                            <div style={{ fontSize: '0.68rem', color: '#aaa' }}>{s.email}</div>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                                <td style={{ padding: '10px 16px', fontFamily: 'monospace', fontSize: '0.78rem', color: '#555' }}>{s.enrollmentNo || '—'}</td>
-                                                <td className="ls-col-program" style={{ padding: '10px 16px', fontSize: '0.78rem', color: '#666' }}>{s.program || '—'}</td>
-                                                <td className="ls-col-mac" style={{ padding: '10px 16px' }}>
-                                                    <code style={{ padding: '3px 8px', background: '#f5f5f5', borderRadius: '5px', fontSize: '0.72rem', fontFamily: 'monospace', color: '#555', letterSpacing: '0.5px' }}>
-                                                        {s.macAddress}
-                                                    </code>
-                                                    {s.macVerified && (
-                                                        <CheckCircle size={11} color="#16a34a" style={{ marginLeft: '5px', verticalAlign: 'middle' }} />
-                                                    )}
-                                                </td>
-                                                <td style={{ padding: '10px 16px' }}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                        <SignalBars level={s.signal} />
-                                                        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: sig.color }}>{s.signal}/5</span>
-                                                        <span style={{ fontSize: '0.6rem', fontWeight: 600, color: sig.color, background: sig.bg, padding: '2px 6px', borderRadius: '4px' }}>{sig.label}</span>
-                                                    </div>
-                                                </td>
-                                                <td className="ls-col-ip" style={{ padding: '10px 16px', fontFamily: 'monospace', fontSize: '0.75rem', color: '#888' }}>{s.ip || '—'}</td>
-                                                <td className="ls-col-duration" style={{ padding: '10px 16px', fontSize: '0.78rem', color: '#555' }}>{s.duration || '—'}</td>
-                                                <td className="ls-col-status" style={{ padding: '10px 16px' }}>
-                                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 10px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600, background: '#ecfdf5', color: '#166534' }}>
-                                                        <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#16a34a' }} /> Connected
-                                                    </span>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
+                                    ) : (
+                                        <>
+                                            {/* ── Live Now rows (most recent ping) ── */}
+                                            {filtered.length === 0 && !searchTerm ? (
+                                                <tr><td colSpan={8} style={{ padding: '1rem 16px', textAlign: 'center', color: '#aaa', fontSize: '0.78rem' }}>No students in the latest ping</td></tr>
+                                            ) : filtered.map((s, i) => {
+                                                const sig = getSignalInfo(s.signal);
+                                                return (
+                                                    <tr key={s.studentId || i} className="attendance-row" style={{ borderBottom: '1px solid #f5f5f5' }}>
+                                                        <td style={{ padding: '10px 16px' }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                                <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#f0fdf4', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.75rem', flexShrink: 0 }}>
+                                                                    {s.firstName?.[0]?.toUpperCase() || s.name?.[0]?.toUpperCase() || '?'}
+                                                                </div>
+                                                                <div>
+                                                                    <div style={{ fontWeight: 600, color: '#111', fontSize: '0.84rem' }}>{s.name}</div>
+                                                                    <div style={{ fontSize: '0.68rem', color: '#aaa' }}>{s.email}</div>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td style={{ padding: '10px 16px', fontFamily: 'monospace', fontSize: '0.78rem', color: '#555' }}>{s.enrollmentNo || '—'}</td>
+                                                        <td className="ls-col-program" style={{ padding: '10px 16px', fontSize: '0.78rem', color: '#666' }}>{s.program || '—'}</td>
+                                                        <td className="ls-col-mac" style={{ padding: '10px 16px' }}>
+                                                            <code style={{ padding: '3px 8px', background: '#f5f5f5', borderRadius: '5px', fontSize: '0.72rem', fontFamily: 'monospace', color: '#555', letterSpacing: '0.5px' }}>
+                                                                {s.macAddress}
+                                                            </code>
+                                                            {s.macVerified && (
+                                                                <CheckCircle size={11} color="#16a34a" style={{ marginLeft: '5px', verticalAlign: 'middle' }} />
+                                                            )}
+                                                        </td>
+                                                        <td style={{ padding: '10px 16px' }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                <SignalBars level={s.signal} />
+                                                                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: sig.color }}>{s.signal}/5</span>
+                                                                <span style={{ fontSize: '0.6rem', fontWeight: 600, color: sig.color, background: sig.bg, padding: '2px 6px', borderRadius: '4px' }}>{sig.label}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="ls-col-ip" style={{ padding: '10px 16px', fontFamily: 'monospace', fontSize: '0.75rem', color: '#888' }}>{s.ip || '—'}</td>
+                                                        <td className="ls-col-duration" style={{ padding: '10px 16px', fontSize: '0.78rem', color: '#555' }}>{s.duration || '—'}</td>
+                                                        <td className="ls-col-status" style={{ padding: '10px 16px' }}>
+                                                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 10px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600, background: '#ecfdf5', color: '#166534' }}>
+                                                                <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#16a34a', animation: 'pulse 2s infinite' }} /> Connected
+                                                            </span>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+
+                                            {/* ── Recently Active divider ── */}
+                                            {filteredRecent.length > 0 && (
+                                                <>
+                                                    <tr>
+                                                        <td colSpan={8} style={{ padding: '0' }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 16px', background: '#fffbeb', borderTop: '1px solid #fde68a', borderBottom: '1px solid #fde68a' }}>
+                                                                <Clock size={13} color="#b45309" />
+                                                                <span style={{ fontSize: '0.7rem', fontWeight: 600, color: '#b45309' }}>Seen in recent pings (may have briefly dropped)</span>
+                                                                <span style={{ fontSize: '0.65rem', color: '#d97706', marginLeft: 'auto' }}>{filteredRecent.length} student{filteredRecent.length > 1 ? 's' : ''}</span>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    {filteredRecent.map((s, i) => {
+                                                        const sig = getSignalInfo(s.signal);
+                                                        return (
+                                                            <tr key={`recent-${s.studentId || i}`} className="attendance-row" style={{ borderBottom: '1px solid #f5f5f5', opacity: 0.85 }}>
+                                                                <td style={{ padding: '10px 16px' }}>
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                                        <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#fefce8', color: '#b45309', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.75rem', flexShrink: 0 }}>
+                                                                            {s.firstName?.[0]?.toUpperCase() || s.name?.[0]?.toUpperCase() || '?'}
+                                                                        </div>
+                                                                        <div>
+                                                                            <div style={{ fontWeight: 600, color: '#111', fontSize: '0.84rem' }}>{s.name}</div>
+                                                                            <div style={{ fontSize: '0.68rem', color: '#aaa' }}>{s.email}</div>
+                                                                        </div>
+                                                                    </div>
+                                                                </td>
+                                                                <td style={{ padding: '10px 16px', fontFamily: 'monospace', fontSize: '0.78rem', color: '#555' }}>{s.enrollmentNo || '—'}</td>
+                                                                <td className="ls-col-program" style={{ padding: '10px 16px', fontSize: '0.78rem', color: '#666' }}>{s.program || '—'}</td>
+                                                                <td className="ls-col-mac" style={{ padding: '10px 16px' }}>
+                                                                    <code style={{ padding: '3px 8px', background: '#f5f5f5', borderRadius: '5px', fontSize: '0.72rem', fontFamily: 'monospace', color: '#555', letterSpacing: '0.5px' }}>
+                                                                        {s.macAddress}
+                                                                    </code>
+                                                                    {s.macVerified && (
+                                                                        <CheckCircle size={11} color="#16a34a" style={{ marginLeft: '5px', verticalAlign: 'middle' }} />
+                                                                    )}
+                                                                </td>
+                                                                <td style={{ padding: '10px 16px' }}>
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                        <SignalBars level={s.signal} />
+                                                                        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: sig.color }}>{s.signal}/5</span>
+                                                                        <span style={{ fontSize: '0.6rem', fontWeight: 600, color: sig.color, background: sig.bg, padding: '2px 6px', borderRadius: '4px' }}>{sig.label}</span>
+                                                                    </div>
+                                                                </td>
+                                                                <td className="ls-col-ip" style={{ padding: '10px 16px', fontFamily: 'monospace', fontSize: '0.75rem', color: '#888' }}>{s.ip || '—'}</td>
+                                                                <td className="ls-col-duration" style={{ padding: '10px 16px', fontSize: '0.78rem', color: '#555' }}>{s.duration || '—'}</td>
+                                                                <td className="ls-col-status" style={{ padding: '10px 16px' }}>
+                                                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '3px 10px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600, background: '#fffbeb', color: '#92400e' }}>
+                                                                        <Clock size={10} /> Recently Active
+                                                                    </span>
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </>
+                                            )}
+                                        </>
+                                    )}
                                 </tbody>
                             </table>
                         </div>

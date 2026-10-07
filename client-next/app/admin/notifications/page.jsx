@@ -214,7 +214,8 @@ export default function AdminNotificationsPage() {
                         {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
                     </div>
                 </div>
-                <nav className="nav-menu">
+                <div id="cohort-switcher-portal" style={{ padding: '0 1rem 1rem', display: isCollapsed ? 'none' : 'block', width: '100%', boxSizing: 'border-box' }}></div>
+                        <nav className="nav-menu">
                         <div style={{ fontSize: '0.6rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', color: '#555', padding: '8px 1rem 4px' }}><span>Main</span></div>
                         <div className="nav-item" onClick={() => navTo('/admin')} style={{ cursor: 'pointer' }}><LayoutGrid size={18} /> <span>Dashboard</span></div>
                         <div className="nav-item" onClick={() => navTo('/admin/schedule')} style={{ cursor: 'pointer' }}><Calendar size={18} /> <span>Schedule Management</span></div>

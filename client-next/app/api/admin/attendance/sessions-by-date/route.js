@@ -24,9 +24,9 @@ async function handler(req) {
       .select({
         id: sessions.id,
         title: sessions.title,
-        session_date: sessions.session_date,
-        start_time: sessions.start_time,
-        end_time: sessions.end_time,
+        session_date: sessions.sessionDate,
+        start_time: sessions.startTime,
+        end_time: sessions.endTime,
         status: sessions.status,
         courses: {
           id: courses.id,
@@ -35,37 +35,37 @@ async function handler(req) {
         faculty: {
           id: faculty.id,
           users: {
-            first_name: users.first_name,
-            last_name: users.last_name,
+            first_name: users.firstName,
+            last_name: users.lastName,
           },
         },
         venues: {
           id: venues.id,
           name: venues.name,
           building: venues.building,
-          router_bssid: venues.router_bssid,
+          router_bssid: venues.routerBssid,
         },
       })
       .from(sessions)
-      .leftJoin(courses, eq(sessions.course_id, courses.id))
-      .leftJoin(faculty, eq(sessions.faculty_id, faculty.id))
-      .leftJoin(users, eq(faculty.user_id, users.id))
-      .leftJoin(venues, eq(sessions.venue_id, venues.id))
-      .where(eq(sessions.session_date, date))
-      .orderBy(asc(sessions.start_time));
+      .leftJoin(courses, eq(sessions.courseId, courses.id))
+      .leftJoin(faculty, eq(sessions.facultyId, faculty.id))
+      .leftJoin(users, eq(faculty.id, users.id))   // faculty.id IS the user FK
+      .leftJoin(venues, eq(sessions.venueId, venues.id))
+      .where(eq(sessions.sessionDate, date))
+      .orderBy(asc(sessions.startTime));
 
     // Fetch all students with MAC addresses (for matching)
     const allStudents = await db
       .select({
         id: students.id,
-        mac_address: students.mac_address,
+        mac_address: students.macAddress,
       })
       .from(students)
-      .innerJoin(users, eq(students.user_id, users.id))
+      .innerJoin(users, eq(students.id, users.id))   // students.id IS the user FK
       .where(
         and(
-          isNotNull(students.mac_address),
-          eq(users.is_active, true)
+          isNotNull(students.macAddress),
+          eq(users.isActive, true)
         )
       );
 

@@ -5,15 +5,24 @@ import * as schema from '../drizzle/schema';
 import * as relations from '../drizzle/relations';
 import config, { DEFAULT_SCHEMA } from '../config';
 
-// Disable prefetch as it is not supported for "Transaction" pool mode
-export const connection = postgres(process.env.DATABASE_URL, { 
-  prepare: false,
-  connection: {
-    search_path: `${DEFAULT_SCHEMA}, public`
-  }
-});
+// ── Global singleton helpers ──────────────────────────────────────────────────
+// In Next.js dev mode the module is re-evaluated on every hot reload, which
+// creates fresh postgres() pools each time while orphaned pools stay open.
+// Storing everything on globalThis means a single set of pools for the entire
+// Node process lifetime.
+const g = globalThis;
 
-// ── Request-scoped cohort schema ─────────────────────────────────────────────
+// ── Main connection (used for cohort registry queries) ────────────────────────
+if (!g._pgMainConn) {
+  g._pgMainConn = postgres(process.env.DATABASE_URL, {
+    prepare: false,
+    max: 3,
+    connection: { search_path: `${DEFAULT_SCHEMA}, public` },
+  });
+}
+export const connection = g._pgMainConn;
+
+// ── Request-scoped cohort schema ──────────────────────────────────────────────
 // withAuth() runs each handler inside runWithSchema(), so the exported `db`
 // below transparently targets the cohort selected for that request.
 const _schemaStore = new AsyncLocalStorage();
@@ -41,15 +50,16 @@ export const db = new Proxy({}, {
   },
 });
 
-// LRU cache for schema-specific drizzle instances. Old cohorts are evicted
-// (and their pools closed) once MAX_SCHEMA_POOLS is exceeded.
+// ── LRU cache for schema-specific drizzle instances ───────────────────────────
+// Stored on globalThis so hot-reload doesn't orphan old pools.
 const MAX_SCHEMA_POOLS = 6;
-const _schemaDbs = new Map(); // key -> { db, conn }
+if (!g._pgSchemaDbs) g._pgSchemaDbs = new Map(); // key -> { db, conn }
+const _schemaDbs = g._pgSchemaDbs;
 
 /**
  * Returns (and caches) a Drizzle instance configured for the given schema.
  * Uses postgres options to set search_path on the connection.
- * @param {string} schemaName 
+ * @param {string} schemaName
  */
 export function getSchemaDb(schemaName = DEFAULT_SCHEMA) {
   const key = schemaName || DEFAULT_SCHEMA;
@@ -61,11 +71,10 @@ export function getSchemaDb(schemaName = DEFAULT_SCHEMA) {
     return entry.db;
   }
 
-  const conn = postgres(process.env.DATABASE_URL, { 
+  const conn = postgres(process.env.DATABASE_URL, {
     prepare: false,
-    connection: {
-      search_path: `${key}, public`
-    }
+    max: 3,
+    connection: { search_path: `${key}, public` },
   });
   const entry = { conn, db: drizzle(conn, { schema: { ...schema, ...relations } }) };
   _schemaDbs.set(key, entry);
@@ -79,12 +88,13 @@ export function getSchemaDb(schemaName = DEFAULT_SCHEMA) {
   return entry.db;
 }
 
-// ── Cohort registry (public.cohorts) ─────────────────────────────────────────
+// ── Cohort registry (public.cohorts) ──────────────────────────────────────────
 const COHORT_CACHE_TTL_MS = 30_000;
-let _cohortCache = null; // { at, value }
+// Also persist the cache across hot reloads so we don't spam the DB
+if (!g._pgCohortCache) g._pgCohortCache = null;
 
 export function invalidateCohortCache() {
-  _cohortCache = null;
+  g._pgCohortCache = null;
 }
 
 function envCohortFallback() {
@@ -110,8 +120,8 @@ function envCohortFallback() {
  * @returns {Promise<{ schemas: string[], labels: Record<string,string>, active: string }>}
  */
 export async function getCohortConfig() {
-  if (_cohortCache && Date.now() - _cohortCache.at < COHORT_CACHE_TTL_MS) {
-    return _cohortCache.value;
+  if (g._pgCohortCache && Date.now() - g._pgCohortCache.at < COHORT_CACHE_TTL_MS) {
+    return g._pgCohortCache.value;
   }
 
   let value;
@@ -133,7 +143,7 @@ export async function getCohortConfig() {
     value = envCohortFallback();
   }
 
-  _cohortCache = { at: Date.now(), value };
+  g._pgCohortCache = { at: Date.now(), value };
   return value;
 }
 

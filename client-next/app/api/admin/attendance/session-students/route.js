@@ -6,10 +6,10 @@ import {
   sessions,
   courses,
   venues,
-  course_enrollments,
+  courseEnrollments,
   students,
   users,
-  attendance_records,
+  attendanceRecords,
 } from '@/drizzle/schema';
 import { eq } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
@@ -38,11 +38,11 @@ async function handler(req) {
       .select({
         id: sessions.id,
         title: sessions.title,
-        session_date: sessions.session_date,
-        start_time: sessions.start_time,
-        end_time: sessions.end_time,
+        session_date: sessions.sessionDate,
+        start_time: sessions.startTime,
+        end_time: sessions.endTime,
         status: sessions.status,
-        course_id: sessions.course_id,
+        course_id: sessions.courseId,
         courses: {
           id: courses.id,
           name: courses.name,
@@ -51,12 +51,12 @@ async function handler(req) {
           id: venues.id,
           name: venues.name,
           building: venues.building,
-          router_bssid: venues.router_bssid,
+          router_bssid: venues.routerBssid,
         },
       })
       .from(sessions)
-      .leftJoin(courses, eq(sessions.course_id, courses.id))
-      .leftJoin(venues, eq(sessions.venue_id, venues.id))
+      .leftJoin(courses, eq(sessions.courseId, courses.id))
+      .leftJoin(venues, eq(sessions.venueId, venues.id))
       .where(eq(sessions.id, sessionId))
       .limit(1);
 
@@ -106,9 +106,9 @@ async function handler(req) {
     const { macTimeline, orderedSnapshotIds } = buildMacTimeline(snapshots || []);
 
     const enrollments = await db
-      .select({ student_id: course_enrollments.student_id })
-      .from(course_enrollments)
-      .where(eq(course_enrollments.course_id, courseId));
+      .select({ student_id: courseEnrollments.studentId })
+      .from(courseEnrollments)
+      .where(eq(courseEnrollments.courseId, courseId));
 
     const enrolledStudentIds = new Set(
       (enrollments || []).map((e) => e.student_id)
@@ -117,20 +117,20 @@ async function handler(req) {
     const allStudents = await db
       .select({
         id: students.id,
-        enrollment_no: students.enrollment_no,
-        program_name: students.program_name,
-        mac_address: students.mac_address,
-        mac_verified: students.mac_verified,
+        enrollment_no: students.enrollmentNo,
+        program_name: students.programName,
+        mac_address: students.macAddress,
+        mac_verified: students.macVerified,
         users: {
-          first_name: users.first_name,
-          last_name: users.last_name,
+          first_name: users.firstName,
+          last_name: users.lastName,
           email: users.email,
-          is_active: users.is_active,
+          is_active: users.isActive,
         },
       })
       .from(students)
-      .innerJoin(users, eq(students.user_id, users.id))
-      .where(eq(users.is_active, true));
+      .innerJoin(users, eq(students.id, users.id))   // students.id IS the FK to users.id
+      .where(eq(users.isActive, true));
 
     const studentMap = {};
     (allStudents || []).forEach((s) => {
@@ -152,15 +152,15 @@ async function handler(req) {
 
     const existingRecords = await db
       .select({
-        student_id: attendance_records.student_id,
-        status: attendance_records.status,
-        points: attendance_records.points,
-        admin_override: attendance_records.admin_override,
-        penalty: attendance_records.penalty,
-        penalty_reason: attendance_records.penalty_reason,
+        student_id: attendanceRecords.studentId,
+        status: attendanceRecords.status,
+        points: attendanceRecords.points,
+        admin_override: attendanceRecords.adminOverride,
+        penalty: attendanceRecords.penalty,
+        penalty_reason: attendanceRecords.penaltyReason,
       })
-      .from(attendance_records)
-      .where(eq(attendance_records.session_id, sessionId));
+      .from(attendanceRecords)
+      .where(eq(attendanceRecords.sessionId, sessionId));
 
     const existingMap = {};
     (existingRecords || []).forEach((r) => {
@@ -174,19 +174,19 @@ async function handler(req) {
 
     const refreshedRecords = await db
       .select({
-        student_id: attendance_records.student_id,
-        status: attendance_records.status,
-        points: attendance_records.points,
-        ping_count: attendance_records.ping_count,
-        first_seen_at: attendance_records.first_seen_at,
-        last_seen_at: attendance_records.last_seen_at,
-        duration_minutes: attendance_records.duration_minutes,
-        admin_override: attendance_records.admin_override,
-        penalty: attendance_records.penalty,
-        penalty_reason: attendance_records.penalty_reason,
+        student_id: attendanceRecords.studentId,
+        status: attendanceRecords.status,
+        points: attendanceRecords.points,
+        ping_count: attendanceRecords.pingCount,
+        first_seen_at: attendanceRecords.firstSeenAt,
+        last_seen_at: attendanceRecords.lastSeenAt,
+        duration_minutes: attendanceRecords.durationMinutes,
+        admin_override: attendanceRecords.adminOverride,
+        penalty: attendanceRecords.penalty,
+        penalty_reason: attendanceRecords.penaltyReason,
       })
-      .from(attendance_records)
-      .where(eq(attendance_records.session_id, sessionId));
+      .from(attendanceRecords)
+      .where(eq(attendanceRecords.sessionId, sessionId));
 
     const recordMap = {};
     (refreshedRecords || []).forEach((r) => {

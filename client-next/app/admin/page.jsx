@@ -12,9 +12,54 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '@/lib/api';
 
+// ---------------------------------------------------------------------------
+// IST helpers (client-side mirror of lib/ist-date.js)
+// ---------------------------------------------------------------------------
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+function getISTNowClient() {
+    return new Date(Date.now() + IST_OFFSET_MS);
+}
+
+/**
+ * Derives the display status of a session based on the current IST wall-clock.
+ * @param {string} sessionDate   – "YYYY-MM-DD"
+ * @param {string} startTime     – "HH:MM" or "HH:MM:SS"
+ * @param {string} endTime       – "HH:MM" or "HH:MM:SS"
+ * @param {string} dbStatus      – raw DB status (e.g. 'scheduled', 'pending')
+ * @param {Date}   nowIST        – current IST Date (pass in from state so React re-renders)
+ */
+function getSessionStatus(sessionDate, startTime, endTime, dbStatus, nowIST) {
+    if (!sessionDate || !startTime) {
+        return dbStatus === 'scheduled' ? 'Upcoming' : 'Pending';
+    }
+    const [sh, sm] = startTime.split(':').map(Number);
+    const [eh, em] = (endTime || startTime).split(':').map(Number);
+
+    // Build comparable minutes-since-midnight for session on IST wall-clock
+    const nowMins = nowIST.getUTCHours() * 60 + nowIST.getUTCMinutes();
+
+    // Compare calendar dates (YYYY-MM-DD)
+    const todayStr = nowIST.toISOString().split('T')[0];
+    if (sessionDate < todayStr) return 'Completed';
+    if (sessionDate > todayStr) return dbStatus === 'scheduled' ? 'Upcoming' : 'Pending';
+
+    // Same calendar day — compare by time
+    const startMins = sh * 60 + sm;
+    const endMins   = eh * 60 + em;
+    if (nowMins >= endMins)   return 'Completed';
+    if (nowMins >= startMins) return 'Live';
+    return dbStatus === 'scheduled' ? 'Upcoming' : 'Pending';
+}
+
 export default function AdminDashboard() {
     const router = useRouter();
     const { user, logout, authReady } = useAuth();
+    // IST clock – ticks every 60 s so status badges auto-update
+    const [istNow, setIstNow] = useState(() => getISTNowClient());
+    useEffect(() => {
+        const tick = setInterval(() => setIstNow(getISTNowClient()), 60_000);
+        return () => clearInterval(tick);
+    }, []);
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [showScheduleModal, setShowScheduleModal] = useState(false);
@@ -63,7 +108,11 @@ export default function AdminDashboard() {
                     time: s.start_time ? s.start_time.slice(0, 5) : '',
                     venue: s.venues?.name || 'TBA',
                     students: s.enrolled_students || 0,
-                    status: s.status === 'scheduled' ? 'Scheduled' : 'Pending',
+                    // Store raw fields so we can compute status dynamically in render
+                    sessionDate: s.session_date,
+                    startTime: s.start_time,
+                    endTime: s.end_time,
+                    dbStatus: s.status,
                     id: s.id,
                 })));
             })
@@ -248,7 +297,8 @@ export default function AdminDashboard() {
                             {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
                         </div>
                     </div>
-                    <nav className="nav-menu">
+                    <div id="cohort-switcher-portal" style={{ padding: '0 1rem 1rem', display: isCollapsed ? 'none' : 'block', width: '100%', boxSizing: 'border-box' }}></div>
+                        <nav className="nav-menu">
                         <div style={{ fontSize: '0.6rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', color: '#555', padding: '8px 1rem 4px' }}><span>Main</span></div>
                         <div className="nav-item active"><LayoutGrid size={18} /> <span>Dashboard</span></div>
                         <div className="nav-item" onClick={() => navTo('/admin/schedule')} style={{ cursor: 'pointer' }}><Calendar size={18} /> <span>Schedule Management</span></div>
@@ -377,7 +427,21 @@ export default function AdminDashboard() {
                                             </div>
                                         </div>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                                            <span style={{ padding: '3px 10px', borderRadius: '8px', fontSize: '0.7rem', fontWeight: 600, background: cls.status === 'Scheduled' ? '#ecfdf5' : '#fffbeb', color: cls.status === 'Scheduled' ? '#166534' : '#92400e' }}>{cls.status}</span>
+                                            {(() => {
+                                                const st = getSessionStatus(cls.sessionDate, cls.startTime, cls.endTime, cls.dbStatus, istNow);
+                                                const badgeStyle = {
+                                                    'Completed': { bg: '#ecfdf5', color: '#166534' },
+                                                    'Live':      { bg: '#eff6ff', color: '#1d4ed8' },
+                                                    'Upcoming':  { bg: '#f5f3ff', color: '#6d28d9' },
+                                                    'Pending':   { bg: '#fffbeb', color: '#92400e' },
+                                                }[st] || { bg: '#fffbeb', color: '#92400e' };
+                                                return (
+                                                    <span style={{ padding: '3px 10px', borderRadius: '8px', fontSize: '0.7rem', fontWeight: 600, background: badgeStyle.bg, color: badgeStyle.color, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                                        {st === 'Live' && <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#1d4ed8', display: 'inline-block', animation: 'pulse 1.2s infinite' }} />}
+                                                        {st}
+                                                    </span>
+                                                );
+                                            })()}
                                             <button onClick={() => handleNotifyAll(cls.id)} disabled={notifyStatus === 'sending'} className="change-status-btn" style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 12px', borderRadius: '8px', border: '1px solid #eee', background: notifyStatus === 'sent' ? '#ecfdf5' : '#fff', cursor: notifyStatus === 'sending' ? 'wait' : 'pointer', fontSize: '0.75rem', fontWeight: 500, color: notifyStatus === 'sent' ? '#166534' : '#555' }}>
                                                 {notifyStatus === 'sending' ? <><RefreshCw size={11} style={{ animation: 'spin 1s linear infinite' }} /> Sending...</> : notifyStatus === 'sent' ? <><CheckCircle size={11} /> Sent!</> : <><Send size={11} /> Notify All</>}
                                             </button>

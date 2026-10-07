@@ -10,12 +10,12 @@ const STALE_THRESHOLD_MINUTES = 10; // consider data stale after 10 min
 
 async function handler(req) {
   try {
-    // 1. Fetch the latest 2 wifi_snapshot entries to compare timestamps (PRESERVED IN SUPABASE PER MIGRATION RULE)
+    // 1. Fetch the latest 3 wifi_snapshot entries — latest for live students, prev 2 for recently-active detection
     const { data: snapshots, error: snapErr } = await supabaseAdmin
       .schema('public').from('wifi_snapshots')
       .select('id, captured_at, iw_dump')
       .order('captured_at', { ascending: false })
-      .limit(2);
+      .limit(3);
 
     if (snapErr) {
       return NextResponse.json({ error: snapErr.message }, { status: 500 });
@@ -35,6 +35,7 @@ async function handler(req) {
 
     const latest = snapshots[0];
     const previous = snapshots.length > 1 ? snapshots[1] : null;
+    const oldest = snapshots.length > 2 ? snapshots[2] : null;
 
     // 2. Determine staleness
     const capturedAt = new Date(latest.captured_at);
@@ -58,7 +59,7 @@ async function handler(req) {
       staleMessage = `Warning: The latest snapshot is identical to the previous one — scanner data may be frozen.`;
     }
 
-    // 3. Parse iw_dump clients
+    // 3. Parse iw_dump clients from the latest snapshot
     let clients = [];
     try {
       let dump = latest.iw_dump;
@@ -68,6 +69,19 @@ async function handler(req) {
     } catch (e) {
       clients = [];
     }
+
+    // Parse clients from the 2 older snapshots (for recently-active detection)
+    const parseClients = (snapshot) => {
+      if (!snapshot) return [];
+      try {
+        let dump = snapshot.iw_dump;
+        if (typeof dump === 'string') dump = JSON.parse(dump);
+        if (typeof dump === 'string') dump = JSON.parse(dump);
+        return Array.isArray(dump) ? dump : [];
+      } catch (e) { return []; }
+    };
+    const prevClients = parseClients(previous);
+    const oldestClients = parseClients(oldest);
 
     // 4. Normalize MACs — handles all real-world variations:
     //    Scanner: "EC-8E-B5-14-16-D7" (dashes, uppercase)
@@ -169,12 +183,62 @@ async function handler(req) {
       }
     });
 
+    // 7b. Build set of MACs seen in the latest ping
+    const latestMacs = new Set(validClients.map(c => normalizeMac(c.mac)));
+
+    // Collect MACs from the 2 older snapshots that are NOT in the latest ping
+    const normalizeMacAndFilter = (rawClients) => {
+      const normalizeMacFn = (mac) => {
+        if (!mac) return '';
+        return mac.trim().toUpperCase().replace(/[-.\s]/g, ':').replace(/:+/g, ':').replace(/^:|:$/g, '');
+      };
+      const isValidMacFn = (mac) => /^([A-F0-9]{2}:){5}[A-F0-9]{2}$/.test(mac);
+      return rawClients
+        .filter(c => c.mac && c.mac.trim() !== '' && isValidMacFn(normalizeMacFn(c.mac)))
+        .map(c => ({ ...c, _normMac: normalizeMacFn(c.mac) }))
+        .filter(c => !latestMacs.has(c._normMac));
+    };
+
+    // Merge older clients, deduplicate by MAC (prefer ping 2 over ping 3)
+    const olderClientsMap = new Map();
+    [...normalizeMacAndFilter(oldestClients), ...normalizeMacAndFilter(prevClients)].forEach(c => {
+      olderClientsMap.set(c._normMac, c);
+    });
+
+    // Build recently-active identified students from older pings
+    const recentStudents = [];
+    for (const [mac, client] of olderClientsMap.entries()) {
+      const student = macToStudent[mac];
+      if (!student) continue; // only care about identified students
+      const signal = parseInt(client.signal) || 0;
+      const firstName = student.users?.first_name || '';
+      const lastName = student.users?.last_name || '';
+      recentStudents.push({
+        studentId: student.id,
+        enrollmentNo: student.enrollment_no || '',
+        name: `${firstName} ${lastName}`.trim() || 'Unknown',
+        firstName,
+        lastName,
+        email: student.users?.email || '',
+        program: student.program_name || '',
+        macAddress: mac,
+        macVerified: student.mac_verified || false,
+        deviceName: client.name || '',
+        signal,
+        ip: client.ip || '',
+        duration: client.duration || '',
+        download: client.download || '',
+        upload: client.upload || '',
+      });
+    }
+
     // 8. Compute avg signal
     const allSignals = [...identified, ...unidentified].map(d => d.signal).filter(s => s > 0);
     const avgSignal = allSignals.length > 0 ? Math.round(allSignals.reduce((a, b) => a + b, 0) / allSignals.length) : 0;
 
     return NextResponse.json({
       students: identified,
+      recentStudents,
       unidentified,
       stats: {
         totalDevices: validClients.length,

@@ -368,7 +368,8 @@ export default function AdminAttendancePage() {
                         {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
                     </div>
                 </div>
-                <nav className="nav-menu">
+                <div id="cohort-switcher-portal" style={{ padding: '0 1rem 1rem', display: isCollapsed ? 'none' : 'block', width: '100%', boxSizing: 'border-box' }}></div>
+                        <nav className="nav-menu">
                     <div style={{ fontSize: '0.6rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', color: '#555', padding: '8px 1rem 4px' }}><span>Main</span></div>
                     <div className="nav-item" onClick={() => navTo('/admin')} style={{ cursor: 'pointer' }}><LayoutGrid size={18} /> <span>Dashboard</span></div>
                     <div className="nav-item" onClick={() => navTo('/admin/schedule')} style={{ cursor: 'pointer' }}><Calendar size={18} /> <span>Schedule Management</span></div>
@@ -708,22 +709,22 @@ export default function AdminAttendancePage() {
                                                                             </td>
                                                                             <td className="am-col-pings" style={{ padding: '9px 14px', fontFamily: 'monospace', fontSize: '0.78rem', color: '#888' }}>{s.pingCount || 0}<span style={{ color: '#ccc' }}>/{sessionStudents?.summary?.snapshotsAnalyzed || '?'}</span></td>
                                                                             <td style={{ padding: '9px 14px' }} title={s.pointsBreakdown?.reason || ''}>
-                                                                                {s.points != null ? (
+                                                                                {s.points != null ? (() => { const pts = parseFloat(s.points); return (
                                                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                                                         <div style={{
                                                                                             width: '36px', height: '6px', borderRadius: '3px', background: '#f0f0f0', overflow: 'hidden',
                                                                                         }}>
                                                                                             <div style={{
-                                                                                                width: `${(s.points || 0) * 100}%`, height: '100%', borderRadius: '3px',
-                                                                                                background: s.points >= 0.8 ? '#16a34a' : s.points >= 0.5 ? '#b45309' : s.points > 0 ? '#dc2626' : '#e5e5e5',
+                                                                                                width: `${(pts || 0) * 100}%`, height: '100%', borderRadius: '3px',
+                                                                                                background: pts >= 0.8 ? '#16a34a' : pts >= 0.5 ? '#b45309' : pts > 0 ? '#dc2626' : '#e5e5e5',
                                                                                             }} />
                                                                                         </div>
                                                                                         <span style={{
                                                                                             fontWeight: 700, fontFamily: 'monospace', fontSize: '0.78rem',
-                                                                                            color: s.points >= 0.8 ? '#16a34a' : s.points >= 0.5 ? '#b45309' : s.points > 0 ? '#dc2626' : '#ccc',
-                                                                                        }}>{s.points.toFixed(1)}</span>
+                                                                                            color: pts >= 0.8 ? '#16a34a' : pts >= 0.5 ? '#b45309' : pts > 0 ? '#dc2626' : '#ccc',
+                                                                                        }}>{pts.toFixed(1)}</span>
                                                                                     </div>
-                                                                                ) : (
+                                                                                ); })() : (
                                                                                     <span style={{ color: '#ccc', fontSize: '0.75rem' }}>—</span>
                                                                                 )}
                                                                             </td>
