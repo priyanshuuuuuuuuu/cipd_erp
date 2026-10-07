@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { usePathname } from 'next/navigation';
 import { api, getCohortRole } from '@/lib/api';
 import { useAuth } from './AuthContext';
 
@@ -8,6 +9,7 @@ const CohortContext = createContext(null);
 
 export function CohortProvider({ children }) {
   const { user, authReady } = useAuth();
+  const pathname = usePathname();
   const [cohorts, setCohorts] = useState([]);
   const [activeCohort, setActiveCohort] = useState('');
   const [selectedCohort, setSelectedCohort] = useState('');
@@ -15,7 +17,10 @@ export function CohortProvider({ children }) {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   const fetchCohorts = useCallback(async () => {
-    if (!user) {
+    // The login page is shared by every role. Wait until the role-based
+    // redirect has selected /admin, /faculty, or /dashboard before asking for
+    // cohorts, so the API client reads the matching role-scoped token.
+    if (!user || pathname === '/') {
       setLoading(false);
       return;
     }
@@ -42,7 +47,7 @@ export function CohortProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, pathname]);
 
   useEffect(() => {
     if (authReady) {
