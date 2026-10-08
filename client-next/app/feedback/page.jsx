@@ -265,13 +265,14 @@ export default function FeedbackPage() {
                                     boxShadow: '0 4px 12px rgba(59, 130, 246, 0.05)'
                                 }}>
                                     <div>
-                                        <h2 style={{ fontSize: '1.35rem', fontWeight: 700, color: '#0f172a', margin: '0 0 4px', letterSpacing: '-0.3px' }}>
+                                        
+                                        <h2 style={{ fontSize: '1.35rem', fontWeight: 700, color: '#0f172a', margin: '0 0 4px', letterSpacing: '-0.3px' }}> */}
                                             Lecture Feedback
                                         </h2>
                                         <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}>
                                             You&apos;ve earned ... <strong style={{ color: '#0f172a' }}>{totalPointsEarned} Points</strong> from feedback.
                                         </p>
-                                    </div>
+                                    </div> 
                                     <div style={{ display: 'flex', gap: '12px' }}>
                                         <div style={{ textAlign: 'center', padding: '10px 16px', background: '#fffbeb', borderRadius: '12px', border: '1px solid #fde68a' }}>
                                             <div style={{ fontSize: '0.7rem', color: '#b45309', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '2px' }}>Pending</div>
@@ -826,3 +827,4 @@ export default function FeedbackPage() {
         </div>
     );
 }
+// commit
