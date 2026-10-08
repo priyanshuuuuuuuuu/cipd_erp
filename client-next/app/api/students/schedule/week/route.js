@@ -62,7 +62,7 @@ async function handler(req) {
       .from(sessionsTable)
       .leftJoin(courses, eq(sessionsTable.courseId, courses.id))
       .leftJoin(faculty, eq(sessionsTable.facultyId, faculty.id))
-      .leftJoin(users, eq(faculty.userId, users.id))
+      .leftJoin(users, eq(faculty.id, users.id))
       .leftJoin(venues, eq(sessionsTable.venueId, venues.id))
       .leftJoin(sessionTypes, eq(sessionsTable.sessionTypeId, sessionTypes.id))
       .where(
