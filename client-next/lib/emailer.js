@@ -391,7 +391,7 @@ export async function sendWeeklyScheduleEmail(studentEmail, studentName, session
 
   const icsContent = generateICS(sorted, studentName);
 
-  await transporter.sendMail({
+  return await transporter.sendMail({
     from: fromAddress(),
     to: studentEmail,
     subject: `Your weekly schedule — ${weekRange}`,
@@ -495,7 +495,7 @@ export async function sendDayBeforeReminderEmail(studentEmail, studentName, sess
 
   const icsContent = generateICS([session], studentName);
 
-  await transporter.sendMail({
+  return await transporter.sendMail({
     from: fromAddress(),
     to: studentEmail,
     subject: `Class tomorrow: ${title} at ${start}`,
@@ -556,7 +556,7 @@ export async function sendGeneralNotificationEmail(studentEmail, studentName, ti
           </td>
         </tr>`;
 
-  await transporter.sendMail({
+  return await transporter.sendMail({
     from: fromAddress(),
     to: studentEmail,
     subject: `${cfg.label}: ${title || cfg.label} — CiPD 360`,
@@ -638,7 +638,7 @@ export async function sendFeedbackAvailableEmail(studentEmail, studentName, sess
           </td>
         </tr>`;
 
-  await transporter.sendMail({
+  return await transporter.sendMail({
     from: fromAddress(),
     to: studentEmail,
     subject: `Feedback form ready: ${course} — CiPD 360`,
@@ -699,7 +699,7 @@ export async function sendFeedbackReminderEmail(studentEmail, studentName, sessi
           </td>
         </tr>`;
 
-  await transporter.sendMail({
+  return await transporter.sendMail({
     from: fromAddress(),
     to: studentEmail,
     subject: `Feedback closes in ${hrs}h: ${course} — CiPD 360`,
@@ -777,7 +777,7 @@ export async function sendPasswordResetEmail({ to, firstName, resetUrl }) {
     </tr>
   `;
 
-  await transporter.sendMail({
+  return await transporter.sendMail({
     from: fromAddress(),
     to,
     subject: 'Reset your CiPD 360 password',
@@ -836,7 +836,7 @@ export async function sendAttendanceSummaryEmail(studentEmail, studentName, sess
           </td>
         </tr>`;
 
-  await transporter.sendMail({
+  return await transporter.sendMail({
     from: fromAddress(),
     to: studentEmail,
     subject: `Attendance Summary: ${course} — CiPD 360`,

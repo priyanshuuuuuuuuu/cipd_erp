@@ -106,6 +106,64 @@ export async function enqueueFeedbackMessages(session, deadline, students = []) 
   };
 }
 
+/**
+ * Queues one email per *actual* target student (admin compose / class reminders).
+ * In sandbox mode a student is only mailed if their own address is on the
+ * sandbox allowlist; everyone else is skipped, never redirected to testers.
+ *
+ * @param {{ eventType: 'general_notification'|'class_reminder'|'weekly_schedule',
+ *           batchId: string,
+ *           items: Array<{ student: {id:string,email:string,first_name?:string,last_name?:string}, payload: object }> }} opts
+ */
+export async function enqueueTargetedEmails({ eventType, batchId, items }) {
+  const sandbox = isNotificationSandboxEnabled();
+  const allowed = new Set(configuredSandboxRecipients());
+  const skipped = [];
+  const rows = [];
+
+  for (const { student, payload } of items) {
+    const email = student.email?.trim().toLowerCase();
+    if (!email) continue;
+    if (sandbox && !allowed.has(email)) {
+      skipped.push(email);
+      // Recorded as a failed row so the admin delivery log shows why nothing was sent.
+      rows.push({
+        sessionId: payload.sessionId || null,
+        dedupeKey: eventType + ':' + batchId + ':' + student.id,
+        eventType,
+        channel: 'email',
+        recipientId: student.id,
+        recipientEmail: email,
+        recipientName: ((student.first_name || '') + ' ' + (student.last_name || '')).trim() || 'Student',
+        payload,
+        status: 'failed',
+        attempts: 0,
+        lastError: 'Skipped: sandbox mode is on and this address is not in NOTIFICATION_SANDBOX_RECIPIENTS',
+        availableAt: new Date().toISOString(),
+      });
+      continue;
+    }
+    rows.push({
+      sessionId: payload.sessionId || null,
+      dedupeKey: eventType + ':' + batchId + ':' + student.id,
+      eventType,
+      channel: 'email',
+      recipientId: student.id,
+      recipientEmail: email,
+      recipientName: ((student.first_name || '') + ' ' + (student.last_name || '')).trim() || 'Student',
+      payload,
+      status: 'queued',
+      availableAt: new Date().toISOString(),
+    });
+  }
+
+  if (rows.length) {
+    await db.insert(notificationStream).values(rows)
+      .onConflictDoNothing({ target: notificationStream.dedupeKey });
+  }
+  return { queued: rows.length - skipped.length, sandbox, skipped };
+}
+
 export async function retryNotificationMessage(messageId) {
   const [data] = await db
     .update(notificationStream)

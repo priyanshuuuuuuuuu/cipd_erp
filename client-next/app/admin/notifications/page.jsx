@@ -8,6 +8,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '@/lib/api';
+import EmailDeliveryLog from './EmailDeliveryLog';
 import '../../Dashboard.css';
 
 export default function AdminNotificationsPage() {
@@ -46,6 +47,28 @@ export default function AdminNotificationsPage() {
     const [history, setHistory] = useState([]);
     const [stats, setStats] = useState({ total_sent: 0, unread: 0 });
     const [loading, setLoading] = useState(true);
+
+    // Live email delivery log (polled while the page is open)
+    const [emailLog, setEmailLog] = useState([]);
+    const [emailLogError, setEmailLogError] = useState('');
+    const [sendResult, setSendResult] = useState(null);
+
+    const loadEmailLog = useCallback(async () => {
+        try {
+            const data = await api.get('/api/admin/email-log?limit=100');
+            setEmailLog(data.messages || []);
+            setEmailLogError('');
+        } catch (err) {
+            setEmailLogError(err.message || 'Could not load delivery log');
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!authReady) return;
+        loadEmailLog();
+        const timer = setInterval(loadEmailLog, 2000);
+        return () => clearInterval(timer);
+    }, [authReady, loadEmailLog]);
 
     const navTo = p => router.push(p);
 
@@ -152,7 +175,9 @@ export default function AdminNotificationsPage() {
         }
 
         try {
-            await api.post('/api/admin/notifications', body);
+            const result = await api.post('/api/admin/notifications', body);
+            setSendResult(result);
+            loadEmailLog();
             setSentSuccess(true);
             setMessage('');
             setSessionId('');
@@ -164,7 +189,7 @@ export default function AdminNotificationsPage() {
             setTimeout(() => {
                 setSentSuccess(false);
                 setIsComposeOpen(false);
-            }, 2000);
+            }, result?.emailsSkippedBySandbox ? 5000 : 2000);
         } catch (err) {
             setSendError(err.message || 'Failed to send');
         } finally {
@@ -300,6 +325,8 @@ export default function AdminNotificationsPage() {
                             </button>
                         ))}
                     </div>
+
+                    <EmailDeliveryLog messages={emailLog} error={emailLogError} />
 
                     {/* Notification History */}
                     <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', borderTop: `3px solid ${activeTab === 'all' ? '#00A5A0' : '#3B2D82'}`, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
@@ -560,7 +587,7 @@ export default function AdminNotificationsPage() {
                                     <div style={{ display: 'flex', alignItems: 'center' }}>
                                         {sentSuccess && (
                                             <span style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: '#16a34a', fontWeight: 600, background: '#dcfce7', padding: '6px 12px', borderRadius: '20px' }}>
-                                                <CheckCircle size={16} /> Notification Sent Successfully!
+                                                <CheckCircle size={16} /> {sendResult?.emailsSkippedBySandbox ? `Saved in-app. Email NOT sent: ${sendResult.emailsSkippedBySandbox} recipient(s) blocked by sandbox` : `Saved in-app. ${sendResult?.emailsQueued ?? 0} email(s) queued — watch the delivery log`}
                                             </span>
                                         )}
                                         {sendError && <span style={{ fontSize: '0.85rem', color: '#dc2626', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}><AlertTriangle size={14}/> {sendError}</span>}
