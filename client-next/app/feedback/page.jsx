@@ -266,7 +266,7 @@ export default function FeedbackPage() {
                                 }}>
                                     <div>
                                         
-                                        <h2 style={{ fontSize: '1.35rem', fontWeight: 700, color: '#0f172a', margin: '0 0 4px', letterSpacing: '-0.3px' }}> */}
+                                        <h2 style={{ fontSize: '1.35rem', fontWeight: 700, color: '#0f172a', margin: '0 0 4px', letterSpacing: '-0.3px' }}>
                                             Lecture Feedback
                                         </h2>
                                         <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}>
