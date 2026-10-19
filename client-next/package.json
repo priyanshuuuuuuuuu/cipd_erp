@@ -11,6 +11,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "attendance-worker": "node scripts/attendance-worker.js",
+    "daily-digest-worker": "node scripts/daily-digest-worker.js",
     "notification-worker": "node scripts/notification-stream-worker.mjs"
   },
   "dependencies": {

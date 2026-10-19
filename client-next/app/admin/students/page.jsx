@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
+import { useCohort } from '../../contexts/CohortContext';
 
 // ─── Input style helper ────────────────────────────────────────────────────
 const inp = {
@@ -783,10 +784,47 @@ export default function AdminStudentsPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
+    const { cohorts: contextCohorts, activeCohort, selectedCohort } = useCohort();
+
     // Cohort/schema selector
-    const [schema, setSchema] = useState(DEFAULT_SCHEMA);
-    const [cohorts, setCohorts] = useState([{ value: DEFAULT_SCHEMA, label: DEFAULT_SCHEMA.charAt(0).toUpperCase() + DEFAULT_SCHEMA.slice(1) }]);
+    const [schema, setSchema] = useState(() => {
+        if (typeof window !== 'undefined') {
+            const stored = localStorage.getItem('admin_cohort');
+            if (stored) return stored;
+        }
+        return DEFAULT_SCHEMA;
+    });
+    const [cohorts, setCohorts] = useState([]);
+    const [activeSchema, setActiveSchema] = useState('');
     const [cohortsLoading, setCohortsLoading] = useState(true);
+
+    const effectiveActiveCohort = activeCohort || activeSchema;
+
+    const cohortList = useMemo(() => {
+        if (contextCohorts && contextCohorts.length > 0) {
+            return contextCohorts.map(c => ({
+                value: c.schema,
+                label: c.label,
+                isActive: c.schema === effectiveActiveCohort,
+            }));
+        }
+        if (cohorts && cohorts.length > 0) {
+            return cohorts.map(c => ({
+                ...c,
+                isActive: c.value === effectiveActiveCohort,
+            }));
+        }
+        return [{ value: DEFAULT_SCHEMA, label: DEFAULT_SCHEMA.charAt(0).toUpperCase() + DEFAULT_SCHEMA.slice(1), isActive: true }];
+    }, [contextCohorts, cohorts, effectiveActiveCohort]);
+
+    // Sync schema with selectedCohort or activeCohort from context when available
+    useEffect(() => {
+        if (selectedCohort) {
+            setSchema(selectedCohort);
+        } else if (activeCohort) {
+            setSchema(activeCohort);
+        }
+    }, [selectedCohort, activeCohort]);
 
     const [searchTerm, setSearchTerm] = useState('');
     const [filterProgram, setFilterProgram] = useState('');
@@ -809,8 +847,22 @@ export default function AdminStudentsPage() {
     useEffect(() => {
         api.get('/api/admin/cohorts')
             .then(cfg => {
-                const list = (cfg.schemas || []).map(s => ({ value: s, label: cfg.labels?.[s] || s }));
-                if (list.length > 0) { setCohorts(list); setSchema(list[0].value); }
+                const list = (cfg.schemas || []).map(s => ({
+                    value: s,
+                    label: cfg.labels?.[s] || s,
+                    isActive: s === cfg.active,
+                }));
+                if (list.length > 0) {
+                    setCohorts(list);
+                    const active = cfg.active || list[0].value;
+                    setActiveSchema(active);
+                    setSchema(prev => {
+                        const stored = typeof window !== 'undefined' ? localStorage.getItem('admin_cohort') : null;
+                        if (stored && list.some(c => c.value === stored)) return stored;
+                        if (prev && prev !== DEFAULT_SCHEMA && list.some(c => c.value === prev)) return prev;
+                        return active;
+                    });
+                }
             })
             .catch(() => {})
             .finally(() => setCohortsLoading(false));
@@ -950,24 +1002,70 @@ export default function AdminStudentsPage() {
                     </header>
 
                     {/* Cohort Selector Banner */}
-                    {!cohortsLoading && cohorts.length > 1 && (
+                    {!cohortsLoading && cohortList.length > 1 && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '1rem', padding: '10px 14px', background: '#fff', borderRadius: '10px', border: '1px solid #e2e8f0', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                                 <BookOpen size={13} color="#64748b" /> Cohort
                             </div>
                             <div style={{ display: 'flex', gap: 6 }}>
-                                {cohorts.map(c => (
-                                    <button key={c.value} onClick={() => { setSchema(c.value); setExpandedStudentId(null); }}
-                                        style={{ padding: '5px 14px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, transition: 'all 0.15s',
-                                            background: schema === c.value ? 'linear-gradient(135deg, #0f4c75, #1b6ca8)' : '#f1f5f9',
-                                            color: schema === c.value ? '#fff' : '#64748b',
-                                            boxShadow: schema === c.value ? '0 2px 8px rgba(27,108,168,0.3)' : 'none' }}>
-                                        {c.label}
-                                        {c.value !== DEFAULT_SCHEMA && <span style={{ fontSize: '0.58rem', marginLeft: 5, opacity: 0.75 }}>● Archive</span>}
-                                    </button>
-                                ))}
+                                {cohortList.map(c => {
+                                    const isSelected = schema === c.value;
+                                    const isActive = c.value === effectiveActiveCohort;
+                                    return (
+                                        <button
+                                            key={c.value}
+                                            onClick={() => {
+                                                setSchema(c.value);
+                                                setExpandedStudentId(null);
+                                                if (typeof window !== 'undefined') {
+                                                    localStorage.setItem('admin_cohort', c.value);
+                                                }
+                                            }}
+                                            style={{
+                                                padding: '5px 14px',
+                                                borderRadius: '20px',
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                fontSize: '0.78rem',
+                                                fontWeight: 700,
+                                                transition: 'all 0.15s',
+                                                background: isSelected ? 'linear-gradient(135deg, #0f4c75, #1b6ca8)' : '#f1f5f9',
+                                                color: isSelected ? '#fff' : '#64748b',
+                                                boxShadow: isSelected ? '0 2px 8px rgba(27,108,168,0.3)' : 'none',
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: 6,
+                                            }}
+                                        >
+                                            <span>{c.label}</span>
+                                            {isActive ? (
+                                                <span style={{
+                                                    fontSize: '0.58rem',
+                                                    padding: '1px 6px',
+                                                    borderRadius: '4px',
+                                                    background: isSelected ? 'rgba(16,185,129,0.3)' : '#dcfce7',
+                                                    color: isSelected ? '#a7f3d0' : '#166534',
+                                                    fontWeight: 700,
+                                                }}>
+                                                    Active
+                                                </span>
+                                            ) : (
+                                                <span style={{
+                                                    fontSize: '0.58rem',
+                                                    padding: '1px 5px',
+                                                    borderRadius: '4px',
+                                                    background: isSelected ? 'rgba(255,255,255,0.15)' : '#e2e8f0',
+                                                    color: isSelected ? '#cbd5e1' : '#64748b',
+                                                    opacity: 0.85,
+                                                }}>
+                                                    Archive
+                                                </span>
+                                            )}
+                                        </button>
+                                    );
+                                })}
                             </div>
-                            {schema !== (cohorts[0]?.value) && (
+                            {effectiveActiveCohort && schema !== effectiveActiveCohort && (
                                 <span style={{ marginLeft: 'auto', fontSize: '0.68rem', fontWeight: 700, padding: '3px 10px', borderRadius: '6px', background: '#fffbeb', color: '#b45309', border: '1px solid #fde68a' }}>
                                     ⚠ Viewing archived cohort — edits apply to this schema
                                 </span>
@@ -1005,7 +1103,20 @@ export default function AdminStudentsPage() {
                                 <GraduationCap size={16} color="#1b6ca8" />
                                 All Students
                                 <span style={{ fontSize: '0.72rem', color: '#888', fontWeight: 500 }}>({filtered.length} of {totalStudents})</span>
-                                {cohorts.length > 1 && <span style={{ fontSize: '0.68rem', fontWeight: 700, padding: '2px 8px', borderRadius: 5, background: '#eff6ff', color: '#1d4ed8', marginLeft: 4 }}>{cohorts.find(c => c.value === schema)?.label}</span>}
+                                {cohortList.length > 1 && (
+                                    <span style={{
+                                        fontSize: '0.68rem',
+                                        fontWeight: 700,
+                                        padding: '2px 8px',
+                                        borderRadius: 5,
+                                        background: schema === effectiveActiveCohort ? '#ecfdf5' : '#eff6ff',
+                                        color: schema === effectiveActiveCohort ? '#059669' : '#1d4ed8',
+                                        marginLeft: 4,
+                                    }}>
+                                        {cohortList.find(c => c.value === schema)?.label || schema}
+                                        {schema === effectiveActiveCohort ? ' (Active)' : ' (Archived)'}
+                                    </span>
+                                )}
                             </div>
 
                             {/* Filters */}

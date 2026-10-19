@@ -215,6 +215,26 @@ export async function createCohort(opts) {
       await sql.unsafe(`INSERT INTO ${dst}.${qid(t)} SELECT * FROM ${src}.${qid(t)}`);
     }
 
+    // Auto-enroll trigger for any student created in this cohort
+    await sql.unsafe(`
+      CREATE OR REPLACE FUNCTION ${dst}.auto_enroll_student_in_courses()
+      RETURNS TRIGGER AS $$
+      BEGIN
+          INSERT INTO ${dst}.course_enrollments (student_id, course_id)
+          SELECT NEW.id, courses.id
+          FROM ${dst}.courses
+          ON CONFLICT DO NOTHING;
+          RETURN NEW;
+      END;
+      $$ LANGUAGE plpgsql;
+
+      DROP TRIGGER IF EXISTS trg_auto_enroll_student ON ${dst}.students;
+      CREATE TRIGGER trg_auto_enroll_student
+      AFTER INSERT ON ${dst}.students
+      FOR EACH ROW
+      EXECUTE FUNCTION ${dst}.auto_enroll_student_in_courses();
+    `);
+
     // 4. Enrol students.
     for (const s of studentRows) {
       try {
@@ -248,6 +268,19 @@ export async function createCohort(opts) {
       } catch (err) {
         result.failed.push({ email: s.email, error: err.message });
       }
+    }
+
+    // Auto-enroll all students in all courses of this cohort
+    try {
+      await sql.unsafe(`
+        INSERT INTO ${dst}.course_enrollments (student_id, course_id)
+        SELECT s.id, c.id
+        FROM ${dst}.students s
+        CROSS JOIN ${dst}.courses c
+        ON CONFLICT DO NOTHING
+      `);
+    } catch (enrollErr) {
+      console.warn('Cohort creation auto-enroll error:', enrollErr.message);
     }
 
     // 5. Register the cohort.

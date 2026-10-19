@@ -159,6 +159,21 @@ async function postHandler(req) {
       throw stuErr;
     }
 
+    // Auto-enroll the new student in all existing courses
+    try {
+      const allCourses = await schemaDb.select({ id: courses.id }).from(courses);
+      if (allCourses.length > 0) {
+        await schemaDb.insert(courseEnrollments).values(
+          allCourses.map(c => ({
+            studentId: newUser.id,
+            courseId: c.id,
+          }))
+        ).onConflictDoNothing();
+      }
+    } catch (enrollErr) {
+      console.warn('Failed to auto-enroll new student in courses:', enrollErr.message);
+    }
+
     return NextResponse.json({ success: true, student: { id: newUser.id, first_name, last_name, email } }, { status: 201 });
   } catch (err) {
     console.error('Students POST error:', err);

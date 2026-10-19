@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { db, runWithSchema, getActiveSchema } from '@/lib/db';
-import { users, students } from '@/drizzle/schema';
+import { users, students, courses, courseEnrollments } from '@/drizzle/schema';
 import { eq, like, desc } from 'drizzle-orm';
 import { hashPassword, signToken } from '@/lib/auth';
 
@@ -105,6 +105,21 @@ async function signupHandler(req) {
       return NextResponse.json({
         error: `Failed to create student profile: ${studentError.message}`,
       }, { status: 500 });
+    }
+
+    // Auto-enroll student in all existing courses
+    try {
+      const allCourses = await db.select({ id: courses.id }).from(courses);
+      if (allCourses.length > 0) {
+        await db.insert(courseEnrollments).values(
+          allCourses.map(c => ({
+            studentId: newUser.id,
+            courseId: c.id,
+          }))
+        ).onConflictDoNothing();
+      }
+    } catch (enrollErr) {
+      console.warn('Signup auto-enroll error:', enrollErr.message);
     }
 
     // Issue JWT

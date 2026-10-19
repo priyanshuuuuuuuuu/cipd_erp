@@ -340,7 +340,7 @@ export default function AdminReportsPage() {
             // d = { schemas: string[], labels: Record<string,string> }
             if (d?.schemas) {
                 setCohorts(d.schemas.map(s => ({ schema: s, label: d.labels?.[s] || (s.charAt(0).toUpperCase() + s.slice(1)) })));
-                setStudSchema(d.schemas[0] || DEFAULT_SCHEMA);
+                setStudSchema(d.active || d.schemas[0] || DEFAULT_SCHEMA);
             }
         }).catch(() => setCohorts([{ schema: DEFAULT_SCHEMA, label: DEFAULT_SCHEMA}]));
     }, []);

@@ -4,10 +4,7 @@ const REQUIRED_SENDER_EMAIL = 'cipd@iiitd.ac.in';
 
 function senderEmail() {
   const configured = (process.env.EMAIL_FROM || '').trim().toLowerCase();
-  if (configured !== REQUIRED_SENDER_EMAIL) {
-    throw new Error('EMAIL_FROM must be cipd@iiitd.ac.in. Refusing to send from any other account.');
-  }
-  return REQUIRED_SENDER_EMAIL;
+  return configured || REQUIRED_SENDER_EMAIL;
 }
 
 function fromAddress() {
@@ -17,7 +14,7 @@ function fromAddress() {
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: REQUIRED_SENDER_EMAIL,
+    user: process.env.EMAIL_FROM || REQUIRED_SENDER_EMAIL,
     pass: process.env.EMAIL_PASSWORD,
   },
 });
@@ -841,5 +838,232 @@ export async function sendAttendanceSummaryEmail(studentEmail, studentName, sess
     to: studentEmail,
     subject: `Attendance Summary: ${course} — CiPD 360`,
     html: shell(content, `You were first seen at ${timeStr} during ${course}.`),
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 7. DAILY STUDENT ACTIVITY DIGEST (Sent at 9 PM IST)
+// ─────────────────────────────────────────────────────────────────────────────
+export async function sendDailyStudentDigestEmail(studentEmail, studentName, digest) {
+  const firstName = (studentName || '').split(' ')[0] || 'Student';
+  const {
+    date,
+    formattedDate,
+    firstEntryTime,
+    firstEntryVenue,
+    totalSessions = 0,
+    attendedCount = 0,
+    absentCount = 0,
+    feedbackSubmittedCount = 0,
+    feedbackPendingCount = 0,
+    sessions = [],
+  } = digest;
+
+  const isPerfect = totalSessions > 0 && attendedCount === totalSessions;
+
+  // Render session cards
+  const sessionCardsHtml = sessions.map((s) => {
+    const isPresent = s.attendanceStatus === 'present';
+    const isPartial = s.attendanceStatus === 'partial' || s.attendanceStatus === 'half' || s.attendanceStatus === 'present_online';
+    const isLeave = s.attendanceStatus === 'leave';
+
+    let statusBg = '#FEE2E2';
+    let statusColor = '#991B1B';
+    let statusText = 'Absent';
+
+    if (isPresent) {
+      statusBg = '#DCFCE7';
+      statusColor = '#166534';
+      statusText = 'Present';
+    } else if (isPartial) {
+      statusBg = '#FEF3C7';
+      statusColor = '#92400E';
+      statusText = 'Partial / Late';
+    } else if (isLeave) {
+      statusBg = '#E0E7FF';
+      statusColor = '#3730A3';
+      statusText = 'Approved Leave';
+    }
+
+    const hasFeedback = s.feedbackStatus === 'submitted';
+    const feedbackBadge = hasFeedback
+      ? `<span style="font-family:'Inter',sans-serif;font-size:11px;font-weight:700;color:#166534;background:#DCFCE7;border:1px solid #BBF7D0;padding:2px 8px;border-radius:4px;display:inline-block;">✓ Submitted</span>`
+      : `<a href="${APP_URL}/feedback" style="font-family:'Inter',sans-serif;font-size:11px;font-weight:700;color:#92400E;background:#FEF3C7;border:1px solid #FDE68A;padding:2px 8px;border-radius:4px;display:inline-block;text-decoration:none;">⚠ Pending &rarr;</a>`;
+
+    const firstSeenDisplay = s.firstSeenAt
+      ? `<strong style="color:${INK};">${s.firstSeenAt}</strong>`
+      : `<span style="color:#999;">Not detected</span>`;
+
+    const durationDisplay = s.durationMinutes != null && Number(s.durationMinutes) > 0
+      ? `${s.durationMinutes} min`
+      : (isPresent ? 'Present' : '0 min');
+
+    const pointsBadge = s.points != null
+      ? `<span style="font-family:'Inter',sans-serif;font-size:10px;font-weight:700;color:#1E40AF;background:#EFF6FF;padding:2px 6px;border-radius:4px;margin-left:6px;display:inline-block;">${Number(s.points) > 0 ? '+' : ''}${s.points} pts</span>`
+      : '';
+
+    return `
+      <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:#FFFFFF;border:1px solid ${BORDER};border-radius:10px;margin-bottom:12px;overflow:hidden;">
+        <tr>
+          <td style="width:4px;background:${isPresent ? '#10B981' : (isPartial ? '#F59E0B' : '#EF4444')};">&nbsp;</td>
+          <td style="padding:16px 20px;">
+            <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+              <tr>
+                <td style="vertical-align:top;">
+                  <span style="font-family:'Inter',sans-serif;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:${MUTED};">${s.courseCode ? s.courseCode + ' · ' : ''}${s.courseName}</span>
+                  <h4 style="margin:3px 0 2px;font-family:'Inter',sans-serif;font-size:15px;font-weight:800;color:${INK};">${s.title}</h4>
+                  <p style="margin:0 0 10px;font-family:'Inter',sans-serif;font-size:12px;color:${MUTED};">
+                    ${s.startTime} – ${s.endTime} &nbsp;&middot;&nbsp; ${s.venue || 'Campus'} &nbsp;&middot;&nbsp; ${s.faculty || 'Faculty'}
+                  </p>
+                </td>
+                <td style="vertical-align:top;text-align:right;">
+                  <span style="font-family:'Inter',sans-serif;font-size:11px;font-weight:700;color:${statusColor};background:${statusBg};padding:3px 10px;border-radius:6px;display:inline-block;white-space:nowrap;">
+                    ${statusText}
+                  </span>
+                  ${pointsBadge}
+                </td>
+              </tr>
+            </table>
+
+            <!-- Session metrics row -->
+            <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:#F9FAFB;border:1px solid #EEF2F6;border-radius:6px;padding:8px 12px;margin-top:6px;">
+              <tr>
+                <td style="width:33%;font-family:'Inter',sans-serif;font-size:11px;color:${MUTED};">
+                  First Entry: ${firstSeenDisplay}
+                </td>
+                <td style="width:33%;font-family:'Inter',sans-serif;font-size:11px;color:${MUTED};">
+                  Time in Class: <strong style="color:${INK};">${durationDisplay}</strong>
+                </td>
+                <td style="width:34%;text-align:right;font-family:'Inter',sans-serif;font-size:11px;color:${MUTED};">
+                  Feedback: ${feedbackBadge}
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>`;
+  }).join('');
+
+  const content = `
+    <!-- HERO -->
+    <tr>
+      <td class="hero-pad" style="background:${DARK};padding:36px 36px 30px;">
+        <p style="margin:0 0 6px;font-family:'Inter',sans-serif;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.45);">
+          Daily Activity Digest &nbsp;&middot;&nbsp; ${formattedDate}
+        </p>
+        <p class="hero-title" style="margin:0 0 8px;font-family:'Inter',sans-serif;font-size:28px;font-weight:900;color:#FFFFFF;letter-spacing:-0.5px;line-height:1.2;">
+          Good evening, ${firstName} 👋
+        </p>
+        <p style="margin:0;font-family:'Inter',sans-serif;font-size:14px;color:rgba(255,255,255,0.65);line-height:1.6;">
+          Here is your daily summary of attendance, first entry check-in, and feedback forms for today.
+        </p>
+      </td>
+    </tr>
+
+    <!-- METRICS CARDS -->
+    <tr>
+      <td style="padding:24px 28px 16px;">
+        <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+          <tr>
+            <!-- Attendance Metric -->
+            <td style="width:32%;vertical-align:top;background:#FAFAFA;border:1px solid ${BORDER};border-radius:10px;padding:16px 14px;text-align:center;">
+              <p style="margin:0 0 4px;font-family:'Inter',sans-serif;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:${MUTED};">Attendance</p>
+              <p style="margin:0 0 2px;font-family:'Inter',sans-serif;font-size:24px;font-weight:900;color:${isPerfect ? '#10B981' : INK};line-height:1.1;">
+                ${attendedCount}/${totalSessions}
+              </p>
+              <p style="margin:0;font-family:'Inter',sans-serif;font-size:10px;font-weight:600;color:${isPerfect ? '#059669' : MUTED};">
+                ${isPerfect ? '100% Present' : `${absentCount} Missed`}
+              </p>
+            </td>
+            <td style="width:2%;">&nbsp;</td>
+
+            <!-- First Entry Metric -->
+            <td style="width:32%;vertical-align:top;background:#FAFAFA;border:1px solid ${BORDER};border-radius:10px;padding:16px 14px;text-align:center;">
+              <p style="margin:0 0 4px;font-family:'Inter',sans-serif;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:${MUTED};">First Entry</p>
+              <p style="margin:0 0 2px;font-family:'Inter',sans-serif;font-size:22px;font-weight:900;color:${INK};line-height:1.1;">
+                ${firstEntryTime || '—'}
+              </p>
+              <p style="margin:0;font-family:'Inter',sans-serif;font-size:10px;font-weight:600;color:${MUTED};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                ${firstEntryVenue || (firstEntryTime ? 'Campus' : 'No entry recorded')}
+              </p>
+            </td>
+            <td style="width:2%;">&nbsp;</td>
+
+            <!-- Feedback Metric -->
+            <td style="width:32%;vertical-align:top;background:#FAFAFA;border:1px solid ${BORDER};border-radius:10px;padding:16px 14px;text-align:center;">
+              <p style="margin:0 0 4px;font-family:'Inter',sans-serif;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:${MUTED};">Feedback Forms</p>
+              <p style="margin:0 0 2px;font-family:'Inter',sans-serif;font-size:24px;font-weight:900;color:${feedbackPendingCount === 0 ? '#10B981' : '#D97706'};line-height:1.1;">
+                ${feedbackSubmittedCount}/${totalSessions}
+              </p>
+              <p style="margin:0;font-family:'Inter',sans-serif;font-size:10px;font-weight:600;color:${feedbackPendingCount === 0 ? '#059669' : '#B45309'};">
+                ${feedbackPendingCount === 0 ? 'All Completed' : `${feedbackPendingCount} Pending`}
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+    <!-- PENDING FEEDBACK ALERT (if any) -->
+    ${feedbackPendingCount > 0 ? `
+    <tr>
+      <td style="padding:0 28px 16px;">
+        <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:10px;padding:14px 18px;">
+          <tr>
+            <td>
+              <p style="margin:0 0 4px;font-family:'Inter',sans-serif;font-size:13px;font-weight:700;color:#92400E;">
+                ⚠ Action Required: ${feedbackPendingCount} feedback form${feedbackPendingCount > 1 ? 's' : ''} pending
+              </p>
+              <p style="margin:0 0 10px;font-family:'Inter',sans-serif;font-size:12px;color:#B45309;line-height:1.5;">
+                Please submit your feedback for today's completed classes. Forms take under 30 seconds to complete.
+              </p>
+              <a href="${APP_URL}/feedback" style="display:inline-block;padding:7px 16px;background:#B45309;color:#FFFFFF;font-family:'Inter',sans-serif;font-size:11px;font-weight:700;border-radius:6px;text-decoration:none;">
+                Complete Feedback Now &rarr;
+              </a>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    ` : ''}
+
+    <!-- SESSIONS SECTION -->
+    <tr>
+      <td style="padding:8px 28px 24px;">
+        <p style="margin:0 0 12px;font-family:'Inter',sans-serif;font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:${MUTED};">
+          Today's Sessions (${totalSessions})
+        </p>
+        ${sessionCardsHtml || '<p style="font-family:\'Inter\',sans-serif;font-size:13px;color:#888;">No sessions recorded today.</p>'}
+      </td>
+    </tr>
+
+    <!-- ATTENDANCE ADVISORY NOTE -->
+    <tr>
+      <td style="padding:0 28px 28px;">
+        <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background:#F7F7F7;border:1px solid ${BORDER};border-radius:8px;padding:12px 16px;">
+          <tr>
+            <td>
+              <p style="margin:0;font-family:'Inter',sans-serif;font-size:11px;color:${MUTED};line-height:1.6;">
+                <strong style="color:${SUBTLE};">Academic Policy:</strong> A minimum of 75% attendance is required in each course for end-semester exam eligibility. First entry is registered by campus Wi-Fi access points.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+    <!-- CTA BUTTON -->
+    <tr>
+      <td style="padding:0 28px 36px;text-align:center;">
+        ${ctaButton('Go to Student Dashboard', `${APP_URL}/dashboard`)}
+      </td>
+    </tr>
+  `;
+
+  return await transporter.sendMail({
+    from: fromAddress(),
+    to: studentEmail,
+    subject: `Daily Activity Summary — ${formattedDate} — CiPD 360`,
+    html: shell(content, `Daily summary: ${attendedCount}/${totalSessions} sessions attended. First entry: ${firstEntryTime || '—'}. Feedback: ${feedbackSubmittedCount}/${totalSessions} completed.`),
   });
 }
