@@ -15,6 +15,7 @@ export default function CreateCohortModal() {
   const [customSchema, setCustomSchema] = useState(false);
   const [sourceSchema, setSourceSchema] = useState(activeCohort || 'july');
   const [makeActive, setMakeActive] = useState(true);
+  const [copyAllStudents, setCopyAllStudents] = useState(false);
   const [studentInput, setStudentInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -92,6 +93,7 @@ export default function CreateCohortModal() {
         label: label.trim(),
         sourceSchema: sourceSchema || activeCohort || 'july',
         makeActive,
+        copyAllStudents,
         students: parsedStudents.valid,
       });
 
@@ -346,13 +348,19 @@ export default function CreateCohortModal() {
 
               {/* Row 3: Enrol Students */}
               <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                   <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#374151', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Users size={14} /> Enrol Students (Name, Email, [Enrollment No])
                   </label>
-                  <span style={{ fontSize: '0.7rem', color: '#6b7280' }}>
-                    {parsedStudents.valid.length} student(s) detected
-                  </span>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.73rem', fontWeight: 600, color: '#0f4c75', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={copyAllStudents}
+                      onChange={(e) => setCopyAllStudents(e.target.checked)}
+                      style={{ width: '15px', height: '15px', accentColor: '#0f4c75' }}
+                    />
+                    Copy all students from {sourceSchema}
+                  </label>
                 </div>
 
                 <textarea
@@ -375,8 +383,7 @@ export default function CreateCohortModal() {
                     <Sparkles size={12} color="#00A5A0" /> Seamless Cross-Cohort Student Identities:
                   </div>
                   <div>
-                    If a student exists in an earlier cohort, their password and login are preserved automatically.
-                    If they are a new student, an account is created with the student role.
+                    For students who are already registered in an earlier cohort, no new account is created. Their password, MAC address, device hash, and profile data are copied over automatically.
                   </div>
                 </div>
 

@@ -116,11 +116,141 @@ function normalizeStudents(rows) {
 }
 
 /**
+ * Lookup an existing student's account and profile data across registered cohorts.
+ * Merges profile data, giving priority to schemas with populated MAC address or preferredSourceSchema.
+ *
+ * @param {string} email
+ * @param {string} [excludeSchema]
+ * @param {string} [preferredSourceSchema]
+ * @returns {Promise<Object|null>}
+ */
+export async function findExistingStudentAcrossCohorts(email, excludeSchema = null, preferredSourceSchema = null) {
+  if (!email) return null;
+  const normalizedEmail = email.toLowerCase().trim();
+  const { schemas, active } = await getCohortConfig();
+  if (!schemas || !schemas.length) return null;
+
+  // Order schemas: preferredSourceSchema first, then active, then remaining schemas
+  const schemaOrder = [];
+  if (preferredSourceSchema && schemas.includes(preferredSourceSchema)) {
+    schemaOrder.push(preferredSourceSchema);
+  }
+  if (active && schemas.includes(active) && !schemaOrder.includes(active)) {
+    schemaOrder.push(active);
+  }
+  for (let i = schemas.length - 1; i >= 0; i--) {
+    const s = schemas[i];
+    if (!schemaOrder.includes(s)) schemaOrder.push(s);
+  }
+
+  const targetSchemas = schemaOrder.filter(s => s !== excludeSchema);
+  let bestRecord = null;
+
+  for (const s of targetSchemas) {
+    try {
+      const rows = await connection.unsafe(
+        `SELECT u.id, u.email, u.password_hash, u.role, u.first_name, u.last_name, u.is_active, u.preferences,
+                st.enrollment_no, st.program_name, st.device_hash, st.mac_address, st.mac_verified, st.photo_url
+         FROM ${qid(s)}.users u
+         LEFT JOIN ${qid(s)}.students st ON u.id = st.id
+         WHERE lower(u.email) = $1 AND u.role = 'student'
+         LIMIT 1`,
+        [normalizedEmail]
+      );
+      if (rows && rows.length > 0) {
+        const r = rows[0];
+        if (!bestRecord) {
+          bestRecord = { ...r, sourceSchema: s };
+        } else {
+          // If this record has mac_address and bestRecord didn't, upgrade
+          if (!bestRecord.mac_address && r.mac_address) {
+            bestRecord.mac_address = r.mac_address;
+            bestRecord.mac_verified = r.mac_verified;
+          }
+          if (!bestRecord.device_hash && r.device_hash) bestRecord.device_hash = r.device_hash;
+          if (!bestRecord.enrollment_no && r.enrollment_no) bestRecord.enrollment_no = r.enrollment_no;
+          if (!bestRecord.program_name && r.program_name) bestRecord.program_name = r.program_name;
+          if (!bestRecord.photo_url && r.photo_url) bestRecord.photo_url = r.photo_url;
+        }
+        if (bestRecord.mac_address && s === preferredSourceSchema) break;
+      }
+    } catch (err) {
+      console.warn(`findExistingStudentAcrossCohorts: error querying ${s}:`, err.message);
+    }
+  }
+
+  return bestRecord;
+}
+
+/**
+ * Batch lookup existing students across registered cohorts.
+ * Returns Map: email (lowercase) -> studentRecord
+ */
+export async function findExistingStudentsBatch(emails, excludeSchema = null, preferredSourceSchema = null) {
+  const result = new Map();
+  if (!emails || !emails.length) return result;
+
+  const normalizedEmails = [...new Set(emails.map(e => String(e).toLowerCase().trim()).filter(Boolean))];
+  if (!normalizedEmails.length) return result;
+
+  const { schemas, active } = await getCohortConfig();
+  if (!schemas || !schemas.length) return result;
+
+  const schemaOrder = [];
+  if (preferredSourceSchema && schemas.includes(preferredSourceSchema)) {
+    schemaOrder.push(preferredSourceSchema);
+  }
+  if (active && schemas.includes(active) && !schemaOrder.includes(active)) {
+    schemaOrder.push(active);
+  }
+  for (let i = schemas.length - 1; i >= 0; i--) {
+    const s = schemas[i];
+    if (!schemaOrder.includes(s)) schemaOrder.push(s);
+  }
+
+  const targetSchemas = schemaOrder.filter(s => s !== excludeSchema);
+
+  for (const s of targetSchemas) {
+    try {
+      const rows = await connection.unsafe(
+        `SELECT u.id, u.email, u.password_hash, u.role, u.first_name, u.last_name, u.is_active, u.preferences,
+                st.enrollment_no, st.program_name, st.device_hash, st.mac_address, st.mac_verified, st.photo_url
+         FROM ${qid(s)}.users u
+         LEFT JOIN ${qid(s)}.students st ON u.id = st.id
+         WHERE lower(u.email) = ANY($1) AND u.role = 'student'`,
+        [normalizedEmails]
+      );
+      for (const r of rows) {
+        const key = r.email.toLowerCase();
+        const existing = result.get(key);
+        if (!existing) {
+          result.set(key, { ...r, sourceSchema: s });
+        } else {
+          // Merge in missing details (mac_address, verified status, device_hash, photo_url, etc.)
+          if (!existing.mac_address && r.mac_address) {
+            existing.mac_address = r.mac_address;
+            existing.mac_verified = r.mac_verified;
+          }
+          if (!existing.device_hash && r.device_hash) existing.device_hash = r.device_hash;
+          if (!existing.enrollment_no && r.enrollment_no) existing.enrollment_no = r.enrollment_no;
+          if (!existing.program_name && r.program_name) existing.program_name = r.program_name;
+          if (!existing.photo_url && r.photo_url) existing.photo_url = r.photo_url;
+        }
+      }
+    } catch (err) {
+      console.warn(`findExistingStudentsBatch: error querying ${s}:`, err.message);
+    }
+  }
+
+  return result;
+}
+
+/**
  * Creates a fresh cohort schema by cloning the structure of `sourceSchema`, copying reference data
  * and non-student users, and enrolling the provided students. Everything runs in one transaction.
  *
  * @param {{ schemaName: string, label: string, students?: {name:string,email:string}[],
- *           makeActive?: boolean, createdBy?: string, sourceSchema?: string }} opts
+ *           makeActive?: boolean, createdBy?: string, sourceSchema?: string, copyAllStudents?: boolean }} opts
  */
 export async function createCohort(opts) {
   const schemaName = String(opts.schemaName || '').trim();
@@ -147,21 +277,37 @@ export async function createCohort(opts) {
 
   const { students: studentRows, errors: inputErrors } = normalizeStudents(opts.students);
 
-  // Existing identities (same email in any other cohort) are reused so one person keeps one account.
-  const existingByEmail = new Map();
-  if (studentRows.length) {
-    const emails = studentRows.map(s => s.email);
-    for (const s of schemas) {
-      const rows = await connection.unsafe(
-        `SELECT id, email, password_hash, first_name, last_name, preferences
-         FROM ${qid(s)}.users WHERE lower(email) = ANY($1) AND role = 'student'`,
-        [emails]
+  // If copyAllStudents is requested, pull all active students from the source cohort
+  if (opts.copyAllStudents) {
+    try {
+      const srcStudents = await connection.unsafe(
+        `SELECT u.email, u.first_name, u.last_name, st.enrollment_no, st.program_name
+         FROM ${qid(source)}.users u
+         JOIN ${qid(source)}.students st ON u.id = st.id
+         WHERE u.role = 'student' AND u.is_active = true`
       );
-      for (const r of rows) {
-        if (!existingByEmail.has(r.email.toLowerCase())) existingByEmail.set(r.email.toLowerCase(), r);
+      const existingEmails = new Set(studentRows.map(s => s.email));
+      for (const s of srcStudents) {
+        if (!existingEmails.has(s.email.toLowerCase())) {
+          studentRows.push({
+            email: s.email.toLowerCase(),
+            firstName: s.first_name || '',
+            lastName: s.last_name || '',
+            enrollmentNo: s.enrollment_no || null,
+            programName: s.program_name || null,
+          });
+          existingEmails.add(s.email.toLowerCase());
+        }
       }
+    } catch (srcErr) {
+      console.warn('createCohort: failed to read source students for copyAllStudents:', srcErr.message);
     }
   }
+
+  // Look up existing student accounts across previous cohorts (including MAC address, verified, device hash)
+  const existingByEmail = studentRows.length
+    ? await findExistingStudentsBatch(studentRows.map(s => s.email), null, source)
+    : new Map();
 
   const src = qid(source);
   const dst = qid(schemaName);
@@ -246,7 +392,20 @@ export async function createCohort(opts) {
             await sp.unsafe(
               `INSERT INTO ${dst}.users (id, email, password_hash, role, first_name, last_name, is_active, preferences)
                VALUES ($1, $2, $3, 'student', $4, $5, true, $6)`,
-              [prev.id, s.email, prev.password_hash, prev.first_name, prev.last_name, prev.preferences ?? null]
+              [prev.id, s.email, prev.password_hash, s.firstName || prev.first_name, s.lastName || prev.last_name, prev.preferences ?? null]
+            );
+            await sp.unsafe(
+              `INSERT INTO ${dst}.students (id, enrollment_no, program_name, device_hash, mac_address, mac_verified, photo_url)
+               VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+              [
+                prev.id,
+                s.enrollmentNo || prev.enrollment_no || null,
+                s.programName || prev.program_name || null,
+                prev.device_hash || null,
+                prev.mac_address || null,
+                prev.mac_verified ?? false,
+                prev.photo_url || null,
+              ]
             );
             result.reused++;
           } else {
@@ -258,12 +417,12 @@ export async function createCohort(opts) {
               [s.email, hash, s.firstName, s.lastName]
             );
             id = row.id;
+            await sp.unsafe(
+              `INSERT INTO ${dst}.students (id, enrollment_no, program_name) VALUES ($1, $2, $3)`,
+              [id, s.enrollmentNo || null, s.programName || null]
+            );
             result.created++;
           }
-          await sp.unsafe(
-            `INSERT INTO ${dst}.students (id, enrollment_no, program_name) VALUES ($1, $2, $3)`,
-            [id, s.enrollmentNo, s.programName]
-          );
         });
       } catch (err) {
         result.failed.push({ email: s.email, error: err.message });

@@ -15,6 +15,7 @@ import {
 import { eq, ne, inArray, desc } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
 import { hashPassword } from '@/lib/auth';
+import { findExistingStudentAcrossCohorts } from '@/lib/cohorts';
 
 /** Resolve and validate schema from request. Returns null if invalid. */
 async function resolveSchema(req) {
@@ -118,63 +119,125 @@ async function postHandler(req) {
       return NextResponse.json({ error: 'First name, last name, and email are required.' }, { status: 400 });
     }
 
-    const [existingUser] = await schemaDb
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // 1. Check if user already exists in this target cohort
+    const [existingInTarget] = await schemaDb
       .select({ id: users.id })
       .from(users)
-      .where(eq(users.email, email.toLowerCase().trim()))
+      .where(eq(users.email, normalizedEmail))
       .limit(1);
-    if (existingUser) return NextResponse.json({ error: 'A user with this email already exists.' }, { status: 409 });
+    if (existingInTarget) {
+      return NextResponse.json({ error: 'A user with this email already exists in this cohort.' }, { status: 409 });
+    }
 
-    if (enrollment_no?.trim()) {
+    // 2. Check if student already exists in ANY other cohort schema (reuse account & copy all profile/MAC data)
+    const existingAcrossCohorts = await findExistingStudentAcrossCohorts(normalizedEmail, schema);
+
+    const targetEnrollmentNo = enrollment_no?.trim() || existingAcrossCohorts?.enrollment_no || null;
+    if (targetEnrollmentNo) {
       const [existingEnroll] = await schemaDb
         .select({ id: students.id })
         .from(students)
-        .where(eq(students.enrollmentNo, enrollment_no.trim()))
+        .where(eq(students.enrollmentNo, targetEnrollmentNo))
         .limit(1);
-      if (existingEnroll) return NextResponse.json({ error: 'A student with this enrollment number already exists.' }, { status: 409 });
+      if (existingEnroll) {
+        return NextResponse.json({ error: 'A student with this enrollment number already exists.' }, { status: 409 });
+      }
     }
 
-    const password_hash = await hashPassword('12345678');
+    let studentId;
+    let reused = false;
 
-    const [newUser] = await schemaDb
-      .insert(users)
-      .values({
-        firstName: first_name.trim(),
-        lastName: last_name.trim(),
-        email: email.toLowerCase().trim(),
-        passwordHash: password_hash,
-        role: 'student',
-        isActive: true,
-      })
-      .returning({ id: users.id });
+    if (existingAcrossCohorts) {
+      // Re-use existing account: keep id, password_hash, role, preferences
+      studentId = existingAcrossCohorts.id;
+      reused = true;
 
-    try {
-      await schemaDb.insert(students).values({
-        id: newUser.id,
-        enrollmentNo: enrollment_no?.trim() || null,
-        programName: program_name?.trim() || null,
-      });
-    } catch (stuErr) {
-      await schemaDb.delete(users).where(eq(users.id, newUser.id));
-      throw stuErr;
+      await schemaDb
+        .insert(users)
+        .values({
+          id: existingAcrossCohorts.id,
+          firstName: first_name.trim() || existingAcrossCohorts.first_name || '',
+          lastName: last_name.trim() || existingAcrossCohorts.last_name || '',
+          email: normalizedEmail,
+          passwordHash: existingAcrossCohorts.password_hash,
+          role: 'student',
+          isActive: true,
+          preferences: existingAcrossCohorts.preferences ?? null,
+        });
+
+      // Copy all data from previous cohort schema (mac_address, mac_verified, device_hash, photo_url, etc.)
+      try {
+        await schemaDb.insert(students).values({
+          id: existingAcrossCohorts.id,
+          enrollmentNo: targetEnrollmentNo,
+          programName: program_name?.trim() || existingAcrossCohorts.program_name || null,
+          deviceHash: existingAcrossCohorts.device_hash || null,
+          macAddress: existingAcrossCohorts.mac_address || null,
+          macVerified: existingAcrossCohorts.mac_verified ?? false,
+          photoUrl: existingAcrossCohorts.photo_url || null,
+        });
+      } catch (stuErr) {
+        await schemaDb.delete(users).where(eq(users.id, existingAcrossCohorts.id));
+        throw stuErr;
+      }
+    } else {
+      // Brand-new student: generate default password hash
+      const password_hash = await hashPassword('12345678');
+      const [newUser] = await schemaDb
+        .insert(users)
+        .values({
+          firstName: first_name.trim(),
+          lastName: last_name.trim(),
+          email: normalizedEmail,
+          passwordHash: password_hash,
+          role: 'student',
+          isActive: true,
+        })
+        .returning({ id: users.id });
+      studentId = newUser.id;
+
+      try {
+        await schemaDb.insert(students).values({
+          id: studentId,
+          enrollmentNo: targetEnrollmentNo,
+          programName: program_name?.trim() || null,
+        });
+      } catch (stuErr) {
+        await schemaDb.delete(users).where(eq(users.id, studentId));
+        throw stuErr;
+      }
     }
 
-    // Auto-enroll the new student in all existing courses
+    // Auto-enroll the student in all existing courses of this cohort
     try {
       const allCourses = await schemaDb.select({ id: courses.id }).from(courses);
       if (allCourses.length > 0) {
         await schemaDb.insert(courseEnrollments).values(
           allCourses.map(c => ({
-            studentId: newUser.id,
+            studentId,
             courseId: c.id,
           }))
         ).onConflictDoNothing();
       }
     } catch (enrollErr) {
-      console.warn('Failed to auto-enroll new student in courses:', enrollErr.message);
+      console.warn('Failed to auto-enroll student in courses:', enrollErr.message);
     }
 
-    return NextResponse.json({ success: true, student: { id: newUser.id, first_name, last_name, email } }, { status: 201 });
+    return NextResponse.json({
+      success: true,
+      reused,
+      student: {
+        id: studentId,
+        first_name: first_name.trim(),
+        last_name: last_name.trim(),
+        email: normalizedEmail,
+        enrollment_no: targetEnrollmentNo,
+        mac_address: existingAcrossCohorts?.mac_address || null,
+        mac_verified: existingAcrossCohorts?.mac_verified ?? false,
+      }
+    }, { status: 201 });
   } catch (err) {
     console.error('Students POST error:', err);
     return NextResponse.json({ error: err.message || 'Internal server error' }, { status: 500 });

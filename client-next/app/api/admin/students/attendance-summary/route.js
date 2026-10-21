@@ -36,7 +36,7 @@ async function handler(req) {
         email: users.email,
       })
       .from(students)
-      .leftJoin(users, eq(students.userId, users.id))
+      .leftJoin(users, eq(students.id, users.id))
       .where(eq(students.id, studentId))
       .limit(1);
 

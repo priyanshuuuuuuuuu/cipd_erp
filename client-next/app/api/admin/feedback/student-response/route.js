@@ -43,8 +43,8 @@ async function getHandler(req) {
         last_name: users.lastName,
       })
       .from(students)
-      .leftJoin(users, eq(students.userId, users.id))
-      .where(eq(students.userId, studentId))
+      .leftJoin(users, eq(students.id, users.id))
+      .where(eq(students.id, studentId))
       .limit(1);
 
     const formattedResponses = (responses || []).map(r => ({

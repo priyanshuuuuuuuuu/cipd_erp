@@ -538,7 +538,7 @@ function AddStudentModal({ onClose, onAdded, schema = DEFAULT_SCHEMA }) {
                         </div>
                         <div>
                             <div style={{ fontSize: '1rem', fontWeight: 800 }}>Add New Student</div>
-                            <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.7)', marginTop: 2 }}>Default password: 12345678</div>
+                            <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.8)', marginTop: 2 }}>Registered students automatically retain their password & MAC address</div>
                         </div>
                     </div>
                     <button onClick={onClose} style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.2)', cursor: 'pointer', color: '#fff', padding: 7, borderRadius: '8px', display: 'flex' }}>

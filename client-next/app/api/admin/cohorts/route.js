@@ -28,6 +28,7 @@ async function postHandler(req) {
       students: body.students,
       makeActive: !!body.makeActive,
       sourceSchema: body.sourceSchema,
+      copyAllStudents: !!body.copyAllStudents,
       createdBy: req.user.id,
     });
     return NextResponse.json(result, { status: 201 });
