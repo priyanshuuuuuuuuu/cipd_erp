@@ -25,6 +25,11 @@ const CATEGORY_CONFIG = {
     General:    { label: 'VI. Additional Comments',      icon: '💬' },
 };
 
+const stripEmojis = (value) => String(value || '')
+    .replace(/[\p{Extended_Pictographic}\uFE0F\u200D\u{1F3FB}-\u{1F3FF}]/gu, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+
 export default function FeedbackPage() {
     const router = useRouter();
     const { user, logout, authReady } = useAuth();
@@ -478,13 +483,12 @@ export default function FeedbackPage() {
                                         return (
                                             <div key={category} style={{ marginBottom: catIdx < Object.keys(groupedQuestions).length - 1 ? '1.5rem' : '1rem' }}>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px', paddingBottom: '8px', borderBottom: '2px solid #f0f0f0' }}>
-                                                    <span style={{ fontSize: '1rem' }}>{config.icon}</span>
                                                     <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#111' }}>{config.label}</span>
                                                 </div>
                                                 {qs.map((q, idx) => (
                                                     <div key={q.id} style={{ marginBottom: idx < qs.length - 1 ? '1.2rem' : '0', paddingBottom: idx < qs.length - 1 ? '1.2rem' : '0', borderBottom: idx < qs.length - 1 ? '1px solid #f9f9f9' : 'none' }}>
                                                         <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '10px' }}>
-                                                            <span style={{ fontSize: '0.85rem', fontWeight: 500, color: '#333' }}>{q.question}</span>
+                                                            <span style={{ fontSize: '0.85rem', fontWeight: 500, color: '#333' }}>{stripEmojis(q.question)}</span>
                                                             {q.type === 'text' && <span style={{ fontSize: '0.68rem', color: '#bbb' }}>(Optional)</span>}
                                                         </div>
                                                         {q.type === 'rating' && (
