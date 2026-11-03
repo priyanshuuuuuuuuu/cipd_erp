@@ -17,7 +17,7 @@ if (!g._pgMainConn) {
   g._pgMainConn = postgres(process.env.DATABASE_URL, {
     prepare: false,
     max: 3,
-    connection: { search_path: `${DEFAULT_SCHEMA}, public` },
+    connection: { search_path: 'core' },
   });
 }
 export const connection = g._pgMainConn;
@@ -72,14 +72,16 @@ export function getSchemaDb(schemaName = DEFAULT_SCHEMA) {
     max: 3,
     idle_timeout: 20,
     max_lifetime: 60 * 30,
-    connection: { search_path: `${key}, public` },
+    // The cohort schema first, then `core` for shared types. `public` is NOT on the path for
+    // non-public cohorts, so a missing table can never silently resolve to another cohort's data.
+    connection: { search_path: `"${key}", core` },
   });
   const entry = { conn, db: drizzle(conn, { schema: { ...schema, ...relations } }) };
   _schemaDbs.set(key, entry);
   return entry.db;
 }
 
-// ── Cohort registry (public.cohorts) ──────────────────────────────────────────
+// ── Cohort registry (core.cohorts) ────────────────────────────────────────────
 const COHORT_CACHE_TTL_MS = 30_000;
 // Also persist the cache across hot reloads so we don't spam the DB
 if (!g._pgCohortCache) g._pgCohortCache = null;
@@ -101,14 +103,43 @@ function envCohortFallback() {
   for (const s of schemas) {
     resolved[s] = labels[s] || s.charAt(0).toUpperCase() + s.slice(1);
   }
-  return { schemas, labels: resolved, active: schemas.includes(DEFAULT_SCHEMA) ? DEFAULT_SCHEMA : schemas[0] };
+  const active = schemas.includes(DEFAULT_SCHEMA) ? DEFAULT_SCHEMA : schemas[0];
+  const cohorts = schemas.map((schema, i) => ({
+    id: i + 1, schema, label: resolved[schema], program: null, starts_on: null, ends_on: null,
+    status: 'running', is_default: schema === active, is_legacy: false,
+  }));
+  return { cohorts, all: cohorts, schemas, labels: resolved, active };
+}
+
+function buildConfig(rows) {
+  const all = rows.map(r => ({
+    id: r.id,
+    schema: r.schema_name,
+    label: r.label,
+    program: r.program,
+    starts_on: r.starts_on,
+    ends_on: r.ends_on,
+    status: r.status,
+    is_default: r.is_default,
+    is_legacy: r.is_legacy,
+    schema_version: r.schema_version,
+    last_error: r.last_error,
+  }));
+  // `cohorts` = what users may select (running or archived). provisioning/failed/deleting are admin-only via `all`.
+  const cohorts = all.filter(c => c.status === 'running' || c.status === 'archived');
+  const labels = {};
+  for (const c of cohorts) labels[c.schema] = c.label;
+  const def = cohorts.find(c => c.is_default && c.status === 'running')
+    || cohorts.filter(c => c.status === 'running').slice(-1)[0]
+    || cohorts[cohorts.length - 1];
+  return { cohorts, all, schemas: cohorts.map(c => c.schema), labels, active: def?.schema };
 }
 
 /**
- * Returns the cohorts registered in public.cohorts (cached ~30s).
- * Falls back to COHORT_SCHEMAS / DEFAULT_SCHEMA if the table is missing/empty.
- *
- * @returns {Promise<{ schemas: string[], labels: Record<string,string>, active: string }>}
+ * Returns the cohort registry (cached ~30s).
+ *   { cohorts, all, schemas, labels, active }
+ * `active` is the default cohort (kept under this name for existing callers).
+ * Falls back to COHORT_SCHEMAS / DEFAULT_SCHEMA only when core.cohorts does not exist yet.
  */
 export async function getCohortConfig() {
   if (g._pgCohortCache && Date.now() - g._pgCohortCache.at < COHORT_CACHE_TTL_MS) {
@@ -118,21 +149,15 @@ export async function getCohortConfig() {
   let value;
   try {
     const rows = await connection`
-      SELECT schema_name, label, is_active
-      FROM public.cohorts
-      ORDER BY created_at ASC, schema_name ASC`;
-    if (!rows.length) {
-      value = envCohortFallback();
-    } else {
-      const labels = {};
-      for (const r of rows) labels[r.schema_name] = r.label;
-      const activeRow = rows.find(r => r.is_active) || rows[rows.length - 1];
-      value = { schemas: rows.map(r => r.schema_name), labels, active: activeRow.schema_name };
-    }
+      SELECT id, schema_name, label, program, starts_on, ends_on, status, is_default, is_legacy,
+             schema_version, last_error
+      FROM core.cohorts
+      ORDER BY id ASC`;
+    value = rows.length ? buildConfig(rows) : envCohortFallback();
   } catch (err) {
     if (err?.code === '42P01') {
       // Registry table does not exist yet (fresh bootstrap): use env fallback.
-      console.error('getCohortConfig: registry table missing, using env fallback');
+      console.error('getCohortConfig: core.cohorts missing, using env fallback');
       value = envCohortFallback();
     } else if (g._pgCohortCache) {
       // Transient DB error: keep serving the last known registry rather than
@@ -149,10 +174,16 @@ export async function getCohortConfig() {
   return value;
 }
 
-/** The currently active cohort schema (used by students, cron and notifications). */
+/** The default cohort schema (used by students, cron and notifications). */
 export async function getActiveSchema() {
   const { active } = await getCohortConfig();
   return active || DEFAULT_SCHEMA;
+}
+
+/** Schemas of cohorts with status 'running' (what background jobs iterate). */
+export async function getRunningSchemas() {
+  const { cohorts } = await getCohortConfig();
+  return cohorts.filter(c => c.status === 'running').map(c => c.schema);
 }
 
 /** Validates a cohort name before it is ever used in DDL. */

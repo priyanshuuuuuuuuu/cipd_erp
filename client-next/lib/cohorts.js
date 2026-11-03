@@ -443,9 +443,9 @@ export async function createCohort(opts) {
     }
 
     // 5. Register the cohort.
-    if (opts.makeActive) await sql.unsafe(`UPDATE public.cohorts SET is_active = false WHERE is_active`);
+    if (opts.makeActive) await sql.unsafe(`UPDATE core.cohorts SET is_default = false WHERE is_default`);
     await sql.unsafe(
-      `INSERT INTO public.cohorts (schema_name, label, is_active, created_by) VALUES ($1, $2, $3, $4)`,
+      `INSERT INTO core.cohorts (schema_name, label, status, is_default, created_by) VALUES ($1, $2, 'running', $3, $4)`,
       [schemaName, label, !!opts.makeActive, opts.createdBy || null]
     );
   });
@@ -464,8 +464,8 @@ export async function setActiveCohort(schemaName) {
     throw err;
   }
   await connection.begin(async (sql) => {
-    await sql`UPDATE public.cohorts SET is_active = false WHERE is_active`;
-    await sql`UPDATE public.cohorts SET is_active = true WHERE schema_name = ${schemaName}`;
+    await sql`UPDATE core.cohorts SET is_default = false WHERE is_default`;
+    await sql`UPDATE core.cohorts SET is_default = true WHERE schema_name = ${schemaName} AND status = 'running'`;
   });
   invalidateCohortCache();
 }

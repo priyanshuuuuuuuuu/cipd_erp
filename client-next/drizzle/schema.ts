@@ -40,6 +40,8 @@ export const students = pgTable("students", {
 	macVerified: boolean("mac_verified").default(false),
 	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
 	photoUrl: text("photo_url"),
+	// References core.programs(id); program_name stays for backward compatibility with archived cohorts.
+	programId: smallint("program_id"),
 }, (table) => [
 	foreignKey({
 			columns: [table.id],
@@ -477,6 +479,8 @@ export const users = pgTable("users", {
 	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow(),
 	preferences: jsonb().default({}),
+	// Set by the database (default = this cohort's id) and enforced by users_membership_fk. Do not set from the app.
+	cohortId: smallint("cohort_id").notNull(),
 }, (table) => [
 	index("idx_users_role").using("btree", table.role.asc().nullsLast().op("enum_ops")),
 	unique("users_email_key").on(table.email),

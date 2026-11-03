@@ -50,6 +50,12 @@ jobs:
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
 
+      - name: Apply database migrations
+        working-directory: client-next
+        run: |
+          npm run migrate
+          npm run drift
+
       - name: Restart PM2
         run: |
           pm2 restart cipd || pm2 start npm --name "cipd" -- start

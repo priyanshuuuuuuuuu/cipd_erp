@@ -12,7 +12,9 @@
     "format:check": "prettier --check .",
     "attendance-worker": "node scripts/attendance-worker.js",
     "daily-digest-worker": "node scripts/daily-digest-worker.js",
-    "notification-worker": "node scripts/notification-stream-worker.mjs"
+    "notification-worker": "node scripts/notification-stream-worker.mjs",
+    "migrate": "node scripts/migrate.mjs",
+    "drift": "node scripts/check-schema-drift.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.27.0",
