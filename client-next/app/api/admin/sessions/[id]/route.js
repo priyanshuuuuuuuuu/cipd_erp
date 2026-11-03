@@ -35,15 +35,17 @@ async function handler(req, { params }) {
 
       if (!updated) return NextResponse.json({ error: 'Session not found' }, { status: 404 });
 
+      let attendanceSkipped = false;
       if (status === 'completed') {
         const session = await fetchSessionForProcessing(id);
         if (session) {
           try {
-            await processSessionAttendance(session, {
+            const processed = await processSessionAttendance(session, {
               isOngoing: false,
               finalizeAbsent: true,
               upsert: true,
             });
+            attendanceSkipped = !!processed?.skipped;
           } catch (error) {
             console.error('Wi-Fi attendance on mark-complete:', error.message);
           }
@@ -56,7 +58,10 @@ async function handler(req, { params }) {
         }
       }
 
-      return NextResponse.json({ session: updated });
+      return NextResponse.json({
+        session: updated,
+        ...(attendanceSkipped ? { warning: 'Wi-Fi data source unavailable: attendance was not scored. Re-open the session attendance page to process it once Wi-Fi data is reachable.' } : {}),
+      });
     }
 
     // ── Mode 2: full session edit ──────────────────────────────────────────

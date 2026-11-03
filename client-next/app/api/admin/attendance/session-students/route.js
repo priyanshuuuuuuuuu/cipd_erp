@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { getSnapshotsBetween, wifiErrorResponse } from '@/lib/wifi-snapshots';
 import { db } from '@/lib/db';
 import {
   sessions,
@@ -96,12 +96,10 @@ async function handler(req) {
       session.end_time > currentTime;
     const finalizeAbsent = !isOngoing;
 
-    const { data: snapshots } = await supabaseAdmin
-      .schema('public').from('wifi_snapshots')
-      .select('id, iw_dump, captured_at')
-      .gte('captured_at', sessionStartDate.toISOString())
-      .lte('captured_at', windowEnd.toISOString())
-      .order('captured_at', { ascending: true });
+    const snapshots = await getSnapshotsBetween(
+      sessionStartDate.toISOString(),
+      windowEnd.toISOString()
+    );
 
     const { macTimeline, orderedSnapshotIds } = buildMacTimeline(snapshots || []);
 
@@ -410,6 +408,8 @@ async function handler(req) {
       isOngoing,
     });
   } catch (err) {
+    const wifiRes = wifiErrorResponse(err);
+    if (wifiRes) return wifiRes;
     console.error('Session students error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

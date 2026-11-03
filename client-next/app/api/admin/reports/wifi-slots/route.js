@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { students, users } from '@/drizzle/schema';
 import { eq } from 'drizzle-orm';
-import { supabaseAdmin } from '@/lib/supabase';
+import { getSnapshotsBetween, wifiErrorResponse } from '@/lib/wifi-snapshots';
 import { normalizeMac, isValidMac } from '@/lib/attendance-mac';
 import { withRole } from '@/lib/middleware';
 import XLSX from 'xlsx';
@@ -101,13 +101,9 @@ async function handler(request) {
       const dayEndIso = `${dateStr}T17:30:00+05:30`;
 
       // Supabase query for wifi_snapshots (retained as per migration rule)
-      const { data: snapshots } = await supabaseAdmin
-        .schema('public')
-        .from('wifi_snapshots')
-        .select('id, captured_at, iw_dump')
-        .gte('captured_at', dayStartIso)
-        .lte('captured_at', dayEndIso)
-        .order('captured_at', { ascending: true });
+      const snapshots = await getSnapshotsBetween(dayStartIso, dayEndIso, {
+        columns: 'id, captured_at, iw_dump',
+      });
 
       dailySummary[dateStr].snapshotsCount = snapshots?.length || 0;
 
@@ -285,6 +281,8 @@ async function handler(request) {
       studentStats: Object.values(studentStats).sort((a, b) => b.totalSlotsPresent - a.totalSlotsPresent),
     });
   } catch (error) {
+    const wifiRes = wifiErrorResponse(error);
+    if (wifiRes) return wifiRes;
     console.error('Error in /api/admin/reports/wifi-slots:', error);
     return NextResponse.json(
       { success: false, error: error.message || 'Internal server error' },

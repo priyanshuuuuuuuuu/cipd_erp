@@ -432,7 +432,7 @@ export default function AdminSettingsPage() {
                             )}
                             {gcStatus === 'db_error' && (
                                 <div style={{ padding: '10px 14px', background: '#fce8e6', borderRadius: '8px', border: '1px solid #fad2cf', marginBottom: '14px', fontSize: '0.8rem', color: '#c5221f', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <AlertCircle size={16} /> Database Error: Supabase schema cache issue. Please run `NOTIFY pgrst, &apos;reload schema&apos;` in your Supabase SQL editor.
+                                    <AlertCircle size={16} /> Database error while saving Google Classroom credentials. Check the server logs.
                                 </div>
                             )}
                             {gcStatus && gcStatus !== 'success' && gcStatus !== 'db_error' && (

@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { sessions, courses, faculty, venues, students, users } from '@/drizzle/schema';
 import { eq, and, asc, isNotNull } from 'drizzle-orm';
-import { supabaseAdmin } from '@/lib/supabase';
+import { getSnapshotsBetween, wifiErrorResponse } from '@/lib/wifi-snapshots';
 import { withRole } from '@/lib/middleware';
 import { getISTDateString, getISTTimeString } from '@/lib/ist-date';
 
@@ -89,12 +89,11 @@ async function handler(req) {
       sessionEndDate.setMinutes(sessionEndDate.getMinutes() + 2); // +2 min buffer
 
       // Get wifi_snapshots within the session time window
-      const { data: snapshots } = await supabaseAdmin
-        .schema('public').from('wifi_snapshots')
-        .select('iw_dump, captured_at')
-        .gte('captured_at', sessionStartDate.toISOString())
-        .lte('captured_at', sessionEndDate.toISOString())
-        .order('captured_at', { ascending: true });
+      const snapshots = await getSnapshotsBetween(
+        sessionStartDate.toISOString(),
+        sessionEndDate.toISOString(),
+        { columns: 'iw_dump, captured_at' }
+      );
 
       // Count unique students detected with signal > 2
       const seenStudentMacs = new Set();
@@ -145,6 +144,8 @@ async function handler(req) {
 
     return NextResponse.json({ sessions: enrichedSessions, date });
   } catch (err) {
+    const wifiRes = wifiErrorResponse(err);
+    if (wifiRes) return wifiRes;
     console.error('Sessions by date error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

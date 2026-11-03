@@ -38,8 +38,8 @@ jobs:
         working-directory: client-next
         run: npm run build
         env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          # Supabase is used for Wi-Fi snapshots only (server-side).
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
@@ -53,5 +53,6 @@ jobs:
       - name: Restart PM2
         run: |
           pm2 restart cipd || pm2 start npm --name "cipd" -- start
+          (cd notification-service && npm ci && (pm2 restart cipd-notify || pm2 start npm --name cipd-notify -- start))
           pm2 save
           echo "✅ Deploy complete — $(date)"

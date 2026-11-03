@@ -5,13 +5,13 @@
   "type": "module",
   "scripts": {
     "start": "node src/server.mjs",
-    "dev": "node --watch src/server.mjs"
+    "dev": "node --watch src/server.mjs",
+    "expire-stale": "node scripts/expire-stale.mjs"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.98.0",
     "dotenv": "^16.6.1",
     "express": "^5.2.1",
-    "nodemailer": "^8.0.4"
+    "nodemailer": "^8.0.4",
+    "postgres": "^3.4.9"
   }
 }
-

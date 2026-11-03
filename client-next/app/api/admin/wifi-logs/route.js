@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { countSnapshots, getSnapshotsPage, wifiErrorResponse } from '@/lib/wifi-snapshots';
 import { db } from '@/lib/db';
 import { students, users } from '@/drizzle/schema';
 import { isNotNull, eq } from 'drizzle-orm';
@@ -46,28 +46,17 @@ async function handler(req) {
       if (s.mac_address) macToStudent[normalizeMac(s.mac_address)] = s;
     });
 
-    // Total snapshot count for stats (MUST REMAIN ON SUPABASE PER RULE)
-    const { count: totalSnapshotCount } = await supabaseAdmin
-      .schema('public').from('wifi_snapshots')
-      .select('id', { count: 'exact', head: true });
+    // Total snapshot count for stats (Wi-Fi snapshots live in Supabase; see lib/wifi-snapshots.js)
+    const totalSnapshotCount = await countSnapshots();
 
-    // Helper: build base query with date filters (MUST REMAIN ON SUPABASE PER RULE)
-    const buildQuery = () => {
-      let q = supabaseAdmin
-        .schema('public').from('wifi_snapshots')
-        .select('id, captured_at, iw_dump, error')
-        .order('captured_at', { ascending: false });
-
-      if (dateFrom) {
-        const startTs = timeFrom ? `${dateFrom}T${timeFrom}:00+05:30` : `${dateFrom}T00:00:00+05:30`;
-        q = q.gte('captured_at', startTs);
-      }
-      if (dateTo) {
-        const endTs = timeTo ? `${dateTo}T${timeTo}:59+05:30` : `${dateTo}T23:59:59+05:30`;
-        q = q.lte('captured_at', endTs);
-      }
-      return q;
-    };
+    // Date window (IST) shared by browse and search modes
+    const from = dateFrom
+      ? (timeFrom ? `${dateFrom}T${timeFrom}:00+05:30` : `${dateFrom}T00:00:00+05:30`)
+      : undefined;
+    const to = dateTo
+      ? (timeTo ? `${dateTo}T${timeTo}:59+05:30` : `${dateTo}T23:59:59+05:30`)
+      : undefined;
+    const fetchPage = (off, limit) => getSnapshotsPage({ from, to, offset: off, limit });
 
     // Helper: parse snapshot clients into flat rows (only identified students)
     const parseClients = (snapshots) => {
@@ -120,8 +109,7 @@ async function handler(req) {
       const s = search.toLowerCase();
 
       while (true) {
-        const { data: batch, error: batchErr } = await buildQuery().range(batchOffset, batchOffset + BATCH - 1);
-        if (batchErr) break;
+        const batch = await fetchPage(batchOffset, BATCH);
         if (!batch || batch.length === 0) break;
 
         snapshotsScanned += batch.length;
@@ -156,11 +144,7 @@ async function handler(req) {
       });
     } else {
       // BROWSE MODE: paginate 100 at a time
-      const { data: snapshots, error } = await buildQuery().range(offset, offset + pageSize);
-
-      if (error) {
-        return NextResponse.json({ error: 'Failed to fetch wifi snapshots' }, { status: 500 });
-      }
+      const snapshots = await fetchPage(offset, pageSize + 1);
 
       const hasMore = (snapshots || []).length > pageSize;
       const pageSnapshots = hasMore ? snapshots.slice(0, pageSize) : (snapshots || []);
@@ -181,6 +165,8 @@ async function handler(req) {
       });
     }
   } catch (err) {
+    const wifiRes = wifiErrorResponse(err);
+    if (wifiRes) return wifiRes;
     console.error('Wi-Fi logs error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

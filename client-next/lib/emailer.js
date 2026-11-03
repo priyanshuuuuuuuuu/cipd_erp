@@ -32,7 +32,7 @@ const BG        = '#F7F7F7';   // page background
 const CARD_BG   = '#FFFFFF';
 const ACCENT    = '#1A1A1A';   // pill / badge background (dark)
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://cipd-erp-ic24.vercel.app';
+const APP_URL = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
 // ── Shell ─────────────────────────────────────────────────────────────────────
 function shell(content, previewText = '') {

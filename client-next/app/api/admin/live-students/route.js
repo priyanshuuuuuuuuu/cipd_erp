@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase';
+import { getLatestSnapshots, wifiErrorResponse } from '@/lib/wifi-snapshots';
 import { db } from '@/lib/db';
 import { students, users } from '@/drizzle/schema';
 import { eq, and, isNotNull } from 'drizzle-orm';
@@ -11,15 +11,7 @@ const STALE_THRESHOLD_MINUTES = 10; // consider data stale after 10 min
 async function handler(req) {
   try {
     // 1. Fetch the latest 3 wifi_snapshot entries — latest for live students, prev 2 for recently-active detection
-    const { data: snapshots, error: snapErr } = await supabaseAdmin
-      .schema('public').from('wifi_snapshots')
-      .select('id, captured_at, iw_dump')
-      .order('captured_at', { ascending: false })
-      .limit(3);
-
-    if (snapErr) {
-      return NextResponse.json({ error: snapErr.message }, { status: 500 });
-    }
+    const snapshots = await getLatestSnapshots(3, { columns: 'id, captured_at, iw_dump' });
 
     if (!snapshots || snapshots.length === 0) {
       return NextResponse.json({
@@ -255,6 +247,8 @@ async function handler(req) {
       staleMessage,
     });
   } catch (err) {
+    const wifiRes = wifiErrorResponse(err);
+    if (wifiRes) return wifiRes;
     console.error('Live students error:', err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

@@ -50,9 +50,11 @@ export const db = new Proxy({}, {
   },
 });
 
-// ── LRU cache for schema-specific drizzle instances ───────────────────────────
-// Stored on globalThis so hot-reload doesn't orphan old pools.
-const MAX_SCHEMA_POOLS = 6;
+// ── Per-schema drizzle instances ──────────────────────────────────────────────
+// Stored on globalThis so hot-reload doesn't orphan old pools. There is no
+// eviction: each pool closes its own idle connections (idle_timeout), so an
+// unused cohort costs nothing, and an in-flight request can never have its pool
+// ended underneath it.
 if (!g._pgSchemaDbs) g._pgSchemaDbs = new Map(); // key -> { db, conn }
 const _schemaDbs = g._pgSchemaDbs;
 
@@ -63,28 +65,17 @@ const _schemaDbs = g._pgSchemaDbs;
  */
 export function getSchemaDb(schemaName = DEFAULT_SCHEMA) {
   const key = schemaName || DEFAULT_SCHEMA;
-  if (_schemaDbs.has(key)) {
-    // refresh LRU position
-    const entry = _schemaDbs.get(key);
-    _schemaDbs.delete(key);
-    _schemaDbs.set(key, entry);
-    return entry.db;
-  }
+  if (_schemaDbs.has(key)) return _schemaDbs.get(key).db;
 
   const conn = postgres(process.env.DATABASE_URL, {
     prepare: false,
     max: 3,
+    idle_timeout: 20,
+    max_lifetime: 60 * 30,
     connection: { search_path: `${key}, public` },
   });
   const entry = { conn, db: drizzle(conn, { schema: { ...schema, ...relations } }) };
   _schemaDbs.set(key, entry);
-
-  while (_schemaDbs.size > MAX_SCHEMA_POOLS) {
-    const oldestKey = _schemaDbs.keys().next().value;
-    const old = _schemaDbs.get(oldestKey);
-    _schemaDbs.delete(oldestKey);
-    old.conn.end({ timeout: 5 }).catch(() => {});
-  }
   return entry.db;
 }
 
@@ -139,8 +130,19 @@ export async function getCohortConfig() {
       value = { schemas: rows.map(r => r.schema_name), labels, active: activeRow.schema_name };
     }
   } catch (err) {
-    console.error('getCohortConfig: registry unavailable, using env fallback:', err.message);
-    value = envCohortFallback();
+    if (err?.code === '42P01') {
+      // Registry table does not exist yet (fresh bootstrap): use env fallback.
+      console.error('getCohortConfig: registry table missing, using env fallback');
+      value = envCohortFallback();
+    } else if (g._pgCohortCache) {
+      // Transient DB error: keep serving the last known registry rather than
+      // silently switching to a hard-coded cohort list.
+      console.error('getCohortConfig: registry unavailable, serving stale cache:', err.message);
+      g._pgCohortCache.at = Date.now() - COHORT_CACHE_TTL_MS + 5_000; // retry in ~5s
+      return g._pgCohortCache.value;
+    } else {
+      throw err;
+    }
   }
 
   g._pgCohortCache = { at: Date.now(), value };

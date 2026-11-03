@@ -9,7 +9,7 @@ import {
   sessions as sessionsTable,
 } from '@/drizzle/schema';
 import { eq, and, inArray, isNotNull, sql } from 'drizzle-orm';
-import { supabaseAdmin } from '@/lib/supabase';
+import { getSnapshotsBetween, isWifiSourceUnavailable } from '@/lib/wifi-snapshots';
 import { normalizeMac, isValidMac } from '@/lib/attendance-mac';
 import { calculatePoints, resolveAttendanceStatus } from '@/lib/attendance-points';
 
@@ -155,12 +155,28 @@ export async function processSessionAttendance(session, options = {}) {
   const windowEnd = new Date(sessionEndDate);
   windowEnd.setMinutes(windowEnd.getMinutes() + 2);
 
-  const { data: snapshots } = await supabaseAdmin
-    .schema('public').from('wifi_snapshots')
-    .select('id, iw_dump, captured_at')
-    .gte('captured_at', sessionStartDate.toISOString())
-    .lte('captured_at', windowEnd.toISOString())
-    .order('captured_at', { ascending: true });
+  // Fail-safe: if the Wi-Fi source (Supabase) is unreachable we must NOT score
+  // the session, otherwise everyone would be recorded absent. Leave the session
+  // unprocessed so the next cron run retries it.
+  let snapshots;
+  try {
+    snapshots = await getSnapshotsBetween(
+      sessionStartDate.toISOString(),
+      windowEnd.toISOString()
+    );
+  } catch (err) {
+    if (!isWifiSourceUnavailable(err)) throw err;
+    console.error(`[attendance] session ${session.id}: Wi-Fi source unavailable, skipping (${err.message})`);
+    return {
+      skipped: true,
+      reason: 'wifi_source_unavailable',
+      records: [],
+      summary: { present: 0, partial: 0, absent: 0, leave: 0, skipped: 0 },
+      snapshotsAnalyzed: 0,
+      expectedTotalSnapshots,
+      scannerIntervalMin,
+    };
+  }
 
   const { macTimeline, orderedSnapshotIds } = buildMacTimeline(snapshots || []);
 

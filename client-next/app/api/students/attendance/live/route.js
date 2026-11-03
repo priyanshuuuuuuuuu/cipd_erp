@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { students, courseEnrollments, sessions as sessionsTable, courses, leaveRequests } from '@/drizzle/schema';
 import { eq, and, inArray, ne, lte, gt, asc } from 'drizzle-orm';
-import { supabaseAdmin } from '@/lib/supabase';
+import { getSnapshotsBetween, wifiErrorResponse } from '@/lib/wifi-snapshots';
 import { withAuth } from '@/lib/middleware';
 import { normalizeMac } from '@/lib/attendance-mac';
 import {
@@ -93,12 +93,10 @@ async function handler(req) {
       const sessionStart = new Date(`${today}T${session.start_time}+05:30`);
       const sessionEnd = new Date(`${today}T${session.end_time}+05:30`);
 
-      const { data: snapshots } = await supabaseAdmin
-        .schema('public').from('wifi_snapshots')
-        .select('id, iw_dump, captured_at')
-        .gte('captured_at', sessionStart.toISOString())
-        .lte('captured_at', now.toISOString())
-        .order('captured_at', { ascending: true });
+      const snapshots = await getSnapshotsBetween(
+        sessionStart.toISOString(),
+        now.toISOString()
+      );
 
       const { macTimeline, orderedSnapshotIds } = buildMacTimeline(
         snapshots || [],
@@ -157,6 +155,8 @@ async function handler(req) {
 
     return NextResponse.json({ sessions: liveSessions, date: today });
   } catch (err) {
+    const wifiRes = wifiErrorResponse(err);
+    if (wifiRes) return wifiRes;
     console.error('Live attendance error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }

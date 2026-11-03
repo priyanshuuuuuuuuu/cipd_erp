@@ -28,7 +28,9 @@ app.get('/health', async (_req, res) => {
 app.get('/messages', requireToken, async (req, res) => {
   try {
     const limit = Math.min(Math.max(Number(req.query.limit || 50), 1), 100);
-    res.json({ messages: await listMessages(limit) });
+    const schema = req.query.schema ? String(req.query.schema) : undefined;
+    const status = req.query.status ? String(req.query.status) : undefined;
+    res.json({ messages: await listMessages(limit, { schema, status }) });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

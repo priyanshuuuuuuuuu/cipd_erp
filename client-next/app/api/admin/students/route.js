@@ -11,11 +11,17 @@ import {
   feedbackResponses,
   assignmentSubmissions,
   notifications,
+  notificationStream,
+  leaveRequests,
+  attendancePingLogs,
+  studentAttendanceMarks,
+  studentCourseAttendance,
 } from '@/drizzle/schema';
+import crypto from 'node:crypto';
 import { eq, ne, inArray, desc } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
 import { hashPassword } from '@/lib/auth';
-import { findExistingStudentAcrossCohorts } from '@/lib/cohorts';
+import { findExistingStudentAcrossCohorts, invalidateMembershipCache } from '@/lib/cohorts';
 
 /** Resolve and validate schema from request. Returns null if invalid. */
 async function resolveSchema(req) {
@@ -149,14 +155,14 @@ async function postHandler(req) {
     let studentId;
     let reused = false;
 
-    if (existingAcrossCohorts) {
-      // Re-use existing account: keep id, password_hash, role, preferences
-      studentId = existingAcrossCohorts.id;
-      reused = true;
+    // Everything below is one transaction: either the whole student exists or nothing does.
+    await schemaDb.transaction(async (tx) => {
+      if (existingAcrossCohorts) {
+        // Re-use existing account: keep id, password_hash, role, preferences
+        studentId = existingAcrossCohorts.id;
+        reused = true;
 
-      await schemaDb
-        .insert(users)
-        .values({
+        await tx.insert(users).values({
           id: existingAcrossCohorts.id,
           firstName: first_name.trim() || existingAcrossCohorts.first_name || '',
           lastName: last_name.trim() || existingAcrossCohorts.last_name || '',
@@ -167,9 +173,8 @@ async function postHandler(req) {
           preferences: existingAcrossCohorts.preferences ?? null,
         });
 
-      // Copy all data from previous cohort schema (mac_address, mac_verified, device_hash, photo_url, etc.)
-      try {
-        await schemaDb.insert(students).values({
+        // Copy profile/MAC data from the previous cohort
+        await tx.insert(students).values({
           id: existingAcrossCohorts.id,
           enrollmentNo: targetEnrollmentNo,
           programName: program_name?.trim() || existingAcrossCohorts.program_name || null,
@@ -178,52 +183,38 @@ async function postHandler(req) {
           macVerified: existingAcrossCohorts.mac_verified ?? false,
           photoUrl: existingAcrossCohorts.photo_url || null,
         });
-      } catch (stuErr) {
-        await schemaDb.delete(users).where(eq(users.id, existingAcrossCohorts.id));
-        throw stuErr;
-      }
-    } else {
-      // Brand-new student: generate default password hash
-      const password_hash = await hashPassword('12345678');
-      const [newUser] = await schemaDb
-        .insert(users)
-        .values({
-          firstName: first_name.trim(),
-          lastName: last_name.trim(),
-          email: normalizedEmail,
-          passwordHash: password_hash,
-          role: 'student',
-          isActive: true,
-        })
-        .returning({ id: users.id });
-      studentId = newUser.id;
+      } else {
+        // Brand-new student: random unusable password; the student sets one via "Forgot password".
+        const password_hash = await hashPassword(crypto.randomBytes(24).toString('base64url'));
+        const [newUser] = await tx
+          .insert(users)
+          .values({
+            firstName: first_name.trim(),
+            lastName: last_name.trim(),
+            email: normalizedEmail,
+            passwordHash: password_hash,
+            role: 'student',
+            isActive: true,
+          })
+          .returning({ id: users.id });
+        studentId = newUser.id;
 
-      try {
-        await schemaDb.insert(students).values({
+        await tx.insert(students).values({
           id: studentId,
           enrollmentNo: targetEnrollmentNo,
           programName: program_name?.trim() || null,
         });
-      } catch (stuErr) {
-        await schemaDb.delete(users).where(eq(users.id, studentId));
-        throw stuErr;
       }
-    }
 
-    // Auto-enroll the student in all existing courses of this cohort
-    try {
-      const allCourses = await schemaDb.select({ id: courses.id }).from(courses);
+      // Auto-enroll the student in all existing courses of this cohort
+      const allCourses = await tx.select({ id: courses.id }).from(courses);
       if (allCourses.length > 0) {
-        await schemaDb.insert(courseEnrollments).values(
-          allCourses.map(c => ({
-            studentId,
-            courseId: c.id,
-          }))
+        await tx.insert(courseEnrollments).values(
+          allCourses.map(c => ({ studentId, courseId: c.id }))
         ).onConflictDoNothing();
       }
-    } catch (enrollErr) {
-      console.warn('Failed to auto-enroll student in courses:', enrollErr.message);
-    }
+    });
+    invalidateMembershipCache();
 
     return NextResponse.json({
       success: true,
@@ -288,9 +279,6 @@ async function patchHandler(req) {
     if (email !== undefined) userUpdates.email = email.toLowerCase().trim();
     if (is_active !== undefined) userUpdates.isActive = Boolean(is_active);
 
-    if (Object.keys(userUpdates).length > 0) {
-      await schemaDb.update(users).set(userUpdates).where(eq(users.id, student_id));
-    }
 
     const stuUpdates = {};
     if (enrollment_no !== undefined) stuUpdates.enrollmentNo = enrollment_no.trim() || null;
@@ -308,9 +296,15 @@ async function patchHandler(req) {
       }
     }
 
-    if (Object.keys(stuUpdates).length > 0) {
-      await schemaDb.update(students).set(stuUpdates).where(eq(students.id, student_id));
-    }
+    await schemaDb.transaction(async (tx) => {
+      if (Object.keys(userUpdates).length > 0) {
+        await tx.update(users).set(userUpdates).where(eq(users.id, student_id));
+      }
+      if (Object.keys(stuUpdates).length > 0) {
+        await tx.update(students).set(stuUpdates).where(eq(students.id, student_id));
+      }
+    });
+    invalidateMembershipCache();
 
     return NextResponse.json({ success: true });
   } catch (err) {
@@ -320,8 +314,9 @@ async function patchHandler(req) {
 }
 
 // ─── DELETE /api/admin/students — body: { student_id, schema? } ──────────
-// Manually deletes all child records first because the public schema does not
-// have ON DELETE CASCADE on all FKs (unlike the july schema).
+// Deletes all child records explicitly, inside one transaction. Only the `public`
+// schema has ON DELETE CASCADE on all FKs; `july` and `junedecember2026` mostly use
+// NO ACTION and lack 14 FKs, so we cannot rely on the database to cascade.
 async function deleteHandler(req) {
   try {
     const body = await req.json();
@@ -333,26 +328,21 @@ async function deleteHandler(req) {
 
     if (ids.length === 0) return NextResponse.json({ error: 'student_id or student_ids is required.' }, { status: 400 });
 
-    // 1. Delete attendance_records (references students.id)
-    await schemaDb.delete(attendanceRecords).where(inArray(attendanceRecords.studentId, ids));
-
-    // 2. Delete feedback_responses (references students.id)
-    await schemaDb.delete(feedbackResponses).where(inArray(feedbackResponses.studentId, ids));
-
-    // 3. Delete assignment_submissions (references students.id)
-    await schemaDb.delete(assignmentSubmissions).where(inArray(assignmentSubmissions.studentId, ids));
-
-    // 4. Delete course_enrollments (references students.id)
-    await schemaDb.delete(courseEnrollments).where(inArray(courseEnrollments.studentId, ids));
-
-    // 5. Delete notifications (references users.id as recipient)
-    await schemaDb.delete(notifications).where(inArray(notifications.recipientId, ids));
-
-    // 6. Delete the students row (references users.id)
-    await schemaDb.delete(students).where(inArray(students.id, ids));
-
-    // 7. Finally delete the users row
-    await schemaDb.delete(users).where(inArray(users.id, ids));
+    await schemaDb.transaction(async (tx) => {
+      await tx.delete(attendanceRecords).where(inArray(attendanceRecords.studentId, ids));
+      await tx.delete(feedbackResponses).where(inArray(feedbackResponses.studentId, ids));
+      await tx.delete(assignmentSubmissions).where(inArray(assignmentSubmissions.studentId, ids));
+      await tx.delete(courseEnrollments).where(inArray(courseEnrollments.studentId, ids));
+      await tx.delete(leaveRequests).where(inArray(leaveRequests.studentId, ids));
+      await tx.delete(attendancePingLogs).where(inArray(attendancePingLogs.studentId, ids));
+      await tx.delete(studentAttendanceMarks).where(inArray(studentAttendanceMarks.studentId, ids));
+      await tx.delete(studentCourseAttendance).where(inArray(studentCourseAttendance.studentId, ids));
+      await tx.delete(notifications).where(inArray(notifications.recipientId, ids));
+      await tx.delete(notificationStream).where(inArray(notificationStream.recipientId, ids));
+      await tx.delete(students).where(inArray(students.id, ids));
+      await tx.delete(users).where(inArray(users.id, ids));
+    });
+    invalidateMembershipCache();
 
     return NextResponse.json({ success: true, deleted: ids.length });
   } catch (err) {

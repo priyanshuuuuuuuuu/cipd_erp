@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase'; // Retained for wifi_snapshots rule
+import { getLatestSnapshot, isWifiSourceUnavailable } from '@/lib/wifi-snapshots';
 import { db, runWithSchema, getActiveSchema } from '@/lib/db';
 import { sessions } from '@/drizzle/schema';
 import { eq, and, ne, or, lt, asc } from 'drizzle-orm';
@@ -52,6 +52,7 @@ async function cronHandler(req) {
     });
 
     const results = [];
+    const skippedSessions = [];
 
     for (const session of activeSessions) {
       const isOngoing =
@@ -63,6 +64,17 @@ async function cronHandler(req) {
         upsert: true,
         now,
       });
+
+      if (result.skipped) {
+        results.push({
+          sessionId: session.id,
+          title: session.title,
+          status: 'skipped',
+          reason: result.reason,
+        });
+        skippedSessions.push({ sessionId: session.id, title: session.title, reason: result.reason });
+        continue; // leave the session unprocessed and not completed; next run retries
+      }
 
       results.push({
         sessionId: session.id,
@@ -163,6 +175,11 @@ async function cronHandler(req) {
           );
         }
 
+        if (missedResult?.skipped) {
+          skippedSessions.push({ sessionId: session.id, title: session.title, reason: missedResult.reason });
+          continue; // do not complete a session we could not score
+        }
+
         try {
           await db
             .update(sessions)
@@ -205,20 +222,21 @@ async function cronHandler(req) {
     }
 
     // DO NOT MIGRATE - using Supabase as per migration rule for wifi_snapshots
-    const { data: latestSnap } = await supabaseAdmin
-      .schema('public').from('wifi_snapshots')
-      .select('captured_at')
-      .order('captured_at', { ascending: false })
-      .limit(1)
-      .single();
+    let latestSnap = null;
+    try {
+      latestSnap = await getLatestSnapshot();
+    } catch (err) {
+      if (!isWifiSourceUnavailable(err)) throw err;
+    }
 
     return NextResponse.json({
-      message: `Processed ${results.length} active session(s), completed ${missedCompletedCount} missed session(s)`,
+      message: `Processed ${results.filter((r) => r.status !== 'skipped').length} active session(s), completed ${missedCompletedCount} missed session(s)`,
       date: today,
       time: currentTime,
-      sessionsProcessed: results.length,
+      sessionsProcessed: results.filter((r) => r.status !== 'skipped').length,
       missedSessionsCompleted: missedCompletedCount,
       latestSnapshotAt: latestSnap?.captured_at || null,
+      skippedSessions,
       results,
     });
   } catch (err) {

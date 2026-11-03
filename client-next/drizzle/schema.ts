@@ -1,4 +1,4 @@
-import { pgTable, index, foreignKey, bigserial, uuid, text, integer, timestamp, unique, boolean, numeric, uniqueIndex, date, time, jsonb, check, smallint, bigint, primaryKey, pgView, pgEnum } from "drizzle-orm/pg-core"
+import { pgTable, index, foreignKey, bigserial, uuid, text, integer, timestamp, unique, boolean, numeric, uniqueIndex, date, time, jsonb, check, smallint, bigint, primaryKey, pgEnum } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
 export const attendanceStatus = pgEnum("attendance_status", ['present', 'absent', 'partial', 'present_online', 'half', 'leave', 'other'])
@@ -143,13 +143,6 @@ export const faculty = pgTable("faculty", {
 			name: "faculty_id_fkey"
 		}).onDelete("cascade"),
 ]);
-
-export const wifiSnapshots = pgTable("wifi_snapshots", {
-	id: bigserial({ mode: "bigint" }).primaryKey().notNull(),
-	capturedAt: timestamp("captured_at", { withTimezone: true, mode: 'string' }).notNull(),
-	iwDump: jsonb("iw_dump").notNull(),
-	error: text(),
-});
 
 export const courses = pgTable("courses", {
 	id: uuid().default(sql`extensions.uuid_generate_v4()`).primaryKey().notNull(),
@@ -571,21 +564,3 @@ export const sessionSkills = pgTable("session_skills", {
 		}).onDelete("cascade"),
 	primaryKey({ columns: [table.sessionId, table.skillId], name: "session_skills_pkey"}),
 ]);
-export const adminDashboardSummary = pgView("admin_dashboard_summary", {	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
-	totalStudents: bigint("total_students", { mode: "number" }),
-	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
-	totalFaculty: bigint("total_faculty", { mode: "number" }),
-	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
-	totalSessions: bigint("total_sessions", { mode: "number" }),
-}).with({"securityInvoker":"on"}).as(sql`SELECT count(DISTINCT students.id) AS total_students, count(DISTINCT faculty.id) AS total_faculty, count(DISTINCT sessions.id) AS total_sessions FROM students, faculty, sessions`);
-
-export const facultyMonthlyHours = pgView("faculty_monthly_hours", {	facultyId: uuid("faculty_id"),
-	month: timestamp({ withTimezone: true, mode: 'string' }),
-	// You can use { mode: "bigint" } if numbers are exceeding js number limitations
-	sessions: bigint({ mode: "number" }),
-	hours: numeric(),
-}).with({"securityInvoker":"on"}).as(sql`SELECT faculty_id, date_trunc('month'::text, session_date::timestamp with time zone) AS month, count(*) AS sessions, sum(EXTRACT(epoch FROM end_time - start_time) / 3600::numeric) AS hours FROM sessions WHERE status = 'completed'::session_status GROUP BY faculty_id, (date_trunc('month'::text, session_date::timestamp with time zone))`);
-
-export const studentAttendanceSummary = pgView("student_attendance_summary", {	studentId: uuid("student_id"),
-	attendancePercentage: numeric("attendance_percentage"),
-}).with({"securityInvoker":"on"}).as(sql`SELECT student_id, count(*) FILTER (WHERE status = 'present'::attendance_status)::numeric * 100.0 / count(*)::numeric AS attendance_percentage FROM attendance_records GROUP BY student_id`);

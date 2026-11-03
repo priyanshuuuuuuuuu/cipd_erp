@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { students } from '@/drizzle/schema';
 import { eq } from 'drizzle-orm';
-import { supabaseAdmin } from '@/lib/supabase';
+import { getLatestSnapshots, wifiErrorResponse } from '@/lib/wifi-snapshots';
 import { withAuth } from '@/lib/middleware';
 
 const normalizeMac = (mac) => {
@@ -28,11 +28,7 @@ async function handler(req) {
     const studentMac = normalizeMac(student.mac_address);
 
     // Get the latest wifi snapshot
-    const { data: snapshots } = await supabaseAdmin
-      .schema('public').from('wifi_snapshots')
-      .select('iw_dump, captured_at')
-      .order('captured_at', { ascending: false })
-      .limit(1);
+    const snapshots = await getLatestSnapshots(1, { columns: 'iw_dump, captured_at' });
 
     if (!snapshots || snapshots.length === 0) {
       return NextResponse.json({ present: false, lastUpdated: null, message: 'No WiFi data available' });
@@ -59,6 +55,8 @@ async function handler(req) {
       lastUpdated: snapshot.captured_at,
     });
   } catch (err) {
+    const wifiRes = wifiErrorResponse(err);
+    if (wifiRes) return wifiRes;
     console.error('Presence check error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
