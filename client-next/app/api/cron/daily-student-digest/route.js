@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { generateAndSendDailyDigests } from '@/lib/daily-digest';
-import { getActiveSchema } from '@/lib/db';
+import { forEachRunningCohort, sumField } from '@/lib/cohort-jobs';
+import { errorResponse } from '@/lib/sql-ident';
 
 /**
  * Validates request authorization:
@@ -48,26 +49,34 @@ async function handleDigest(req) {
     }
 
     const targetDate = searchParams.get('date') || body.date || undefined;
-    const schema = searchParams.get('schema') || body.schema || (await getActiveSchema());
+    // Optional ?schema= narrows the run to one cohort; it is validated against the running cohorts.
+    const only = searchParams.get('schema') || body.schema || undefined;
     const dryRun = searchParams.get('dry_run') === 'true' || body.dryRun === true;
     const testEmail = searchParams.get('test_email') || body.testEmail || undefined;
     const studentId = searchParams.get('student_id') || body.studentId || undefined;
 
-    const result = await generateAndSendDailyDigests({
-      targetDate,
-      schema,
-      dryRun,
-      testEmail,
-      studentId,
-    });
-
-    return NextResponse.json(result);
-  } catch (err) {
-    console.error('Daily student digest error:', err);
-    return NextResponse.json(
-      { error: err.message || 'Internal server error' },
-      { status: 500 }
+    const cohorts = await forEachRunningCohort(
+      (schema) => generateAndSendDailyDigests({ targetDate, schema, dryRun, testEmail, studentId }),
+      { only }
     );
+
+    // Top-level fields are sums over cohorts (the digest worker prints them); per-cohort detail is under `cohorts`.
+    const first = Object.values(cohorts).find((r) => r && !r.error) || {};
+    const errors = Object.entries(cohorts).flatMap(([schema, r]) =>
+      r?.error ? [{ schema, error: r.error }] : (r?.errors || []).map((e) => ({ schema, ...e })));
+    return NextResponse.json({
+      success: Object.values(cohorts).every((r) => !r?.error),
+      date: first.date,
+      formattedDate: first.formattedDate,
+      totalSessions: sumField(cohorts, 'totalSessions'),
+      totalStudents: sumField(cohorts, 'totalStudents'),
+      sentCount: sumField(cohorts, 'sentCount'),
+      failedCount: sumField(cohorts, 'failedCount') + Object.values(cohorts).filter((r) => r?.error).length,
+      errors: errors.length ? errors : undefined,
+      cohorts,
+    });
+  } catch (err) {
+    return errorResponse(NextResponse, err, 'Daily student digest error');
   }
 }
 

@@ -40,7 +40,7 @@ async function handler(req) {
   const oauth2Client = getOAuth2Client();
 
   // Build a signed state — verified in the callback to prevent CSRF
-  const state = buildSignedState({ userId: req.user.id, role: req.user.role });
+  const state = buildSignedState({ userId: req.user.id, role: req.user.role, schema: req.cohort });
 
   const authUrl = oauth2Client.generateAuthUrl({
     access_type: 'offline',

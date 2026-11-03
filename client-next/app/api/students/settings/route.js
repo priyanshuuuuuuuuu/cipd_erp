@@ -95,4 +95,4 @@ async function patchHandler(req) {
 }
 
 export const GET = withAuth(getHandler);
-export const PATCH = withAuth(patchHandler);
+export const PATCH = withAuth(patchHandler, { allowArchivedWrites: true });

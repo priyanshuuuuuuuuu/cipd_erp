@@ -1,28 +1,23 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { DEFAULT_SCHEMA } from '@/config';
-import { getSchemaDb, getCohortConfig, getRequestSchema } from '@/lib/db';
+import { getSchemaDb, getRequestSchema } from '@/lib/db';
 import { courseEnrollments, students, courses } from '@/drizzle/schema';
 import { eq, desc, and } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
 
 /**
- * GET  /api/admin/enrollments?course_id=xxx&schema=july
- * POST /api/admin/enrollments    body: { student_id, course_id, schema? }
- * DELETE /api/admin/enrollments  body: { student_id, course_id, schema? }
+ * GET  /api/admin/enrollments?course_id=xxx
+ * POST /api/admin/enrollments    body: { student_id, course_id }
+ * DELETE /api/admin/enrollments  body: { student_id, course_id }
+ * The cohort is the one resolved by the middleware (x-cohort); it can no longer be overridden by the client.
  */
 
-async function resolveSchemaFromQuery(req) {
-  const { searchParams } = new URL(req.url);
-  const requested = searchParams.get('schema') || getRequestSchema() || DEFAULT_SCHEMA;
-  const { schemas } = await getCohortConfig();
-  return schemas.includes(requested) ? requested : null;
+async function resolveSchemaFromQuery() {
+  return getRequestSchema() || null;
 }
 
-async function resolveSchemaFromBody(body) {
-  const requested = body.schema || getRequestSchema() || DEFAULT_SCHEMA;
-  const { schemas } = await getCohortConfig();
-  return schemas.includes(requested) ? requested : null;
+async function resolveSchemaFromBody() {
+  return getRequestSchema() || null;
 }
 
 async function getHandler(req) {

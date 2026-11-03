@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { db, runWithSchema, getActiveSchema } from '@/lib/db';
+import { db } from '@/lib/db';
+import { forEachRunningCohort, sumField, cronHandlerRunner } from '@/lib/cohort-jobs';
 import {
   sessions,
   courses,
@@ -166,7 +167,15 @@ async function cronHandler(req) {
 }
 
 
-// Cron jobs operate on the currently active cohort.
+// Cron jobs run once for every RUNNING cohort; the response is keyed by cohort.
 export async function GET(req) {
-  return runWithSchema(await getActiveSchema(), () => cronHandler(req));
+  if (req.headers.get('x-cron-secret') !== process.env.CRON_SECRET) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const cohorts = await forEachRunningCohort(cronHandlerRunner(cronHandler, req));
+  return NextResponse.json({
+    message: 'Feedback reminders processed',
+    remindersSent: sumField(cohorts, 'remindersSent'),
+    cohorts,
+  });
 }

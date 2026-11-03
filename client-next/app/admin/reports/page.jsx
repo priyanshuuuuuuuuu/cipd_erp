@@ -1,6 +1,5 @@
 'use client';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { DEFAULT_SCHEMA } from '@/config';
 import '../../Dashboard.css';
 import {
     LayoutGrid, Calendar, MessageSquare, Settings, LogOut, Bell, Menu,
@@ -10,7 +9,8 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
-import { api } from '@/lib/api';
+import { api, apiDownload } from '@/lib/api';
+import { useCohort } from '../../contexts/CohortContext';
 import {
     PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
     BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -319,8 +319,7 @@ export default function AdminReportsPage() {
     const [exporting,        setExporting]        = useState(false);
 
     // ── Students tab state ────────────────────────────────────────────────────
-    const [cohorts,          setCohorts]          = useState([]);
-    const [studSchema,       setStudSchema]       = useState(DEFAULT_SCHEMA);
+    const { selectedCohort: studSchema, selectedCohortObj } = useCohort(); // the cohort picked in the sidebar switcher
     const [studDateFrom,     setStudDateFrom]     = useState('');
     const [studDateTo,       setStudDateTo]       = useState('');
     const [studExporting,    setStudExporting]    = useState(false);
@@ -332,17 +331,6 @@ export default function AdminReportsPage() {
         try { setData(await api.get('/api/admin/reports/master')); }
         catch (err) { setError(err.message || 'Failed to load report data'); }
         finally { setLoading(false); }
-    }, []);
-
-    // Load cohort schemas for the Students tab selector
-    useEffect(() => {
-        api.get('/api/admin/cohorts').then(d => {
-            // d = { schemas: string[], labels: Record<string,string> }
-            if (d?.schemas) {
-                setCohorts(d.schemas.map(s => ({ schema: s, label: d.labels?.[s] || (s.charAt(0).toUpperCase() + s.slice(1)) })));
-                setStudSchema(d.active || d.schemas[0] || DEFAULT_SCHEMA);
-            }
-        }).catch(() => setCohorts([{ schema: DEFAULT_SCHEMA, label: DEFAULT_SCHEMA}]));
     }, []);
 
     useEffect(() => { fetchData(); }, [fetchData]);
@@ -971,20 +959,11 @@ export default function AdminReportsPage() {
                             if (studExporting) return;
                             setStudExporting(true);
                             try {
-                                const params = new URLSearchParams({ schema: studSchema });
+                                const params = new URLSearchParams();
                                 if (studDateFrom) params.set('dateFrom', studDateFrom);
                                 if (studDateTo)   params.set('dateTo',   studDateTo);
 
-                                // Get token for Authorization header
-                                const token = localStorage.getItem('admin_token') || localStorage.getItem('token');
-                                const res = await fetch(`/api/admin/reports/students?${params}`, {
-                                    headers: token ? { Authorization: `Bearer ${token}` } : {},
-                                });
-                                if (!res.ok) {
-                                    const j = await res.json().catch(() => ({}));
-                                    throw new Error(j.error || `HTTP ${res.status}`);
-                                }
-                                const blob = await res.blob();
+                                const blob = await apiDownload(`/api/admin/reports/students?${params}`);
                                 const url  = URL.createObjectURL(blob);
                                 const a    = Object.assign(document.createElement('a'), {
                                     href: url,
@@ -1040,12 +1019,10 @@ export default function AdminReportsPage() {
                                         {/* Cohort */}
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                                             <label style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#888' }}>Cohort</label>
-                                            <select value={studSchema} onChange={e => setStudSchema(e.target.value)}
-                                                style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.82rem', fontFamily: 'inherit', background: '#fafafa', outline: 'none', cursor: 'pointer', minWidth: 130 }}>
-                                                {cohorts.length > 0
-                                                    ? cohorts.map(c => <option key={c.schema} value={c.schema}>{c.label}</option>)
-                                                    : <option value={DEFAULT_SCHEMA}>Default</option>}
-                                            </select>
+                                            <div title="Change the cohort with the switcher in the sidebar"
+                                                style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.82rem', background: '#f1f5f9', minWidth: 130, color: '#334155', fontWeight: 600 }}>
+                                                {selectedCohortObj?.label || studSchema || '—'}
+                                            </div>
                                         </div>
 
                                         {/* Date From */}

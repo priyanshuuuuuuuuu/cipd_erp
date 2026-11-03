@@ -1,471 +1,412 @@
-import crypto from 'node:crypto';
 import { connection, getCohortConfig, invalidateCohortCache, COHORT_NAME_RE } from '@/lib/db';
-import { hashPassword } from '@/lib/auth';
+import { qid, RESERVED_SCHEMAS, HttpError } from '@/lib/sql-ident';
+import { getAccountContext, invalidateAccountCache } from '@/lib/accounts';
+import { applyCohortMigrations } from '@/lib/migrator.mjs';
+import { createStudent } from '@/lib/student-service';
 
-const RESERVED_SCHEMAS = new Set([
-  'public', 'auth', 'storage', 'vault', 'realtime', 'extensions',
-  'graphql', 'graphql_public', 'information_schema', 'pgbouncer',
-]);
+export { qid };
 
-// Tables never cloned into a new cohort. wifi_snapshots stays a single shared table in `public`.
-const SKIP_TABLES = new Set(['wifi_snapshots']);
+/** Kept for existing imports: membership data now lives in lib/accounts.js. */
+export const invalidateMembershipCache = invalidateAccountCache;
 
-// Reference tables copied (in FK-safe order). `users` and `faculty` are handled separately.
-// session_skills is intentionally NOT copied: its rows only link sessions to skills and a fresh
-// cohort has no sessions, so the copied rows would be orphans.
-const COPY_TABLES = [
-  'courses',
-  'categories',
-  'skills',
-  'session_types',
-  'venues',
-  'system_settings',
-  'feedback_questions',
-  'google_tokens',
-];
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
-/** Quote a (pre-validated) identifier for use in dynamic SQL. */
-export function qid(id) {
-  return '"' + String(id).replace(/"/g, '""') + '"';
-}
+// ── Request → cohort resolution ───────────────────────────────────────────────
 
-// ── Student → cohort membership ──────────────────────────────────────────────
-const MEMBERSHIP_TTL_MS = 60_000;
-const _membershipCache = new Map(); // userId -> { at, cohorts }
-
-export function invalidateMembershipCache() {
-  _membershipCache.clear();
+/**
+ * Admin without a row in a RUNNING cohort: create membership + users row on demand (one transaction), so every
+ * admin can work in every running cohort. Returns the cohort-local users.id to use.
+ */
+async function ensureAdminInCohort(account, cohort) {
+  const schema = qid(cohort.schema);
+  const localId = await connection.begin(async (tx) => {
+    await tx`INSERT INTO core.cohort_memberships (account_id, cohort_id, status)
+             VALUES (${account.id}, ${cohort.id}, 'active') ON CONFLICT DO NOTHING`;
+    await tx.unsafe(
+      `INSERT INTO ${schema}.users (id, email, password_hash, role, first_name, last_name, is_active, cohort_id)
+       VALUES ($1, $2, $3, 'admin', $4, $5, true, $6) ON CONFLICT DO NOTHING`,
+      [account.id, account.email, account.password_hash, account.first_name || '', account.last_name || '', cohort.id]);
+    const [own] = await tx.unsafe(`SELECT id FROM ${schema}.users WHERE id = $1`, [account.id]);
+    if (own) return own.id;
+    // The cohort already has a row for this email under another (alias) id: use that one.
+    const [byEmail] = await tx.unsafe(`SELECT id FROM ${schema}.users WHERE lower(email) = lower($1)`, [account.email]);
+    if (!byEmail) throw new Error('Could not provision admin user in cohort ' + cohort.schema);
+    await tx`INSERT INTO core.cohort_memberships (account_id, cohort_id, status)
+             VALUES (${byEmail.id}, ${cohort.id}, 'active') ON CONFLICT DO NOTHING`;
+    return byEmail.id;
+  });
+  invalidateAccountCache();
+  return localId;
 }
 
 /**
- * Cohorts (in registry order, oldest first) in which `userId` has a users row.
- * Cached briefly so it can be used on every request.
+ * Decide which cohort a request operates on, and who the caller is inside it.
+ *  - admin: any running/archived cohort from the x-cohort header, else the default cohort.
+ *  - faculty/student: only cohorts they have a membership in (header if valid, else default if member, else newest).
+ *
+ * @returns {{ schema, cohort, localId, accountId, role, membership, ctx }}
  */
-export async function getUserCohorts(userId) {
-  const hit = _membershipCache.get(userId);
-  if (hit && Date.now() - hit.at < MEMBERSHIP_TTL_MS) return hit.cohorts;
+export async function resolveRequestContext(req, user) {
+  const config = await getCohortConfig();
+  const ctx = await getAccountContext(user.id);
+  if (!ctx) throw new HttpError(401, 'Account not found.');
+  if (ctx.account.is_active === false) throw new HttpError(403, 'Account is deactivated.');
 
-  const { schemas } = await getCohortConfig(); // validated registry names only
-  if (!schemas.length) return [];
-  const query = schemas
-    .map((s, i) => `SELECT ${i} AS idx FROM ${qid(s)}.users WHERE id = $1`)
-    .join(' UNION ALL ');
-  const rows = await connection.unsafe(query, [userId]);
-  const cohorts = rows.map(r => schemas[Number(r.idx)]).filter(Boolean);
-  _membershipCache.set(userId, { at: Date.now(), cohorts });
-  return cohorts;
-}
-
-/**
- * Decide which cohort schema a request operates on.
- *  - admin/faculty: x-cohort header if registered, else the active cohort.
- *  - student: x-cohort header if they belong to it; otherwise the active cohort if they belong
- *    to it; otherwise the most recent cohort they belong to.
- */
-export async function resolveRequestSchema(req, user) {
-  const { schemas, active } = await getCohortConfig();
+  const byName = new Map(config.cohorts.map((c) => [c.schema, c]));
   const requested = req.headers.get('x-cohort');
+  const role = ctx.account.role;
+  const def = byName.get(config.active);
 
-  if (user.role !== 'student') {
-    return requested && schemas.includes(requested) ? requested : active;
+  let cohort;
+  let membership = null;
+
+  if (role === 'admin') {
+    cohort = (requested && byName.get(requested)) || def || config.cohorts[config.cohorts.length - 1];
+    if (!cohort) throw new HttpError(503, 'No cohort is available.');
+    membership = ctx.memberships.find((m) => m.cohort_id === cohort.id) || null;
+    if (!membership && cohort.status === 'running') {
+      const localId = await ensureAdminInCohort(ctx.account, cohort);
+      membership = { local_user_id: localId, cohort_id: cohort.id, schema: cohort.schema, status: 'active' };
+    }
+  } else {
+    const mine = ctx.memberships.filter((m) => byName.has(m.schema)); // oldest -> newest
+    if (!mine.length) throw new HttpError(403, 'You are not a member of any cohort.');
+    membership =
+      (requested && mine.find((m) => m.schema === requested))
+      || (def && mine.find((m) => m.cohort_id === def.id))
+      || mine[mine.length - 1];
+    cohort = byName.get(membership.schema);
   }
 
-  let members = [];
-  try {
-    members = await getUserCohorts(user.id);
-  } catch (err) {
-    console.error('resolveRequestSchema: membership lookup failed:', err.message);
+  return {
+    schema: cohort.schema,
+    cohort,
+    localId: membership?.local_user_id ?? ctx.canonicalId,
+    accountId: ctx.canonicalId,
+    role,
+    membership,
+    ctx,
+  };
+}
+
+/**
+ * Read-only enforcement. Returns an error message when this request must be refused, else null.
+ *  - Non-running cohorts accept only GET/HEAD/OPTIONS (unless the route opts in with allowArchivedWrites).
+ *  - A student/faculty whose membership is not active (transferred out, withdrawn, completed) is read-only too.
+ */
+export function readOnlyViolation(method, resolved, { allowArchivedWrites = false } = {}) {
+  if (SAFE_METHODS.has(method) || allowArchivedWrites) return null;
+  const { cohort, membership, role } = resolved;
+  if (cohort.status !== 'running' && cohort.status !== 'provisioning') return 'This cohort is archived and read-only.';
+  if (role !== 'admin' && membership && membership.status !== 'active') {
+    return `Your membership in this cohort is ${membership.status}; it is read-only.`;
   }
-  if (requested && members.includes(requested)) return requested;
-  if (members.includes(active)) return active;
-  if (members.length) return members[members.length - 1];
-  return active;
+  return null;
 }
 
-/** Default cohort for a user at login time, from the cohorts they belong to. */
-export function pickDefaultCohort(role, members, active) {
-  if (members.includes(active)) return active;
-  if (!members.length) return null;
-  return role === 'student' ? members[members.length - 1] : members[0];
+/**
+ * Default cohort for an account at login: the default cohort if they are an active member (admins always get it),
+ * else their most recent active membership, else their most recent membership.
+ */
+export async function defaultCohortForAccount(ctx) {
+  const config = await getCohortConfig();
+  const def = config.cohorts.find((c) => c.schema === config.active);
+  if (ctx.account.role === 'admin') return def?.schema ?? null;
+  const mine = [...ctx.memberships].filter((m) => config.schemas.includes(m.schema)).reverse(); // newest first
+  if (def && mine.some((m) => m.cohort_id === def.id && m.status === 'active')) return def.schema;
+  return (mine.find((m) => m.status === 'active') || mine[0])?.schema ?? null;
 }
 
-// ── Create a new cohort ──────────────────────────────────────────────────────
-function normalizeStudents(rows) {
+// ── Cohort lifecycle ──────────────────────────────────────────────────────────
+
+const REFERENCE_TABLES = ['courses', 'categories', 'skills', 'session_types', 'venues', 'system_settings', 'feedback_questions'];
+
+async function commonColumns(q, a, b, table, { exclude = [] } = {}) {
+  const rows = await q.unsafe(
+    `SELECT ca.column_name FROM information_schema.columns ca
+       JOIN information_schema.columns cb ON cb.column_name = ca.column_name AND cb.table_schema = $2 AND cb.table_name = $3
+      WHERE ca.table_schema = $1 AND ca.table_name = $3 ORDER BY ca.ordinal_position`, [a, b, table]);
+  return rows.map((r) => r.column_name).filter((c) => !exclude.includes(c));
+}
+
+async function copyTable(tx, refSchema, dstSchema, table) {
+  const cols = (await commonColumns(tx, refSchema, dstSchema, table)).map(qid).join(', ');
+  if (!cols) return;
+  await tx.unsafe(`INSERT INTO ${qid(dstSchema)}.${qid(table)} (${cols}) SELECT ${cols} FROM ${qid(refSchema)}.${qid(table)}`);
+}
+
+function normalizeStudentInput(rows) {
   const seen = new Set();
   const out = [];
   const errors = [];
   for (const r of Array.isArray(rows) ? rows : []) {
     const email = String(r?.email || '').trim().toLowerCase();
-    const name = String(r?.name || '').trim();
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      errors.push({ email: r?.email || '', error: 'Invalid email' });
-      continue;
-    }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { errors.push({ email: r?.email || '', error: 'Invalid email' }); continue; }
     if (seen.has(email)) continue;
     seen.add(email);
-    const [first, ...rest] = name.split(/\s+/).filter(Boolean);
+    const [first, ...rest] = String(r?.name || '').trim().split(/\s+/).filter(Boolean);
     out.push({
-      email,
-      firstName: first || email.split('@')[0],
-      lastName: rest.join(' '),
+      email, firstName: first || email.split('@')[0], lastName: rest.join(' '),
       enrollmentNo: r?.enrollment_no ? String(r.enrollment_no).trim() : null,
-      programName: r?.program_name ? String(r.program_name).trim() : null,
+      programId: r?.program_id ?? null,
     });
   }
   return { students: out, errors };
 }
 
-/**
- * Lookup an existing student's account and profile data across registered cohorts.
- * Merges profile data, giving priority to schemas with populated MAC address or preferredSourceSchema.
- *
- * @param {string} email
- * @param {string} [excludeSchema]
- * @param {string} [preferredSourceSchema]
- * @returns {Promise<Object|null>}
- */
-export async function findExistingStudentAcrossCohorts(email, excludeSchema = null, preferredSourceSchema = null) {
-  if (!email) return null;
-  const normalizedEmail = email.toLowerCase().trim();
-  const { schemas, active } = await getCohortConfig();
-  if (!schemas || !schemas.length) return null;
+/** Steps 3.1-3.6: build the cohort inside ONE transaction. Throws on any failure (everything rolls back). */
+async function provisionCohort(cohortRow, request) {
+  const schemaName = cohortRow.schema_name;
+  const result = { schema: schemaName, created: 0, reused: 0, failed: [], tables: 0 };
 
-  // Order schemas: preferredSourceSchema first, then active, then remaining schemas
-  const schemaOrder = [];
-  if (preferredSourceSchema && schemas.includes(preferredSourceSchema)) {
-    schemaOrder.push(preferredSourceSchema);
-  }
-  if (active && schemas.includes(active) && !schemaOrder.includes(active)) {
-    schemaOrder.push(active);
-  }
-  for (let i = schemas.length - 1; i >= 0; i--) {
-    const s = schemas[i];
-    if (!schemaOrder.includes(s)) schemaOrder.push(s);
-  }
+  await connection.begin(async (tx) => {
+    // Serialise with `npm run migrate` (it takes the same advisory lock).
+    await tx`SELECT pg_advisory_xact_lock(hashtext('cipd_migrations'))`;
 
-  const targetSchemas = schemaOrder.filter(s => s !== excludeSchema);
-  let bestRecord = null;
+    const [{ exists }] = await tx`SELECT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = ${schemaName}) AS exists`;
+    if (exists) throw new HttpError(409, 'A database schema with this name already exists');
+    await tx.unsafe(`CREATE SCHEMA ${qid(schemaName)}`);
 
-  for (const s of targetSchemas) {
-    try {
-      const rows = await connection.unsafe(
-        `SELECT u.id, u.email, u.password_hash, u.role, u.first_name, u.last_name, u.is_active, u.preferences,
-                st.enrollment_no, st.program_name, st.device_hash, st.mac_address, st.mac_verified, st.photo_url
-         FROM ${qid(s)}.users u
-         LEFT JOIN ${qid(s)}.students st ON u.id = st.id
-         WHERE lower(u.email) = $1 AND u.role = 'student'
-         LIMIT 1`,
-        [normalizedEmail]
-      );
-      if (rows && rows.length > 0) {
-        const r = rows[0];
-        if (!bestRecord) {
-          bestRecord = { ...r, sourceSchema: s };
-        } else {
-          // If this record has mac_address and bestRecord didn't, upgrade
-          if (!bestRecord.mac_address && r.mac_address) {
-            bestRecord.mac_address = r.mac_address;
-            bestRecord.mac_verified = r.mac_verified;
-          }
-          if (!bestRecord.device_hash && r.device_hash) bestRecord.device_hash = r.device_hash;
-          if (!bestRecord.enrollment_no && r.enrollment_no) bestRecord.enrollment_no = r.enrollment_no;
-          if (!bestRecord.program_name && r.program_name) bestRecord.program_name = r.program_name;
-          if (!bestRecord.photo_url && r.photo_url) bestRecord.photo_url = r.photo_url;
-        }
-        if (bestRecord.mac_address && s === preferredSourceSchema) break;
-      }
-    } catch (err) {
-      console.warn(`findExistingStudentAcrossCohorts: error querying ${s}:`, err.message);
+    // 1. Structure comes from the versioned migrations (no more LIKE-clones: FKs, triggers, sequences are all real).
+    const ran = await applyCohortMigrations(connection, schemaName, cohortRow.id, { tx, log: () => {} });
+    result.tables = ran.length;
+    await tx`SET LOCAL search_path TO core`;
+
+    // 2. Reference data from the reference cohort.
+    const [ref] = request.referenceCohortId
+      ? await tx`SELECT id, schema_name FROM core.cohorts WHERE id = ${request.referenceCohortId}`
+      : await tx`SELECT id, schema_name FROM core.cohorts WHERE is_default LIMIT 1`;
+    if (ref) {
+      for (const t of REFERENCE_TABLES) await copyTable(tx, ref.schema_name, schemaName, t);
     }
-  }
 
-  return bestRecord;
-}
+    // 3. Staff: every admin, plus faculty who are active in the reference cohort.
+    const dst = qid(schemaName);
+    const admins = await tx`SELECT id, email, password_hash, first_name, last_name FROM core.accounts
+                             WHERE role = 'admin' AND merged_into IS NULL AND is_active`;
+    for (const a of admins) {
+      await tx`INSERT INTO core.cohort_memberships (account_id, cohort_id, status) VALUES (${a.id}, ${cohortRow.id}, 'active')`;
+      await tx.unsafe(
+        `INSERT INTO ${dst}.users (id, email, password_hash, role, first_name, last_name, is_active, cohort_id)
+         VALUES ($1, $2, $3, 'admin', $4, $5, true, $6)`,
+        [a.id, a.email, a.password_hash, a.first_name || '', a.last_name || '', cohortRow.id]);
+    }
+    if (ref) {
+      const facultyCols = (await commonColumns(tx, ref.schema_name, schemaName, 'faculty', { exclude: ['id'] })).map(qid).join(', ');
+      const staff = await tx`
+        SELECT a.id, a.email, a.password_hash, a.first_name, a.last_name, m.account_id AS ref_local_id
+          FROM core.cohort_memberships m
+          JOIN core.accounts a ON a.id = COALESCE((SELECT merged_into FROM core.accounts x WHERE x.id = m.account_id), m.account_id)
+         WHERE m.cohort_id = ${ref.id} AND m.status = 'active' AND a.role = 'faculty' AND a.is_active`;
+      for (const f of staff) {
+        await tx`INSERT INTO core.cohort_memberships (account_id, cohort_id, status) VALUES (${f.id}, ${cohortRow.id}, 'active')`;
+        await tx.unsafe(
+          `INSERT INTO ${dst}.users (id, email, password_hash, role, first_name, last_name, is_active, cohort_id)
+           VALUES ($1, $2, $3, 'faculty', $4, $5, true, $6)`,
+          [f.id, f.email, f.password_hash, f.first_name || '', f.last_name || '', cohortRow.id]);
+        if (facultyCols) {
+          await tx.unsafe(
+            `INSERT INTO ${dst}.faculty (id, ${facultyCols}) SELECT $1::uuid, ${facultyCols} FROM ${qid(ref.schema_name)}.faculty WHERE id = $2::uuid`,
+            [f.id, f.ref_local_id]);
+        }
+      }
+    }
 
-/**
- * Batch lookup existing students across registered cohorts.
- * Returns Map: email (lowercase) -> studentRecord
- */
-export async function findExistingStudentsBatch(emails, excludeSchema = null, preferredSourceSchema = null) {
-  const result = new Map();
-  if (!emails || !emails.length) return result;
-
-  const normalizedEmails = [...new Set(emails.map(e => String(e).toLowerCase().trim()).filter(Boolean))];
-  if (!normalizedEmails.length) return result;
-
-  const { schemas, active } = await getCohortConfig();
-  if (!schemas || !schemas.length) return result;
-
-  const schemaOrder = [];
-  if (preferredSourceSchema && schemas.includes(preferredSourceSchema)) {
-    schemaOrder.push(preferredSourceSchema);
-  }
-  if (active && schemas.includes(active) && !schemaOrder.includes(active)) {
-    schemaOrder.push(active);
-  }
-  for (let i = schemas.length - 1; i >= 0; i--) {
-    const s = schemas[i];
-    if (!schemaOrder.includes(s)) schemaOrder.push(s);
-  }
-
-  const targetSchemas = schemaOrder.filter(s => s !== excludeSchema);
-
-  for (const s of targetSchemas) {
-    try {
-      const rows = await connection.unsafe(
-        `SELECT u.id, u.email, u.password_hash, u.role, u.first_name, u.last_name, u.is_active, u.preferences,
-                st.enrollment_no, st.program_name, st.device_hash, st.mac_address, st.mac_verified, st.photo_url
-         FROM ${qid(s)}.users u
-         LEFT JOIN ${qid(s)}.students st ON u.id = st.id
-         WHERE lower(u.email) = ANY($1) AND u.role = 'student'`,
-        [normalizedEmails]
-      );
+    // 4. Students: those listed, plus (optionally) the active students of another cohort.
+    const { students: listed, errors } = normalizeStudentInput(request.students);
+    result.failed.push(...errors);
+    const wanted = [...listed];
+    if (request.copyActiveStudentsFromCohortId) {
+      const [src] = await tx`SELECT id, schema_name FROM core.cohorts WHERE id = ${request.copyActiveStudentsFromCohortId}`;
+      if (!src) throw new HttpError(422, 'Cohort to copy students from does not exist.');
+      const have = new Set(wanted.map((s) => s.email));
+      const rows = await tx.unsafe(
+        `SELECT u.email, u.first_name, u.last_name, s.enrollment_no, s.program_id
+           FROM ${qid(src.schema_name)}.users u
+           JOIN ${qid(src.schema_name)}.students s ON s.id = u.id
+           JOIN core.cohort_memberships m ON m.account_id = u.id AND m.cohort_id = ${Number(src.id)} AND m.status = 'active'
+          WHERE u.role = 'student' AND u.is_active`);
       for (const r of rows) {
-        const key = r.email.toLowerCase();
-        const existing = result.get(key);
-        if (!existing) {
-          result.set(key, { ...r, sourceSchema: s });
-        } else {
-          // Merge in missing details (mac_address, verified status, device_hash, photo_url, etc.)
-          if (!existing.mac_address && r.mac_address) {
-            existing.mac_address = r.mac_address;
-            existing.mac_verified = r.mac_verified;
-          }
-          if (!existing.device_hash && r.device_hash) existing.device_hash = r.device_hash;
-          if (!existing.enrollment_no && r.enrollment_no) existing.enrollment_no = r.enrollment_no;
-          if (!existing.program_name && r.program_name) existing.program_name = r.program_name;
-          if (!existing.photo_url && r.photo_url) existing.photo_url = r.photo_url;
-        }
+        const email = r.email.toLowerCase();
+        if (have.has(email)) continue;
+        have.add(email);
+        wanted.push({ email, firstName: r.first_name || email.split('@')[0], lastName: r.last_name || '', enrollmentNo: r.enrollment_no, programId: r.program_id });
       }
-    } catch (err) {
-      console.warn(`findExistingStudentsBatch: error querying ${s}:`, err.message);
     }
-  }
-
-  return result;
-}
-
-/**
- * Creates a fresh cohort schema by cloning the structure of `sourceSchema`, copying reference data
- * and non-student users, and enrolling the provided students. Everything runs in one transaction.
- *
- * @param {{ schemaName: string, label: string, students?: {name:string,email:string}[],
- *           makeActive?: boolean, createdBy?: string, sourceSchema?: string, copyAllStudents?: boolean }} opts
- */
-export async function createCohort(opts) {
-  const schemaName = String(opts.schemaName || '').trim();
-  const label = String(opts.label || '').trim() || schemaName.charAt(0).toUpperCase() + schemaName.slice(1);
-
-  if (!COHORT_NAME_RE.test(schemaName) || RESERVED_SCHEMAS.has(schemaName) || schemaName.startsWith('pg_')) {
-    const err = new Error('Invalid cohort name. Use 3-41 chars: lowercase letters, digits, underscore; must start with a letter.');
-    err.status = 400;
-    throw err;
-  }
-
-  const { schemas, active } = await getCohortConfig();
-  if (schemas.includes(schemaName)) {
-    const err = new Error('A cohort with this name already exists');
-    err.status = 409;
-    throw err;
-  }
-  const source = opts.sourceSchema || active;
-  if (!schemas.includes(source)) {
-    const err = new Error('Invalid source cohort');
-    err.status = 400;
-    throw err;
-  }
-
-  const { students: studentRows, errors: inputErrors } = normalizeStudents(opts.students);
-
-  // If copyAllStudents is requested, pull all active students from the source cohort
-  if (opts.copyAllStudents) {
-    try {
-      const srcStudents = await connection.unsafe(
-        `SELECT u.email, u.first_name, u.last_name, st.enrollment_no, st.program_name
-         FROM ${qid(source)}.users u
-         JOIN ${qid(source)}.students st ON u.id = st.id
-         WHERE u.role = 'student' AND u.is_active = true`
-      );
-      const existingEmails = new Set(studentRows.map(s => s.email));
-      for (const s of srcStudents) {
-        if (!existingEmails.has(s.email.toLowerCase())) {
-          studentRows.push({
-            email: s.email.toLowerCase(),
-            firstName: s.first_name || '',
-            lastName: s.last_name || '',
-            enrollmentNo: s.enrollment_no || null,
-            programName: s.program_name || null,
-          });
-          existingEmails.add(s.email.toLowerCase());
-        }
-      }
-    } catch (srcErr) {
-      console.warn('createCohort: failed to read source students for copyAllStudents:', srcErr.message);
-    }
-  }
-
-  // Look up existing student accounts across previous cohorts (including MAC address, verified, device hash)
-  const existingByEmail = studentRows.length
-    ? await findExistingStudentsBatch(studentRows.map(s => s.email), null, source)
-    : new Map();
-
-  const src = qid(source);
-  const dst = qid(schemaName);
-  const result = { schema: schemaName, label, created: 0, reused: 0, failed: [...inputErrors], tables: 0 };
-
-  await connection.begin(async (sql) => {
-    const [{ exists }] = await sql.unsafe(
-      `SELECT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = $1) AS exists`, [schemaName]
-    );
-    if (exists) {
-      const err = new Error('A database schema with this name already exists');
-      err.status = 409;
-      throw err;
-    }
-
-    await sql.unsafe(`CREATE SCHEMA ${dst}`);
-
-    // 1. Clone table structure (columns, defaults, PK/unique/check constraints, indexes).
-    const tables = (await sql.unsafe(
-      `SELECT c.relname AS name, c.relrowsecurity AS rls
-       FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-       WHERE n.nspname = $1 AND c.relkind = 'r' ORDER BY c.relname`, [source]
-    )).filter(t => !SKIP_TABLES.has(t.name));
-
-    for (const t of tables) {
-      await sql.unsafe(`CREATE TABLE ${dst}.${qid(t.name)} (LIKE ${src}.${qid(t.name)} INCLUDING ALL)`);
-      if (t.rls) await sql.unsafe(`ALTER TABLE ${dst}.${qid(t.name)} ENABLE ROW LEVEL SECURITY`);
-    }
-    result.tables = tables.length;
-
-    // 2. Recreate foreign keys (LIKE does not copy them), re-pointed at the new schema.
-    await sql.unsafe(`SET LOCAL search_path TO ${src}, public`);
-    const fks = await sql.unsafe(
-      `SELECT conrelid::regclass::text AS tbl, conname, pg_get_constraintdef(oid) AS def
-       FROM pg_constraint WHERE contype = 'f' AND connamespace = $1::regnamespace`, [source]
-    );
-    await sql.unsafe(`SET LOCAL search_path TO ${dst}, public`);
-    const srcPrefix = new RegExp(`REFERENCES\\s+"?${source}"?\\.`, 'g');
-    for (const fk of fks) {
-      const tbl = fk.tbl.replace(/^"?[^".]+"?\./, '').replace(/"/g, '');
-      if (SKIP_TABLES.has(tbl)) continue;
-      const def = fk.def.replace(srcPrefix, 'REFERENCES ');
-      await sql.unsafe(`ALTER TABLE ${dst}.${qid(tbl)} ADD CONSTRAINT ${qid(fk.conname)} ${def}`);
-    }
-    await sql.unsafe(`SET LOCAL search_path TO public`);
-
-    // 3. Copy non-student users and their faculty rows, then reference tables.
-    await sql.unsafe(`INSERT INTO ${dst}.users SELECT * FROM ${src}.users WHERE role <> 'student'`);
-    await sql.unsafe(`INSERT INTO ${dst}.faculty SELECT * FROM ${src}.faculty WHERE id IN (SELECT id FROM ${dst}.users)`);
-    for (const t of COPY_TABLES) {
-      await sql.unsafe(`INSERT INTO ${dst}.${qid(t)} SELECT * FROM ${src}.${qid(t)}`);
-    }
-
-    // Auto-enroll trigger for any student created in this cohort
-    await sql.unsafe(`
-      CREATE OR REPLACE FUNCTION ${dst}.auto_enroll_student_in_courses()
-      RETURNS TRIGGER AS $$
-      BEGIN
-          INSERT INTO ${dst}.course_enrollments (student_id, course_id)
-          SELECT NEW.id, courses.id
-          FROM ${dst}.courses
-          ON CONFLICT DO NOTHING;
-          RETURN NEW;
-      END;
-      $$ LANGUAGE plpgsql;
-
-      DROP TRIGGER IF EXISTS trg_auto_enroll_student ON ${dst}.students;
-      CREATE TRIGGER trg_auto_enroll_student
-      AFTER INSERT ON ${dst}.students
-      FOR EACH ROW
-      EXECUTE FUNCTION ${dst}.auto_enroll_student_in_courses();
-    `);
-
-    // 4. Enrol students.
-    for (const s of studentRows) {
+    for (const s of wanted) {
       try {
-        await sql.savepoint(async (sp) => {
-          const prev = existingByEmail.get(s.email);
-          let id;
-          if (prev) {
-            id = prev.id;
-            await sp.unsafe(
-              `INSERT INTO ${dst}.users (id, email, password_hash, role, first_name, last_name, is_active, preferences)
-               VALUES ($1, $2, $3, 'student', $4, $5, true, $6)`,
-              [prev.id, s.email, prev.password_hash, s.firstName || prev.first_name, s.lastName || prev.last_name, prev.preferences ?? null]
-            );
-            await sp.unsafe(
-              `INSERT INTO ${dst}.students (id, enrollment_no, program_name, device_hash, mac_address, mac_verified, photo_url)
-               VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-              [
-                prev.id,
-                s.enrollmentNo || prev.enrollment_no || null,
-                s.programName || prev.program_name || null,
-                prev.device_hash || null,
-                prev.mac_address || null,
-                prev.mac_verified ?? false,
-                prev.photo_url || null,
-              ]
-            );
-            result.reused++;
-          } else {
-            // Random password: the student sets their own via "Forgot password".
-            const hash = await hashPassword(crypto.randomBytes(24).toString('base64url'));
-            const [row] = await sp.unsafe(
-              `INSERT INTO ${dst}.users (email, password_hash, role, first_name, last_name, is_active)
-               VALUES ($1, $2, 'student', $3, $4, true) RETURNING id`,
-              [s.email, hash, s.firstName, s.lastName]
-            );
-            id = row.id;
-            await sp.unsafe(
-              `INSERT INTO ${dst}.students (id, enrollment_no, program_name) VALUES ($1, $2, $3)`,
-              [id, s.enrollmentNo || null, s.programName || null]
-            );
-            result.created++;
-          }
-        });
+        const res = await createStudent({ cohortId: cohortRow.id, ...s }, { tx });
+        if (res.created) result.created++; else result.reused++;
       } catch (err) {
         result.failed.push({ email: s.email, error: err.message });
       }
     }
 
-    // Auto-enroll all students in all courses of this cohort
-    try {
-      await sql.unsafe(`
-        INSERT INTO ${dst}.course_enrollments (student_id, course_id)
-        SELECT s.id, c.id
-        FROM ${dst}.students s
-        CROSS JOIN ${dst}.courses c
-        ON CONFLICT DO NOTHING
-      `);
-    } catch (enrollErr) {
-      console.warn('Cohort creation auto-enroll error:', enrollErr.message);
-    }
-
-    // 5. Register the cohort.
-    if (opts.makeActive) await sql.unsafe(`UPDATE core.cohorts SET is_default = false WHERE is_default`);
-    await sql.unsafe(
-      `INSERT INTO core.cohorts (schema_name, label, status, is_default, created_by) VALUES ($1, $2, 'running', $3, $4)`,
-      [schemaName, label, !!opts.makeActive, opts.createdBy || null]
-    );
+    // 5. Go live.
+    if (request.makeDefault) await tx`UPDATE core.cohorts SET is_default = false WHERE is_default`;
+    await tx`UPDATE core.cohorts
+                SET status = 'running', is_default = ${!!request.makeDefault}, last_error = NULL,
+                    provision_request = NULL, updated_at = now()
+              WHERE id = ${cohortRow.id}`;
   });
-
-  invalidateCohortCache();
-  invalidateMembershipCache();
   return result;
 }
 
-/** Marks `schemaName` as the single active cohort. */
-export async function setActiveCohort(schemaName) {
-  const { schemas } = await getCohortConfig();
-  if (!schemas.includes(schemaName)) {
-    const err = new Error('Unknown cohort');
-    err.status = 404;
-    throw err;
+/** Records a provisioning failure outside the rolled-back transaction. */
+async function markFailed(cohortId, err) {
+  await connection`UPDATE core.cohorts SET status = 'failed', last_error = ${String(err.message).slice(0, 2000)}, updated_at = now()
+                    WHERE id = ${cohortId}`;
+  invalidateCohortCache();
+}
+
+/**
+ * Create a cohort.
+ * @param {{ schemaName:string, label:string, program?:string, startsOn?:string, endsOn?:string,
+ *           referenceCohortId?:number, students?:{name:string,email:string,enrollment_no?:string,program_id?:number}[],
+ *           copyActiveStudentsFromCohortId?:number, makeDefault?:boolean, createdBy?:string }} opts
+ */
+export async function createCohort(opts) {
+  const schemaName = String(opts.schemaName || '').trim();
+  const label = String(opts.label || '').trim();
+  if (!label) throw new HttpError(400, 'A label is required.');
+  if (!COHORT_NAME_RE.test(schemaName) || RESERVED_SCHEMAS.has(schemaName) || schemaName.startsWith('pg_')) {
+    throw new HttpError(400, 'Invalid cohort name. Use 3-41 chars: lowercase letters, digits, underscore; must start with a letter.');
   }
-  await connection.begin(async (sql) => {
-    await sql`UPDATE core.cohorts SET is_default = false WHERE is_default`;
-    await sql`UPDATE core.cohorts SET is_default = true WHERE schema_name = ${schemaName} AND status = 'running'`;
+  if (opts.startsOn && opts.endsOn && opts.endsOn < opts.startsOn) throw new HttpError(400, 'End date is before the start date.');
+
+  const [dupe] = await connection`SELECT 1 AS x FROM core.cohorts WHERE schema_name = ${schemaName}`;
+  if (dupe) throw new HttpError(409, 'A cohort with this name already exists');
+  const [ns] = await connection`SELECT 1 AS x FROM pg_namespace WHERE nspname = ${schemaName}`;
+  if (ns) throw new HttpError(409, 'A database schema with this name already exists');
+
+  const request = {
+    referenceCohortId: opts.referenceCohortId ?? null,
+    students: opts.students ?? [],
+    copyActiveStudentsFromCohortId: opts.copyActiveStudentsFromCohortId ?? null,
+    makeDefault: !!opts.makeDefault,
+  };
+
+  // Commit the registry row first so a failure leaves a visible, retryable 'failed' cohort.
+  const [row] = await connection`
+    INSERT INTO core.cohorts (schema_name, label, program, starts_on, ends_on, status, created_by, provision_request)
+    VALUES (${schemaName}, ${label}, ${opts.program || null}, ${opts.startsOn || null}, ${opts.endsOn || null},
+            'provisioning', ${opts.createdBy || null}, ${connection.json(request)})
+    RETURNING id, schema_name`;
+
+  try {
+    const result = await provisionCohort(row, request);
+    return { ...result, id: row.id, label, status: 'running' };
+  } catch (err) {
+    await markFailed(row.id, err);
+    throw err instanceof HttpError ? err : new HttpError(500, 'Cohort provisioning failed: ' + err.message);
+  } finally {
+    invalidateCohortCache();
+    invalidateAccountCache();
+  }
+}
+
+/** Retry a failed provisioning with the originally requested options. */
+export async function retryCohort(cohortId) {
+  const [row] = await connection`SELECT id, schema_name, status, provision_request FROM core.cohorts WHERE id = ${Number(cohortId) || 0}`;
+  if (!row) throw new HttpError(404, 'Cohort not found.');
+  if (row.status !== 'failed') throw new HttpError(409, 'Only a failed cohort can be retried.');
+
+  // A failed provisioning rolled back, so there is normally nothing to remove; clean up a half-built schema if one exists.
+  await connection.begin(async (tx) => {
+    await tx.unsafe(`DROP SCHEMA IF EXISTS ${qid(row.schema_name)} CASCADE`);
+    await tx`DELETE FROM core.cohort_memberships WHERE cohort_id = ${row.id}`;
+    await tx`DELETE FROM core.schema_migrations WHERE scope = ${row.schema_name}`;
+    await tx`UPDATE core.cohorts SET status = 'provisioning', last_error = NULL, updated_at = now() WHERE id = ${row.id}`;
+  });
+  try {
+    const result = await provisionCohort(row, row.provision_request || {});
+    return { ...result, id: row.id, status: 'running' };
+  } catch (err) {
+    await markFailed(row.id, err);
+    throw err instanceof HttpError ? err : new HttpError(500, 'Cohort provisioning failed: ' + err.message);
+  } finally {
+    invalidateCohortCache();
+    invalidateAccountCache();
+  }
+}
+
+/**
+ * Edit cohort metadata. `schema_name` is immutable. status may only move running <-> archived.
+ * Archiving completes every active membership; un-archiving leaves memberships alone.
+ */
+export async function updateCohort(cohortId, patch) {
+  const out = await connection.begin(async (tx) => {
+    const [c] = await tx`SELECT * FROM core.cohorts WHERE id = ${Number(cohortId) || 0} FOR UPDATE`;
+    if (!c) throw new HttpError(404, 'Cohort not found.');
+    if (patch.schema_name !== undefined && patch.schema_name !== c.schema_name) throw new HttpError(400, 'The schema name cannot be changed.');
+
+    const next = {
+      label: patch.label !== undefined ? String(patch.label).trim() : c.label,
+      program: patch.program !== undefined ? (patch.program || null) : c.program,
+      starts_on: patch.starts_on !== undefined ? (patch.starts_on || null) : c.starts_on,
+      ends_on: patch.ends_on !== undefined ? (patch.ends_on || null) : c.ends_on,
+      status: c.status,
+      is_default: patch.is_default !== undefined ? !!patch.is_default : c.is_default,
+    };
+    if (!next.label) throw new HttpError(400, 'A label is required.');
+
+    if (patch.status !== undefined && patch.status !== c.status) {
+      if (!['running', 'archived'].includes(patch.status) || !['running', 'archived'].includes(c.status)) {
+        throw new HttpError(409, `A ${c.status} cohort cannot be changed to ${patch.status}.`);
+      }
+      next.status = patch.status;
+    }
+    if (next.status === 'archived' && next.is_default) {
+      if (patch.is_default) throw new HttpError(409, 'Only a running cohort can be the default.');
+      throw new HttpError(409, 'This is the default cohort. Make another running cohort the default before archiving it.');
+    }
+    if (next.is_default && c.status !== 'running') throw new HttpError(409, 'Only a running cohort can be the default.');
+    if (next.is_default && !c.is_default) await tx`UPDATE core.cohorts SET is_default = false WHERE is_default`;
+    if (!next.is_default && c.is_default && patch.is_default === false) {
+      throw new HttpError(409, 'There must always be a default cohort. Make another cohort the default instead.');
+    }
+
+    try {
+      await tx`UPDATE core.cohorts
+                  SET label = ${next.label}, program = ${next.program}, starts_on = ${next.starts_on}, ends_on = ${next.ends_on},
+                      status = ${next.status}, is_default = ${next.is_default}, updated_at = now()
+                WHERE id = ${c.id}`;
+    } catch (err) {
+      if (err.code === '23514') throw new HttpError(400, 'End date is before the start date.');
+      throw err;
+    }
+    if (next.status === 'archived' && c.status !== 'archived') {
+      await tx`UPDATE core.cohort_memberships SET status = 'completed', left_at = COALESCE(left_at, now())
+                WHERE cohort_id = ${c.id} AND status = 'active'`;
+    }
+    return { id: c.id, schema: c.schema_name, ...next };
   });
   invalidateCohortCache();
+  invalidateAccountCache();
+  return out;
+}
+
+/** Compatibility wrapper: makes `schemaName` the default cohort. */
+export async function setActiveCohort(schemaName) {
+  const { all } = await getCohortConfig();
+  const c = all.find((x) => x.schema === schemaName);
+  if (!c) throw new HttpError(404, 'Unknown cohort');
+  return updateCohort(c.id, { is_default: true });
+}
+
+/** All cohorts with member counts, for the admin management page. */
+export async function listCohortsForAdmin() {
+  const rows = await connection`
+    SELECT c.id, c.schema_name AS schema, c.label, c.program, c.starts_on, c.ends_on, c.status, c.is_default, c.is_legacy,
+           c.schema_version, c.last_error, c.created_at,
+           COALESCE(m.students, 0)::int AS student_count, COALESCE(m.staff, 0)::int AS staff_count
+      FROM core.cohorts c
+      LEFT JOIN (
+        SELECT cm.cohort_id,
+               count(*) FILTER (WHERE a.role = 'student' AND cm.status = 'active') AS students,
+               count(*) FILTER (WHERE a.role <> 'student' AND cm.status = 'active') AS staff
+          FROM core.cohort_memberships cm JOIN core.accounts a ON a.id = cm.account_id
+         GROUP BY cm.cohort_id) m ON m.cohort_id = c.id
+     ORDER BY c.id`;
+  return rows;
 }

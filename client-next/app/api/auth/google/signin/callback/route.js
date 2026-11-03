@@ -1,10 +1,8 @@
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { timingSafeEqual } from 'crypto';
-import { db, runWithSchema, getActiveSchema } from '@/lib/db';
-import { users } from '@/drizzle/schema';
-import { eq, and } from 'drizzle-orm';
 import { signToken } from '@/lib/auth';
+import { getAccountByEmail, getAccountContext } from '@/lib/accounts';
 
 const STATE_COOKIE = 'cipd_google_signin_state';
 const RESULT_COOKIE = 'cipd_google_signin_result';
@@ -66,27 +64,12 @@ async function signinCallbackHandler(request) {
       return redirectToLogin(request, 'iiitd_only');
     }
 
-    // Google identity alone is not an ERP account. A matching active student
-    // record is required, so no account is created implicitly by this route.
-    const [user] = await db
-      .select({
-        id: users.id,
-        email: users.email,
-        role: users.role,
-        first_name: users.firstName,
-        last_name: users.lastName,
-        is_active: users.isActive,
-      })
-      .from(users)
-      .where(
-        and(
-          eq(users.email, email),
-          eq(users.role, 'student')
-        )
-      )
-      .limit(1);
-
-    if (!user || !user.is_active) return redirectToLogin(request, 'not_eligible');
+    // Google identity alone is not an ERP account. A matching active student account that belongs to at
+    // least one cohort is required, so no account is created implicitly by this route.
+    const account = await getAccountByEmail(email);
+    const ctx = account && account.role === 'student' && account.is_active ? await getAccountContext(account.id) : null;
+    if (!ctx || !ctx.memberships.length) return redirectToLogin(request, 'not_eligible');
+    const user = account;
 
     const authUser = {
       id: user.id,
@@ -115,5 +98,5 @@ async function signinCallbackHandler(request) {
   }
 }
 export async function GET(request) {
-  return runWithSchema(await getActiveSchema(), () => signinCallbackHandler(request));
+  return signinCallbackHandler(request);
 }

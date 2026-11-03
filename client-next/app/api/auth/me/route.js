@@ -1,58 +1,26 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { getSchemaDb, getCohortConfig } from '@/lib/db';
-import { users, students, faculty } from '@/drizzle/schema';
+import { getSchemaDb } from '@/lib/db';
+import { students, faculty } from '@/drizzle/schema';
 import { eq } from 'drizzle-orm';
-import { getUserFromRequest } from '@/lib/auth';
-import { resolveRequestSchema } from '@/lib/cohorts';
-import { DEFAULT_SCHEMA } from '@/config';
+import { withAuth } from '@/lib/middleware';
 
-export async function GET(req) {
+// Identity comes from core.accounts (via withAuth); role-specific profile data from the request's cohort.
+async function handler(req) {
   try {
-    const user = getUserFromRequest(req);
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const schemaDb = getSchemaDb(req.cohort);
+    const a = req.account;
+    let profile = {
+      id: req.user.accountId,
+      email: a.email,
+      role: a.role,
+      first_name: a.first_name,
+      last_name: a.last_name,
+      is_active: a.is_active,
+    };
 
-    const { schemas } = await getCohortConfig();
-    const resolved = await resolveRequestSchema(req, user);
-    const searchOrder = [resolved, ...(schemas && schemas.length ? schemas : [DEFAULT_SCHEMA]).filter(s => s !== resolved)];
-    let userData = null;
-    let targetDb = null;
-    let userSchema = null;
-
-    for (const schema of searchOrder) {
-      const schemaDb = getSchemaDb(schema);
-      const [found] = await schemaDb
-        .select({
-          id: users.id,
-          email: users.email,
-          role: users.role,
-          first_name: users.firstName,
-          last_name: users.lastName,
-          is_active: users.isActive,
-        })
-        .from(users)
-        .where(eq(users.id, user.id))
-        .limit(1);
-
-      if (found) {
-        userData = found;
-        targetDb = schemaDb;
-        userSchema = schema;
-        break;
-      }
-    }
-
-    if (!userData) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    let profile = { ...userData };
-
-    // Fetch role-specific data
-    if (userData.role === 'student') {
-      const [studentData] = await targetDb
+    if (a.role === 'student') {
+      const [studentData] = await schemaDb
         .select({
           enrollment_no: students.enrollmentNo,
           program_name: students.programName,
@@ -60,26 +28,29 @@ export async function GET(req) {
           mac_verified: students.macVerified,
         })
         .from(students)
-        .where(eq(students.id, user.id))
+        .where(eq(students.id, req.user.id))
         .limit(1);
       if (studentData) profile = { ...profile, ...studentData };
-    } else if (userData.role === 'faculty') {
-      const [facultyData] = await targetDb
+    } else if (a.role === 'faculty') {
+      const [facultyData] = await schemaDb
         .select({
           designation: faculty.designation,
           years_experience: faculty.yearsExperience,
           honorarium_rate_per_hour: faculty.honorariumRatePerHour,
         })
         .from(faculty)
-        .where(eq(faculty.id, user.id))
+        .where(eq(faculty.id, req.user.id))
         .limit(1);
       if (facultyData) profile = { ...profile, ...facultyData };
     }
 
-    return NextResponse.json({ user: { ...profile, cohort: userSchema } });
+    return NextResponse.json({
+      user: { ...profile, cohort: req.cohort, cohort_status: req.cohortInfo.status, membership_status: req.membership?.status ?? null },
+    });
   } catch (err) {
     console.error('Auth me error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
+export const GET = withAuth(handler);

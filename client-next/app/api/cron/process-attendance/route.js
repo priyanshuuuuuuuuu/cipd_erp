@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { getLatestSnapshot, isWifiSourceUnavailable } from '@/lib/wifi-snapshots';
-import { db, runWithSchema, getActiveSchema } from '@/lib/db';
+import { forEachRunningCohort, sumField, cronHandlerRunner } from '@/lib/cohort-jobs';
+import { db } from '@/lib/db';
 import { sessions } from '@/drizzle/schema';
 import { eq, and, ne, or, lt, asc } from 'drizzle-orm';
 import { rolloutFeedbackForSession } from '@/lib/feedback-rollout';
@@ -245,7 +246,23 @@ async function cronHandler(req) {
   }
 }
 
-// Cron jobs operate on the currently active cohort.
+// Cron jobs run once for every RUNNING cohort. Top-level totals are sums over cohorts, so
+// scripts/attendance-worker.js (which reads sessionsProcessed) keeps working unchanged.
 export async function GET(req) {
-  return runWithSchema(await getActiveSchema(), () => cronHandler(req));
+  if (req.headers.get('x-cron-secret') !== process.env.CRON_SECRET) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const cohorts = await forEachRunningCohort(cronHandlerRunner(cronHandler, req));
+  const sessionsProcessed = sumField(cohorts, 'sessionsProcessed');
+  const missedSessionsCompleted = sumField(cohorts, 'missedSessionsCompleted');
+  const skippedSessions = Object.entries(cohorts).flatMap(([schema, r]) =>
+    (r?.skippedSessions || []).map((s) => ({ schema, ...s })));
+  return NextResponse.json({
+    message: `Processed ${sessionsProcessed} active session(s), completed ${missedSessionsCompleted} missed session(s) across ${Object.keys(cohorts).length} cohort(s)`,
+    sessionsProcessed,
+    missedSessionsCompleted,
+    latestSnapshotAt: Object.values(cohorts).map((r) => r?.latestSnapshotAt).find(Boolean) || null,
+    skippedSessions,
+    cohorts,
+  });
 }

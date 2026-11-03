@@ -1,6 +1,5 @@
 'use client';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { DEFAULT_SCHEMA } from '@/config';
 import '../../Dashboard.css';
 import {
     LayoutGrid, Calendar, MessageSquare, Settings, LogOut, Bell, Search, Menu,
@@ -23,6 +22,8 @@ const inp = {
 
 // ─── Delete Confirmation Modal ─────────────────────────────────────────────
 function DeleteConfirmModal({ student, onConfirm, onClose, deleting }) {
+    const [typed, setTyped] = useState('');
+    const confirmed = typed.trim().toLowerCase() === (student.email || '').toLowerCase();
     useEffect(() => {
         const onKey = e => e.key === 'Escape' && onClose();
         window.addEventListener('keydown', onKey);
@@ -54,16 +55,19 @@ function DeleteConfirmModal({ student, onConfirm, onClose, deleting }) {
                 <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '10px 14px', marginBottom: '1.5rem' }}>
                     <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#dc2626', marginBottom: 4 }}>⚠ Cascade Deletion Warning</div>
                     <div style={{ fontSize: '0.75rem', color: '#b91c1c', lineHeight: 1.5 }}>
-                        All of this student&apos;s attendance records, feedback responses, leave requests, and assignment submissions will also be permanently deleted.
+                        All of this student&apos;s attendance records, feedback responses, leave requests, and assignment submissions in THIS cohort will also be permanently deleted. To keep the history, use &quot;Withdraw&quot; instead.
                     </div>
                 </div>
+
+                <label style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b', display: 'block', marginBottom: 6 }}>Type <strong>{student.email}</strong> to confirm</label>
+                <input style={{ ...inp, marginBottom: '1.2rem' }} value={typed} onChange={e => setTyped(e.target.value)} placeholder={student.email} autoFocus />
 
                 <div style={{ display: 'flex', gap: '10px' }}>
                     <button onClick={onClose} disabled={deleting} style={{ flex: 1, padding: '9px', borderRadius: '8px', border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, color: '#555' }}>
                         Cancel
                     </button>
-                    <button onClick={onConfirm} disabled={deleting} style={{ flex: 1, padding: '9px', borderRadius: '8px', border: 'none', background: deleting ? '#f87171' : '#dc2626', color: '#fff', cursor: deleting ? 'not-allowed' : 'pointer', fontSize: '0.85rem', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                        {deleting ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Deleting...</> : <><Trash2 size={14} /> Delete Student</>}
+                    <button onClick={() => onConfirm(typed.trim())} disabled={deleting || !confirmed} style={{ flex: 1, padding: '9px', borderRadius: '8px', border: 'none', background: deleting || !confirmed ? '#f87171' : '#dc2626', color: '#fff', cursor: deleting || !confirmed ? 'not-allowed' : 'pointer', fontSize: '0.85rem', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                        {deleting ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Deleting...</> : <><Trash2 size={14} /> Delete permanently</>}
                     </button>
                 </div>
             </div>
@@ -92,19 +96,19 @@ function BulkDeleteConfirmModal({ count, onConfirm, onClose, deleting }) {
                         <AlertTriangle size={22} color="#dc2626" />
                     </div>
                     <div>
-                        <div style={{ fontSize: '1rem', fontWeight: 800, color: '#111' }}>Delete Multiple Students</div>
-                        <div style={{ fontSize: '0.78rem', color: '#888', marginTop: 2 }}>This action cannot be undone</div>
+                        <div style={{ fontSize: '1rem', fontWeight: 800, color: '#111' }}>Remove Multiple Students</div>
+                        <div style={{ fontSize: '0.78rem', color: '#888', marginTop: 2 }}>Their data is kept</div>
                     </div>
                 </div>
 
                 <p style={{ fontSize: '0.85rem', color: '#444', lineHeight: 1.6, marginBottom: '1rem' }}>
-                    You are about to permanently delete <strong>{count}</strong> selected student(s).
+                    You are about to withdraw <strong>{count}</strong> selected student(s) from this cohort.
                 </p>
 
                 <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px', padding: '10px 14px', marginBottom: '1.5rem' }}>
-                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#dc2626', marginBottom: 4 }}>⚠ Cascade Deletion Warning</div>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#dc2626', marginBottom: 4 }}>Withdrawn, not deleted</div>
                     <div style={{ fontSize: '0.75rem', color: '#b91c1c', lineHeight: 1.5 }}>
-                        All related records for these students (attendance, feedback, submissions) will also be permanently deleted.
+                        Attendance, feedback and submissions are kept. The students can no longer act in this cohort. To delete a student permanently, use the Delete button on their row.
                     </div>
                 </div>
 
@@ -113,7 +117,7 @@ function BulkDeleteConfirmModal({ count, onConfirm, onClose, deleting }) {
                         Cancel
                     </button>
                     <button onClick={onConfirm} disabled={deleting} style={{ flex: 1, padding: '9px', borderRadius: '8px', border: 'none', background: deleting ? '#f87171' : '#dc2626', color: '#fff', cursor: deleting ? 'not-allowed' : 'pointer', fontSize: '0.85rem', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                        {deleting ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Deleting...</> : <><Trash2 size={14} /> Delete {count}</>}
+                        {deleting ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Removing...</> : <><Trash2 size={14} /> Remove {count}</>}
                     </button>
                 </div>
             </div>
@@ -122,14 +126,14 @@ function BulkDeleteConfirmModal({ count, onConfirm, onClose, deleting }) {
 }
 
 // ─── Student Edit / Detail Drawer ──────────────────────────────────────────
-function StudentDrawer({ student, courses, onClose, onSaved, schema = DEFAULT_SCHEMA }) {
+function StudentDrawer({ student, courses, onClose, onSaved, programOptions = [], runningCohorts = [], currentCohortId, isReadOnly = false }) {
     const [tab, setTab] = useState('details'); // 'details' | 'enrollments'
     const [form, setForm] = useState({
         first_name: student.first_name,
         last_name: student.last_name,
         email: student.email,
         enrollment_no: student.enrollment_no,
-        program_name: student.program_name,
+        program_id: student.program_id ?? '',
         mac_address: student.mac_address || '',
         mac_verified: student.mac_verified,
         is_active: student.is_active,
@@ -142,6 +146,34 @@ function StudentDrawer({ student, courses, onClose, onSaved, schema = DEFAULT_SC
     const [resetSending, setResetSending] = useState(false);
     const [resetStatus, setResetStatus] = useState(''); // '' | 'success' | 'error'
     const [resetMessage, setResetMessage] = useState('');
+
+    // Cohort membership actions
+    const [transferTo, setTransferTo] = useState('');
+    const [memberBusy, setMemberBusy] = useState(false);
+    const [memberMsg, setMemberMsg] = useState('');
+    const otherCohorts = runningCohorts.filter(c => c.id !== currentCohortId);
+
+    const handleTransfer = async () => {
+        const target = otherCohorts.find(c => String(c.id) === String(transferTo));
+        if (!target) return;
+        if (!confirm(`Transfer ${student.first_name} ${student.last_name} to "${target.label}"?\n\nTheir history stays in this cohort; they become a member of ${target.label}.`)) return;
+        setMemberBusy(true); setMemberMsg('');
+        try {
+            await api.post(`/api/admin/students/${student.id}/transfer`, { to_cohort_id: target.id });
+            onSaved();
+            onClose();
+        } catch (err) { setMemberMsg(err.message || 'Transfer failed.'); } finally { setMemberBusy(false); }
+    };
+
+    const handleWithdraw = async () => {
+        if (!confirm(`Withdraw ${student.first_name} ${student.last_name} from this cohort? Their data is kept.`)) return;
+        setMemberBusy(true); setMemberMsg('');
+        try {
+            await api.post(`/api/admin/students/${student.id}/withdraw`, {});
+            onSaved();
+            onClose();
+        } catch (err) { setMemberMsg(err.message || 'Withdraw failed.'); } finally { setMemberBusy(false); }
+    };
 
     // Enrollment management
     const [studentCourses, setStudentCourses] = useState(student.courses || []);
@@ -159,7 +191,9 @@ function StudentDrawer({ student, courses, onClose, onSaved, schema = DEFAULT_SC
 
     const handleSave = async (e) => {
         e.preventDefault();
-        setSaveError(''); setSaveSuccess(''); setSaving(true);
+        setSaveError(''); setSaveSuccess('');
+        if (isReadOnly) { setSaveError('This cohort is archived and read-only.'); return; }
+        setSaving(true);
         // Client-side MAC validation (same regex as student portal)
         if (form.mac_address && !/^([A-Fa-f0-9]{2}:){5}[A-Fa-f0-9]{2}$/i.test(form.mac_address)) {
             setSaveError('Invalid MAC address format. Use XX:XX:XX:XX:XX:XX');
@@ -167,7 +201,7 @@ function StudentDrawer({ student, courses, onClose, onSaved, schema = DEFAULT_SC
             return;
         }
         try {
-            await api.patch('/api/admin/students', { student_id: student.id, ...form, schema });
+            await api.patch(`/api/admin/students/${student.id}`, { ...form, program_id: form.program_id === '' ? null : Number(form.program_id) });
             setSaveSuccess('Student details updated successfully!');
             onSaved();
             setTimeout(() => setSaveSuccess(''), 2500);
@@ -181,7 +215,7 @@ function StudentDrawer({ student, courses, onClose, onSaved, schema = DEFAULT_SC
     const handleResetPassword = async () => {
         setResetSending(true); setResetStatus(''); setResetMessage('');
         try {
-            const res = await api.post('/api/admin/students/reset-password', { student_id: student.id, schema });
+            const res = await api.post('/api/admin/students/reset-password', { student_id: student.id });
             setResetStatus('success');
             setResetMessage(res.message || `Reset email sent to ${student.email}`);
         } catch (err) {
@@ -195,7 +229,7 @@ function StudentDrawer({ student, courses, onClose, onSaved, schema = DEFAULT_SC
     const handleEnroll = async (course) => {
         setEnrollError(''); setEnrolling(course.id);
         try {
-            await api.post('/api/admin/enrollments', { student_id: student.id, course_id: course.id, schema });
+            await api.post('/api/admin/enrollments', { student_id: student.id, course_id: course.id });
             setStudentCourses(prev => [...prev, { course_id: course.id, course_name: course.name, course_code: course.code, enrolled_at: new Date().toISOString() }]);
             onSaved();
         } catch (err) {
@@ -208,7 +242,7 @@ function StudentDrawer({ student, courses, onClose, onSaved, schema = DEFAULT_SC
     const handleUnenroll = async (courseId) => {
         setEnrollError(''); setUnenrolling(courseId);
         try {
-            await api.delete('/api/admin/enrollments', { student_id: student.id, course_id: courseId, schema });
+            await api.delete('/api/admin/enrollments', { student_id: student.id, course_id: courseId });
             setStudentCourses(prev => prev.filter(c => c.course_id !== courseId));
             onSaved();
         } catch (err) {
@@ -302,9 +336,11 @@ function StudentDrawer({ student, courses, onClose, onSaved, schema = DEFAULT_SC
                                         onFocus={e => e.target.style.borderColor = '#3B82F6'} onBlur={e => e.target.style.borderColor = '#e5e7eb'} />
                                 </div>
                                 <div>
-                                    <label style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Program Name</label>
-                                    <input style={inp} value={form.program_name} onChange={e => setForm(f => ({ ...f, program_name: e.target.value }))} placeholder="e.g. MBA, BBA"
-                                        onFocus={e => e.target.style.borderColor = '#3B82F6'} onBlur={e => e.target.style.borderColor = '#e5e7eb'} />
+                                    <label style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Program</label>
+                                    <select style={inp} value={form.program_id} onChange={e => setForm(f => ({ ...f, program_id: e.target.value }))}>
+                                        <option value="">{student.program_name && !student.program_id ? `${student.program_name} (legacy)` : '— None —'}</option>
+                                        {programOptions.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                    </select>
                                 </div>
                             </div>
 
@@ -324,6 +360,29 @@ function StudentDrawer({ student, courses, onClose, onSaved, schema = DEFAULT_SC
                                     </select>
                                 </div>
                             </div>
+                            {/* Cohort membership */}
+                            <div style={{ marginBottom: '1.2rem', padding: '12px 14px', border: '1px solid #e2e8f0', borderRadius: 10, background: '#f8fafc' }}>
+                                <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>
+                                    Cohort membership: <span style={{ color: '#0f172a' }}>{student.membership_status || 'unknown'}</span>
+                                </div>
+                                {!isReadOnly && student.membership_status === 'active' && (
+                                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                                        <select style={{ ...inp, width: 'auto', flex: 1, minWidth: 160 }} value={transferTo} onChange={e => setTransferTo(e.target.value)} disabled={memberBusy || !otherCohorts.length}>
+                                            <option value="">{otherCohorts.length ? 'Transfer to cohort…' : 'No other running cohort'}</option>
+                                            {otherCohorts.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+                                        </select>
+                                        <button type="button" onClick={handleTransfer} disabled={!transferTo || memberBusy} style={{ padding: '8px 14px', borderRadius: 8, border: 'none', background: !transferTo || memberBusy ? '#cbd5e1' : '#1b6ca8', color: '#fff', fontSize: '0.78rem', fontWeight: 700, cursor: !transferTo || memberBusy ? 'not-allowed' : 'pointer' }}>Transfer</button>
+                                        <button type="button" onClick={handleWithdraw} disabled={memberBusy} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer' }}>Withdraw</button>
+                                    </div>
+                                )}
+                                {memberMsg && <div style={{ marginTop: 8, fontSize: '0.78rem', color: '#dc2626' }}>{memberMsg}</div>}
+                            </div>
+                            {isReadOnly && (
+                                <div style={{ marginBottom: '1rem', padding: '8px 12px', borderRadius: 8, background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e', fontSize: '0.78rem', fontWeight: 600 }}>
+                                    This cohort is archived: details are read-only.
+                                </div>
+                            )}
+
                             {/* MAC Address field */}
                             <div style={{ marginBottom: '1.5rem' }}>
                                 <label style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>MAC Address</label>
@@ -498,8 +557,8 @@ function StudentDrawer({ student, courses, onClose, onSaved, schema = DEFAULT_SC
 }
 
 // ─── Add Student Modal ─────────────────────────────────────────────────────
-function AddStudentModal({ onClose, onAdded, schema = DEFAULT_SCHEMA }) {
-    const [form, setForm] = useState({ first_name: '', last_name: '', email: '', enrollment_no: '', program_name: '' });
+function AddStudentModal({ onClose, onAdded, runningCohorts = [], defaultCohortId, programOptions = [], onProgramAdded }) {
+    const [form, setForm] = useState({ first_name: '', last_name: '', email: '', enrollment_no: '', cohort_id: defaultCohortId ? String(defaultCohortId) : '', program_id: '' });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
@@ -513,7 +572,8 @@ function AddStudentModal({ onClose, onAdded, schema = DEFAULT_SCHEMA }) {
         e.preventDefault();
         setError(''); setLoading(true);
         try {
-            await api.post('/api/admin/students', { ...form, schema });
+            if (!form.cohort_id) throw new Error('Choose a cohort.');
+            await api.post('/api/admin/students', { ...form, cohort_id: Number(form.cohort_id), program_id: form.program_id === '' ? null : Number(form.program_id) });
             onAdded();
         } catch (err) {
             setError(err.message || 'Failed to create student.');
@@ -567,6 +627,15 @@ function AddStudentModal({ onClose, onAdded, schema = DEFAULT_SCHEMA }) {
                             onFocus={e => e.target.style.borderColor = '#3B82F6'} onBlur={e => e.target.style.borderColor = '#e5e7eb'} />
                     </div>
 
+                    <div style={{ marginBottom: '1rem' }}>
+                        <label style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Cohort *</label>
+                        <select style={inp} value={form.cohort_id} onChange={e => setForm(f => ({ ...f, cohort_id: e.target.value }))} required>
+                            <option value="">Select a cohort…</option>
+                            {runningCohorts.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+                        </select>
+                        <div style={{ fontSize: '0.68rem', color: '#94a3b8', marginTop: 4 }}>Only running cohorts can receive students. The student is created in this cohort and nowhere else.</div>
+                    </div>
+
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
                         <div>
                             <label style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Enrollment No.</label>
@@ -574,9 +643,22 @@ function AddStudentModal({ onClose, onAdded, schema = DEFAULT_SCHEMA }) {
                                 onFocus={e => e.target.style.borderColor = '#3B82F6'} onBlur={e => e.target.style.borderColor = '#e5e7eb'} />
                         </div>
                         <div>
-                            <label style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Program Name</label>
-                            <input style={inp} value={form.program_name} onChange={e => setForm(f => ({ ...f, program_name: e.target.value }))} placeholder="e.g. MBA, BBA"
-                                onFocus={e => e.target.style.borderColor = '#3B82F6'} onBlur={e => e.target.style.borderColor = '#e5e7eb'} />
+                            <label style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>Program</label>
+                            <div style={{ display: 'flex', gap: 6 }}>
+                                <select style={inp} value={form.program_id} onChange={e => setForm(f => ({ ...f, program_id: e.target.value }))}>
+                                    <option value="">— None —</option>
+                                    {programOptions.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                </select>
+                                <button type="button" title="Add a program" onClick={async () => {
+                                    const name = prompt('New program name');
+                                    if (!name || !name.trim()) return;
+                                    try {
+                                        const res = await api.post('/api/admin/programs', { name: name.trim() });
+                                        await onProgramAdded?.();
+                                        setForm(f => ({ ...f, program_id: String(res.program.id) }));
+                                    } catch (err) { setError(err.message || 'Could not add program.'); }
+                                }} style={{ padding: '0 12px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', fontWeight: 700 }}>+</button>
+                            </div>
                         </div>
                     </div>
 
@@ -609,7 +691,7 @@ function AttendanceSummaryPanel({ student, schema }) {
 
     useEffect(() => {
         setLoading(true); setError('');
-        api.get(`/api/admin/students/attendance-summary?student_id=${student.id}&schema=${schema}`)
+        api.get(`/api/admin/students/attendance-summary?student_id=${student.id}`)
             .then(d => setData(d))
             .catch(err => setError(err.message || 'Failed to load attendance data'))
             .finally(() => setLoading(false));
@@ -784,47 +866,15 @@ export default function AdminStudentsPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
-    const { cohorts: contextCohorts, activeCohort, selectedCohort } = useCohort();
+    // The cohort is the one chosen in the sidebar switcher (context). This page keeps no cohort state of its own.
+    const { selectedCohort, selectedCohortObj, runningCohorts, isReadOnly } = useCohort();
+    const schema = selectedCohort;
+    const [programOptions, setProgramOptions] = useState([]);
 
-    // Cohort/schema selector
-    const [schema, setSchema] = useState(() => {
-        if (typeof window !== 'undefined') {
-            const stored = localStorage.getItem('admin_cohort');
-            if (stored) return stored;
-        }
-        return DEFAULT_SCHEMA;
-    });
-    const [cohorts, setCohorts] = useState([]);
-    const [activeSchema, setActiveSchema] = useState('');
-    const [cohortsLoading, setCohortsLoading] = useState(true);
-
-    const effectiveActiveCohort = activeCohort || activeSchema;
-
-    const cohortList = useMemo(() => {
-        if (contextCohorts && contextCohorts.length > 0) {
-            return contextCohorts.map(c => ({
-                value: c.schema,
-                label: c.label,
-                isActive: c.schema === effectiveActiveCohort,
-            }));
-        }
-        if (cohorts && cohorts.length > 0) {
-            return cohorts.map(c => ({
-                ...c,
-                isActive: c.value === effectiveActiveCohort,
-            }));
-        }
-        return [{ value: DEFAULT_SCHEMA, label: DEFAULT_SCHEMA.charAt(0).toUpperCase() + DEFAULT_SCHEMA.slice(1), isActive: true }];
-    }, [contextCohorts, cohorts, effectiveActiveCohort]);
-
-    // Sync schema with selectedCohort or activeCohort from context when available
-    useEffect(() => {
-        if (selectedCohort) {
-            setSchema(selectedCohort);
-        } else if (activeCohort) {
-            setSchema(activeCohort);
-        }
-    }, [selectedCohort, activeCohort]);
+    const loadPrograms = useCallback(async () => {
+        try { setProgramOptions((await api.get('/api/admin/programs')).programs || []); } catch { /* dropdown stays empty */ }
+    }, []);
+    useEffect(() => { loadPrograms(); }, [loadPrograms]);
 
     const [searchTerm, setSearchTerm] = useState('');
     const [filterProgram, setFilterProgram] = useState('');
@@ -843,38 +893,13 @@ export default function AdminStudentsPage() {
 
     const navTo = p => router.push(p);
 
-    // Load available cohorts from API on mount
-    useEffect(() => {
-        api.get('/api/admin/cohorts')
-            .then(cfg => {
-                const list = (cfg.schemas || []).map(s => ({
-                    value: s,
-                    label: cfg.labels?.[s] || s,
-                    isActive: s === cfg.active,
-                }));
-                if (list.length > 0) {
-                    setCohorts(list);
-                    const active = cfg.active || list[0].value;
-                    setActiveSchema(active);
-                    setSchema(prev => {
-                        const stored = typeof window !== 'undefined' ? localStorage.getItem('admin_cohort') : null;
-                        if (stored && list.some(c => c.value === stored)) return stored;
-                        if (prev && prev !== DEFAULT_SCHEMA && list.some(c => c.value === prev)) return prev;
-                        return active;
-                    });
-                }
-            })
-            .catch(() => {})
-            .finally(() => setCohortsLoading(false));
-    }, []);
-
     const fetchStudents = useCallback(async () => {
         setLoading(true); setError('');
         setExpandedStudentId(null); // collapse any open panel when cohort changes
         setSelectedStudents([]); // reset selection
         try {
             const [stuRes, courseRes] = await Promise.allSettled([
-                api.get(`/api/admin/students?schema=${schema}`),
+                api.get('/api/admin/students'),
                 api.get('/api/admin/lookup'),
             ]);
             if (stuRes.status === 'fulfilled') setStudents(stuRes.value.students || []);
@@ -883,9 +908,9 @@ export default function AdminStudentsPage() {
         } finally {
             setLoading(false);
         }
-    }, [schema]);
+    }, [schema]); // eslint-disable-line react-hooks/exhaustive-deps -- refetch when the selected cohort changes
 
-    useEffect(() => { fetchStudents(); }, [fetchStudents]);
+    useEffect(() => { if (schema) fetchStudents(); }, [fetchStudents, schema]);
 
     // Stats
     const totalStudents = students.length;
@@ -913,11 +938,11 @@ export default function AdminStudentsPage() {
         return result;
     }, [students, searchTerm, filterProgram, filterStatus]);
 
-    const handleDelete = async () => {
+    const handleDelete = async (confirmEmail) => {
         if (!deletingStudent) return;
         setDeleteLoading(true);
         try {
-            await api.delete('/api/admin/students', { student_id: deletingStudent.id, schema });
+            await api.delete(`/api/admin/students/${deletingStudent.id}`, { confirm: confirmEmail });
             setDeletingStudent(null);
             fetchStudents();
         } catch (err) {
@@ -931,12 +956,12 @@ export default function AdminStudentsPage() {
         if (selectedStudents.length === 0) return;
         setDeleteLoading(true);
         try {
-            await api.delete('/api/admin/students', { student_ids: selectedStudents, schema });
+            await api.delete('/api/admin/students', { student_ids: selectedStudents });
             setShowBulkDeleteModal(false);
             setSelectedStudents([]);
             fetchStudents();
         } catch (err) {
-            alert('Failed to delete students: ' + (err.message || 'Unknown error'));
+            alert('Failed to remove students: ' + (err.message || 'Unknown error'));
         } finally {
             setDeleteLoading(false);
         }
@@ -1001,75 +1026,10 @@ export default function AdminStudentsPage() {
                         </div>
                     </header>
 
-                    {/* Cohort Selector Banner */}
-                    {!cohortsLoading && cohortList.length > 1 && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: '1rem', padding: '10px 14px', background: '#fff', borderRadius: '10px', border: '1px solid #e2e8f0', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                <BookOpen size={13} color="#64748b" /> Cohort
-                            </div>
-                            <div style={{ display: 'flex', gap: 6 }}>
-                                {cohortList.map(c => {
-                                    const isSelected = schema === c.value;
-                                    const isActive = c.value === effectiveActiveCohort;
-                                    return (
-                                        <button
-                                            key={c.value}
-                                            onClick={() => {
-                                                setSchema(c.value);
-                                                setExpandedStudentId(null);
-                                                if (typeof window !== 'undefined') {
-                                                    localStorage.setItem('admin_cohort', c.value);
-                                                }
-                                            }}
-                                            style={{
-                                                padding: '5px 14px',
-                                                borderRadius: '20px',
-                                                border: 'none',
-                                                cursor: 'pointer',
-                                                fontSize: '0.78rem',
-                                                fontWeight: 700,
-                                                transition: 'all 0.15s',
-                                                background: isSelected ? 'linear-gradient(135deg, #0f4c75, #1b6ca8)' : '#f1f5f9',
-                                                color: isSelected ? '#fff' : '#64748b',
-                                                boxShadow: isSelected ? '0 2px 8px rgba(27,108,168,0.3)' : 'none',
-                                                display: 'inline-flex',
-                                                alignItems: 'center',
-                                                gap: 6,
-                                            }}
-                                        >
-                                            <span>{c.label}</span>
-                                            {isActive ? (
-                                                <span style={{
-                                                    fontSize: '0.58rem',
-                                                    padding: '1px 6px',
-                                                    borderRadius: '4px',
-                                                    background: isSelected ? 'rgba(16,185,129,0.3)' : '#dcfce7',
-                                                    color: isSelected ? '#a7f3d0' : '#166534',
-                                                    fontWeight: 700,
-                                                }}>
-                                                    Active
-                                                </span>
-                                            ) : (
-                                                <span style={{
-                                                    fontSize: '0.58rem',
-                                                    padding: '1px 5px',
-                                                    borderRadius: '4px',
-                                                    background: isSelected ? 'rgba(255,255,255,0.15)' : '#e2e8f0',
-                                                    color: isSelected ? '#cbd5e1' : '#64748b',
-                                                    opacity: 0.85,
-                                                }}>
-                                                    Archive
-                                                </span>
-                                            )}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                            {effectiveActiveCohort && schema !== effectiveActiveCohort && (
-                                <span style={{ marginLeft: 'auto', fontSize: '0.68rem', fontWeight: 700, padding: '3px 10px', borderRadius: '6px', background: '#fffbeb', color: '#b45309', border: '1px solid #fde68a' }}>
-                                    ⚠ Viewing archived cohort — edits apply to this schema
-                                </span>
-                            )}
+                    {/* Archived cohort notice (the cohort itself is chosen in the sidebar switcher) */}
+                    {isReadOnly && (
+                        <div style={{ marginBottom: '1rem', padding: '10px 14px', borderRadius: 10, background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e', fontSize: '0.8rem', fontWeight: 600 }}>
+                            {selectedCohortObj?.label}: this cohort is archived and read-only. Switch to a running cohort to add or edit students.
                         </div>
                     )}
 
@@ -1103,18 +1063,12 @@ export default function AdminStudentsPage() {
                                 <GraduationCap size={16} color="#1b6ca8" />
                                 All Students
                                 <span style={{ fontSize: '0.72rem', color: '#888', fontWeight: 500 }}>({filtered.length} of {totalStudents})</span>
-                                {cohortList.length > 1 && (
+                                {selectedCohortObj && (
                                     <span style={{
-                                        fontSize: '0.68rem',
-                                        fontWeight: 700,
-                                        padding: '2px 8px',
-                                        borderRadius: 5,
-                                        background: schema === effectiveActiveCohort ? '#ecfdf5' : '#eff6ff',
-                                        color: schema === effectiveActiveCohort ? '#059669' : '#1d4ed8',
-                                        marginLeft: 4,
+                                        fontSize: '0.68rem', fontWeight: 700, padding: '2px 8px', borderRadius: 5, marginLeft: 4,
+                                        background: isReadOnly ? '#fffbeb' : '#ecfdf5', color: isReadOnly ? '#b45309' : '#059669',
                                     }}>
-                                        {cohortList.find(c => c.value === schema)?.label || schema}
-                                        {schema === effectiveActiveCohort ? ' (Active)' : ' (Archived)'}
+                                        {selectedCohortObj.label}{isReadOnly ? ' (Archived)' : ''}
                                     </span>
                                 )}
                             </div>
@@ -1136,7 +1090,7 @@ export default function AdminStudentsPage() {
 
                                 {selectedStudents.length > 0 && (
                                     <button onClick={() => setShowBulkDeleteModal(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 16px', borderRadius: '9px', border: 'none', background: '#dc2626', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700, color: '#fff' }}>
-                                        <Trash2 size={14} /> Delete Selected ({selectedStudents.length})
+                                        <Trash2 size={14} /> Remove Selected ({selectedStudents.length})
                                     </button>
                                 )}
 
@@ -1144,7 +1098,7 @@ export default function AdminStudentsPage() {
                                     <RefreshCw size={13} /> Refresh
                                 </button>
 
-                                <button onClick={() => setShowAddModal(true)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 16px', borderRadius: '9px', border: 'none', background: 'linear-gradient(135deg, #0f4c75, #1b6ca8)', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700, color: '#fff' }}>
+                                <button onClick={() => setShowAddModal(true)} disabled={!runningCohorts.length} title={!runningCohorts.length ? 'No running cohort' : undefined} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 16px', borderRadius: '9px', border: 'none', background: 'linear-gradient(135deg, #0f4c75, #1b6ca8)', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700, color: '#fff' }}>
                                     <UserPlus size={14} /> Add Student
                                 </button>
                             </div>
@@ -1267,7 +1221,7 @@ export default function AdminStudentsPage() {
                                                                 onMouseOut={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.borderColor = '#e2e8f0'; }}>
                                                                 <Pencil size={11} /> Edit
                                                             </button>
-                                                            <button onClick={() => setDeletingStudent(s)} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 11px', borderRadius: '7px', border: '1px solid #fecaca', background: '#fef2f2', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700, color: '#dc2626', transition: 'all 0.15s' }}
+                                                            <button onClick={() => setDeletingStudent(s)} disabled={isReadOnly} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 11px', borderRadius: '7px', border: '1px solid #fecaca', background: '#fef2f2', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700, color: '#dc2626', transition: 'all 0.15s' }}
                                                                 onMouseOver={e => { e.currentTarget.style.background = '#fecaca'; }}
                                                                 onMouseOut={e => { e.currentTarget.style.background = '#fef2f2'; }}>
                                                                 <Trash2 size={11} /> Delete
@@ -1297,10 +1251,10 @@ export default function AdminStudentsPage() {
 
             {/* Modals */}
             {showAddModal && (
-                <AddStudentModal onClose={() => setShowAddModal(false)} onAdded={() => { setShowAddModal(false); fetchStudents(); }} schema={schema} />
+                <AddStudentModal onClose={() => setShowAddModal(false)} onAdded={() => { setShowAddModal(false); fetchStudents(); }} runningCohorts={runningCohorts} defaultCohortId={selectedCohortObj?.status === 'running' ? selectedCohortObj.id : runningCohorts.find(c => c.is_default)?.id} programOptions={programOptions} onProgramAdded={loadPrograms} />
             )}
             {editingStudent && (
-                <StudentDrawer student={editingStudent} courses={courses} onClose={() => setEditingStudent(null)} onSaved={fetchStudents} schema={schema} />
+                <StudentDrawer student={editingStudent} courses={courses} onClose={() => setEditingStudent(null)} onSaved={fetchStudents} programOptions={programOptions} runningCohorts={runningCohorts} currentCohortId={selectedCohortObj?.id} isReadOnly={isReadOnly} />
             )}
             {deletingStudent && (
                 <DeleteConfirmModal student={deletingStudent} onClose={() => setDeletingStudent(null)} onConfirm={handleDelete} deleting={deleteLoading} />

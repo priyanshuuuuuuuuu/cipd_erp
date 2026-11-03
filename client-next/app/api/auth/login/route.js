@@ -1,11 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { getSchemaDb, getCohortConfig } from '@/lib/db';
-import { users, students } from '@/drizzle/schema';
-import { eq } from 'drizzle-orm';
 import { verifyPassword, signToken } from '@/lib/auth';
-import { DEFAULT_SCHEMA } from '@/config';
-import { pickDefaultCohort } from '@/lib/cohorts';
+import { findCanonicalAccountByLogin } from '@/lib/accounts';
+import { defaultCohortForAccount } from '@/lib/cohorts';
 
 export async function POST(req) {
   try {
@@ -18,92 +15,43 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Email/Enrollment No. and password are required' }, { status: 400 });
     }
 
-    const { schemas, active } = await getCohortConfig();
-
-    let user = null;
-    let matchedSchema = null;
-    const matches = []; // { schema, found } for every cohort the user belongs to
-    const isEmail = identifier.includes('@');
-
-    for (const schema of (schemas && schemas.length ? schemas : [DEFAULT_SCHEMA])) {
-      const schemaDb = getSchemaDb(schema);
-
-      if (isEmail) {
-        // ── Path 1: Email login (all roles) ──────────────────────────────────
-        const [found] = await schemaDb
-          .select()
-          .from(users)
-          .where(eq(users.email, identifier.toLowerCase()))
-          .limit(1);
-
-        if (found) matches.push({ schema, found });
-      } else {
-        // ── Path 2: Enrollment number login (students only) ───────────────────
-        const [found] = await schemaDb
-          .select({
-            id: users.id,
-            email: users.email,
-            passwordHash: users.passwordHash,
-            role: users.role,
-            firstName: users.firstName,
-            lastName: users.lastName,
-            isActive: users.isActive,
-            preferences: users.preferences,
-          })
-          .from(students)
-          .innerJoin(users, eq(students.id, users.id))
-          .where(eq(students.enrollmentNo, identifier))
-          .limit(1);
-
-        if (found) matches.push({ schema, found });
-      }
-    }
-
-    if (matches.length) {
-      const chosen = pickDefaultCohort(
-        matches[0].found.role,
-        matches.map(m => m.schema),
-        active,
-      );
-      const match = matches.find(m => m.schema === chosen) || matches[0];
-      user = match.found;
-      matchedSchema = match.schema;
-    }
-
-    if (!user) {
+    // One global account per person: the password lives in core.accounts, not in any cohort.
+    const found = await findCanonicalAccountByLogin(identifier);
+    if (!found) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
+    const { account, aliasAccounts, ctx } = found;
 
-    const isActive = user.isActive ?? user.is_active;
-    if (!isActive) {
+    if (!account.is_active) {
       return NextResponse.json({ error: 'Account is deactivated' }, { status: 403 });
     }
 
-    // Verify password
-    const passwordHash = user.passwordHash || user.password_hash;
-    const valid = await verifyPassword(password.trim(), passwordHash);
-
+    const supplied = password.trim();
+    let valid = await verifyPassword(supplied, account.password_hash);
+    // Legacy: people whose last password change happened under an older id (same email) can still log in.
+    for (const alias of aliasAccounts) {
+      if (valid) break;
+      valid = await verifyPassword(supplied, alias.password_hash);
+    }
     if (!valid) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
-    // Build token payload
+    // The token identifies the PERSON. The cohort is resolved per request from memberships.
     const payload = {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-      firstName: user.firstName ?? user.first_name,
-      lastName: user.lastName ?? user.last_name,
-      schema: matchedSchema,
+      id: account.id,
+      email: account.email,
+      role: account.role,
+      firstName: account.first_name,
+      lastName: account.last_name,
     };
-
     const token = signToken(payload);
+    const defaultCohort = await defaultCohortForAccount(ctx);
 
     // Return token in JSON body only — client stores it in role-scoped localStorage.
-    return NextResponse.json({ token, user: payload });
+    return NextResponse.json({ token, user: payload, defaultCohort });
   } catch (err) {
     console.error('Login error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
-

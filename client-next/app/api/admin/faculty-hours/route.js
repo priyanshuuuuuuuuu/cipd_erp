@@ -4,7 +4,9 @@ import { db } from '@/lib/db';
 import { faculty, users, sessions, feedbackResponses } from '@/drizzle/schema';
 import { eq, and, ne, isNotNull } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
-import { hashPassword } from '@/lib/auth';
+import { createFaculty } from '@/lib/faculty-service';
+import { updateAccount, getAccountContext, getAccountByEmail } from '@/lib/accounts';
+import { errorResponse } from '@/lib/sql-ident';
 
 const DEFAULT_RATE = 2000;
 
@@ -128,41 +130,7 @@ async function createFacultyHandler(request) {
 
         const safeEmail = email.toLowerCase().trim();
 
-        // Check if email already exists
-        const existing = await db.query.users.findFirst({
-            columns: { id: true },
-            where: eq(users.email, safeEmail)
-        });
-
-        if (existing) {
-            return NextResponse.json({ error: 'A user with this email already exists.' }, { status: 409 });
-        }
-
-        // Hash default password
-        const password_hash = await hashPassword('cipd@123');
-
-        let newUserId;
-
-        // Use a transaction to ensure both user and faculty records are created together
-        await db.transaction(async (tx) => {
-            const [newUser] = await tx.insert(users).values({
-                firstName: firstName.trim(),
-                lastName: lastName.trim(),
-                email: safeEmail,
-                passwordHash: password_hash,
-                role: 'faculty',
-                isActive: true,
-            }).returning({ id: users.id });
-
-            newUserId = newUser.id;
-
-            await tx.insert(faculty).values({
-                id: newUserId,
-                designation: designation?.trim() || null,
-                yearsExperience: yearsExperience ? parseInt(yearsExperience, 10) : null,
-                honorariumRatePerHour: DEFAULT_RATE,
-            });
-        });
+        const { id: newUserId } = await createFaculty(request.cohortInfo, { firstName, lastName, email: safeEmail, designation, yearsExperience });
 
         return NextResponse.json({
             success: true,
@@ -175,8 +143,7 @@ async function createFacultyHandler(request) {
             },
         });
     } catch (error) {
-        console.error('Create Faculty API Error:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return errorResponse(NextResponse, error, 'Create Faculty API Error');
     }
 }
 
@@ -213,16 +180,10 @@ async function updateFacultyHandler(request) {
                 return NextResponse.json({ error: 'Email address cannot be empty.' }, { status: 400 });
             }
             if (trimmedEmail !== targetUser.email) {
-                // Check email uniqueness excluding current user
-                const existing = await db.query.users.findFirst({
-                    columns: { id: true },
-                    where: and(
-                        eq(users.email, trimmedEmail),
-                        ne(users.id, facultyId)
-                    )
-                });
-
-                if (existing) {
+                // Emails are unique per person across all cohorts (core.accounts)
+                const existing = await getAccountByEmail(trimmedEmail);
+                const mine = await getAccountContext(facultyId);
+                if (existing && existing.id !== mine?.canonicalId) {
                     return NextResponse.json({ error: 'A user with this email already exists.' }, { status: 409 });
                 }
                 userUpdates.email = trimmedEmail;
@@ -242,13 +203,17 @@ async function updateFacultyHandler(request) {
         if (bankIfscCode !== undefined) facUpdates.bankIfscCode = bankIfscCode?.trim()?.toUpperCase() || null;
         if (bankBranch !== undefined) facUpdates.bankBranch = bankBranch?.trim() || null;
 
-        await db.transaction(async (tx) => {
-            if (Object.keys(userUpdates).length > 0) {
-                await tx.update(users)
-                    .set(userUpdates)
-                    .where(and(eq(users.id, facultyId), eq(users.role, 'faculty')));
-            }
+        // Name/email belong to the person: update the global account (mirrored to running cohorts)
+        if (Object.keys(userUpdates).length > 0) {
+            const ctx = await getAccountContext(facultyId);
+            await updateAccount(ctx.canonicalId, {
+                ...(userUpdates.firstName !== undefined ? { first_name: userUpdates.firstName } : {}),
+                ...(userUpdates.lastName !== undefined ? { last_name: userUpdates.lastName } : {}),
+                ...(userUpdates.email !== undefined ? { email: userUpdates.email } : {}),
+            });
+        }
 
+        await db.transaction(async (tx) => {
             if (Object.keys(facUpdates).length > 0) {
                 await tx.update(faculty)
                     .set(facUpdates)

@@ -291,4 +291,4 @@ async function handler(request) {
   }
 }
 
-export const GET = withRole(['admin'])(handler);
+export const GET = withRole(handler, ['admin']);

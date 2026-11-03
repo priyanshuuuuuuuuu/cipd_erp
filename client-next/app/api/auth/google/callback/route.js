@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
-import { db, runWithSchema, getActiveSchema } from '@/lib/db';
+import { db, runWithSchema, getActiveSchema, getCohortConfig } from '@/lib/db';
 import { googleTokens } from '@/drizzle/schema';
 import { eq } from 'drizzle-orm';
 import { createHmac, timingSafeEqual } from 'crypto';
@@ -138,5 +138,10 @@ async function callbackHandler(req) {
 
 
 export async function GET(req) {
-  return runWithSchema(await getActiveSchema(), () => callbackHandler(req));
+  // The cohort the user was working in when they pressed "connect" is carried in the signed state.
+  const state = new URL(req.url).searchParams.get('state');
+  const decoded = state ? verifySignedState(state) : null;
+  const { schemas } = await getCohortConfig();
+  const schema = decoded?.schema && schemas.includes(decoded.schema) ? decoded.schema : await getActiveSchema();
+  return runWithSchema(schema, () => callbackHandler(req));
 }

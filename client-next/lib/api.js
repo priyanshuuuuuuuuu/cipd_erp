@@ -128,6 +128,41 @@ export async function apiUpload(path, formData) {
   return data;
 }
 
+/**
+ * Authenticated download (xlsx, csv, ...). Sends the same Authorization and x-cohort headers as apiFetch and
+ * resolves to a Blob. Use this instead of a raw fetch(), which would not carry the selected cohort.
+ * @param {string} path
+ * @returns {Promise<Blob>}
+ */
+export async function apiDownload(path) {
+  const token = getToken();
+  const cohort = getCohort();
+  const res = await fetch(`${API_BASE}${path}`, {
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(cohort ? { 'x-cohort': cohort } : {}),
+    },
+    cache: 'no-store',
+  });
+  if (res.status === 401) {
+    if (typeof window !== 'undefined') {
+      ['student', 'admin', 'faculty'].forEach((role) => {
+        localStorage.removeItem(`${role}_token`);
+        localStorage.removeItem(`${role}_user`);
+      });
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/';
+    }
+    throw new Error('Unauthorized');
+  }
+  if (!res.ok) {
+    const j = await res.json().catch(() => ({}));
+    throw new Error(j.error || `Download failed with status ${res.status}`);
+  }
+  return res.blob();
+}
+
 export const api = {
   get: (path) => apiFetch(path),
   post: (path, body) => apiFetch(path, { method: 'POST', body: JSON.stringify(body) }),

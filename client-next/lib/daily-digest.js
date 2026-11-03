@@ -1,4 +1,4 @@
-import { db, runWithSchema, getActiveSchema } from '@/lib/db';
+import { db, runWithSchema } from '@/lib/db';
 import {
   sessions,
   courses,
@@ -89,7 +89,7 @@ function toEpochMs(val) {
  *
  * @param {Object} options
  * @param {string} [options.targetDate] - Target date in YYYY-MM-DD (defaults to IST today)
- * @param {string} [options.schema]     - Cohort schema to query (defaults to active schema)
+ * @param {string} options.schema       - Cohort schema to query (required; the cron iterates every running cohort)
  * @param {string} [options.testEmail]  - If provided, sends output to this test email
  * @param {string} [options.studentId]  - If provided, filters to only this student ID
  * @param {boolean} [options.dryRun]    - If true, computes digest without sending email / notification
@@ -103,7 +103,8 @@ export async function generateAndSendDailyDigests({
   dryRun = false,
 } = {}) {
   const date = targetDate || getISTDateString();
-  const activeSchema = schema || (await getActiveSchema());
+  if (!schema) throw new Error('generateAndSendDailyDigests: schema is required');
+  const activeSchema = schema;
 
   return runWithSchema(activeSchema, async () => {
     const formattedDate = formatISTDate(date);

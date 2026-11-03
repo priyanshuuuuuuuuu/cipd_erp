@@ -1,17 +1,23 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { usePathname } from 'next/navigation';
 import { api, getCohortRole } from '@/lib/api';
 import { useAuth } from './AuthContext';
 
 const CohortContext = createContext(null);
 
+/**
+ * Cohort state for the signed-in user. `cohorts` are objects from GET /api/cohorts:
+ *   { id, schema, label, program, starts_on, ends_on, status: 'running'|'archived', is_default }
+ * The server decides what the user may see (admins: all; faculty/students: their memberships) and enforces
+ * read-only on non-running cohorts. `isReadOnly` here only disables controls for a better UX.
+ */
 export function CohortProvider({ children }) {
   const { user, authReady } = useAuth();
   const pathname = usePathname();
   const [cohorts, setCohorts] = useState([]);
-  const [activeCohort, setActiveCohort] = useState('');
+  const [activeCohort, setActiveCohort] = useState(''); // schema of the default cohort
   const [selectedCohort, setSelectedCohort] = useState('');
   const [loading, setLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -29,19 +35,17 @@ export function CohortProvider({ children }) {
       const data = await api.get('/api/cohorts');
       const list = data.cohorts || [];
       setCohorts(list);
-      setActiveCohort(data.active || '');
+      setActiveCohort(data.default || data.active || '');
 
       const role = getCohortRole();
       const stored = localStorage.getItem(`${role}_cohort`);
-      
-      // Determine what to select: stored preference if still valid, else data.current, else active
-      const validStored = list.some(c => c.schema === stored) ? stored : null;
-      const initial = validStored || data.current || data.active || (list[0]?.schema ?? '');
+
+      // Stored preference if still valid, else the cohort the server resolved for us, else the default.
+      const validStored = list.some((c) => c.schema === stored) ? stored : null;
+      const initial = validStored || data.current || data.default || data.active || (list[0]?.schema ?? '');
 
       setSelectedCohort(initial);
-      if (initial) {
-        localStorage.setItem(`${role}_cohort`, initial);
-      }
+      if (initial) localStorage.setItem(`${role}_cohort`, initial);
     } catch (err) {
       console.error('Failed to load cohorts:', err);
     } finally {
@@ -50,9 +54,7 @@ export function CohortProvider({ children }) {
   }, [user, pathname]);
 
   useEffect(() => {
-    if (authReady) {
-      fetchCohorts();
-    }
+    if (authReady) fetchCohorts();
   }, [authReady, fetchCohorts]);
 
   const switchCohort = useCallback((schemaName) => {
@@ -60,28 +62,40 @@ export function CohortProvider({ children }) {
     const role = getCohortRole();
     localStorage.setItem(`${role}_cohort`, schemaName);
     setSelectedCohort(schemaName);
-    // Reload the page to ensure all views immediately refetch with the chosen x-cohort header
-    if (typeof window !== 'undefined') {
-      window.location.reload();
-    }
+    // Reload so every view refetches with the chosen x-cohort header
+    if (typeof window !== 'undefined') window.location.reload();
   }, [selectedCohort]);
 
+  /** Make a running cohort the default (new sign-ups, background jobs, landing cohort). */
   const makeActive = useCallback(async (schemaName) => {
+    const target = cohorts.find((c) => c.schema === schemaName);
+    if (!target) return;
     try {
-      await api.patch('/api/admin/cohorts', { schemaName });
+      await api.patch(`/api/admin/cohorts/${target.id}`, { is_default: true });
       await fetchCohorts();
     } catch (err) {
-      alert('Failed to set active cohort: ' + err.message);
+      alert('Failed to set default cohort: ' + err.message);
       throw err;
     }
-  }, [fetchCohorts]);
+  }, [cohorts, fetchCohorts]);
+
+  const selectedCohortObj = useMemo(
+    () => cohorts.find((c) => c.schema === selectedCohort) || null,
+    [cohorts, selectedCohort]
+  );
+  const runningCohorts = useMemo(() => cohorts.filter((c) => c.status === 'running'), [cohorts]);
+  const isReadOnly = !!selectedCohortObj && selectedCohortObj.status !== 'running';
 
   return (
     <CohortContext.Provider
       value={{
         cohorts,
+        runningCohorts,
         activeCohort,
+        defaultCohort: activeCohort,
         selectedCohort,
+        selectedCohortObj,
+        isReadOnly,
         loading,
         isCreateOpen,
         openCreateModal: () => setIsCreateOpen(true),

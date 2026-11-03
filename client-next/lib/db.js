@@ -86,8 +86,32 @@ const COHORT_CACHE_TTL_MS = 30_000;
 // Also persist the cache across hot reloads so we don't spam the DB
 if (!g._pgCohortCache) g._pgCohortCache = null;
 
-export function invalidateCohortCache() {
+// Other in-process caches (accounts, memberships) register here so one call clears them all.
+if (!g._pgInvalidators) g._pgInvalidators = new Set();
+export function onCacheInvalidate(fn) {
+  g._pgInvalidators.add(fn);
+}
+
+function clearLocalCaches() {
   g._pgCohortCache = null;
+  for (const fn of g._pgInvalidators) { try { fn(); } catch { /* ignore */ } }
+}
+
+// With several app processes (PM2 cluster) a change made in one must reach the others:
+// invalidate locally, then NOTIFY; every process LISTENs and clears its own caches.
+// Started lazily on the first registry read, never at import time (so `next build` opens no connection).
+function ensureListening() {
+  if (g._pgListening) return;
+  g._pgListening = true;
+  connection.listen('cohorts_changed', () => clearLocalCaches()).catch((err) => {
+    console.error('cohorts_changed LISTEN failed (cache sync across processes disabled):', err.message);
+    g._pgListening = false;
+  });
+}
+
+export function invalidateCohortCache() {
+  clearLocalCaches();
+  connection.notify('cohorts_changed', String(process.pid)).catch(() => {});
 }
 
 function envCohortFallback() {
@@ -105,7 +129,7 @@ function envCohortFallback() {
   }
   const active = schemas.includes(DEFAULT_SCHEMA) ? DEFAULT_SCHEMA : schemas[0];
   const cohorts = schemas.map((schema, i) => ({
-    id: i + 1, schema, label: resolved[schema], program: null, starts_on: null, ends_on: null,
+    id: i + 1, schema, schema_name: schema, label: resolved[schema], program: null, starts_on: null, ends_on: null,
     status: 'running', is_default: schema === active, is_legacy: false,
   }));
   return { cohorts, all: cohorts, schemas, labels: resolved, active };
@@ -115,6 +139,7 @@ function buildConfig(rows) {
   const all = rows.map(r => ({
     id: r.id,
     schema: r.schema_name,
+    schema_name: r.schema_name, // same value; services use the registry column name
     label: r.label,
     program: r.program,
     starts_on: r.starts_on,
@@ -142,6 +167,7 @@ function buildConfig(rows) {
  * Falls back to COHORT_SCHEMAS / DEFAULT_SCHEMA only when core.cohorts does not exist yet.
  */
 export async function getCohortConfig() {
+  ensureListening();
   if (g._pgCohortCache && Date.now() - g._pgCohortCache.at < COHORT_CACHE_TTL_MS) {
     return g._pgCohortCache.value;
   }

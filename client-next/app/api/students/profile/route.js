@@ -1,7 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
-import { DEFAULT_SCHEMA } from '@/config';
-import { db as defaultDb, getSchemaDb, getCohortConfig } from '@/lib/db';
+import { db as defaultDb } from '@/lib/db';
 import { users, students } from '@/drizzle/schema';
 import { eq } from 'drizzle-orm';
 import { withAuth } from '@/lib/middleware';
@@ -14,29 +13,13 @@ const NO_CACHE_HEADERS = {
 
 async function handler(req) {
   try {
-    let db = defaultDb;
+    // `defaultDb` is already bound to the request's cohort (see withAuth); req.user.id is the cohort-local id.
+    const db = defaultDb;
     let userFound = false;
-
-    if (req.user?.schema) {
-      db = getSchemaDb(req.user.schema);
-      const [u] = await db
-        .select({ id: users.id, email: users.email, first_name: users.firstName, last_name: users.lastName, role: users.role, is_active: users.isActive })
-        .from(users).where(eq(users.id, req.user.id));
-      if (u) userFound = u;
-    } else {
-      const { schemas } = await getCohortConfig();
-      for (const s of (schemas && schemas.length ? schemas : [DEFAULT_SCHEMA])) {
-        const schemaDb = getSchemaDb(s);
-        const [u] = await schemaDb
-          .select({ id: users.id, email: users.email, first_name: users.firstName, last_name: users.lastName, role: users.role, is_active: users.isActive })
-          .from(users).where(eq(users.id, req.user.id));
-        if (u) {
-          userFound = u;
-          db = schemaDb;
-          break;
-        }
-      }
-    }
+    const [u] = await db
+      .select({ id: users.id, email: users.email, first_name: users.firstName, last_name: users.lastName, role: users.role, is_active: users.isActive })
+      .from(users).where(eq(users.id, req.user.id));
+    if (u) userFound = u;
 
     if (!userFound) {
       return NextResponse.json({ error: 'User not found' }, { status: 404, headers: NO_CACHE_HEADERS });

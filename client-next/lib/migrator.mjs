@@ -113,6 +113,11 @@ export async function applyCoreMigrations(sql, { dryRun = false, log = console.l
  */
 export async function applyCohortMigrations(sql, schema, cohortId, { dryRun = false, log = console.log, upTo = null, tx = null } = {}) {
   assertSchemaName(schema);
+  // Without this check, an unknown schema would fall through to `core` on the search_path and the DDL would land there.
+  if (!tx) {
+    const [{ ok }] = await sql`SELECT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = ${schema}) AS ok`;
+    if (!ok) throw new Error(`Schema ${schema} does not exist`);
+  }
   const files = await loadMigrations('cohort');
   let applied = await appliedFor(sql, schema);
   verifyChecksums(schema, files, applied);
@@ -165,5 +170,5 @@ export async function markApplied(sql, schema, version) {
 
 export async function listMigratableCohorts(sql) {
   return sql`SELECT id, schema_name FROM core.cohorts
-              WHERE status IN ('running','archived','provisioning') ORDER BY id`;
+              WHERE status IN ('running','archived') ORDER BY id`;
 }
