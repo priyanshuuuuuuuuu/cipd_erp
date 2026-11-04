@@ -1,0 +1,6245 @@
+{
+  "metadata": {
+    "generatedAt": "2026-10-12T06:08:58.385Z",
+    "dateFrom": "2026-09-10",
+    "dateTo": "2026-10-11",
+    "totalDays": 32,
+    "totalStudents": 26,
+    "totalSlotsPerDay": 4,
+    "totalPossibleSlots": 3328,
+    "totalActualPresentSlots": 331,
+    "overallAttendancePct": 9.95,
+    "slots": [
+      {
+        "id": "slot1",
+        "label": "09:30 - 11:00",
+        "shortLabel": "9:30-11am",
+        "start": "09:30:00",
+        "end": "11:00:00"
+      },
+      {
+        "id": "slot2",
+        "label": "11:15 - 12:45",
+        "shortLabel": "11:15am-12:45pm",
+        "start": "11:15:00",
+        "end": "12:45:00"
+      },
+      {
+        "id": "slot3",
+        "label": "14:00 - 15:30",
+        "shortLabel": "2pm-3:30pm",
+        "start": "14:00:00",
+        "end": "15:30:00"
+      },
+      {
+        "id": "slot4",
+        "label": "15:45 - 17:30",
+        "shortLabel": "3:45pm-5:30pm",
+        "start": "15:45:00",
+        "end": "17:30:00"
+      }
+    ]
+  },
+  "students": [
+    {
+      "id": "afe6f7fe-8172-43ee-86e0-6b9de4d4322a",
+      "enrollmentNo": "CIPD/2026/0002",
+      "name": "Rohit Bhardwaj",
+      "email": "rohit25142@iiitd.ac.in",
+      "macAddress": "",
+      "normalizedMac": null,
+      "macVerified": false,
+      "isActive": false
+    },
+    {
+      "id": "cb6ed6e4-bf97-43af-8aba-5c137d081df9",
+      "enrollmentNo": "CIPD/2026/03",
+      "name": "Sameer Tiwari",
+      "email": "sameer25145@iiitd.ac.in",
+      "macAddress": "7C:F0:E5:AA:08:51",
+      "normalizedMac": "7C:F0:E5:AA:08:51",
+      "macVerified": true,
+      "isActive": true
+    },
+    {
+      "id": "73dbc915-a34f-4e7a-9db6-710aae68f907",
+      "enrollmentNo": "iPDCP20260",
+      "name": "Parsh Jain",
+      "email": "parsh23368@iiitd.ac.in",
+      "macAddress": "12:34:56:67:88:99",
+      "normalizedMac": "12:34:56:67:88:99",
+      "macVerified": true,
+      "isActive": true
+    },
+    {
+      "id": "ce55d71f-e007-49fa-b8bc-7ec47b53aea9",
+      "enrollmentNo": "iPDCP2026M01",
+      "name": "Aanshi Gupta",
+      "email": "aanshi24006@iiitd.ac.in",
+      "macAddress": "d4:ec:ab:c4:30:bd",
+      "normalizedMac": "D4:EC:AB:C4:30:BD",
+      "macVerified": true,
+      "isActive": true
+    },
+    {
+      "id": "de31621c-2932-4456-8918-5863dae824a3",
+      "enrollmentNo": "iPDCP2026M02",
+      "name": "Aryan Gahlawat",
+      "email": "aryangahlawat419@gmail.com",
+      "macAddress": "11:11:11:11:11:11",
+      "normalizedMac": "11:11:11:11:11:11",
+      "macVerified": true,
+      "isActive": true
+    },
+    {
+      "id": "f384eaae-90d7-4d45-9897-931f5776b707",
+      "enrollmentNo": "iPDCP2026M03",
+      "name": "Dhairya Sanjay Bhanderi",
+      "email": "dhairya24185@iiitd.ac.in",
+      "macAddress": "B8:A8:25:9B:A2:1C",
+      "normalizedMac": "B8:A8:25:9B:A2:1C",
+      "macVerified": true,
+      "isActive": true
+    },
+    {
+      "id": "916d0db3-ffac-4e80-a2d5-caabd93e6e49",
+      "enrollmentNo": "iPDCP2026M04",
+      "name": "Gaurav Yadav",
+      "email": "gaurav24222@iiitd.ac.in",
+      "macAddress": "B0:9C:63:EC:EA:67",
+      "normalizedMac": "B0:9C:63:EC:EA:67",
+      "macVerified": true,
+      "isActive": false
+    },
+    {
+      "id": "996a79d9-4847-4add-a560-024bd8b88f5d",
+      "enrollmentNo": "iPDCP2026M05",
+      "name": "Harsh V",
+      "email": "harsh24235@iiitd.ac.in",
+      "macAddress": "",
+      "normalizedMac": null,
+      "macVerified": false,
+      "isActive": false
+    },
+    {
+      "id": "745136f7-2fe1-4ae8-9364-6ab539226200",
+      "enrollmentNo": "iPDCP2026M06",
+      "name": "Hemant Bhagat",
+      "email": "bhagathemantofficial@gmail.com",
+      "macAddress": "74:cb:f3:1a:8f:0e",
+      "normalizedMac": "74:CB:F3:1A:8F:0E",
+      "macVerified": true,
+      "isActive": true
+    },
+    {
+      "id": "2a1b7004-263a-488e-a21b-fe0a9f549d3e",
+      "enrollmentNo": "iPDCP2026M07",
+      "name": "Jagjot Singh",
+      "email": "jagjot24272@iiitd.ac.in",
+      "macAddress": "94:89:78:EE:F3:B3",
+      "normalizedMac": "94:89:78:EE:F3:B3",
+      "macVerified": true,
+      "isActive": false
+    },
+    {
+      "id": "a3cfb208-298c-4811-8bec-4851c7f2e815",
+      "enrollmentNo": "iPDCP2026M08",
+      "name": "Jahanvi Kardam",
+      "email": "jahanvi24274@iiitd.ac.in",
+      "macAddress": "AA:6C:25:29:E8:A1",
+      "normalizedMac": "AA:6C:25:29:E8:A1",
+      "macVerified": true,
+      "isActive": true
+    },
+    {
+      "id": "1cea90ea-4cfc-49dd-85a8-3838a182aedb",
+      "enrollmentNo": "iPDCP2026M09",
+      "name": "Khushal Yadav",
+      "email": "khushal24301@iiitd.ac.in",
+      "macAddress": "ac:c0:48:d6:67:d3",
+      "normalizedMac": "AC:C0:48:D6:67:D3",
+      "macVerified": true,
+      "isActive": true
+    },
+    {
+      "id": "4fae4d1a-78a8-4e83-a810-951c1f9000d5",
+      "enrollmentNo": "iPDCP2026M10",
+      "name": "Manya Grover",
+      "email": "manya23313@iiitd.ac.in",
+      "macAddress": "BE:B5:30:19:63:A9",
+      "normalizedMac": "BE:B5:30:19:63:A9",
+      "macVerified": true,
+      "isActive": true
+    },
+    {
+      "id": "75a2c92d-8a43-4c64-ad10-3a2c85f174ce",
+      "enrollmentNo": "iPDCP2026M11",
+      "name": "Maloth Ashok Jadav",
+      "email": "maloth24327@iiitd.ac.in",
+      "macAddress": "A8:EF:5F:05:1E:C9",
+      "normalizedMac": "A8:EF:5F:05:1E:C9",
+      "macVerified": true,
+      "isActive": true
+    },
+    {
+      "id": "5a969980-eef3-4065-bdf0-9812311249e0",
+      "enrollmentNo": "iPDCP2026M12",
+      "name": "Pratik Yadav",
+      "email": "pratik24430@iiitd.ac.in",
+      "macAddress": "2c:be:ee:1b:13:42",
+      "normalizedMac": "2C:BE:EE:1B:13:42",
+      "macVerified": true,
+      "isActive": true
+    },
+    {
+      "id": "d7302005-b6af-402c-ba8e-b406b43413b3",
+      "enrollmentNo": "iPDCP2026M13",
+      "name": "Pinaksh Kumar",
+      "email": "pinaksh25075@iiitd.ac.in",
+      "macAddress": "5c:17:cf:23:35:d4",
+      "normalizedMac": "5C:17:CF:23:35:D4",
+      "macVerified": true,
+      "isActive": true
+    },
+    {
+      "id": "262a211b-9c34-4d01-880a-9dd778915dcc",
+      "enrollmentNo": "iPDCP2026M14",
+      "name": "Rishabh Patel",
+      "email": "rishabh24464@iiitd.ac.in",
+      "macAddress": "CC:F9:F0:E7:FB:46",
+      "normalizedMac": "CC:F9:F0:E7:FB:46",
+      "macVerified": true,
+      "isActive": true
+    },
+    {
+      "id": "8d369db1-ca28-4a52-9589-64da7aacf5c6",
+      "enrollmentNo": "iPDCP2026M15",
+      "name": "Rohit Sharma",
+      "email": "rohit24481@iiitd.ac.in",
+      "macAddress": "2C:BE:EB:96:9D:E5",
+      "normalizedMac": "2C:BE:EB:96:9D:E5",
+      "macVerified": true,
+      "isActive": true
+    },
+    {
+      "id": "ea44123d-4ea0-44fb-95cc-7a2787828ba2",
+      "enrollmentNo": "iPDCP2026M16",
+      "name": "Sameer Pasi",
+      "email": "sameer24501@iiitd.ac.in",
+      "macAddress": "A8:41:F4:15:4F:BB",
+      "normalizedMac": "A8:41:F4:15:4F:BB",
+      "macVerified": true,
+      "isActive": true
+    },
+    {
+      "id": "f279ab15-3317-42d8-a940-917ab44de424",
+      "enrollmentNo": "iPDCP2026M17",
+      "name": "Shourya .",
+      "email": "shourya24536@iiitd.ac.in",
+      "macAddress": "AC:D6:18:30:81:D8",
+      "normalizedMac": "AC:D6:18:30:81:D8",
+      "macVerified": true,
+      "isActive": true
+    },
+    {
+      "id": "caf8b2a7-7a94-4504-aa87-e12e5fc5f8f1",
+      "enrollmentNo": "iPDCP2026M18",
+      "name": "Shubh Asthana",
+      "email": "shubh24548@iiitd.ac.in",
+      "macAddress": "28:49:E9:A4:77:AA",
+      "normalizedMac": "28:49:E9:A4:77:AA",
+      "macVerified": true,
+      "isActive": true
+    },
+    {
+      "id": "6c5710f7-ca3e-4eaa-9555-bc34a53579c9",
+      "enrollmentNo": "iPDCP2026M19",
+      "name": "Vedant Singh",
+      "email": "vedant24615@iiitd.ac.in",
+      "macAddress": "34:F0:43:10:57:3A",
+      "normalizedMac": "34:F0:43:10:57:3A",
+      "macVerified": true,
+      "isActive": true
+    },
+    {
+      "id": "ed42ecee-1edc-4eb5-babb-7fe9e1c4b0bf",
+      "enrollmentNo": "iPDCP2026M20",
+      "name": "Ujjwal Goel",
+      "email": "ujjwal23565@iiitd.ac.in",
+      "macAddress": "D4:CB:CC:91:CE:8F",
+      "normalizedMac": "D4:CB:CC:91:CE:8F",
+      "macVerified": true,
+      "isActive": true
+    },
+    {
+      "id": "f0e70188-e561-4b96-ad19-95045e5205fa",
+      "enrollmentNo": "iPDCP2026M21",
+      "name": "Yash Kumar Saini",
+      "email": "yash25054@iiitd.ac.in",
+      "macAddress": "78:A7:C7:4F:0B:19",
+      "normalizedMac": "78:A7:C7:4F:0B:19",
+      "macVerified": true,
+      "isActive": true
+    },
+    {
+      "id": "17271536-37cd-4618-9953-10d2763f8982",
+      "enrollmentNo": "iPDCP2026M22",
+      "name": "Priyanshu Pandey",
+      "email": "priyanshu23406@iiitd.ac.in",
+      "macAddress": "9C:C3:94:22:3F:D1",
+      "normalizedMac": "9C:C3:94:22:3F:D1",
+      "macVerified": true,
+      "isActive": true
+    },
+    {
+      "id": "9599593a-b57b-475d-b872-43af7b0615e5",
+      "enrollmentNo": "xyz",
+      "name": "Gurdeep Kaur",
+      "email": "gurdeep.kaur@iiitd.ac.in",
+      "macAddress": "F8:E5:CE:74:1D:0B",
+      "normalizedMac": "F8:E5:CE:74:1D:0B",
+      "macVerified": true,
+      "isActive": true
+    }
+  ],
+  "dates": [
+    {
+      "dateStr": "2026-09-10",
+      "dayName": "Thu"
+    },
+    {
+      "dateStr": "2026-09-11",
+      "dayName": "Fri"
+    },
+    {
+      "dateStr": "2026-09-12",
+      "dayName": "Sat"
+    },
+    {
+      "dateStr": "2026-09-13",
+      "dayName": "Sun"
+    },
+    {
+      "dateStr": "2026-09-14",
+      "dayName": "Mon"
+    },
+    {
+      "dateStr": "2026-09-15",
+      "dayName": "Tue"
+    },
+    {
+      "dateStr": "2026-09-16",
+      "dayName": "Wed"
+    },
+    {
+      "dateStr": "2026-09-17",
+      "dayName": "Thu"
+    },
+    {
+      "dateStr": "2026-09-18",
+      "dayName": "Fri"
+    },
+    {
+      "dateStr": "2026-09-19",
+      "dayName": "Sat"
+    },
+    {
+      "dateStr": "2026-09-20",
+      "dayName": "Sun"
+    },
+    {
+      "dateStr": "2026-09-21",
+      "dayName": "Mon"
+    },
+    {
+      "dateStr": "2026-09-22",
+      "dayName": "Tue"
+    },
+    {
+      "dateStr": "2026-09-23",
+      "dayName": "Wed"
+    },
+    {
+      "dateStr": "2026-09-24",
+      "dayName": "Thu"
+    },
+    {
+      "dateStr": "2026-09-25",
+      "dayName": "Fri"
+    },
+    {
+      "dateStr": "2026-09-26",
+      "dayName": "Sat"
+    },
+    {
+      "dateStr": "2026-09-27",
+      "dayName": "Sun"
+    },
+    {
+      "dateStr": "2026-09-28",
+      "dayName": "Mon"
+    },
+    {
+      "dateStr": "2026-09-29",
+      "dayName": "Tue"
+    },
+    {
+      "dateStr": "2026-09-30",
+      "dayName": "Wed"
+    },
+    {
+      "dateStr": "2026-10-01",
+      "dayName": "Thu"
+    },
+    {
+      "dateStr": "2026-10-02",
+      "dayName": "Fri"
+    },
+    {
+      "dateStr": "2026-10-03",
+      "dayName": "Sat"
+    },
+    {
+      "dateStr": "2026-10-04",
+      "dayName": "Sun"
+    },
+    {
+      "dateStr": "2026-10-05",
+      "dayName": "Mon"
+    },
+    {
+      "dateStr": "2026-10-06",
+      "dayName": "Tue"
+    },
+    {
+      "dateStr": "2026-10-07",
+      "dayName": "Wed"
+    },
+    {
+      "dateStr": "2026-10-08",
+      "dayName": "Thu"
+    },
+    {
+      "dateStr": "2026-10-09",
+      "dayName": "Fri"
+    },
+    {
+      "dateStr": "2026-10-10",
+      "dayName": "Sat"
+    },
+    {
+      "dateStr": "2026-10-11",
+      "dayName": "Sun"
+    }
+  ],
+  "matrix": {
+    "2026-09-10": {
+      "afe6f7fe-8172-43ee-86e0-6b9de4d4322a": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "cb6ed6e4-bf97-43af-8aba-5c137d081df9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "73dbc915-a34f-4e7a-9db6-710aae68f907": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ce55d71f-e007-49fa-b8bc-7ec47b53aea9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "de31621c-2932-4456-8918-5863dae824a3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f384eaae-90d7-4d45-9897-931f5776b707": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "916d0db3-ffac-4e80-a2d5-caabd93e6e49": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "996a79d9-4847-4add-a560-024bd8b88f5d": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "745136f7-2fe1-4ae8-9364-6ab539226200": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "2a1b7004-263a-488e-a21b-fe0a9f549d3e": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "a3cfb208-298c-4811-8bec-4851c7f2e815": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "1cea90ea-4cfc-49dd-85a8-3838a182aedb": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "4fae4d1a-78a8-4e83-a810-951c1f9000d5": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "75a2c92d-8a43-4c64-ad10-3a2c85f174ce": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "5a969980-eef3-4065-bdf0-9812311249e0": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "d7302005-b6af-402c-ba8e-b406b43413b3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "262a211b-9c34-4d01-880a-9dd778915dcc": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "8d369db1-ca28-4a52-9589-64da7aacf5c6": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ea44123d-4ea0-44fb-95cc-7a2787828ba2": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f279ab15-3317-42d8-a940-917ab44de424": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "caf8b2a7-7a94-4504-aa87-e12e5fc5f8f1": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "6c5710f7-ca3e-4eaa-9555-bc34a53579c9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "ed42ecee-1edc-4eb5-babb-7fe9e1c4b0bf": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f0e70188-e561-4b96-ad19-95045e5205fa": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "17271536-37cd-4618-9953-10d2763f8982": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "9599593a-b57b-475d-b872-43af7b0615e5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      }
+    },
+    "2026-09-11": {
+      "afe6f7fe-8172-43ee-86e0-6b9de4d4322a": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "cb6ed6e4-bf97-43af-8aba-5c137d081df9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "73dbc915-a34f-4e7a-9db6-710aae68f907": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ce55d71f-e007-49fa-b8bc-7ec47b53aea9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "de31621c-2932-4456-8918-5863dae824a3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f384eaae-90d7-4d45-9897-931f5776b707": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "916d0db3-ffac-4e80-a2d5-caabd93e6e49": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "996a79d9-4847-4add-a560-024bd8b88f5d": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "745136f7-2fe1-4ae8-9364-6ab539226200": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "2a1b7004-263a-488e-a21b-fe0a9f549d3e": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "a3cfb208-298c-4811-8bec-4851c7f2e815": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "1cea90ea-4cfc-49dd-85a8-3838a182aedb": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "4fae4d1a-78a8-4e83-a810-951c1f9000d5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "75a2c92d-8a43-4c64-ad10-3a2c85f174ce": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "5a969980-eef3-4065-bdf0-9812311249e0": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "d7302005-b6af-402c-ba8e-b406b43413b3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "262a211b-9c34-4d01-880a-9dd778915dcc": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "8d369db1-ca28-4a52-9589-64da7aacf5c6": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ea44123d-4ea0-44fb-95cc-7a2787828ba2": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f279ab15-3317-42d8-a940-917ab44de424": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "caf8b2a7-7a94-4504-aa87-e12e5fc5f8f1": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "6c5710f7-ca3e-4eaa-9555-bc34a53579c9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ed42ecee-1edc-4eb5-babb-7fe9e1c4b0bf": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f0e70188-e561-4b96-ad19-95045e5205fa": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "17271536-37cd-4618-9953-10d2763f8982": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "9599593a-b57b-475d-b872-43af7b0615e5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      }
+    },
+    "2026-09-12": {
+      "afe6f7fe-8172-43ee-86e0-6b9de4d4322a": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "cb6ed6e4-bf97-43af-8aba-5c137d081df9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "73dbc915-a34f-4e7a-9db6-710aae68f907": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ce55d71f-e007-49fa-b8bc-7ec47b53aea9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "de31621c-2932-4456-8918-5863dae824a3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f384eaae-90d7-4d45-9897-931f5776b707": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "916d0db3-ffac-4e80-a2d5-caabd93e6e49": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "996a79d9-4847-4add-a560-024bd8b88f5d": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "745136f7-2fe1-4ae8-9364-6ab539226200": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "2a1b7004-263a-488e-a21b-fe0a9f549d3e": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "a3cfb208-298c-4811-8bec-4851c7f2e815": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "1cea90ea-4cfc-49dd-85a8-3838a182aedb": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "4fae4d1a-78a8-4e83-a810-951c1f9000d5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "75a2c92d-8a43-4c64-ad10-3a2c85f174ce": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "5a969980-eef3-4065-bdf0-9812311249e0": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "d7302005-b6af-402c-ba8e-b406b43413b3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "262a211b-9c34-4d01-880a-9dd778915dcc": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "8d369db1-ca28-4a52-9589-64da7aacf5c6": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ea44123d-4ea0-44fb-95cc-7a2787828ba2": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f279ab15-3317-42d8-a940-917ab44de424": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "caf8b2a7-7a94-4504-aa87-e12e5fc5f8f1": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "6c5710f7-ca3e-4eaa-9555-bc34a53579c9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ed42ecee-1edc-4eb5-babb-7fe9e1c4b0bf": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f0e70188-e561-4b96-ad19-95045e5205fa": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "17271536-37cd-4618-9953-10d2763f8982": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "9599593a-b57b-475d-b872-43af7b0615e5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      }
+    },
+    "2026-09-13": {
+      "afe6f7fe-8172-43ee-86e0-6b9de4d4322a": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "cb6ed6e4-bf97-43af-8aba-5c137d081df9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "73dbc915-a34f-4e7a-9db6-710aae68f907": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ce55d71f-e007-49fa-b8bc-7ec47b53aea9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "de31621c-2932-4456-8918-5863dae824a3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f384eaae-90d7-4d45-9897-931f5776b707": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "916d0db3-ffac-4e80-a2d5-caabd93e6e49": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "996a79d9-4847-4add-a560-024bd8b88f5d": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "745136f7-2fe1-4ae8-9364-6ab539226200": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "2a1b7004-263a-488e-a21b-fe0a9f549d3e": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "a3cfb208-298c-4811-8bec-4851c7f2e815": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "1cea90ea-4cfc-49dd-85a8-3838a182aedb": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "4fae4d1a-78a8-4e83-a810-951c1f9000d5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "75a2c92d-8a43-4c64-ad10-3a2c85f174ce": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "5a969980-eef3-4065-bdf0-9812311249e0": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "d7302005-b6af-402c-ba8e-b406b43413b3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "262a211b-9c34-4d01-880a-9dd778915dcc": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "8d369db1-ca28-4a52-9589-64da7aacf5c6": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ea44123d-4ea0-44fb-95cc-7a2787828ba2": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f279ab15-3317-42d8-a940-917ab44de424": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "caf8b2a7-7a94-4504-aa87-e12e5fc5f8f1": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "6c5710f7-ca3e-4eaa-9555-bc34a53579c9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ed42ecee-1edc-4eb5-babb-7fe9e1c4b0bf": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f0e70188-e561-4b96-ad19-95045e5205fa": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "17271536-37cd-4618-9953-10d2763f8982": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "9599593a-b57b-475d-b872-43af7b0615e5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      }
+    },
+    "2026-09-14": {
+      "afe6f7fe-8172-43ee-86e0-6b9de4d4322a": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "cb6ed6e4-bf97-43af-8aba-5c137d081df9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "73dbc915-a34f-4e7a-9db6-710aae68f907": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ce55d71f-e007-49fa-b8bc-7ec47b53aea9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "de31621c-2932-4456-8918-5863dae824a3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f384eaae-90d7-4d45-9897-931f5776b707": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "916d0db3-ffac-4e80-a2d5-caabd93e6e49": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "996a79d9-4847-4add-a560-024bd8b88f5d": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "745136f7-2fe1-4ae8-9364-6ab539226200": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "A"
+      },
+      "2a1b7004-263a-488e-a21b-fe0a9f549d3e": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "a3cfb208-298c-4811-8bec-4851c7f2e815": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "1cea90ea-4cfc-49dd-85a8-3838a182aedb": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "4fae4d1a-78a8-4e83-a810-951c1f9000d5": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "A"
+      },
+      "75a2c92d-8a43-4c64-ad10-3a2c85f174ce": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "5a969980-eef3-4065-bdf0-9812311249e0": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "d7302005-b6af-402c-ba8e-b406b43413b3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "262a211b-9c34-4d01-880a-9dd778915dcc": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "P"
+      },
+      "8d369db1-ca28-4a52-9589-64da7aacf5c6": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ea44123d-4ea0-44fb-95cc-7a2787828ba2": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f279ab15-3317-42d8-a940-917ab44de424": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "caf8b2a7-7a94-4504-aa87-e12e5fc5f8f1": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "6c5710f7-ca3e-4eaa-9555-bc34a53579c9": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "ed42ecee-1edc-4eb5-babb-7fe9e1c4b0bf": {
+        "slot1": "P",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "f0e70188-e561-4b96-ad19-95045e5205fa": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "17271536-37cd-4618-9953-10d2763f8982": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "9599593a-b57b-475d-b872-43af7b0615e5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      }
+    },
+    "2026-09-15": {
+      "afe6f7fe-8172-43ee-86e0-6b9de4d4322a": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "cb6ed6e4-bf97-43af-8aba-5c137d081df9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "73dbc915-a34f-4e7a-9db6-710aae68f907": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ce55d71f-e007-49fa-b8bc-7ec47b53aea9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "de31621c-2932-4456-8918-5863dae824a3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f384eaae-90d7-4d45-9897-931f5776b707": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "916d0db3-ffac-4e80-a2d5-caabd93e6e49": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "996a79d9-4847-4add-a560-024bd8b88f5d": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "745136f7-2fe1-4ae8-9364-6ab539226200": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "2a1b7004-263a-488e-a21b-fe0a9f549d3e": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "a3cfb208-298c-4811-8bec-4851c7f2e815": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "1cea90ea-4cfc-49dd-85a8-3838a182aedb": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "4fae4d1a-78a8-4e83-a810-951c1f9000d5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "75a2c92d-8a43-4c64-ad10-3a2c85f174ce": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "5a969980-eef3-4065-bdf0-9812311249e0": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "d7302005-b6af-402c-ba8e-b406b43413b3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "262a211b-9c34-4d01-880a-9dd778915dcc": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "8d369db1-ca28-4a52-9589-64da7aacf5c6": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "P"
+      },
+      "ea44123d-4ea0-44fb-95cc-7a2787828ba2": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f279ab15-3317-42d8-a940-917ab44de424": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "caf8b2a7-7a94-4504-aa87-e12e5fc5f8f1": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "P"
+      },
+      "6c5710f7-ca3e-4eaa-9555-bc34a53579c9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ed42ecee-1edc-4eb5-babb-7fe9e1c4b0bf": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "f0e70188-e561-4b96-ad19-95045e5205fa": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "A",
+        "slot4": "P"
+      },
+      "17271536-37cd-4618-9953-10d2763f8982": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "9599593a-b57b-475d-b872-43af7b0615e5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      }
+    },
+    "2026-09-16": {
+      "afe6f7fe-8172-43ee-86e0-6b9de4d4322a": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "cb6ed6e4-bf97-43af-8aba-5c137d081df9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "73dbc915-a34f-4e7a-9db6-710aae68f907": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ce55d71f-e007-49fa-b8bc-7ec47b53aea9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "de31621c-2932-4456-8918-5863dae824a3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f384eaae-90d7-4d45-9897-931f5776b707": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "916d0db3-ffac-4e80-a2d5-caabd93e6e49": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "996a79d9-4847-4add-a560-024bd8b88f5d": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "745136f7-2fe1-4ae8-9364-6ab539226200": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "2a1b7004-263a-488e-a21b-fe0a9f549d3e": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "a3cfb208-298c-4811-8bec-4851c7f2e815": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "1cea90ea-4cfc-49dd-85a8-3838a182aedb": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "4fae4d1a-78a8-4e83-a810-951c1f9000d5": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "75a2c92d-8a43-4c64-ad10-3a2c85f174ce": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "A",
+        "slot4": "P"
+      },
+      "5a969980-eef3-4065-bdf0-9812311249e0": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "d7302005-b6af-402c-ba8e-b406b43413b3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "262a211b-9c34-4d01-880a-9dd778915dcc": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "8d369db1-ca28-4a52-9589-64da7aacf5c6": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "ea44123d-4ea0-44fb-95cc-7a2787828ba2": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f279ab15-3317-42d8-a940-917ab44de424": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "caf8b2a7-7a94-4504-aa87-e12e5fc5f8f1": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "6c5710f7-ca3e-4eaa-9555-bc34a53579c9": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "ed42ecee-1edc-4eb5-babb-7fe9e1c4b0bf": {
+        "slot1": "P",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "A"
+      },
+      "f0e70188-e561-4b96-ad19-95045e5205fa": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "17271536-37cd-4618-9953-10d2763f8982": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "9599593a-b57b-475d-b872-43af7b0615e5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      }
+    },
+    "2026-09-17": {
+      "afe6f7fe-8172-43ee-86e0-6b9de4d4322a": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "cb6ed6e4-bf97-43af-8aba-5c137d081df9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "73dbc915-a34f-4e7a-9db6-710aae68f907": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ce55d71f-e007-49fa-b8bc-7ec47b53aea9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "de31621c-2932-4456-8918-5863dae824a3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f384eaae-90d7-4d45-9897-931f5776b707": {
+        "slot1": "P",
+        "slot2": "P",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "916d0db3-ffac-4e80-a2d5-caabd93e6e49": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "996a79d9-4847-4add-a560-024bd8b88f5d": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "745136f7-2fe1-4ae8-9364-6ab539226200": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "2a1b7004-263a-488e-a21b-fe0a9f549d3e": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "a3cfb208-298c-4811-8bec-4851c7f2e815": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "1cea90ea-4cfc-49dd-85a8-3838a182aedb": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "4fae4d1a-78a8-4e83-a810-951c1f9000d5": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "75a2c92d-8a43-4c64-ad10-3a2c85f174ce": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "5a969980-eef3-4065-bdf0-9812311249e0": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "d7302005-b6af-402c-ba8e-b406b43413b3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "262a211b-9c34-4d01-880a-9dd778915dcc": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "A"
+      },
+      "8d369db1-ca28-4a52-9589-64da7aacf5c6": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "ea44123d-4ea0-44fb-95cc-7a2787828ba2": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f279ab15-3317-42d8-a940-917ab44de424": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "caf8b2a7-7a94-4504-aa87-e12e5fc5f8f1": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "6c5710f7-ca3e-4eaa-9555-bc34a53579c9": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "ed42ecee-1edc-4eb5-babb-7fe9e1c4b0bf": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f0e70188-e561-4b96-ad19-95045e5205fa": {
+        "slot1": "P",
+        "slot2": "P",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "17271536-37cd-4618-9953-10d2763f8982": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "9599593a-b57b-475d-b872-43af7b0615e5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      }
+    },
+    "2026-09-18": {
+      "afe6f7fe-8172-43ee-86e0-6b9de4d4322a": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "cb6ed6e4-bf97-43af-8aba-5c137d081df9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "73dbc915-a34f-4e7a-9db6-710aae68f907": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ce55d71f-e007-49fa-b8bc-7ec47b53aea9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "de31621c-2932-4456-8918-5863dae824a3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f384eaae-90d7-4d45-9897-931f5776b707": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "916d0db3-ffac-4e80-a2d5-caabd93e6e49": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "996a79d9-4847-4add-a560-024bd8b88f5d": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "745136f7-2fe1-4ae8-9364-6ab539226200": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "2a1b7004-263a-488e-a21b-fe0a9f549d3e": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "a3cfb208-298c-4811-8bec-4851c7f2e815": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "1cea90ea-4cfc-49dd-85a8-3838a182aedb": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "4fae4d1a-78a8-4e83-a810-951c1f9000d5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "75a2c92d-8a43-4c64-ad10-3a2c85f174ce": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "A",
+        "slot4": "P"
+      },
+      "5a969980-eef3-4065-bdf0-9812311249e0": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "d7302005-b6af-402c-ba8e-b406b43413b3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "262a211b-9c34-4d01-880a-9dd778915dcc": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "8d369db1-ca28-4a52-9589-64da7aacf5c6": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ea44123d-4ea0-44fb-95cc-7a2787828ba2": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f279ab15-3317-42d8-a940-917ab44de424": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "caf8b2a7-7a94-4504-aa87-e12e5fc5f8f1": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "A",
+        "slot4": "P"
+      },
+      "6c5710f7-ca3e-4eaa-9555-bc34a53579c9": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "ed42ecee-1edc-4eb5-babb-7fe9e1c4b0bf": {
+        "slot1": "P",
+        "slot2": "P",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f0e70188-e561-4b96-ad19-95045e5205fa": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "17271536-37cd-4618-9953-10d2763f8982": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "9599593a-b57b-475d-b872-43af7b0615e5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      }
+    },
+    "2026-09-19": {
+      "afe6f7fe-8172-43ee-86e0-6b9de4d4322a": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "cb6ed6e4-bf97-43af-8aba-5c137d081df9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "73dbc915-a34f-4e7a-9db6-710aae68f907": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ce55d71f-e007-49fa-b8bc-7ec47b53aea9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "de31621c-2932-4456-8918-5863dae824a3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f384eaae-90d7-4d45-9897-931f5776b707": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "916d0db3-ffac-4e80-a2d5-caabd93e6e49": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "996a79d9-4847-4add-a560-024bd8b88f5d": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "745136f7-2fe1-4ae8-9364-6ab539226200": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "2a1b7004-263a-488e-a21b-fe0a9f549d3e": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "a3cfb208-298c-4811-8bec-4851c7f2e815": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "1cea90ea-4cfc-49dd-85a8-3838a182aedb": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "4fae4d1a-78a8-4e83-a810-951c1f9000d5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "75a2c92d-8a43-4c64-ad10-3a2c85f174ce": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "5a969980-eef3-4065-bdf0-9812311249e0": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "d7302005-b6af-402c-ba8e-b406b43413b3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "262a211b-9c34-4d01-880a-9dd778915dcc": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "8d369db1-ca28-4a52-9589-64da7aacf5c6": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ea44123d-4ea0-44fb-95cc-7a2787828ba2": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f279ab15-3317-42d8-a940-917ab44de424": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "caf8b2a7-7a94-4504-aa87-e12e5fc5f8f1": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "6c5710f7-ca3e-4eaa-9555-bc34a53579c9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ed42ecee-1edc-4eb5-babb-7fe9e1c4b0bf": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f0e70188-e561-4b96-ad19-95045e5205fa": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "17271536-37cd-4618-9953-10d2763f8982": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "9599593a-b57b-475d-b872-43af7b0615e5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      }
+    },
+    "2026-09-20": {
+      "afe6f7fe-8172-43ee-86e0-6b9de4d4322a": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "cb6ed6e4-bf97-43af-8aba-5c137d081df9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "73dbc915-a34f-4e7a-9db6-710aae68f907": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ce55d71f-e007-49fa-b8bc-7ec47b53aea9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "de31621c-2932-4456-8918-5863dae824a3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f384eaae-90d7-4d45-9897-931f5776b707": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "916d0db3-ffac-4e80-a2d5-caabd93e6e49": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "996a79d9-4847-4add-a560-024bd8b88f5d": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "745136f7-2fe1-4ae8-9364-6ab539226200": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "2a1b7004-263a-488e-a21b-fe0a9f549d3e": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "a3cfb208-298c-4811-8bec-4851c7f2e815": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "1cea90ea-4cfc-49dd-85a8-3838a182aedb": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "4fae4d1a-78a8-4e83-a810-951c1f9000d5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "75a2c92d-8a43-4c64-ad10-3a2c85f174ce": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "5a969980-eef3-4065-bdf0-9812311249e0": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "d7302005-b6af-402c-ba8e-b406b43413b3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "262a211b-9c34-4d01-880a-9dd778915dcc": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "8d369db1-ca28-4a52-9589-64da7aacf5c6": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "ea44123d-4ea0-44fb-95cc-7a2787828ba2": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f279ab15-3317-42d8-a940-917ab44de424": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "caf8b2a7-7a94-4504-aa87-e12e5fc5f8f1": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "6c5710f7-ca3e-4eaa-9555-bc34a53579c9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ed42ecee-1edc-4eb5-babb-7fe9e1c4b0bf": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f0e70188-e561-4b96-ad19-95045e5205fa": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "17271536-37cd-4618-9953-10d2763f8982": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "9599593a-b57b-475d-b872-43af7b0615e5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      }
+    },
+    "2026-09-21": {
+      "afe6f7fe-8172-43ee-86e0-6b9de4d4322a": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "cb6ed6e4-bf97-43af-8aba-5c137d081df9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "73dbc915-a34f-4e7a-9db6-710aae68f907": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ce55d71f-e007-49fa-b8bc-7ec47b53aea9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "de31621c-2932-4456-8918-5863dae824a3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f384eaae-90d7-4d45-9897-931f5776b707": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "916d0db3-ffac-4e80-a2d5-caabd93e6e49": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "996a79d9-4847-4add-a560-024bd8b88f5d": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "745136f7-2fe1-4ae8-9364-6ab539226200": {
+        "slot1": "P",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "A"
+      },
+      "2a1b7004-263a-488e-a21b-fe0a9f549d3e": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "a3cfb208-298c-4811-8bec-4851c7f2e815": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "1cea90ea-4cfc-49dd-85a8-3838a182aedb": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "4fae4d1a-78a8-4e83-a810-951c1f9000d5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "75a2c92d-8a43-4c64-ad10-3a2c85f174ce": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "5a969980-eef3-4065-bdf0-9812311249e0": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "d7302005-b6af-402c-ba8e-b406b43413b3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "262a211b-9c34-4d01-880a-9dd778915dcc": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "8d369db1-ca28-4a52-9589-64da7aacf5c6": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "ea44123d-4ea0-44fb-95cc-7a2787828ba2": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f279ab15-3317-42d8-a940-917ab44de424": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "caf8b2a7-7a94-4504-aa87-e12e5fc5f8f1": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "6c5710f7-ca3e-4eaa-9555-bc34a53579c9": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ed42ecee-1edc-4eb5-babb-7fe9e1c4b0bf": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "f0e70188-e561-4b96-ad19-95045e5205fa": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "17271536-37cd-4618-9953-10d2763f8982": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "9599593a-b57b-475d-b872-43af7b0615e5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      }
+    },
+    "2026-09-22": {
+      "afe6f7fe-8172-43ee-86e0-6b9de4d4322a": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "cb6ed6e4-bf97-43af-8aba-5c137d081df9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "73dbc915-a34f-4e7a-9db6-710aae68f907": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ce55d71f-e007-49fa-b8bc-7ec47b53aea9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "de31621c-2932-4456-8918-5863dae824a3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f384eaae-90d7-4d45-9897-931f5776b707": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "916d0db3-ffac-4e80-a2d5-caabd93e6e49": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "996a79d9-4847-4add-a560-024bd8b88f5d": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "745136f7-2fe1-4ae8-9364-6ab539226200": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "2a1b7004-263a-488e-a21b-fe0a9f549d3e": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "a3cfb208-298c-4811-8bec-4851c7f2e815": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "1cea90ea-4cfc-49dd-85a8-3838a182aedb": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "P"
+      },
+      "4fae4d1a-78a8-4e83-a810-951c1f9000d5": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "75a2c92d-8a43-4c64-ad10-3a2c85f174ce": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "5a969980-eef3-4065-bdf0-9812311249e0": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "d7302005-b6af-402c-ba8e-b406b43413b3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "262a211b-9c34-4d01-880a-9dd778915dcc": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "8d369db1-ca28-4a52-9589-64da7aacf5c6": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ea44123d-4ea0-44fb-95cc-7a2787828ba2": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f279ab15-3317-42d8-a940-917ab44de424": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "caf8b2a7-7a94-4504-aa87-e12e5fc5f8f1": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "6c5710f7-ca3e-4eaa-9555-bc34a53579c9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ed42ecee-1edc-4eb5-babb-7fe9e1c4b0bf": {
+        "slot1": "P",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "A"
+      },
+      "f0e70188-e561-4b96-ad19-95045e5205fa": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "17271536-37cd-4618-9953-10d2763f8982": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "9599593a-b57b-475d-b872-43af7b0615e5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      }
+    },
+    "2026-09-23": {
+      "afe6f7fe-8172-43ee-86e0-6b9de4d4322a": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "cb6ed6e4-bf97-43af-8aba-5c137d081df9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "73dbc915-a34f-4e7a-9db6-710aae68f907": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ce55d71f-e007-49fa-b8bc-7ec47b53aea9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "de31621c-2932-4456-8918-5863dae824a3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f384eaae-90d7-4d45-9897-931f5776b707": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "916d0db3-ffac-4e80-a2d5-caabd93e6e49": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "996a79d9-4847-4add-a560-024bd8b88f5d": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "745136f7-2fe1-4ae8-9364-6ab539226200": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "2a1b7004-263a-488e-a21b-fe0a9f549d3e": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "a3cfb208-298c-4811-8bec-4851c7f2e815": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "1cea90ea-4cfc-49dd-85a8-3838a182aedb": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "4fae4d1a-78a8-4e83-a810-951c1f9000d5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "75a2c92d-8a43-4c64-ad10-3a2c85f174ce": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "5a969980-eef3-4065-bdf0-9812311249e0": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "d7302005-b6af-402c-ba8e-b406b43413b3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "262a211b-9c34-4d01-880a-9dd778915dcc": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "8d369db1-ca28-4a52-9589-64da7aacf5c6": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ea44123d-4ea0-44fb-95cc-7a2787828ba2": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f279ab15-3317-42d8-a940-917ab44de424": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "caf8b2a7-7a94-4504-aa87-e12e5fc5f8f1": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "6c5710f7-ca3e-4eaa-9555-bc34a53579c9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ed42ecee-1edc-4eb5-babb-7fe9e1c4b0bf": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f0e70188-e561-4b96-ad19-95045e5205fa": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "17271536-37cd-4618-9953-10d2763f8982": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "9599593a-b57b-475d-b872-43af7b0615e5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      }
+    },
+    "2026-09-24": {
+      "afe6f7fe-8172-43ee-86e0-6b9de4d4322a": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "cb6ed6e4-bf97-43af-8aba-5c137d081df9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "73dbc915-a34f-4e7a-9db6-710aae68f907": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ce55d71f-e007-49fa-b8bc-7ec47b53aea9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "de31621c-2932-4456-8918-5863dae824a3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f384eaae-90d7-4d45-9897-931f5776b707": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "916d0db3-ffac-4e80-a2d5-caabd93e6e49": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "996a79d9-4847-4add-a560-024bd8b88f5d": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "745136f7-2fe1-4ae8-9364-6ab539226200": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "2a1b7004-263a-488e-a21b-fe0a9f549d3e": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "a3cfb208-298c-4811-8bec-4851c7f2e815": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "1cea90ea-4cfc-49dd-85a8-3838a182aedb": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "4fae4d1a-78a8-4e83-a810-951c1f9000d5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "75a2c92d-8a43-4c64-ad10-3a2c85f174ce": {
+        "slot1": "P",
+        "slot2": "P",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "5a969980-eef3-4065-bdf0-9812311249e0": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "d7302005-b6af-402c-ba8e-b406b43413b3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "262a211b-9c34-4d01-880a-9dd778915dcc": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "A"
+      },
+      "8d369db1-ca28-4a52-9589-64da7aacf5c6": {
+        "slot1": "P",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "A"
+      },
+      "ea44123d-4ea0-44fb-95cc-7a2787828ba2": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f279ab15-3317-42d8-a940-917ab44de424": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "caf8b2a7-7a94-4504-aa87-e12e5fc5f8f1": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "6c5710f7-ca3e-4eaa-9555-bc34a53579c9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ed42ecee-1edc-4eb5-babb-7fe9e1c4b0bf": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f0e70188-e561-4b96-ad19-95045e5205fa": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "17271536-37cd-4618-9953-10d2763f8982": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "9599593a-b57b-475d-b872-43af7b0615e5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      }
+    },
+    "2026-09-25": {
+      "afe6f7fe-8172-43ee-86e0-6b9de4d4322a": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "cb6ed6e4-bf97-43af-8aba-5c137d081df9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "73dbc915-a34f-4e7a-9db6-710aae68f907": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ce55d71f-e007-49fa-b8bc-7ec47b53aea9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "de31621c-2932-4456-8918-5863dae824a3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f384eaae-90d7-4d45-9897-931f5776b707": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "916d0db3-ffac-4e80-a2d5-caabd93e6e49": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "996a79d9-4847-4add-a560-024bd8b88f5d": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "745136f7-2fe1-4ae8-9364-6ab539226200": {
+        "slot1": "P",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "2a1b7004-263a-488e-a21b-fe0a9f549d3e": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "a3cfb208-298c-4811-8bec-4851c7f2e815": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "1cea90ea-4cfc-49dd-85a8-3838a182aedb": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "4fae4d1a-78a8-4e83-a810-951c1f9000d5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "A"
+      },
+      "75a2c92d-8a43-4c64-ad10-3a2c85f174ce": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "5a969980-eef3-4065-bdf0-9812311249e0": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "d7302005-b6af-402c-ba8e-b406b43413b3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "262a211b-9c34-4d01-880a-9dd778915dcc": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "A"
+      },
+      "8d369db1-ca28-4a52-9589-64da7aacf5c6": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ea44123d-4ea0-44fb-95cc-7a2787828ba2": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f279ab15-3317-42d8-a940-917ab44de424": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "caf8b2a7-7a94-4504-aa87-e12e5fc5f8f1": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "6c5710f7-ca3e-4eaa-9555-bc34a53579c9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ed42ecee-1edc-4eb5-babb-7fe9e1c4b0bf": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "f0e70188-e561-4b96-ad19-95045e5205fa": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "17271536-37cd-4618-9953-10d2763f8982": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "9599593a-b57b-475d-b872-43af7b0615e5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      }
+    },
+    "2026-09-26": {
+      "afe6f7fe-8172-43ee-86e0-6b9de4d4322a": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "cb6ed6e4-bf97-43af-8aba-5c137d081df9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "73dbc915-a34f-4e7a-9db6-710aae68f907": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ce55d71f-e007-49fa-b8bc-7ec47b53aea9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "de31621c-2932-4456-8918-5863dae824a3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f384eaae-90d7-4d45-9897-931f5776b707": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "916d0db3-ffac-4e80-a2d5-caabd93e6e49": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "996a79d9-4847-4add-a560-024bd8b88f5d": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "745136f7-2fe1-4ae8-9364-6ab539226200": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "2a1b7004-263a-488e-a21b-fe0a9f549d3e": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "a3cfb208-298c-4811-8bec-4851c7f2e815": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "1cea90ea-4cfc-49dd-85a8-3838a182aedb": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "4fae4d1a-78a8-4e83-a810-951c1f9000d5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "75a2c92d-8a43-4c64-ad10-3a2c85f174ce": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "5a969980-eef3-4065-bdf0-9812311249e0": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "d7302005-b6af-402c-ba8e-b406b43413b3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "262a211b-9c34-4d01-880a-9dd778915dcc": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "8d369db1-ca28-4a52-9589-64da7aacf5c6": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ea44123d-4ea0-44fb-95cc-7a2787828ba2": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f279ab15-3317-42d8-a940-917ab44de424": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "caf8b2a7-7a94-4504-aa87-e12e5fc5f8f1": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "6c5710f7-ca3e-4eaa-9555-bc34a53579c9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ed42ecee-1edc-4eb5-babb-7fe9e1c4b0bf": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f0e70188-e561-4b96-ad19-95045e5205fa": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "17271536-37cd-4618-9953-10d2763f8982": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "9599593a-b57b-475d-b872-43af7b0615e5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      }
+    },
+    "2026-09-27": {
+      "afe6f7fe-8172-43ee-86e0-6b9de4d4322a": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "cb6ed6e4-bf97-43af-8aba-5c137d081df9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "73dbc915-a34f-4e7a-9db6-710aae68f907": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ce55d71f-e007-49fa-b8bc-7ec47b53aea9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "de31621c-2932-4456-8918-5863dae824a3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f384eaae-90d7-4d45-9897-931f5776b707": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "916d0db3-ffac-4e80-a2d5-caabd93e6e49": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "996a79d9-4847-4add-a560-024bd8b88f5d": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "745136f7-2fe1-4ae8-9364-6ab539226200": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "2a1b7004-263a-488e-a21b-fe0a9f549d3e": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "a3cfb208-298c-4811-8bec-4851c7f2e815": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "1cea90ea-4cfc-49dd-85a8-3838a182aedb": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "4fae4d1a-78a8-4e83-a810-951c1f9000d5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "75a2c92d-8a43-4c64-ad10-3a2c85f174ce": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "5a969980-eef3-4065-bdf0-9812311249e0": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "d7302005-b6af-402c-ba8e-b406b43413b3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "262a211b-9c34-4d01-880a-9dd778915dcc": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "8d369db1-ca28-4a52-9589-64da7aacf5c6": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ea44123d-4ea0-44fb-95cc-7a2787828ba2": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f279ab15-3317-42d8-a940-917ab44de424": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "caf8b2a7-7a94-4504-aa87-e12e5fc5f8f1": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "6c5710f7-ca3e-4eaa-9555-bc34a53579c9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ed42ecee-1edc-4eb5-babb-7fe9e1c4b0bf": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f0e70188-e561-4b96-ad19-95045e5205fa": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "17271536-37cd-4618-9953-10d2763f8982": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "9599593a-b57b-475d-b872-43af7b0615e5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      }
+    },
+    "2026-09-28": {
+      "afe6f7fe-8172-43ee-86e0-6b9de4d4322a": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "cb6ed6e4-bf97-43af-8aba-5c137d081df9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "73dbc915-a34f-4e7a-9db6-710aae68f907": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ce55d71f-e007-49fa-b8bc-7ec47b53aea9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "de31621c-2932-4456-8918-5863dae824a3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f384eaae-90d7-4d45-9897-931f5776b707": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "916d0db3-ffac-4e80-a2d5-caabd93e6e49": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "996a79d9-4847-4add-a560-024bd8b88f5d": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "745136f7-2fe1-4ae8-9364-6ab539226200": {
+        "slot1": "P",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "2a1b7004-263a-488e-a21b-fe0a9f549d3e": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "a3cfb208-298c-4811-8bec-4851c7f2e815": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "1cea90ea-4cfc-49dd-85a8-3838a182aedb": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "4fae4d1a-78a8-4e83-a810-951c1f9000d5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "75a2c92d-8a43-4c64-ad10-3a2c85f174ce": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "A"
+      },
+      "5a969980-eef3-4065-bdf0-9812311249e0": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "d7302005-b6af-402c-ba8e-b406b43413b3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "262a211b-9c34-4d01-880a-9dd778915dcc": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "A"
+      },
+      "8d369db1-ca28-4a52-9589-64da7aacf5c6": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "ea44123d-4ea0-44fb-95cc-7a2787828ba2": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f279ab15-3317-42d8-a940-917ab44de424": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "caf8b2a7-7a94-4504-aa87-e12e5fc5f8f1": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "A"
+      },
+      "6c5710f7-ca3e-4eaa-9555-bc34a53579c9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "A"
+      },
+      "ed42ecee-1edc-4eb5-babb-7fe9e1c4b0bf": {
+        "slot1": "P",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "f0e70188-e561-4b96-ad19-95045e5205fa": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "17271536-37cd-4618-9953-10d2763f8982": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "9599593a-b57b-475d-b872-43af7b0615e5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      }
+    },
+    "2026-09-29": {
+      "afe6f7fe-8172-43ee-86e0-6b9de4d4322a": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "cb6ed6e4-bf97-43af-8aba-5c137d081df9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "73dbc915-a34f-4e7a-9db6-710aae68f907": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ce55d71f-e007-49fa-b8bc-7ec47b53aea9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "de31621c-2932-4456-8918-5863dae824a3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f384eaae-90d7-4d45-9897-931f5776b707": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "A"
+      },
+      "916d0db3-ffac-4e80-a2d5-caabd93e6e49": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "996a79d9-4847-4add-a560-024bd8b88f5d": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "745136f7-2fe1-4ae8-9364-6ab539226200": {
+        "slot1": "P",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "A"
+      },
+      "2a1b7004-263a-488e-a21b-fe0a9f549d3e": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "a3cfb208-298c-4811-8bec-4851c7f2e815": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "1cea90ea-4cfc-49dd-85a8-3838a182aedb": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "4fae4d1a-78a8-4e83-a810-951c1f9000d5": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "A"
+      },
+      "75a2c92d-8a43-4c64-ad10-3a2c85f174ce": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "A"
+      },
+      "5a969980-eef3-4065-bdf0-9812311249e0": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "d7302005-b6af-402c-ba8e-b406b43413b3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "262a211b-9c34-4d01-880a-9dd778915dcc": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "8d369db1-ca28-4a52-9589-64da7aacf5c6": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "ea44123d-4ea0-44fb-95cc-7a2787828ba2": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f279ab15-3317-42d8-a940-917ab44de424": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "A"
+      },
+      "caf8b2a7-7a94-4504-aa87-e12e5fc5f8f1": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "A"
+      },
+      "6c5710f7-ca3e-4eaa-9555-bc34a53579c9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "ed42ecee-1edc-4eb5-babb-7fe9e1c4b0bf": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "f0e70188-e561-4b96-ad19-95045e5205fa": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "17271536-37cd-4618-9953-10d2763f8982": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "9599593a-b57b-475d-b872-43af7b0615e5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      }
+    },
+    "2026-09-30": {
+      "afe6f7fe-8172-43ee-86e0-6b9de4d4322a": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "cb6ed6e4-bf97-43af-8aba-5c137d081df9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "73dbc915-a34f-4e7a-9db6-710aae68f907": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ce55d71f-e007-49fa-b8bc-7ec47b53aea9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "de31621c-2932-4456-8918-5863dae824a3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f384eaae-90d7-4d45-9897-931f5776b707": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "916d0db3-ffac-4e80-a2d5-caabd93e6e49": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "996a79d9-4847-4add-a560-024bd8b88f5d": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "745136f7-2fe1-4ae8-9364-6ab539226200": {
+        "slot1": "P",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "2a1b7004-263a-488e-a21b-fe0a9f549d3e": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "a3cfb208-298c-4811-8bec-4851c7f2e815": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "1cea90ea-4cfc-49dd-85a8-3838a182aedb": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "4fae4d1a-78a8-4e83-a810-951c1f9000d5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "75a2c92d-8a43-4c64-ad10-3a2c85f174ce": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "5a969980-eef3-4065-bdf0-9812311249e0": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "d7302005-b6af-402c-ba8e-b406b43413b3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "262a211b-9c34-4d01-880a-9dd778915dcc": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "8d369db1-ca28-4a52-9589-64da7aacf5c6": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ea44123d-4ea0-44fb-95cc-7a2787828ba2": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f279ab15-3317-42d8-a940-917ab44de424": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "caf8b2a7-7a94-4504-aa87-e12e5fc5f8f1": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "6c5710f7-ca3e-4eaa-9555-bc34a53579c9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ed42ecee-1edc-4eb5-babb-7fe9e1c4b0bf": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "f0e70188-e561-4b96-ad19-95045e5205fa": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "17271536-37cd-4618-9953-10d2763f8982": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "9599593a-b57b-475d-b872-43af7b0615e5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      }
+    },
+    "2026-10-01": {
+      "afe6f7fe-8172-43ee-86e0-6b9de4d4322a": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "cb6ed6e4-bf97-43af-8aba-5c137d081df9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "73dbc915-a34f-4e7a-9db6-710aae68f907": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ce55d71f-e007-49fa-b8bc-7ec47b53aea9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "de31621c-2932-4456-8918-5863dae824a3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f384eaae-90d7-4d45-9897-931f5776b707": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "916d0db3-ffac-4e80-a2d5-caabd93e6e49": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "996a79d9-4847-4add-a560-024bd8b88f5d": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "745136f7-2fe1-4ae8-9364-6ab539226200": {
+        "slot1": "P",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "2a1b7004-263a-488e-a21b-fe0a9f549d3e": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "a3cfb208-298c-4811-8bec-4851c7f2e815": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "1cea90ea-4cfc-49dd-85a8-3838a182aedb": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "4fae4d1a-78a8-4e83-a810-951c1f9000d5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "75a2c92d-8a43-4c64-ad10-3a2c85f174ce": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "5a969980-eef3-4065-bdf0-9812311249e0": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "d7302005-b6af-402c-ba8e-b406b43413b3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "262a211b-9c34-4d01-880a-9dd778915dcc": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "8d369db1-ca28-4a52-9589-64da7aacf5c6": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ea44123d-4ea0-44fb-95cc-7a2787828ba2": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f279ab15-3317-42d8-a940-917ab44de424": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "caf8b2a7-7a94-4504-aa87-e12e5fc5f8f1": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "6c5710f7-ca3e-4eaa-9555-bc34a53579c9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ed42ecee-1edc-4eb5-babb-7fe9e1c4b0bf": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "f0e70188-e561-4b96-ad19-95045e5205fa": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "17271536-37cd-4618-9953-10d2763f8982": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "9599593a-b57b-475d-b872-43af7b0615e5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      }
+    },
+    "2026-10-02": {
+      "afe6f7fe-8172-43ee-86e0-6b9de4d4322a": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "cb6ed6e4-bf97-43af-8aba-5c137d081df9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "73dbc915-a34f-4e7a-9db6-710aae68f907": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ce55d71f-e007-49fa-b8bc-7ec47b53aea9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "de31621c-2932-4456-8918-5863dae824a3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f384eaae-90d7-4d45-9897-931f5776b707": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "916d0db3-ffac-4e80-a2d5-caabd93e6e49": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "996a79d9-4847-4add-a560-024bd8b88f5d": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "745136f7-2fe1-4ae8-9364-6ab539226200": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "2a1b7004-263a-488e-a21b-fe0a9f549d3e": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "a3cfb208-298c-4811-8bec-4851c7f2e815": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "1cea90ea-4cfc-49dd-85a8-3838a182aedb": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "4fae4d1a-78a8-4e83-a810-951c1f9000d5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "75a2c92d-8a43-4c64-ad10-3a2c85f174ce": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "5a969980-eef3-4065-bdf0-9812311249e0": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "d7302005-b6af-402c-ba8e-b406b43413b3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "262a211b-9c34-4d01-880a-9dd778915dcc": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "8d369db1-ca28-4a52-9589-64da7aacf5c6": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ea44123d-4ea0-44fb-95cc-7a2787828ba2": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f279ab15-3317-42d8-a940-917ab44de424": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "caf8b2a7-7a94-4504-aa87-e12e5fc5f8f1": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "6c5710f7-ca3e-4eaa-9555-bc34a53579c9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ed42ecee-1edc-4eb5-babb-7fe9e1c4b0bf": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f0e70188-e561-4b96-ad19-95045e5205fa": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "17271536-37cd-4618-9953-10d2763f8982": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "9599593a-b57b-475d-b872-43af7b0615e5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      }
+    },
+    "2026-10-03": {
+      "afe6f7fe-8172-43ee-86e0-6b9de4d4322a": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "cb6ed6e4-bf97-43af-8aba-5c137d081df9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "73dbc915-a34f-4e7a-9db6-710aae68f907": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ce55d71f-e007-49fa-b8bc-7ec47b53aea9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "de31621c-2932-4456-8918-5863dae824a3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f384eaae-90d7-4d45-9897-931f5776b707": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "916d0db3-ffac-4e80-a2d5-caabd93e6e49": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "996a79d9-4847-4add-a560-024bd8b88f5d": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "745136f7-2fe1-4ae8-9364-6ab539226200": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "2a1b7004-263a-488e-a21b-fe0a9f549d3e": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "a3cfb208-298c-4811-8bec-4851c7f2e815": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "1cea90ea-4cfc-49dd-85a8-3838a182aedb": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "4fae4d1a-78a8-4e83-a810-951c1f9000d5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "75a2c92d-8a43-4c64-ad10-3a2c85f174ce": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "5a969980-eef3-4065-bdf0-9812311249e0": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "d7302005-b6af-402c-ba8e-b406b43413b3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "262a211b-9c34-4d01-880a-9dd778915dcc": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "8d369db1-ca28-4a52-9589-64da7aacf5c6": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ea44123d-4ea0-44fb-95cc-7a2787828ba2": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f279ab15-3317-42d8-a940-917ab44de424": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "caf8b2a7-7a94-4504-aa87-e12e5fc5f8f1": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "6c5710f7-ca3e-4eaa-9555-bc34a53579c9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ed42ecee-1edc-4eb5-babb-7fe9e1c4b0bf": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f0e70188-e561-4b96-ad19-95045e5205fa": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "17271536-37cd-4618-9953-10d2763f8982": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "9599593a-b57b-475d-b872-43af7b0615e5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      }
+    },
+    "2026-10-04": {
+      "afe6f7fe-8172-43ee-86e0-6b9de4d4322a": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "cb6ed6e4-bf97-43af-8aba-5c137d081df9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "73dbc915-a34f-4e7a-9db6-710aae68f907": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ce55d71f-e007-49fa-b8bc-7ec47b53aea9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "de31621c-2932-4456-8918-5863dae824a3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f384eaae-90d7-4d45-9897-931f5776b707": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "916d0db3-ffac-4e80-a2d5-caabd93e6e49": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "996a79d9-4847-4add-a560-024bd8b88f5d": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "745136f7-2fe1-4ae8-9364-6ab539226200": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "2a1b7004-263a-488e-a21b-fe0a9f549d3e": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "a3cfb208-298c-4811-8bec-4851c7f2e815": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "1cea90ea-4cfc-49dd-85a8-3838a182aedb": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "4fae4d1a-78a8-4e83-a810-951c1f9000d5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "75a2c92d-8a43-4c64-ad10-3a2c85f174ce": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "5a969980-eef3-4065-bdf0-9812311249e0": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "d7302005-b6af-402c-ba8e-b406b43413b3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "262a211b-9c34-4d01-880a-9dd778915dcc": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "8d369db1-ca28-4a52-9589-64da7aacf5c6": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ea44123d-4ea0-44fb-95cc-7a2787828ba2": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f279ab15-3317-42d8-a940-917ab44de424": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "caf8b2a7-7a94-4504-aa87-e12e5fc5f8f1": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "6c5710f7-ca3e-4eaa-9555-bc34a53579c9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ed42ecee-1edc-4eb5-babb-7fe9e1c4b0bf": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f0e70188-e561-4b96-ad19-95045e5205fa": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "17271536-37cd-4618-9953-10d2763f8982": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "9599593a-b57b-475d-b872-43af7b0615e5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      }
+    },
+    "2026-10-05": {
+      "afe6f7fe-8172-43ee-86e0-6b9de4d4322a": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "cb6ed6e4-bf97-43af-8aba-5c137d081df9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "73dbc915-a34f-4e7a-9db6-710aae68f907": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ce55d71f-e007-49fa-b8bc-7ec47b53aea9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "de31621c-2932-4456-8918-5863dae824a3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f384eaae-90d7-4d45-9897-931f5776b707": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "916d0db3-ffac-4e80-a2d5-caabd93e6e49": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "996a79d9-4847-4add-a560-024bd8b88f5d": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "745136f7-2fe1-4ae8-9364-6ab539226200": {
+        "slot1": "P",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "2a1b7004-263a-488e-a21b-fe0a9f549d3e": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "a3cfb208-298c-4811-8bec-4851c7f2e815": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "1cea90ea-4cfc-49dd-85a8-3838a182aedb": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "4fae4d1a-78a8-4e83-a810-951c1f9000d5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "75a2c92d-8a43-4c64-ad10-3a2c85f174ce": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "5a969980-eef3-4065-bdf0-9812311249e0": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "d7302005-b6af-402c-ba8e-b406b43413b3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "262a211b-9c34-4d01-880a-9dd778915dcc": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "8d369db1-ca28-4a52-9589-64da7aacf5c6": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ea44123d-4ea0-44fb-95cc-7a2787828ba2": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f279ab15-3317-42d8-a940-917ab44de424": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "caf8b2a7-7a94-4504-aa87-e12e5fc5f8f1": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "6c5710f7-ca3e-4eaa-9555-bc34a53579c9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "ed42ecee-1edc-4eb5-babb-7fe9e1c4b0bf": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f0e70188-e561-4b96-ad19-95045e5205fa": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "17271536-37cd-4618-9953-10d2763f8982": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "9599593a-b57b-475d-b872-43af7b0615e5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      }
+    },
+    "2026-10-06": {
+      "afe6f7fe-8172-43ee-86e0-6b9de4d4322a": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "cb6ed6e4-bf97-43af-8aba-5c137d081df9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "73dbc915-a34f-4e7a-9db6-710aae68f907": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ce55d71f-e007-49fa-b8bc-7ec47b53aea9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "de31621c-2932-4456-8918-5863dae824a3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f384eaae-90d7-4d45-9897-931f5776b707": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "916d0db3-ffac-4e80-a2d5-caabd93e6e49": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "996a79d9-4847-4add-a560-024bd8b88f5d": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "745136f7-2fe1-4ae8-9364-6ab539226200": {
+        "slot1": "P",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "2a1b7004-263a-488e-a21b-fe0a9f549d3e": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "a3cfb208-298c-4811-8bec-4851c7f2e815": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "1cea90ea-4cfc-49dd-85a8-3838a182aedb": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "4fae4d1a-78a8-4e83-a810-951c1f9000d5": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "75a2c92d-8a43-4c64-ad10-3a2c85f174ce": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "5a969980-eef3-4065-bdf0-9812311249e0": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "d7302005-b6af-402c-ba8e-b406b43413b3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "262a211b-9c34-4d01-880a-9dd778915dcc": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "8d369db1-ca28-4a52-9589-64da7aacf5c6": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ea44123d-4ea0-44fb-95cc-7a2787828ba2": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f279ab15-3317-42d8-a940-917ab44de424": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "caf8b2a7-7a94-4504-aa87-e12e5fc5f8f1": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "6c5710f7-ca3e-4eaa-9555-bc34a53579c9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "ed42ecee-1edc-4eb5-babb-7fe9e1c4b0bf": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "f0e70188-e561-4b96-ad19-95045e5205fa": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "17271536-37cd-4618-9953-10d2763f8982": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "9599593a-b57b-475d-b872-43af7b0615e5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      }
+    },
+    "2026-10-07": {
+      "afe6f7fe-8172-43ee-86e0-6b9de4d4322a": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "cb6ed6e4-bf97-43af-8aba-5c137d081df9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "73dbc915-a34f-4e7a-9db6-710aae68f907": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ce55d71f-e007-49fa-b8bc-7ec47b53aea9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "de31621c-2932-4456-8918-5863dae824a3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f384eaae-90d7-4d45-9897-931f5776b707": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "916d0db3-ffac-4e80-a2d5-caabd93e6e49": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "996a79d9-4847-4add-a560-024bd8b88f5d": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "745136f7-2fe1-4ae8-9364-6ab539226200": {
+        "slot1": "P",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "2a1b7004-263a-488e-a21b-fe0a9f549d3e": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "a3cfb208-298c-4811-8bec-4851c7f2e815": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "1cea90ea-4cfc-49dd-85a8-3838a182aedb": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "P"
+      },
+      "4fae4d1a-78a8-4e83-a810-951c1f9000d5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "75a2c92d-8a43-4c64-ad10-3a2c85f174ce": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "5a969980-eef3-4065-bdf0-9812311249e0": {
+        "slot1": "P",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "d7302005-b6af-402c-ba8e-b406b43413b3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "262a211b-9c34-4d01-880a-9dd778915dcc": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "8d369db1-ca28-4a52-9589-64da7aacf5c6": {
+        "slot1": "P",
+        "slot2": "P",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ea44123d-4ea0-44fb-95cc-7a2787828ba2": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f279ab15-3317-42d8-a940-917ab44de424": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "caf8b2a7-7a94-4504-aa87-e12e5fc5f8f1": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "6c5710f7-ca3e-4eaa-9555-bc34a53579c9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "ed42ecee-1edc-4eb5-babb-7fe9e1c4b0bf": {
+        "slot1": "A",
+        "slot2": "P",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "f0e70188-e561-4b96-ad19-95045e5205fa": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "17271536-37cd-4618-9953-10d2763f8982": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "9599593a-b57b-475d-b872-43af7b0615e5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      }
+    },
+    "2026-10-08": {
+      "afe6f7fe-8172-43ee-86e0-6b9de4d4322a": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "cb6ed6e4-bf97-43af-8aba-5c137d081df9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "73dbc915-a34f-4e7a-9db6-710aae68f907": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ce55d71f-e007-49fa-b8bc-7ec47b53aea9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "de31621c-2932-4456-8918-5863dae824a3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f384eaae-90d7-4d45-9897-931f5776b707": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "916d0db3-ffac-4e80-a2d5-caabd93e6e49": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "996a79d9-4847-4add-a560-024bd8b88f5d": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "745136f7-2fe1-4ae8-9364-6ab539226200": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "2a1b7004-263a-488e-a21b-fe0a9f549d3e": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "a3cfb208-298c-4811-8bec-4851c7f2e815": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "1cea90ea-4cfc-49dd-85a8-3838a182aedb": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "4fae4d1a-78a8-4e83-a810-951c1f9000d5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "75a2c92d-8a43-4c64-ad10-3a2c85f174ce": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "5a969980-eef3-4065-bdf0-9812311249e0": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "d7302005-b6af-402c-ba8e-b406b43413b3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "262a211b-9c34-4d01-880a-9dd778915dcc": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "8d369db1-ca28-4a52-9589-64da7aacf5c6": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ea44123d-4ea0-44fb-95cc-7a2787828ba2": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f279ab15-3317-42d8-a940-917ab44de424": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "caf8b2a7-7a94-4504-aa87-e12e5fc5f8f1": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "6c5710f7-ca3e-4eaa-9555-bc34a53579c9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ed42ecee-1edc-4eb5-babb-7fe9e1c4b0bf": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f0e70188-e561-4b96-ad19-95045e5205fa": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "17271536-37cd-4618-9953-10d2763f8982": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "9599593a-b57b-475d-b872-43af7b0615e5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      }
+    },
+    "2026-10-09": {
+      "afe6f7fe-8172-43ee-86e0-6b9de4d4322a": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "cb6ed6e4-bf97-43af-8aba-5c137d081df9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "73dbc915-a34f-4e7a-9db6-710aae68f907": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ce55d71f-e007-49fa-b8bc-7ec47b53aea9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "de31621c-2932-4456-8918-5863dae824a3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f384eaae-90d7-4d45-9897-931f5776b707": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "916d0db3-ffac-4e80-a2d5-caabd93e6e49": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "996a79d9-4847-4add-a560-024bd8b88f5d": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "745136f7-2fe1-4ae8-9364-6ab539226200": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "2a1b7004-263a-488e-a21b-fe0a9f549d3e": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "a3cfb208-298c-4811-8bec-4851c7f2e815": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "1cea90ea-4cfc-49dd-85a8-3838a182aedb": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "4fae4d1a-78a8-4e83-a810-951c1f9000d5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "75a2c92d-8a43-4c64-ad10-3a2c85f174ce": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "5a969980-eef3-4065-bdf0-9812311249e0": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "P"
+      },
+      "d7302005-b6af-402c-ba8e-b406b43413b3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "262a211b-9c34-4d01-880a-9dd778915dcc": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "8d369db1-ca28-4a52-9589-64da7aacf5c6": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ea44123d-4ea0-44fb-95cc-7a2787828ba2": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f279ab15-3317-42d8-a940-917ab44de424": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "caf8b2a7-7a94-4504-aa87-e12e5fc5f8f1": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "P"
+      },
+      "6c5710f7-ca3e-4eaa-9555-bc34a53579c9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "ed42ecee-1edc-4eb5-babb-7fe9e1c4b0bf": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f0e70188-e561-4b96-ad19-95045e5205fa": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "P"
+      },
+      "17271536-37cd-4618-9953-10d2763f8982": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "9599593a-b57b-475d-b872-43af7b0615e5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      }
+    },
+    "2026-10-10": {
+      "afe6f7fe-8172-43ee-86e0-6b9de4d4322a": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "cb6ed6e4-bf97-43af-8aba-5c137d081df9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "73dbc915-a34f-4e7a-9db6-710aae68f907": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ce55d71f-e007-49fa-b8bc-7ec47b53aea9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "de31621c-2932-4456-8918-5863dae824a3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f384eaae-90d7-4d45-9897-931f5776b707": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "916d0db3-ffac-4e80-a2d5-caabd93e6e49": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "996a79d9-4847-4add-a560-024bd8b88f5d": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "745136f7-2fe1-4ae8-9364-6ab539226200": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "2a1b7004-263a-488e-a21b-fe0a9f549d3e": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "a3cfb208-298c-4811-8bec-4851c7f2e815": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "1cea90ea-4cfc-49dd-85a8-3838a182aedb": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "4fae4d1a-78a8-4e83-a810-951c1f9000d5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "75a2c92d-8a43-4c64-ad10-3a2c85f174ce": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "5a969980-eef3-4065-bdf0-9812311249e0": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "d7302005-b6af-402c-ba8e-b406b43413b3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "262a211b-9c34-4d01-880a-9dd778915dcc": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "8d369db1-ca28-4a52-9589-64da7aacf5c6": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ea44123d-4ea0-44fb-95cc-7a2787828ba2": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f279ab15-3317-42d8-a940-917ab44de424": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "caf8b2a7-7a94-4504-aa87-e12e5fc5f8f1": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "6c5710f7-ca3e-4eaa-9555-bc34a53579c9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ed42ecee-1edc-4eb5-babb-7fe9e1c4b0bf": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "P",
+        "slot4": "A"
+      },
+      "f0e70188-e561-4b96-ad19-95045e5205fa": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "P"
+      },
+      "17271536-37cd-4618-9953-10d2763f8982": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "9599593a-b57b-475d-b872-43af7b0615e5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      }
+    },
+    "2026-10-11": {
+      "afe6f7fe-8172-43ee-86e0-6b9de4d4322a": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "cb6ed6e4-bf97-43af-8aba-5c137d081df9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "73dbc915-a34f-4e7a-9db6-710aae68f907": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ce55d71f-e007-49fa-b8bc-7ec47b53aea9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "de31621c-2932-4456-8918-5863dae824a3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f384eaae-90d7-4d45-9897-931f5776b707": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "916d0db3-ffac-4e80-a2d5-caabd93e6e49": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "996a79d9-4847-4add-a560-024bd8b88f5d": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "745136f7-2fe1-4ae8-9364-6ab539226200": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "2a1b7004-263a-488e-a21b-fe0a9f549d3e": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "a3cfb208-298c-4811-8bec-4851c7f2e815": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "1cea90ea-4cfc-49dd-85a8-3838a182aedb": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "4fae4d1a-78a8-4e83-a810-951c1f9000d5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "75a2c92d-8a43-4c64-ad10-3a2c85f174ce": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "5a969980-eef3-4065-bdf0-9812311249e0": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "d7302005-b6af-402c-ba8e-b406b43413b3": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "262a211b-9c34-4d01-880a-9dd778915dcc": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "8d369db1-ca28-4a52-9589-64da7aacf5c6": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ea44123d-4ea0-44fb-95cc-7a2787828ba2": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f279ab15-3317-42d8-a940-917ab44de424": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "caf8b2a7-7a94-4504-aa87-e12e5fc5f8f1": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "6c5710f7-ca3e-4eaa-9555-bc34a53579c9": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "ed42ecee-1edc-4eb5-babb-7fe9e1c4b0bf": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "f0e70188-e561-4b96-ad19-95045e5205fa": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "17271536-37cd-4618-9953-10d2763f8982": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      },
+      "9599593a-b57b-475d-b872-43af7b0615e5": {
+        "slot1": "A",
+        "slot2": "A",
+        "slot3": "A",
+        "slot4": "A"
+      }
+    }
+  },
+  "dailySummary": {
+    "2026-09-10": {
+      "date": "2026-09-10",
+      "dayName": "Thu",
+      "snapshotsCount": 132,
+      "presentCount": 17,
+      "bySlotPresent": {
+        "slot1": 0,
+        "slot2": 5,
+        "slot3": 6,
+        "slot4": 6
+      }
+    },
+    "2026-09-11": {
+      "date": "2026-09-11",
+      "dayName": "Fri",
+      "snapshotsCount": 143,
+      "presentCount": 0,
+      "bySlotPresent": {
+        "slot1": 0,
+        "slot2": 0,
+        "slot3": 0,
+        "slot4": 0
+      }
+    },
+    "2026-09-12": {
+      "date": "2026-09-12",
+      "dayName": "Sat",
+      "snapshotsCount": 137,
+      "presentCount": 0,
+      "bySlotPresent": {
+        "slot1": 0,
+        "slot2": 0,
+        "slot3": 0,
+        "slot4": 0
+      }
+    },
+    "2026-09-13": {
+      "date": "2026-09-13",
+      "dayName": "Sun",
+      "snapshotsCount": 144,
+      "presentCount": 0,
+      "bySlotPresent": {
+        "slot1": 0,
+        "slot2": 0,
+        "slot3": 0,
+        "slot4": 0
+      }
+    },
+    "2026-09-14": {
+      "date": "2026-09-14",
+      "dayName": "Mon",
+      "snapshotsCount": 145,
+      "presentCount": 23,
+      "bySlotPresent": {
+        "slot1": 1,
+        "slot2": 7,
+        "slot3": 8,
+        "slot4": 7
+      }
+    },
+    "2026-09-15": {
+      "date": "2026-09-15",
+      "dayName": "Tue",
+      "snapshotsCount": 142,
+      "presentCount": 19,
+      "bySlotPresent": {
+        "slot1": 0,
+        "slot2": 4,
+        "slot3": 6,
+        "slot4": 9
+      }
+    },
+    "2026-09-16": {
+      "date": "2026-09-16",
+      "dayName": "Wed",
+      "snapshotsCount": 145,
+      "presentCount": 28,
+      "bySlotPresent": {
+        "slot1": 1,
+        "slot2": 9,
+        "slot3": 9,
+        "slot4": 9
+      }
+    },
+    "2026-09-17": {
+      "date": "2026-09-17",
+      "dayName": "Thu",
+      "snapshotsCount": 144,
+      "presentCount": 20,
+      "bySlotPresent": {
+        "slot1": 2,
+        "slot2": 5,
+        "slot3": 7,
+        "slot4": 6
+      }
+    },
+    "2026-09-18": {
+      "date": "2026-09-18",
+      "dayName": "Fri",
+      "snapshotsCount": 135,
+      "presentCount": 23,
+      "bySlotPresent": {
+        "slot1": 1,
+        "slot2": 8,
+        "slot3": 6,
+        "slot4": 8
+      }
+    },
+    "2026-09-19": {
+      "date": "2026-09-19",
+      "dayName": "Sat",
+      "snapshotsCount": 145,
+      "presentCount": 0,
+      "bySlotPresent": {
+        "slot1": 0,
+        "slot2": 0,
+        "slot3": 0,
+        "slot4": 0
+      }
+    },
+    "2026-09-20": {
+      "date": "2026-09-20",
+      "dayName": "Sun",
+      "snapshotsCount": 141,
+      "presentCount": 2,
+      "bySlotPresent": {
+        "slot1": 0,
+        "slot2": 0,
+        "slot3": 1,
+        "slot4": 1
+      }
+    },
+    "2026-09-21": {
+      "date": "2026-09-21",
+      "dayName": "Mon",
+      "snapshotsCount": 145,
+      "presentCount": 13,
+      "bySlotPresent": {
+        "slot1": 1,
+        "slot2": 3,
+        "slot3": 5,
+        "slot4": 4
+      }
+    },
+    "2026-09-22": {
+      "date": "2026-09-22",
+      "dayName": "Tue",
+      "snapshotsCount": 138,
+      "presentCount": 18,
+      "bySlotPresent": {
+        "slot1": 1,
+        "slot2": 7,
+        "slot3": 5,
+        "slot4": 5
+      }
+    },
+    "2026-09-23": {
+      "date": "2026-09-23",
+      "dayName": "Wed",
+      "snapshotsCount": 145,
+      "presentCount": 2,
+      "bySlotPresent": {
+        "slot1": 0,
+        "slot2": 0,
+        "slot3": 1,
+        "slot4": 1
+      }
+    },
+    "2026-09-24": {
+      "date": "2026-09-24",
+      "dayName": "Thu",
+      "snapshotsCount": 137,
+      "presentCount": 10,
+      "bySlotPresent": {
+        "slot1": 2,
+        "slot2": 2,
+        "slot3": 4,
+        "slot4": 2
+      }
+    },
+    "2026-09-25": {
+      "date": "2026-09-25",
+      "dayName": "Fri",
+      "snapshotsCount": 145,
+      "presentCount": 9,
+      "bySlotPresent": {
+        "slot1": 1,
+        "slot2": 2,
+        "slot3": 4,
+        "slot4": 2
+      }
+    },
+    "2026-09-26": {
+      "date": "2026-09-26",
+      "dayName": "Sat",
+      "snapshotsCount": 135,
+      "presentCount": 0,
+      "bySlotPresent": {
+        "slot1": 0,
+        "slot2": 0,
+        "slot3": 0,
+        "slot4": 0
+      }
+    },
+    "2026-09-27": {
+      "date": "2026-09-27",
+      "dayName": "Sun",
+      "snapshotsCount": 146,
+      "presentCount": 1,
+      "bySlotPresent": {
+        "slot1": 0,
+        "slot2": 1,
+        "slot3": 0,
+        "slot4": 0
+      }
+    },
+    "2026-09-28": {
+      "date": "2026-09-28",
+      "dayName": "Mon",
+      "snapshotsCount": 144,
+      "presentCount": 24,
+      "bySlotPresent": {
+        "slot1": 2,
+        "slot2": 2,
+        "slot3": 12,
+        "slot4": 8
+      }
+    },
+    "2026-09-29": {
+      "date": "2026-09-29",
+      "dayName": "Tue",
+      "snapshotsCount": 144,
+      "presentCount": 26,
+      "bySlotPresent": {
+        "slot1": 1,
+        "slot2": 7,
+        "slot3": 12,
+        "slot4": 6
+      }
+    },
+    "2026-09-30": {
+      "date": "2026-09-30",
+      "dayName": "Wed",
+      "snapshotsCount": 131,
+      "presentCount": 10,
+      "bySlotPresent": {
+        "slot1": 1,
+        "slot2": 1,
+        "slot3": 4,
+        "slot4": 4
+      }
+    },
+    "2026-10-01": {
+      "date": "2026-10-01",
+      "dayName": "Thu",
+      "snapshotsCount": 145,
+      "presentCount": 7,
+      "bySlotPresent": {
+        "slot1": 1,
+        "slot2": 2,
+        "slot3": 2,
+        "slot4": 2
+      }
+    },
+    "2026-10-02": {
+      "date": "2026-10-02",
+      "dayName": "Fri",
+      "snapshotsCount": 120,
+      "presentCount": 0,
+      "bySlotPresent": {
+        "slot1": 0,
+        "slot2": 0,
+        "slot3": 0,
+        "slot4": 0
+      }
+    },
+    "2026-10-03": {
+      "date": "2026-10-03",
+      "dayName": "Sat",
+      "snapshotsCount": 146,
+      "presentCount": 0,
+      "bySlotPresent": {
+        "slot1": 0,
+        "slot2": 0,
+        "slot3": 0,
+        "slot4": 0
+      }
+    },
+    "2026-10-04": {
+      "date": "2026-10-04",
+      "dayName": "Sun",
+      "snapshotsCount": 143,
+      "presentCount": 0,
+      "bySlotPresent": {
+        "slot1": 0,
+        "slot2": 0,
+        "slot3": 0,
+        "slot4": 0
+      }
+    },
+    "2026-10-05": {
+      "date": "2026-10-05",
+      "dayName": "Mon",
+      "snapshotsCount": 145,
+      "presentCount": 21,
+      "bySlotPresent": {
+        "slot1": 1,
+        "slot2": 4,
+        "slot3": 8,
+        "slot4": 8
+      }
+    },
+    "2026-10-06": {
+      "date": "2026-10-06",
+      "dayName": "Tue",
+      "snapshotsCount": 118,
+      "presentCount": 22,
+      "bySlotPresent": {
+        "slot1": 1,
+        "slot2": 7,
+        "slot3": 7,
+        "slot4": 7
+      }
+    },
+    "2026-10-07": {
+      "date": "2026-10-07",
+      "dayName": "Wed",
+      "snapshotsCount": 145,
+      "presentCount": 22,
+      "bySlotPresent": {
+        "slot1": 3,
+        "slot2": 4,
+        "slot3": 7,
+        "slot4": 8
+      }
+    },
+    "2026-10-08": {
+      "date": "2026-10-08",
+      "dayName": "Thu",
+      "snapshotsCount": 0,
+      "presentCount": 0,
+      "bySlotPresent": {
+        "slot1": 0,
+        "slot2": 0,
+        "slot3": 0,
+        "slot4": 0
+      }
+    },
+    "2026-10-09": {
+      "date": "2026-10-09",
+      "dayName": "Fri",
+      "snapshotsCount": 47,
+      "presentCount": 12,
+      "bySlotPresent": {
+        "slot1": 0,
+        "slot2": 0,
+        "slot3": 5,
+        "slot4": 7
+      }
+    },
+    "2026-10-10": {
+      "date": "2026-10-10",
+      "dayName": "Sat",
+      "snapshotsCount": 149,
+      "presentCount": 2,
+      "bySlotPresent": {
+        "slot1": 0,
+        "slot2": 0,
+        "slot3": 1,
+        "slot4": 1
+      }
+    },
+    "2026-10-11": {
+      "date": "2026-10-11",
+      "dayName": "Sun",
+      "snapshotsCount": 149,
+      "presentCount": 0,
+      "bySlotPresent": {
+        "slot1": 0,
+        "slot2": 0,
+        "slot3": 0,
+        "slot4": 0
+      }
+    }
+  },
+  "studentStats": [
+    {
+      "enrollmentNo": "iPDCP2026M06",
+      "name": "Hemant Bhagat",
+      "mac": "74:CB:F3:1A:8F:0E",
+      "macVerified": true,
+      "totalSlotsPresent": 42,
+      "totalSlotsEvaluated": 128,
+      "bySlot": {
+        "slot1": 9,
+        "slot2": 12,
+        "slot3": 12,
+        "slot4": 9
+      }
+    },
+    {
+      "enrollmentNo": "iPDCP2026M20",
+      "name": "Ujjwal Goel",
+      "mac": "D4:CB:CC:91:CE:8F",
+      "macVerified": true,
+      "totalSlotsPresent": 40,
+      "totalSlotsEvaluated": 128,
+      "bySlot": {
+        "slot1": 5,
+        "slot2": 12,
+        "slot3": 13,
+        "slot4": 10
+      }
+    },
+    {
+      "enrollmentNo": "iPDCP2026M12",
+      "name": "Pratik Yadav",
+      "mac": "2C:BE:EE:1B:13:42",
+      "macVerified": true,
+      "totalSlotsPresent": 36,
+      "totalSlotsEvaluated": 128,
+      "bySlot": {
+        "slot1": 1,
+        "slot2": 10,
+        "slot3": 12,
+        "slot4": 13
+      }
+    },
+    {
+      "enrollmentNo": "iPDCP2026M09",
+      "name": "Khushal Yadav",
+      "mac": "AC:C0:48:D6:67:D3",
+      "macVerified": true,
+      "totalSlotsPresent": 33,
+      "totalSlotsEvaluated": 128,
+      "bySlot": {
+        "slot1": 0,
+        "slot2": 5,
+        "slot3": 13,
+        "slot4": 15
+      }
+    },
+    {
+      "enrollmentNo": "iPDCP2026M17",
+      "name": "Shourya .",
+      "mac": "AC:D6:18:30:81:D8",
+      "macVerified": true,
+      "totalSlotsPresent": 27,
+      "totalSlotsEvaluated": 128,
+      "bySlot": {
+        "slot1": 0,
+        "slot2": 4,
+        "slot3": 12,
+        "slot4": 11
+      }
+    },
+    {
+      "enrollmentNo": "iPDCP2026M19",
+      "name": "Vedant Singh",
+      "mac": "34:F0:43:10:57:3A",
+      "macVerified": true,
+      "totalSlotsPresent": 26,
+      "totalSlotsEvaluated": 128,
+      "bySlot": {
+        "slot1": 0,
+        "slot2": 5,
+        "slot3": 11,
+        "slot4": 10
+      }
+    },
+    {
+      "enrollmentNo": "iPDCP2026M11",
+      "name": "Maloth Ashok Jadav",
+      "mac": "A8:EF:5F:05:1E:C9",
+      "macVerified": true,
+      "totalSlotsPresent": 24,
+      "totalSlotsEvaluated": 128,
+      "bySlot": {
+        "slot1": 1,
+        "slot2": 9,
+        "slot3": 7,
+        "slot4": 7
+      }
+    },
+    {
+      "enrollmentNo": "iPDCP2026M21",
+      "name": "Yash Kumar Saini",
+      "mac": "78:A7:C7:4F:0B:19",
+      "macVerified": true,
+      "totalSlotsPresent": 23,
+      "totalSlotsEvaluated": 128,
+      "bySlot": {
+        "slot1": 1,
+        "slot2": 4,
+        "slot3": 8,
+        "slot4": 10
+      }
+    },
+    {
+      "enrollmentNo": "iPDCP2026M15",
+      "name": "Rohit Sharma",
+      "mac": "2C:BE:EB:96:9D:E5",
+      "macVerified": true,
+      "totalSlotsPresent": 21,
+      "totalSlotsEvaluated": 128,
+      "bySlot": {
+        "slot1": 2,
+        "slot2": 5,
+        "slot3": 7,
+        "slot4": 7
+      }
+    },
+    {
+      "enrollmentNo": "iPDCP2026M10",
+      "name": "Manya Grover",
+      "mac": "BE:B5:30:19:63:A9",
+      "macVerified": true,
+      "totalSlotsPresent": 20,
+      "totalSlotsEvaluated": 128,
+      "bySlot": {
+        "slot1": 0,
+        "slot2": 7,
+        "slot3": 8,
+        "slot4": 5
+      }
+    },
+    {
+      "enrollmentNo": "iPDCP2026M14",
+      "name": "Rishabh Patel",
+      "mac": "CC:F9:F0:E7:FB:46",
+      "macVerified": true,
+      "totalSlotsPresent": 20,
+      "totalSlotsEvaluated": 128,
+      "bySlot": {
+        "slot1": 0,
+        "slot2": 1,
+        "slot3": 11,
+        "slot4": 8
+      }
+    },
+    {
+      "enrollmentNo": "iPDCP2026M18",
+      "name": "Shubh Asthana",
+      "mac": "28:49:E9:A4:77:AA",
+      "macVerified": true,
+      "totalSlotsPresent": 15,
+      "totalSlotsEvaluated": 128,
+      "bySlot": {
+        "slot1": 0,
+        "slot2": 4,
+        "slot3": 5,
+        "slot4": 6
+      }
+    },
+    {
+      "enrollmentNo": "iPDCP2026M03",
+      "name": "Dhairya Sanjay Bhanderi",
+      "mac": "B8:A8:25:9B:A2:1C",
+      "macVerified": true,
+      "totalSlotsPresent": 4,
+      "totalSlotsEvaluated": 128,
+      "bySlot": {
+        "slot1": 1,
+        "slot2": 2,
+        "slot3": 1,
+        "slot4": 0
+      }
+    },
+    {
+      "enrollmentNo": "CIPD/2026/0002",
+      "name": "Rohit Bhardwaj",
+      "mac": null,
+      "macVerified": false,
+      "totalSlotsPresent": 0,
+      "totalSlotsEvaluated": 128,
+      "bySlot": {
+        "slot1": 0,
+        "slot2": 0,
+        "slot3": 0,
+        "slot4": 0
+      }
+    },
+    {
+      "enrollmentNo": "CIPD/2026/03",
+      "name": "Sameer Tiwari",
+      "mac": "7C:F0:E5:AA:08:51",
+      "macVerified": true,
+      "totalSlotsPresent": 0,
+      "totalSlotsEvaluated": 128,
+      "bySlot": {
+        "slot1": 0,
+        "slot2": 0,
+        "slot3": 0,
+        "slot4": 0
+      }
+    },
+    {
+      "enrollmentNo": "iPDCP20260",
+      "name": "Parsh Jain",
+      "mac": "12:34:56:67:88:99",
+      "macVerified": true,
+      "totalSlotsPresent": 0,
+      "totalSlotsEvaluated": 128,
+      "bySlot": {
+        "slot1": 0,
+        "slot2": 0,
+        "slot3": 0,
+        "slot4": 0
+      }
+    },
+    {
+      "enrollmentNo": "iPDCP2026M01",
+      "name": "Aanshi Gupta",
+      "mac": "D4:EC:AB:C4:30:BD",
+      "macVerified": true,
+      "totalSlotsPresent": 0,
+      "totalSlotsEvaluated": 128,
+      "bySlot": {
+        "slot1": 0,
+        "slot2": 0,
+        "slot3": 0,
+        "slot4": 0
+      }
+    },
+    {
+      "enrollmentNo": "iPDCP2026M02",
+      "name": "Aryan Gahlawat",
+      "mac": "11:11:11:11:11:11",
+      "macVerified": true,
+      "totalSlotsPresent": 0,
+      "totalSlotsEvaluated": 128,
+      "bySlot": {
+        "slot1": 0,
+        "slot2": 0,
+        "slot3": 0,
+        "slot4": 0
+      }
+    },
+    {
+      "enrollmentNo": "iPDCP2026M04",
+      "name": "Gaurav Yadav",
+      "mac": "B0:9C:63:EC:EA:67",
+      "macVerified": true,
+      "totalSlotsPresent": 0,
+      "totalSlotsEvaluated": 128,
+      "bySlot": {
+        "slot1": 0,
+        "slot2": 0,
+        "slot3": 0,
+        "slot4": 0
+      }
+    },
+    {
+      "enrollmentNo": "iPDCP2026M05",
+      "name": "Harsh V",
+      "mac": null,
+      "macVerified": false,
+      "totalSlotsPresent": 0,
+      "totalSlotsEvaluated": 128,
+      "bySlot": {
+        "slot1": 0,
+        "slot2": 0,
+        "slot3": 0,
+        "slot4": 0
+      }
+    },
+    {
+      "enrollmentNo": "iPDCP2026M07",
+      "name": "Jagjot Singh",
+      "mac": "94:89:78:EE:F3:B3",
+      "macVerified": true,
+      "totalSlotsPresent": 0,
+      "totalSlotsEvaluated": 128,
+      "bySlot": {
+        "slot1": 0,
+        "slot2": 0,
+        "slot3": 0,
+        "slot4": 0
+      }
+    },
+    {
+      "enrollmentNo": "iPDCP2026M08",
+      "name": "Jahanvi Kardam",
+      "mac": "AA:6C:25:29:E8:A1",
+      "macVerified": true,
+      "totalSlotsPresent": 0,
+      "totalSlotsEvaluated": 128,
+      "bySlot": {
+        "slot1": 0,
+        "slot2": 0,
+        "slot3": 0,
+        "slot4": 0
+      }
+    },
+    {
+      "enrollmentNo": "iPDCP2026M13",
+      "name": "Pinaksh Kumar",
+      "mac": "5C:17:CF:23:35:D4",
+      "macVerified": true,
+      "totalSlotsPresent": 0,
+      "totalSlotsEvaluated": 128,
+      "bySlot": {
+        "slot1": 0,
+        "slot2": 0,
+        "slot3": 0,
+        "slot4": 0
+      }
+    },
+    {
+      "enrollmentNo": "iPDCP2026M16",
+      "name": "Sameer Pasi",
+      "mac": "A8:41:F4:15:4F:BB",
+      "macVerified": true,
+      "totalSlotsPresent": 0,
+      "totalSlotsEvaluated": 128,
+      "bySlot": {
+        "slot1": 0,
+        "slot2": 0,
+        "slot3": 0,
+        "slot4": 0
+      }
+    },
+    {
+      "enrollmentNo": "iPDCP2026M22",
+      "name": "Priyanshu Pandey",
+      "mac": "9C:C3:94:22:3F:D1",
+      "macVerified": true,
+      "totalSlotsPresent": 0,
+      "totalSlotsEvaluated": 128,
+      "bySlot": {
+        "slot1": 0,
+        "slot2": 0,
+        "slot3": 0,
+        "slot4": 0
+      }
+    },
+    {
+      "enrollmentNo": "xyz",
+      "name": "Gurdeep Kaur",
+      "mac": "F8:E5:CE:74:1D:0B",
+      "macVerified": true,
+      "totalSlotsPresent": 0,
+      "totalSlotsEvaluated": 128,
+      "bySlot": {
+        "slot1": 0,
+        "slot2": 0,
+        "slot3": 0,
+        "slot4": 0
+      }
+    }
+  ]
+}

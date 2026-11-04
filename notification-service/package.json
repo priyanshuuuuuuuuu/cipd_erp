@@ -10,8 +10,9 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.98.0",
     "dotenv": "^16.6.1",
+    "drizzle-orm": "^0.45.4",
     "express": "^5.2.1",
-    "nodemailer": "^8.0.4"
+    "nodemailer": "^8.0.4",
+    "postgres": "^3.4.9"
   }
 }
-

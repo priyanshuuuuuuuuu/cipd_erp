@@ -12,13 +12,14 @@ function requireToken(req, res, next) {
   next();
 }
 
-app.get('/health', async (_req, res) => {
+app.get('/health', async (req, res) => {
   try {
+    const schema = req.query.schema;
     res.json({
       ok: true,
       service: 'cipd-notification-service',
       sandbox: config.sandbox,
-      queue: await getQueueCounts(),
+      queue: await getQueueCounts(schema),
     });
   } catch (error) {
     res.status(503).json({ ok: false, error: error.message });
@@ -28,7 +29,8 @@ app.get('/health', async (_req, res) => {
 app.get('/messages', requireToken, async (req, res) => {
   try {
     const limit = Math.min(Math.max(Number(req.query.limit || 50), 1), 100);
-    res.json({ messages: await listMessages(limit) });
+    const schema = req.query.schema;
+    res.json({ messages: await listMessages(limit, schema) });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -37,7 +39,8 @@ app.get('/messages', requireToken, async (req, res) => {
 app.post('/drain', requireToken, async (req, res) => {
   try {
     const limit = Math.min(Math.max(Number(req.body?.limit || 20), 1), 100);
-    res.json(await drainStream(limit));
+    const schema = req.body?.schema || req.query?.schema;
+    res.json(await drainStream(limit, schema));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -45,7 +48,8 @@ app.post('/drain', requireToken, async (req, res) => {
 
 app.post('/messages/:id/retry', requireToken, async (req, res) => {
   try {
-    res.json(await retryMessage(req.params.id));
+    const schema = req.body?.schema || req.query?.schema;
+    res.json(await retryMessage(req.params.id, schema));
   } catch (error) {
     res.status(400).json({ error: error.message });
   }

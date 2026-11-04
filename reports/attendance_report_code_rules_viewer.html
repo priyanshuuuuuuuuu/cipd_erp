@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Attendance Report • Codebase Rules &amp; Delta Analysis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: #090d16; color: #f1f5f9; padding: 0; margin: 0; }
+    .top-bar { position: sticky; top: 0; z-index: 100; background: rgba(15,23,42,0.95); backdrop-filter: blur(12px); border-bottom: 1px solid #23314f; padding: 10px 24px; display: flex; justify-content: space-between; align-items: center; }
+    .top-bar h1 { font-size: 1.1rem; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+    .tag { background: #059669; color: #fff; font-size: 0.7rem; font-weight: 700; padding: 2px 7px; border-radius: 4px; text-transform: uppercase; }
+    .btn-group { display: flex; gap: 8px; }
+    .btn { background: #1e293b; border: 1px solid #334155; color: #fff; font-size: 0.8rem; font-weight: 600; padding: 6px 12px; border-radius: 6px; text-decoration: none; cursor: pointer; }
+    .btn:hover { background: #334155; }
+    .btn-primary { background: #059669; border-color: #047857; }
+    .btn-primary:hover { background: #047857; }
+
+    .main-content { max-width: 1400px; margin: 0 auto; padding: 24px; }
+    .delta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .card { background: #131b2e; border: 1px solid #23314f; border-radius: 12px; padding: 18px 20px; }
+    .card .title { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; font-weight: 600; }
+    .card .val { font-size: 1.8rem; font-weight: 800; color: #fff; margin-top: 4px; }
+    .card .sub { font-size: 0.8rem; margin-top: 4px; }
+
+    .comparison-section { background: #131b2e; border: 1px solid #23314f; border-radius: 12px; padding: 20px; margin-bottom: 28px; }
+    .section-head { font-size: 1.15rem; font-weight: 700; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid #1e293b; }
+    th { background: #0f172a; color: #94a3b8; font-weight: 600; }
+    tr:hover td { background: rgba(56, 189, 248, 0.04); }
+    .pill-diff { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 5px; padding: 2px 7px; font-weight: 700; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; }
+    .pill-same { background: rgba(148, 163, 184, 0.1); color: #94a3b8; border-radius: 5px; padding: 2px 7px; font-size: 0.8rem; }
+
+    .a4-preview-wrap { display: flex; justify-content: center; padding: 20px 0; }
+    .a4-frame { width: 297mm; height: 210mm; border: none; box-shadow: 0 15px 45px rgba(0,0,0,0.8); border-radius: 2px; }
+  </style>
+</head>
+<body>
+
+  <div class="top-bar">
+    <h1>📡 Wi-Fi Attendance Report <span class="tag">Codebase Rules (≥25% Duration)</span></h1>
+    <div class="btn-group">
+      <button class="btn btn-primary" onclick="document.getElementById('a4frame').contentWindow.print()">🖨️ Print 1-Page A4</button>
+      <a href="attendance_report_code_rules_10sep_11oct_A4.pdf" class="btn" download>⬇️ A4 PDF</a>
+      <a href="attendance_slots_report_code_rules_2026-09-10_to_2026-10-11.xlsx" class="btn" download>📊 Excel</a>
+      <a href="attendance_slots_report_code_rules_2026-09-10_to_2026-10-11.csv" class="btn" download>📄 CSV</a>
+    </div>
+  </div>
+
+  <div class="main-content">
+
+    <div class="delta-grid">
+      <div class="card">
+        <div class="title">Previous (Single Detection)</div>
+        <div class="val" style="color:#94a3b8;">331</div>
+        <div class="sub" style="color:#94a3b8;">Attendance Rate: 9.95%</div>
+      </div>
+      <div class="card">
+        <div class="title">New (Codebase Rule: ≥25% Dur)</div>
+        <div class="val" style="color:#10b981;">263</div>
+        <div class="sub" style="color:#10b981;">Attendance Rate: 7.9%</div>
+      </div>
+      <div class="card">
+        <div class="title">Net Difference</div>
+        <div class="val" style="color:#f43f5e;">-68</div>
+        <div class="sub" style="color:#f43f5e;">-20.5% fleeting pings dropped</div>
+      </div>
+      <div class="card">
+        <div class="title">Rule Enforced</div>
+        <div class="val" style="font-size:1.1rem; color:#38bdf8; margin-top:8px;">MIN_DURATION 25%</div>
+        <div class="sub" style="color:#94a3b8;">lib/attendance-points.js</div>
+      </div>
+    </div>
+
+    <!-- Comparison Table -->
+    <div class="comparison-section">
+      <div class="section-head">
+        <span>👥 Student Attendance Delta Breakdown</span>
+        <span style="font-size:0.8rem; color:#94a3b8;">Sorted by Active Attendance</span>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Enrollment No</th>
+            <th>Student Name</th>
+            <th>Previous (≥1 Ping)</th>
+            <th>New (≥25% Duration)</th>
+            <th>Difference</th>
+            <th>Quality Points Earned</th>
+          </tr>
+        </thead>
+        <tbody>
+          
+              <tr>
+                <td style="font-family:'JetBrains Mono', monospace; color:#38bdf8;">iPDCP2026M06</td>
+                <td style="font-weight:600;">Hemant Bhagat</td>
+                <td>42 / 128 (32.8%)</td>
+                <td style="font-weight:700; color:#10b981;">38 / 128 (29.7%)</td>
+                <td>
+                  <span class="pill-diff">-4</span>
+                </td>
+                <td style="font-weight:700; color:#e2e8f0;">124.0 pts</td>
+              </tr>
+            
+              <tr>
+                <td style="font-family:'JetBrains Mono', monospace; color:#38bdf8;">iPDCP2026M20</td>
+                <td style="font-weight:600;">Ujjwal Goel</td>
+                <td>40 / 128 (31.3%)</td>
+                <td style="font-weight:700; color:#10b981;">32 / 128 (25.0%)</td>
+                <td>
+                  <span class="pill-diff">-8</span>
+                </td>
+                <td style="font-weight:700; color:#e2e8f0;">111.0 pts</td>
+              </tr>
+            
+              <tr>
+                <td style="font-family:'JetBrains Mono', monospace; color:#38bdf8;">iPDCP2026M12</td>
+                <td style="font-weight:600;">Pratik Yadav</td>
+                <td>36 / 128 (28.1%)</td>
+                <td style="font-weight:700; color:#10b981;">30 / 128 (23.4%)</td>
+                <td>
+                  <span class="pill-diff">-6</span>
+                </td>
+                <td style="font-weight:700; color:#e2e8f0;">87.5 pts</td>
+              </tr>
+            
+              <tr>
+                <td style="font-family:'JetBrains Mono', monospace; color:#38bdf8;">iPDCP2026M09</td>
+                <td style="font-weight:600;">Khushal Yadav</td>
+                <td>33 / 128 (25.8%)</td>
+                <td style="font-weight:700; color:#10b981;">27 / 128 (21.1%)</td>
+                <td>
+                  <span class="pill-diff">-6</span>
+                </td>
+                <td style="font-weight:700; color:#e2e8f0;">80.5 pts</td>
+              </tr>
+            
+              <tr>
+                <td style="font-family:'JetBrains Mono', monospace; color:#38bdf8;">iPDCP2026M17</td>
+                <td style="font-weight:600;">Shourya .</td>
+                <td>27 / 128 (21.1%)</td>
+                <td style="font-weight:700; color:#10b981;">22 / 128 (17.2%)</td>
+                <td>
+                  <span class="pill-diff">-5</span>
+                </td>
+                <td style="font-weight:700; color:#e2e8f0;">61.5 pts</td>
+              </tr>
+            
+              <tr>
+                <td style="font-family:'JetBrains Mono', monospace; color:#38bdf8;">iPDCP2026M19</td>
+                <td style="font-weight:600;">Vedant Singh</td>
+                <td>26 / 128 (20.3%)</td>
+                <td style="font-weight:700; color:#10b981;">21 / 128 (16.4%)</td>
+                <td>
+                  <span class="pill-diff">-5</span>
+                </td>
+                <td style="font-weight:700; color:#e2e8f0;">37.0 pts</td>
+              </tr>
+            
+              <tr>
+                <td style="font-family:'JetBrains Mono', monospace; color:#38bdf8;">iPDCP2026M11</td>
+                <td style="font-weight:600;">Maloth Ashok Jadav</td>
+                <td>24 / 128 (18.8%)</td>
+                <td style="font-weight:700; color:#10b981;">18 / 128 (14.1%)</td>
+                <td>
+                  <span class="pill-diff">-6</span>
+                </td>
+                <td style="font-weight:700; color:#e2e8f0;">43.5 pts</td>
+              </tr>
+            
+              <tr>
+                <td style="font-family:'JetBrains Mono', monospace; color:#38bdf8;">iPDCP2026M21</td>
+                <td style="font-weight:600;">Yash Kumar Saini</td>
+                <td>23 / 128 (18.0%)</td>
+                <td style="font-weight:700; color:#10b981;">17 / 128 (13.3%)</td>
+                <td>
+                  <span class="pill-diff">-6</span>
+                </td>
+                <td style="font-weight:700; color:#e2e8f0;">37.0 pts</td>
+              </tr>
+            
+              <tr>
+                <td style="font-family:'JetBrains Mono', monospace; color:#38bdf8;">iPDCP2026M10</td>
+                <td style="font-weight:600;">Manya Grover</td>
+                <td>20 / 128 (15.6%)</td>
+                <td style="font-weight:700; color:#10b981;">16 / 128 (12.5%)</td>
+                <td>
+                  <span class="pill-diff">-4</span>
+                </td>
+                <td style="font-weight:700; color:#e2e8f0;">41.5 pts</td>
+              </tr>
+            
+              <tr>
+                <td style="font-family:'JetBrains Mono', monospace; color:#38bdf8;">iPDCP2026M15</td>
+                <td style="font-weight:600;">Rohit Sharma</td>
+                <td>21 / 128 (16.4%)</td>
+                <td style="font-weight:700; color:#10b981;">15 / 128 (11.7%)</td>
+                <td>
+                  <span class="pill-diff">-6</span>
+                </td>
+                <td style="font-weight:700; color:#e2e8f0;">38.0 pts</td>
+              </tr>
+            
+              <tr>
+                <td style="font-family:'JetBrains Mono', monospace; color:#38bdf8;">iPDCP2026M14</td>
+                <td style="font-weight:600;">Rishabh Patel</td>
+                <td>20 / 128 (15.6%)</td>
+                <td style="font-weight:700; color:#10b981;">14 / 128 (10.9%)</td>
+                <td>
+                  <span class="pill-diff">-6</span>
+                </td>
+                <td style="font-weight:700; color:#e2e8f0;">32.5 pts</td>
+              </tr>
+            
+              <tr>
+                <td style="font-family:'JetBrains Mono', monospace; color:#38bdf8;">iPDCP2026M18</td>
+                <td style="font-weight:600;">Shubh Asthana</td>
+                <td>15 / 128 (11.7%)</td>
+                <td style="font-weight:700; color:#10b981;">10 / 128 (7.8%)</td>
+                <td>
+                  <span class="pill-diff">-5</span>
+                </td>
+                <td style="font-weight:700; color:#e2e8f0;">27.0 pts</td>
+              </tr>
+            
+              <tr>
+                <td style="font-family:'JetBrains Mono', monospace; color:#38bdf8;">iPDCP2026M03</td>
+                <td style="font-weight:600;">Dhairya Sanjay Bhanderi</td>
+                <td>4 / 128 (3.1%)</td>
+                <td style="font-weight:700; color:#10b981;">3 / 128 (2.3%)</td>
+                <td>
+                  <span class="pill-diff">-1</span>
+                </td>
+                <td style="font-weight:700; color:#e2e8f0;">9.5 pts</td>
+              </tr>
+            
+              <tr>
+                <td style="font-family:'JetBrains Mono', monospace; color:#38bdf8;">CIPD/2026/0002</td>
+                <td style="font-weight:600;">Rohit Bhardwaj</td>
+                <td>0 / 128 (0.0%)</td>
+                <td style="font-weight:700; color:#10b981;">0 / 128 (0.0%)</td>
+                <td>
+                  <span class="pill-same">0</span>
+                </td>
+                <td style="font-weight:700; color:#e2e8f0;">0.0 pts</td>
+              </tr>
+            
+              <tr>
+                <td style="font-family:'JetBrains Mono', monospace; color:#38bdf8;">CIPD/2026/03</td>
+                <td style="font-weight:600;">Sameer Tiwari</td>
+                <td>0 / 128 (0.0%)</td>
+                <td style="font-weight:700; color:#10b981;">0 / 128 (0.0%)</td>
+                <td>
+                  <span class="pill-same">0</span>
+                </td>
+                <td style="font-weight:700; color:#e2e8f0;">0.0 pts</td>
+              </tr>
+            
+              <tr>
+                <td style="font-family:'JetBrains Mono', monospace; color:#38bdf8;">iPDCP20260</td>
+                <td style="font-weight:600;">Parsh Jain</td>
+                <td>0 / 128 (0.0%)</td>
+                <td style="font-weight:700; color:#10b981;">0 / 128 (0.0%)</td>
+                <td>
+                  <span class="pill-same">0</span>
+                </td>
+                <td style="font-weight:700; color:#e2e8f0;">0.0 pts</td>
+              </tr>
+            
+              <tr>
+                <td style="font-family:'JetBrains Mono', monospace; color:#38bdf8;">iPDCP2026M01</td>
+                <td style="font-weight:600;">Aanshi Gupta</td>
+                <td>0 / 128 (0.0%)</td>
+                <td style="font-weight:700; color:#10b981;">0 / 128 (0.0%)</td>
+                <td>
+                  <span class="pill-same">0</span>
+                </td>
+                <td style="font-weight:700; color:#e2e8f0;">0.0 pts</td>
+              </tr>
+            
+              <tr>
+                <td style="font-family:'JetBrains Mono', monospace; color:#38bdf8;">iPDCP2026M02</td>
+                <td style="font-weight:600;">Aryan Gahlawat</td>
+                <td>0 / 128 (0.0%)</td>
+                <td style="font-weight:700; color:#10b981;">0 / 128 (0.0%)</td>
+                <td>
+                  <span class="pill-same">0</span>
+                </td>
+                <td style="font-weight:700; color:#e2e8f0;">0.0 pts</td>
+              </tr>
+            
+              <tr>
+                <td style="font-family:'JetBrains Mono', monospace; color:#38bdf8;">iPDCP2026M04</td>
+                <td style="font-weight:600;">Gaurav Yadav</td>
+                <td>0 / 128 (0.0%)</td>
+                <td style="font-weight:700; color:#10b981;">0 / 128 (0.0%)</td>
+                <td>
+                  <span class="pill-same">0</span>
+                </td>
+                <td style="font-weight:700; color:#e2e8f0;">0.0 pts</td>
+              </tr>
+            
+              <tr>
+                <td style="font-family:'JetBrains Mono', monospace; color:#38bdf8;">iPDCP2026M05</td>
+                <td style="font-weight:600;">Harsh V</td>
+                <td>0 / 128 (0.0%)</td>
+                <td style="font-weight:700; color:#10b981;">0 / 128 (0.0%)</td>
+                <td>
+                  <span class="pill-same">0</span>
+                </td>
+                <td style="font-weight:700; color:#e2e8f0;">0.0 pts</td>
+              </tr>
+            
+              <tr>
+                <td style="font-family:'JetBrains Mono', monospace; color:#38bdf8;">iPDCP2026M07</td>
+                <td style="font-weight:600;">Jagjot Singh</td>
+                <td>0 / 128 (0.0%)</td>
+                <td style="font-weight:700; color:#10b981;">0 / 128 (0.0%)</td>
+                <td>
+                  <span class="pill-same">0</span>
+                </td>
+                <td style="font-weight:700; color:#e2e8f0;">0.0 pts</td>
+              </tr>
+            
+              <tr>
+                <td style="font-family:'JetBrains Mono', monospace; color:#38bdf8;">iPDCP2026M08</td>
+                <td style="font-weight:600;">Jahanvi Kardam</td>
+                <td>0 / 128 (0.0%)</td>
+                <td style="font-weight:700; color:#10b981;">0 / 128 (0.0%)</td>
+                <td>
+                  <span class="pill-same">0</span>
+                </td>
+                <td style="font-weight:700; color:#e2e8f0;">0.0 pts</td>
+              </tr>
+            
+              <tr>
+                <td style="font-family:'JetBrains Mono', monospace; color:#38bdf8;">iPDCP2026M13</td>
+                <td style="font-weight:600;">Pinaksh Kumar</td>
+                <td>0 / 128 (0.0%)</td>
+                <td style="font-weight:700; color:#10b981;">0 / 128 (0.0%)</td>
+                <td>
+                  <span class="pill-same">0</span>
+                </td>
+                <td style="font-weight:700; color:#e2e8f0;">0.0 pts</td>
+              </tr>
+            
+              <tr>
+                <td style="font-family:'JetBrains Mono', monospace; color:#38bdf8;">iPDCP2026M16</td>
+                <td style="font-weight:600;">Sameer Pasi</td>
+                <td>0 / 128 (0.0%)</td>
+                <td style="font-weight:700; color:#10b981;">0 / 128 (0.0%)</td>
+                <td>
+                  <span class="pill-same">0</span>
+                </td>
+                <td style="font-weight:700; color:#e2e8f0;">0.0 pts</td>
+              </tr>
+            
+              <tr>
+                <td style="font-family:'JetBrains Mono', monospace; color:#38bdf8;">iPDCP2026M22</td>
+                <td style="font-weight:600;">Priyanshu Pandey</td>
+                <td>0 / 128 (0.0%)</td>
+                <td style="font-weight:700; color:#10b981;">0 / 128 (0.0%)</td>
+                <td>
+                  <span class="pill-same">0</span>
+                </td>
+                <td style="font-weight:700; color:#e2e8f0;">0.0 pts</td>
+              </tr>
+            
+              <tr>
+                <td style="font-family:'JetBrains Mono', monospace; color:#38bdf8;">xyz</td>
+                <td style="font-weight:600;">Gurdeep Kaur</td>
+                <td>0 / 128 (0.0%)</td>
+                <td style="font-weight:700; color:#10b981;">0 / 128 (0.0%)</td>
+                <td>
+                  <span class="pill-same">0</span>
+                </td>
+                <td style="font-weight:700; color:#e2e8f0;">0.0 pts</td>
+              </tr>
+            
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Live 1-Page A4 Sheet Embedded -->
+    <div class="comparison-section">
+      <div class="section-head">
+        <span>📄 Official 1-Page A4 Sheet Preview</span>
+        <a href="attendance_report_code_rules_a4.html" target="_blank" style="font-size:0.8rem; color:#38bdf8;">Open Fullscreen ↗</a>
+      </div>
+      <div class="a4-preview-wrap">
+        <iframe id="a4frame" class="a4-frame" src="attendance_report_code_rules_a4.html"></iframe>
+      </div>
+    </div>
+
+  </div>
+
+</body>
+</html>

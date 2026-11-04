@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wi-Fi Attendance Report (10 Sep – 11 Oct 2026) • A4 Single Page & Interactive</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+  <style>
+    /* ── A4 PRINT SPECIFICATION ── */
+    @page {
+      size: A4 landscape;
+      margin: 3.5mm 4mm 3.5mm 4mm;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    :root {
+      --bg: #090d16;
+      --card-bg: #131b2e;
+      --border: #23314f;
+      --accent: #38bdf8;
+      --present-bg: #16a34a;
+      --present-text: #ffffff;
+      --absent-color: #cbd5e1;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: #f1f5f9;
+      line-height: 1.4;
+      padding: 0;
+      margin: 0;
+    }
+
+    /* ── STICKY TOP CONTROL BAR ── */
+    .top-bar {
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      background: rgba(15, 23, 42, 0.95);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    }
+    .top-bar .title-block {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .top-bar h1 {
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .badge-a4 {
+      background: #0284c7;
+      color: #fff;
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .view-toggles {
+      display: flex;
+      background: #1e293b;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 3px;
+      gap: 3px;
+    }
+    .view-btn {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 5px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .view-btn.active {
+      background: #0284c7;
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(2, 132, 199, 0.4);
+    }
+
+    .action-links {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .btn-action {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #f1f5f9;
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 6px;
+      text-decoration: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.15s ease;
+    }
+    .btn-action:hover {
+      background: #334155;
+      border-color: #475569;
+    }
+    .btn-action.btn-primary {
+      background: #16a34a;
+      border-color: #15803d;
+      color: #fff;
+    }
+    .btn-action.btn-primary:hover {
+      background: #15803d;
+    }
+
+    /* ── CONTAINER MODES ── */
+    .view-section {
+      display: none;
+      padding: 20px;
+    }
+    .view-section.active {
+      display: block;
+    }
+
+    /* ── 1-PAGE A4 PREVIEW CONTAINER ── */
+    .a4-wrapper {
+      display: flex;
+      justify-content: center;
+      padding: 15px 0 40px 0;
+      background: #0b0f19;
+      min-height: calc(100vh - 60px);
+    }
+    .a4-sheet {
+      width: 297mm;
+      height: 210mm;
+      max-height: 210mm;
+      background: #ffffff;
+      color: #0f172a;
+      box-shadow: 0 15px 45px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.1);
+      border-radius: 2px;
+      padding: 3.5mm 4mm 3.5mm 4mm;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+      box-sizing: border-box;
+    }
+
+    /* ── A4 INNER STYLING (EXACT FIT) ── */
+    .a4-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      padding-bottom: 2px;
+      border-bottom: 1.5px solid #0f172a;
+      margin-bottom: 2px;
+    }
+    .a4-header h2 {
+      font-size: 11pt;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: #090d16;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .a4-header .tag {
+      background: #0284c7;
+      color: #fff;
+      font-size: 6pt;
+      font-weight: 700;
+      padding: 1.5px 5px;
+      border-radius: 3px;
+      text-transform: uppercase;
+    }
+    .a4-meta {
+      font-size: 6pt;
+      color: #475569;
+      margin-top: 1px;
+    }
+    .a4-meta strong { color: #0f172a; }
+
+    .a4-pills {
+      display: flex;
+      gap: 4px;
+    }
+    .a4-pill {
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: 3px;
+      padding: 1.5px 5px;
+      font-size: 5.8pt;
+      text-align: center;
+    }
+    .a4-pill .val {
+      font-weight: 800;
+      font-size: 7pt;
+      font-family: 'JetBrains Mono', monospace;
+      color: #0f172a;
+    }
+    .a4-pill.green {
+      background: #ecfdf5;
+      border-color: #a7f3d0;
+    }
+    .a4-pill.green .val { color: #047857; }
+
+    .a4-legend {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 3px;
+      padding: 1.5px 6px;
+      font-size: 5.6pt;
+      color: #334155;
+      margin-bottom: 2px;
+    }
+    .a4-legend .slot-tags span strong {
+      color: #0369a1;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .chip {
+      display: inline-block;
+      width: 6.5px;
+      height: 6.5px;
+      border-radius: 1.5px;
+      vertical-align: middle;
+      margin-right: 2px;
+    }
+    .chip-p { background: #16a34a; }
+    .chip-a { background: #e2e8f0; border: 0.5px solid #cbd5e1; }
+
+    .a4-table-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+    }
+    .a4-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      font-size: 5.4pt;
+    }
+    .a4-table th, .a4-table td {
+      text-align: center;
+      vertical-align: middle;
+      padding: 0;
+      height: 3.65mm;
+      border: 0.5px solid #cbd5e1;
+    }
+
+    .a4-table thead tr:first-child th {
+      height: 20mm;
+      vertical-align: bottom;
+      background: #f8fafc;
+      border-bottom: 1px solid #475569;
+      padding-bottom: 2px;
+    }
+    .a4-table thead tr:nth-child(2) th {
+      height: 3mm;
+      font-size: 4.6pt;
+      font-weight: 700;
+      background: #f1f5f9;
+      color: #475569;
+      border-bottom: 1.2px solid #0f172a;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .th-corner {
+      width: 13.5mm;
+      background: #e2e8f0 !important;
+      font-size: 5.6pt;
+      font-weight: 700;
+      color: #1e293b;
+      vertical-align: middle !important;
+      text-align: center;
+      border-right: 1.2px solid #0f172a !important;
+    }
+    .th-tot {
+      width: 7.5mm;
+      background: #e2e8f0 !important;
+      font-size: 5.3pt;
+      font-weight: 700;
+      color: #1e293b;
+      vertical-align: middle !important;
+      text-align: center;
+      border-left: 1.2px solid #0f172a !important;
+    }
+    .th-pct {
+      width: 7.5mm;
+      background: #e2e8f0 !important;
+      font-size: 5.3pt;
+      font-weight: 700;
+      color: #1e293b;
+      vertical-align: middle !important;
+      text-align: center;
+    }
+
+    .th-stu {
+      border-right: 1.2px solid #0f172a !important;
+      padding: 0 1px;
+      width: 9.8mm;
+    }
+    .v-text {
+      display: inline-block;
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+      white-space: nowrap;
+      text-align: left;
+      font-size: 5.5pt;
+      line-height: 1.1;
+      font-weight: 600;
+      color: #0f172a;
+      max-height: 19mm;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .v-text .roll {
+      color: #0284c7;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 5pt;
+    }
+
+    .th-sub-s { border-right: 0.5px solid #e2e8f0; }
+    .th-sub-s.s4 { border-right: 1.2px solid #0f172a !important; }
+
+    .td-dt {
+      width: 13.5mm;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 5.3pt;
+      font-weight: 600;
+      text-align: left;
+      padding-left: 2px;
+      color: #1e293b;
+      background: #ffffff;
+      border-right: 1.2px solid #0f172a !important;
+      white-space: nowrap;
+    }
+    .td-dt .day {
+      color: #64748b;
+      font-weight: 500;
+      display: inline-block;
+      width: 4.8mm;
+    }
+
+    .c-slot {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 4.8pt;
+      font-weight: 800;
+    }
+    .c-slot.s4 { border-right: 1.2px solid #0f172a !important; }
+
+    .p-mark {
+      background: #16a34a !important;
+      color: #ffffff !important;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+    }
+    .a-mark {
+      color: #cbd5e1;
+      font-size: 4.5pt;
+    }
+
+    tr.wknd td { background: #f8fafc; }
+    tr.hldy td { background: #fef2f2; }
+    tr.hldy .td-dt { color: #b91c1c; font-weight: 700; }
+
+    .td-tot {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 5.3pt;
+      font-weight: 700;
+      border-left: 1.2px solid #0f172a !important;
+      background: #f8fafc;
+      color: #0f172a;
+    }
+    .td-tot.green { color: #15803d; font-weight: 800; }
+    .td-pct {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 4.8pt;
+      font-weight: 600;
+      background: #f8fafc;
+      color: #475569;
+    }
+
+    tfoot tr.tf-tot td {
+      height: 3.5mm;
+      background: #f1f5f9;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 5pt;
+      font-weight: 800;
+      color: #0f172a;
+      border-top: 1.2px solid #0f172a;
+    }
+    tfoot tr.tf-pct td {
+      height: 3.5mm;
+      background: #e2e8f0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 4.6pt;
+      font-weight: 700;
+      color: #0369a1;
+      border-bottom: 1.5px solid #0f172a;
+    }
+
+    .a4-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 5.2pt;
+      color: #64748b;
+      padding-top: 2px;
+      border-top: 1px solid #cbd5e1;
+      margin-top: 1px;
+    }
+    .a4-footer strong { color: #0f172a; }
+
+    /* ── DETAILED INTERACTIVE VIEW ── */
+    .dashboard-container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .stat-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 20px;
+    }
+    .stat-label {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #94a3b8;
+      font-weight: 600;
+    }
+    .stat-value {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #fff;
+      margin-top: 4px;
+    }
+    .stat-sub {
+      font-size: 0.8rem;
+      color: var(--accent);
+      margin-top: 4px;
+    }
+
+    .interactive-table-wrap {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow-x: auto;
+      max-height: 70vh;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+      margin-bottom: 30px;
+    }
+    .interactive-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 0.82rem;
+    }
+    .interactive-table th, .interactive-table td {
+      padding: 8px 10px;
+      text-align: center;
+      border-right: 1px solid rgba(255, 255, 255, 0.05);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      white-space: nowrap;
+    }
+    .interactive-table thead th {
+      position: sticky;
+      top: 0;
+      background: #0f172a;
+      z-index: 10;
+      font-weight: 600;
+      color: #cbd5e1;
+    }
+    .interactive-table thead tr:nth-child(2) th {
+      top: 45px;
+      font-size: 0.72rem;
+      background: #1e293b;
+      color: #94a3b8;
+    }
+    .dt-col {
+      position: sticky;
+      left: 0;
+      background: #0f172a !important;
+      z-index: 20;
+      text-align: left;
+      font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+      padding-left: 16px;
+      border-right: 2px solid var(--border) !important;
+    }
+    .badge-p {
+      display: inline-block;
+      width: 22px;
+      height: 22px;
+      line-height: 22px;
+      text-align: center;
+      background: #052e16;
+      color: #4ade80;
+      border: 1px solid #166534;
+      border-radius: 5px;
+      font-weight: 700;
+      font-size: 0.75rem;
+    }
+    .badge-a {
+      display: inline-block;
+      width: 22px;
+      height: 22px;
+      line-height: 22px;
+      text-align: center;
+      background: #1e293b;
+      color: #64748b;
+      border: 1px solid #334155;
+      border-radius: 5px;
+      font-size: 0.75rem;
+    }
+
+    .ranking-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 14px;
+    }
+    .student-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .s-info-name { font-weight: 600; font-size: 0.95rem; }
+    .s-info-sub { font-size: 0.78rem; color: #94a3b8; font-family: 'JetBrains Mono', monospace; }
+    .s-badge {
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 0.85rem;
+      text-align: right;
+    }
+
+    /* ── PRINT MEDIA RULES ── */
+    @media print {
+      body {
+        background: #ffffff !important;
+        color: #0f172a !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+      }
+      .top-bar { display: none !important; }
+      #interactiveView { display: none !important; }
+      #a4View {
+        display: block !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        background: #ffffff !important;
+      }
+      .a4-wrapper {
+        padding: 0 !important;
+        margin: 0 !important;
+        background: #ffffff !important;
+        box-shadow: none !important;
+      }
+      .a4-sheet {
+        box-shadow: none !important;
+        margin: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        max-height: 203mm !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- TOP STICKY BAR -->
+  <div class="top-bar">
+    <div class="title-block">
+      <h1>📡 Wi-Fi Attendance Report <span class="badge-a4">1-Page A4 Ready</span></h1>
+    </div>
+
+    <!-- Toggle between A4 Page Preview and Full Dashboard -->
+    <div class="view-toggles">
+      <button class="view-btn active" onclick="switchView('a4')">📄 1-Page A4 Sheet</button>
+      <button class="view-btn" onclick="switchView('interactive')">📊 Interactive Analytics</button>
+    </div>
+
+    <!-- Action buttons -->
+    <div class="action-links">
+      <button class="btn-action btn-primary" onclick="window.print()">🖨️ Print / Save 1-Page PDF</button>
+      <a href="attendance_report_10sep_11oct_A4.pdf" class="btn-action" download>⬇️ A4 PDF</a>
+      <a href="attendance_slots_report_2026-09-10_to_2026-10-11.xlsx" class="btn-action" download>📊 Excel</a>
+      <a href="attendance_slots_report_2026-09-10_to_2026-10-11.csv" class="btn-action" download>📄 CSV</a>
+    </div>
+  </div>
+
+  <!-- VIEW 1: SINGLE A4 PAGE SHEET -->
+  <div id="a4View" class="view-section active" style="padding: 0;">
+    <div class="a4-wrapper">
+      <div class="a4-sheet" id="printSheet">
+        <!-- Will be dynamically populated or static -->
+        <iframe src="attendance_report_a4.html" style="width:100%; height:100%; border:none;" scrolling="no"></iframe>
+      </div>
+    </div>
+  </div>
+
+  <!-- VIEW 2: FULL INTERACTIVE DASHBOARD -->
+  <div id="interactiveView" class="view-section">
+    <div class="dashboard-container">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Total Days</div>
+          <div class="stat-value">32</div>
+          <div class="stat-sub">10 Sep – 11 Oct 2026</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Students Tracked</div>
+          <div class="stat-value">26</div>
+          <div class="stat-sub">24 with registered MAC address</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Total Interval Evals</div>
+          <div class="stat-value">3,328</div>
+          <div class="stat-sub">32 days × 4 slots × 26 students</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Present Detections</div>
+          <div class="stat-value" style="color: #4ade80;">331</div>
+          <div class="stat-sub">Overall Attendance: 9.95%</div>
+        </div>
+      </div>
+
+      <!-- Quick Info Alert -->
+      <div style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 10px; padding: 12px 18px; margin-bottom: 20px; font-size: 0.85rem; color: #bae6fd;">
+        💡 <strong>1-Page A4 Mode:</strong> Click the <strong>"📄 1-Page A4 Sheet"</strong> toggle above or hit <strong>Print</strong> (Ctrl+P) anytime to output the entire report formatted on a single A4 landscape sheet.
+      </div>
+
+      <div class="interactive-table-wrap">
+        <iframe src="attendance_report_a4.html" style="width:100%; height:620px; border:none;"></iframe>
+      </div>
+
+      <!-- Leaderboard -->
+      <div style="margin-top: 24px;">
+        <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 14px;">🏆 Student Attendance Ranking</h3>
+        <div class="ranking-grid" id="studentRankings">
+          <!-- Quick cards -->
+          <div class="student-card">
+            <div>
+              <div class="s-info-name">#1 Hemant Bhagat</div>
+              <div class="s-info-sub">iPDCP2026M06 • 74:CB:F3:1A:8F:0E</div>
+              <div style="font-size:0.75rem; color:#94a3b8; margin-top:3px;">S1: 9 | S2: 12 | S3: 12 | S4: 9</div>
+            </div>
+            <div class="s-badge" style="background: rgba(74, 222, 128, 0.1); color: #4ade80;">
+              <div>42 / 128</div>
+              <div style="font-size:0.75rem;">32.8%</div>
+            </div>
+          </div>
+          <div class="student-card">
+            <div>
+              <div class="s-info-name">#2 Ujjwal Goel</div>
+              <div class="s-info-sub">iPDCP2026M20 • D4:CB:CC:91:CE:8F</div>
+              <div style="font-size:0.75rem; color:#94a3b8; margin-top:3px;">S1: 5 | S2: 12 | S3: 13 | S4: 10</div>
+            </div>
+            <div class="s-badge" style="background: rgba(74, 222, 128, 0.1); color: #4ade80;">
+              <div>40 / 128</div>
+              <div style="font-size:0.75rem;">31.3%</div>
+            </div>
+          </div>
+          <div class="student-card">
+            <div>
+              <div class="s-info-name">#3 Pratik Yadav</div>
+              <div class="s-info-sub">iPDCP2026M12 • 2C:BE:EE:1B:13:42</div>
+              <div style="font-size:0.75rem; color:#94a3b8; margin-top:3px;">S1: 1 | S2: 10 | S3: 12 | S4: 13</div>
+            </div>
+            <div class="s-badge" style="background: rgba(74, 222, 128, 0.1); color: #4ade80;">
+              <div>36 / 128</div>
+              <div style="font-size:0.75rem;">28.1%</div>
+            </div>
+          </div>
+          <div class="student-card">
+            <div>
+              <div class="s-info-name">#4 Khushal Yadav</div>
+              <div class="s-info-sub">iPDCP2026M09 • AC:C0:48:D6:67:D3</div>
+              <div style="font-size:0.75rem; color:#94a3b8; margin-top:3px;">S1: 0 | S2: 5 | S3: 13 | S4: 15</div>
+            </div>
+            <div class="s-badge" style="background: rgba(74, 222, 128, 0.1); color: #4ade80;">
+              <div>33 / 128</div>
+              <div style="font-size:0.75rem;">25.8%</div>
+            </div>
+          </div>
+          <div class="student-card">
+            <div>
+              <div class="s-info-name">#5 Shourya .</div>
+              <div class="s-info-sub">iPDCP2026M17 • AC:D6:18:30:81:D8</div>
+              <div style="font-size:0.75rem; color:#94a3b8; margin-top:3px;">S1: 0 | S2: 4 | S3: 12 | S4: 11</div>
+            </div>
+            <div class="s-badge" style="background: rgba(56, 189, 248, 0.1); color: #38bdf8;">
+              <div>27 / 128</div>
+              <div style="font-size:0.75rem;">21.1%</div>
+            </div>
+          </div>
+          <div class="student-card">
+            <div>
+              <div class="s-info-name">#6 Vedant Singh</div>
+              <div class="s-info-sub">iPDCP2026M19 • 34:F0:43:10:57:3A</div>
+              <div style="font-size:0.75rem; color:#94a3b8; margin-top:3px;">S1: 0 | S2: 5 | S3: 11 | S4: 10</div>
+            </div>
+            <div class="s-badge" style="background: rgba(56, 189, 248, 0.1); color: #38bdf8;">
+              <div>26 / 128</div>
+              <div style="font-size:0.75rem;">20.3%</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function switchView(mode) {
+      document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
+
+      if (mode === 'a4') {
+        document.querySelectorAll('.view-btn')[0].classList.add('active');
+        document.getElementById('a4View').classList.add('active');
+      } else {
+        document.querySelectorAll('.view-btn')[1].classList.add('active');
+        document.getElementById('interactiveView').classList.add('active');
+      }
+    }
+  </script>
+</body>
+</html>
