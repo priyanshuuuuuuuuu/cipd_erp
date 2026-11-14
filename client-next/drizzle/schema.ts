@@ -1,10 +1,18 @@
-import { pgTable, index, foreignKey, bigserial, uuid, text, integer, timestamp, unique, boolean, numeric, uniqueIndex, date, time, jsonb, check, smallint, bigint, primaryKey, pgEnum } from "drizzle-orm/pg-core"
+import { pgTable, pgSchema, index, foreignKey, bigserial, uuid, text, integer, timestamp, unique, boolean, numeric, uniqueIndex, date, time, jsonb, check, smallint, bigint, primaryKey, pgEnum } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
 export const attendanceStatus = pgEnum("attendance_status", ['present', 'absent', 'partial', 'present_online', 'half', 'leave', 'other'])
 export const feedbackQuestionType = pgEnum("feedback_question_type", ['rating', 'yes_no', 'text', 'mcq'])
 export const sessionStatus = pgEnum("session_status", ['scheduled', 'completed', 'cancelled'])
 export const userRole = pgEnum("user_role", ['admin', 'faculty', 'student'])
+
+export const coreSchema = pgSchema("core")
+export const programs = coreSchema.table("programs", {
+	id: smallint().primaryKey().notNull(),
+	name: text().notNull(),
+}, (table) => [
+	unique("programs_name_key").on(table.name),
+]);
 
 
 export const attendancePingLogs = pgTable("attendance_ping_logs", {
@@ -152,7 +160,14 @@ export const courses = pgTable("courses", {
 	description: text(),
 	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
 	code: text(),
+	programId: smallint("program_id"),
 }, (table) => [
+	index("courses_program_id_idx").using("btree", table.programId.asc().nullsLast().op("int2_ops")),
+	foreignKey({
+			columns: [table.programId],
+			foreignColumns: [programs.id],
+			name: "courses_program_id_fkey"
+		}).onDelete("restrict"),
 	unique("courses_code_key").on(table.code),
 ]);
 

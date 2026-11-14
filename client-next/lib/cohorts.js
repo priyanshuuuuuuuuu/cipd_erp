@@ -44,9 +44,10 @@ async function ensureAdminInCohort(account, cohort) {
  *  - admin: any running/archived cohort from the x-cohort header, else the default cohort.
  *  - faculty/student: only cohorts they have a membership in (header if valid, else default if member, else newest).
  *
+ * @param {{ allowNoCohort?: boolean }} [options] account-level admin routes may opt in while the registry is empty
  * @returns {{ schema, cohort, localId, accountId, role, membership, ctx }}
  */
-export async function resolveRequestContext(req, user) {
+export async function resolveRequestContext(req, user, { allowNoCohort = false } = {}) {
   const config = await getCohortConfig();
   const ctx = await getAccountContext(user.id);
   if (!ctx) throw new HttpError(401, 'Account not found.');
@@ -62,7 +63,18 @@ export async function resolveRequestContext(req, user) {
 
   if (role === 'admin') {
     cohort = (requested && byName.get(requested)) || def || config.cohorts[config.cohorts.length - 1];
-    if (!cohort) throw new HttpError(503, 'No cohort is available.');
+    if (!cohort) {
+      if (!allowNoCohort) throw new HttpError(503, 'No cohort is available. Ask an administrator to create one.');
+      return {
+        schema: null,
+        cohort: null,
+        localId: ctx.canonicalId,
+        accountId: ctx.canonicalId,
+        role,
+        membership: null,
+        ctx,
+      };
+    }
     membership = ctx.memberships.find((m) => m.cohort_id === cohort.id) || null;
     if (!membership && cohort.status === 'running') {
       const localId = await ensureAdminInCohort(ctx.account, cohort);
@@ -94,9 +106,10 @@ export async function resolveRequestContext(req, user) {
  *  - Non-running cohorts accept only GET/HEAD/OPTIONS (unless the route opts in with allowArchivedWrites).
  *  - A student/faculty whose membership is not active (transferred out, withdrawn, completed) is read-only too.
  */
-export function readOnlyViolation(method, resolved, { allowArchivedWrites = false } = {}) {
+export function readOnlyViolation(method, resolved, { allowArchivedWrites = false, allowNoCohort = false } = {}) {
   if (SAFE_METHODS.has(method) || allowArchivedWrites) return null;
   const { cohort, membership, role } = resolved;
+  if (!cohort && allowNoCohort) return null;
   if (cohort.status !== 'running' && cohort.status !== 'provisioning') return 'This cohort is archived and read-only.';
   if (role !== 'admin' && membership && membership.status !== 'active') {
     return `Your membership in this cohort is ${membership.status}; it is read-only.`;
@@ -133,6 +146,16 @@ async function copyTable(tx, refSchema, dstSchema, table) {
   const cols = (await commonColumns(tx, refSchema, dstSchema, table)).map(qid).join(', ');
   if (!cols) return;
   await tx.unsafe(`INSERT INTO ${qid(dstSchema)}.${qid(table)} (${cols}) SELECT ${cols} FROM ${qid(refSchema)}.${qid(table)}`);
+}
+
+/** '' / null -> null (roll numbers disabled). Mirrors the CHECK on core.cohorts.roll_no_prefix. */
+export function normalizeRollPrefix(value) {
+  const v = String(value ?? '').trim();
+  if (!v) return null;
+  if (!/^[A-Za-z0-9._/-]{1,20}$/.test(v)) {
+    throw new HttpError(400, 'Roll-number prefix may use letters, digits and . _ / - only (max 20 characters).');
+  }
+  return v;
 }
 
 function normalizeStudentInput(rows) {
@@ -273,23 +296,29 @@ export async function createCohort(opts) {
     throw new HttpError(400, 'Invalid cohort name. Use 3-41 chars: lowercase letters, digits, underscore; must start with a letter.');
   }
   if (opts.startsOn && opts.endsOn && opts.endsOn < opts.startsOn) throw new HttpError(400, 'End date is before the start date.');
+  const rollNoPrefix = normalizeRollPrefix(opts.rollNoPrefix);
 
   const [dupe] = await connection`SELECT 1 AS x FROM core.cohorts WHERE schema_name = ${schemaName}`;
   if (dupe) throw new HttpError(409, 'A cohort with this name already exists');
   const [ns] = await connection`SELECT 1 AS x FROM pg_namespace WHERE nspname = ${schemaName}`;
   if (ns) throw new HttpError(409, 'A database schema with this name already exists');
 
+  // A deployment with no running cohort has no valid default. Enforce this on
+  // the server as well as in the UI so older clients and direct API calls also
+  // produce a usable first cohort.
+  const [{ has_running: hasRunning }] = await connection`
+    SELECT EXISTS (SELECT 1 FROM core.cohorts WHERE status = 'running') AS has_running`;
   const request = {
     referenceCohortId: opts.referenceCohortId ?? null,
     students: opts.students ?? [],
     copyActiveStudentsFromCohortId: opts.copyActiveStudentsFromCohortId ?? null,
-    makeDefault: !!opts.makeDefault,
+    makeDefault: !!opts.makeDefault || !hasRunning,
   };
 
   // Commit the registry row first so a failure leaves a visible, retryable 'failed' cohort.
   const [row] = await connection`
-    INSERT INTO core.cohorts (schema_name, label, program, starts_on, ends_on, status, created_by, provision_request)
-    VALUES (${schemaName}, ${label}, ${opts.program || null}, ${opts.startsOn || null}, ${opts.endsOn || null},
+    INSERT INTO core.cohorts (schema_name, label, program, starts_on, ends_on, roll_no_prefix, status, created_by, provision_request)
+    VALUES (${schemaName}, ${label}, ${opts.program || null}, ${opts.startsOn || null}, ${opts.endsOn || null}, ${rollNoPrefix},
             'provisioning', ${opts.createdBy || null}, ${connection.json(request)})
     RETURNING id, schema_name`;
 
@@ -347,6 +376,8 @@ export async function updateCohort(cohortId, patch) {
       ends_on: patch.ends_on !== undefined ? (patch.ends_on || null) : c.ends_on,
       status: c.status,
       is_default: patch.is_default !== undefined ? !!patch.is_default : c.is_default,
+      // Changing the prefix affects only students added afterwards; the counter keeps going.
+      roll_no_prefix: patch.roll_no_prefix !== undefined ? normalizeRollPrefix(patch.roll_no_prefix) : c.roll_no_prefix,
     };
     if (!next.label) throw new HttpError(400, 'A label is required.');
 
@@ -368,7 +399,7 @@ export async function updateCohort(cohortId, patch) {
 
     try {
       await tx`UPDATE core.cohorts
-                  SET label = ${next.label}, program = ${next.program}, starts_on = ${next.starts_on}, ends_on = ${next.ends_on},
+                  SET label = ${next.label}, program = ${next.program}, starts_on = ${next.starts_on}, ends_on = ${next.ends_on}, roll_no_prefix = ${next.roll_no_prefix},
                       status = ${next.status}, is_default = ${next.is_default}, updated_at = now()
                 WHERE id = ${c.id}`;
     } catch (err) {
@@ -398,6 +429,7 @@ export async function setActiveCohort(schemaName) {
 export async function listCohortsForAdmin() {
   const rows = await connection`
     SELECT c.id, c.schema_name AS schema, c.label, c.program, c.starts_on, c.ends_on, c.status, c.is_default, c.is_legacy,
+           c.roll_no_prefix, c.roll_no_next,
            c.schema_version, c.last_error, c.created_at,
            COALESCE(m.students, 0)::int AS student_count, COALESCE(m.staff, 0)::int AS staff_count
       FROM core.cohorts c

@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { Layers, ChevronDown, Check, Plus, Settings } from 'lucide-react';
+import { Layers, ChevronDown, Check, Plus, Settings, BookOpen } from 'lucide-react';
 import { useCohort } from '../contexts/CohortContext';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -127,6 +127,13 @@ export default function CohortSwitcher({ sidebarMode = false }) {
           </div>
           {isAdmin && (
             <div style={{ borderTop: `1px solid ${t.rule}`, paddingTop: 4, marginTop: 2, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <Link
+                href="/admin/programs"
+                onClick={() => setOpen(false)}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '7px 10px', borderRadius: 6, fontSize: '0.72rem', fontWeight: 600, color: t.text, textDecoration: 'none', border: `1px solid ${t.rule}` }}
+              >
+                <BookOpen size={13} /> Programs & courses
+              </Link>
               <Link
                 href="/admin/cohorts"
                 onClick={() => setOpen(false)}

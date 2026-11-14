@@ -11,6 +11,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useCohort } from '../../contexts/CohortContext';
+import ProgramCourseModal from '../../components/ProgramCourseModal';
 
 // ─── Input style helper ────────────────────────────────────────────────────
 const inp = {
@@ -561,12 +562,14 @@ function AddStudentModal({ onClose, onAdded, runningCohorts = [], defaultCohortI
     const [form, setForm] = useState({ first_name: '', last_name: '', email: '', enrollment_no: '', cohort_id: defaultCohortId ? String(defaultCohortId) : '', program_id: '' });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [showProgramModal, setShowProgramModal] = useState(false);
+    const targetCohort = runningCohorts.find(c => String(c.id) === String(form.cohort_id));
 
     useEffect(() => {
-        const onKey = e => e.key === 'Escape' && onClose();
+        const onKey = e => e.key === 'Escape' && !showProgramModal && onClose();
         window.addEventListener('keydown', onKey);
         return () => window.removeEventListener('keydown', onKey);
-    }, [onClose]);
+    }, [onClose, showProgramModal]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -649,15 +652,7 @@ function AddStudentModal({ onClose, onAdded, runningCohorts = [], defaultCohortI
                                     <option value="">— None —</option>
                                     {programOptions.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                                 </select>
-                                <button type="button" title="Add a program" onClick={async () => {
-                                    const name = prompt('New program name');
-                                    if (!name || !name.trim()) return;
-                                    try {
-                                        const res = await api.post('/api/admin/programs', { name: name.trim() });
-                                        await onProgramAdded?.();
-                                        setForm(f => ({ ...f, program_id: String(res.program.id) }));
-                                    } catch (err) { setError(err.message || 'Could not add program.'); }
-                                }} style={{ padding: '0 12px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', fontWeight: 700 }}>+</button>
+                                <button type="button" title="Create a program with courses" disabled={!targetCohort} onClick={() => setShowProgramModal(true)} style={{ padding: '0 12px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', cursor: targetCohort ? 'pointer' : 'not-allowed', fontWeight: 700, opacity: targetCohort ? 1 : 0.5 }}>+</button>
                             </div>
                         </div>
                     </div>
@@ -678,6 +673,18 @@ function AddStudentModal({ onClose, onAdded, runningCohorts = [], defaultCohortI
                     </div>
                 </form>
             </div>
+            {showProgramModal && targetCohort && (
+                <ProgramCourseModal
+                    cohortSchema={targetCohort.schema}
+                    cohortLabel={targetCohort.label}
+                    onClose={() => setShowProgramModal(false)}
+                    onSaved={async (result) => {
+                        await onProgramAdded?.();
+                        setForm(f => ({ ...f, program_id: String(result.program.id) }));
+                        setShowProgramModal(false);
+                    }}
+                />
+            )}
         </>
     );
 }
@@ -928,7 +935,7 @@ export default function AdminStudentsPage() {
     const filtered = useMemo(() => {
         const result = students.filter(s => {
             const term = searchTerm.toLowerCase();
-            const matchSearch = !term || [s.first_name, s.last_name, s.email, s.enrollment_no, s.program_name].some(v => v?.toLowerCase().includes(term));
+            const matchSearch = !term || [s.first_name, s.last_name, s.email, s.enrollment_no, s.roll_no, s.program_name].some(v => v?.toLowerCase().includes(term));
             const matchProgram = !filterProgram || s.program_name === filterProgram;
             const matchStatus = filterStatus === 'all' || (filterStatus === 'active' ? s.is_active : !s.is_active);
             return matchSearch && matchProgram && matchStatus;
@@ -1184,6 +1191,7 @@ export default function AdminStudentsPage() {
                                                         <span style={{ fontFamily: 'monospace', fontSize: '0.78rem', color: s.enrollment_no ? '#334155' : '#cbd5e1', fontWeight: s.enrollment_no ? 600 : 400 }}>
                                                             {s.enrollment_no || '—'}
                                                         </span>
+                                                        {s.roll_no && <div style={{ fontFamily: 'monospace', fontSize: '0.7rem', color: '#1b6ca8', marginTop: 2 }}>Roll {s.roll_no}</div>}
                                                     </td>
                                                     {/* Program */}
                                                     <td style={{ padding: '12px 16px' }}>

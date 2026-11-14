@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm/relations";
-import { sessions, attendancePingLogs, students, users, courses, assignments, faculty, categories, sessionTypes, venues, leaveRequests, notifications, sessionMaterials, studentCourseAttendance, studentAttendanceMarks, skills, attendanceRecords, courseEnrollments, googleTokens, feedbackQuestions, feedbackResponses, assignmentSubmissions, sessionSkills } from "./schema";
+import { sessions, attendancePingLogs, students, users, courses, programs, assignments, faculty, categories, sessionTypes, venues, leaveRequests, notifications, sessionMaterials, studentCourseAttendance, studentAttendanceMarks, skills, attendanceRecords, courseEnrollments, googleTokens, feedbackQuestions, feedbackResponses, assignmentSubmissions, sessionSkills } from "./schema";
 
 export const attendancePingLogsRelations = relations(attendancePingLogs, ({one}) => ({
 	session: one(sessions, {
@@ -89,7 +89,11 @@ export const assignmentsRelations = relations(assignments, ({one, many}) => ({
 	assignmentSubmissions: many(assignmentSubmissions),
 }));
 
-export const coursesRelations = relations(courses, ({many}) => ({
+export const coursesRelations = relations(courses, ({one, many}) => ({
+	program: one(programs, {
+		fields: [courses.programId],
+		references: [programs.id]
+	}),
 	assignments: many(assignments),
 	sessions: many(sessions),
 	categories: many(categories),
@@ -98,6 +102,10 @@ export const coursesRelations = relations(courses, ({many}) => ({
 	studentCourseAttendances: many(studentCourseAttendance),
 	studentAttendanceMarks: many(studentAttendanceMarks),
 	courseEnrollments: many(courseEnrollments),
+}));
+
+export const programsRelations = relations(programs, ({many}) => ({
+	courses: many(courses),
 }));
 
 export const facultyRelations = relations(faculty, ({one, many}) => ({

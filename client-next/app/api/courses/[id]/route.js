@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { courses, courseEnrollments, sessions, faculty, users, venues } from '@/drizzle/schema';
+import { courses, programs, courseEnrollments, sessions, faculty, users, venues } from '@/drizzle/schema';
 import { eq, count, desc } from 'drizzle-orm';
 import { withAuth } from '@/lib/middleware';
 
@@ -14,8 +14,12 @@ async function handler(req, { params }) {
         name: courses.name,
         description: courses.description,
         created_at: courses.createdAt,
+        code: courses.code,
+        program_id: courses.programId,
+        program_name: programs.name,
       })
       .from(courses)
+      .leftJoin(programs, eq(courses.programId, programs.id))
       .where(eq(courses.id, id))
       .limit(1);
 
@@ -77,4 +81,3 @@ async function handler(req, { params }) {
 }
 
 export const GET = withAuth(handler);
-

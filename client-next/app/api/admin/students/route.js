@@ -27,7 +27,7 @@ async function postHandler(req) {
     if (!b.first_name || !b.last_name || !b.email) {
       throw new HttpError(400, 'First name, last name, and email are required.');
     }
-    const { student, created, reused } = await createStudent({
+    const { student, created, reused, emailQueued } = await createStudent({
       cohortId: Number(b.cohort_id),
       firstName: b.first_name,
       lastName: b.last_name,
@@ -35,7 +35,7 @@ async function postHandler(req) {
       enrollmentNo: b.enrollment_no,
       programId: b.program_id ?? null,
     });
-    return NextResponse.json({ success: true, created, reused, student }, { status: 201 });
+    return NextResponse.json({ success: true, created, reused, email_queued: emailQueued, student }, { status: 201 });
   } catch (err) {
     return errorResponse(NextResponse, err, 'Students POST error');
   }

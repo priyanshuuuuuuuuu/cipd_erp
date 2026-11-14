@@ -5,7 +5,7 @@ import { createCohort, setActiveCohort, listCohortsForAdmin } from '@/lib/cohort
 import { errorResponse } from '@/lib/sql-ident';
 
 // All handlers here are account/registry level, not cohort data, so they work while an archived cohort is selected.
-const OPTS = { allowArchivedWrites: true };
+const OPTS = { allowArchivedWrites: true, allowNoCohort: true };
 
 // GET /api/admin/cohorts — every cohort (including provisioning/failed) with member counts.
 // `schemas`, `labels` and `active` are kept for older callers.
@@ -22,7 +22,7 @@ async function getHandler() {
 }
 
 // POST /api/admin/cohorts
-// Body: { schema_name, label, program?, starts_on?, ends_on?, reference_from_cohort_id?,
+// Body: { schema_name, label, program?, starts_on?, ends_on?, roll_no_prefix?, reference_from_cohort_id?,
 //         students?: [{ name, email, enrollment_no?, program_id? }], copy_active_students_from_cohort_id?, make_default? }
 async function postHandler(req) {
   try {
@@ -33,6 +33,7 @@ async function postHandler(req) {
       program: b.program,
       startsOn: b.starts_on,
       endsOn: b.ends_on,
+      rollNoPrefix: b.roll_no_prefix,
       referenceCohortId: b.reference_from_cohort_id ?? null,
       students: b.students,
       copyActiveStudentsFromCohortId: b.copy_active_students_from_cohort_id ?? null,

@@ -5,7 +5,7 @@ import {
     LayoutGrid, Calendar, MessageSquare, Settings as SettingsIcon, LogOut, Bell, Search, Menu,
     ChevronLeft, ChevronRight, Wifi, Clock, FileBarChart, CheckCircle, Save, Users,
     Plus, Trash2, Edit3, Shield, X, Eye, EyeOff, AlertCircle, ExternalLink, Trophy, GraduationCap,
-    Layers, Check
+    Layers, Check, BookOpen
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
@@ -177,6 +177,7 @@ export default function AdminSettingsPage() {
                         <div className="nav-item" onClick={() => navTo('/admin/faculty-hours')} style={{ cursor: 'pointer' }}><Clock size={18} /> <span>Faculty Management</span></div>
                         <div className="nav-item" onClick={() => navTo('/admin/reports')} style={{ cursor: 'pointer' }}><FileBarChart size={18} /> <span>Reports</span></div>
                         <div style={{ fontSize: '0.6rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', color: '#555', padding: '10px 1rem 4px' }}><span>System</span></div>
+                        <div className="nav-item" onClick={() => navTo('/admin/programs')} style={{ cursor: 'pointer' }}><BookOpen size={18} /> <span>Programs & Courses</span></div>
                         <div className="nav-item" onClick={() => navTo('/admin/notifications')} style={{ cursor: 'pointer' }}><Bell size={18} /> <span>Notifications</span></div>
                         <div className="nav-item active"><SettingsIcon size={18} /> <span>Settings</span></div>
                     </nav>
@@ -214,6 +215,17 @@ export default function AdminSettingsPage() {
                             style={{ padding: '6px 14px', borderRadius: '8px', border: 'none', background: '#0f172a', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700, color: '#fff' }}
                         >
                             Manage cohorts
+                        </button>
+                    </div>
+
+                    <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', borderTop: '3px solid #0ea5e9', padding: '0.9rem 1.5rem', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.95rem', fontWeight: 700 }}><BookOpen size={16} /> Programs & Courses</div>
+                        <div style={{ fontSize: '0.78rem', color: '#64748b', flex: 1 }}>Create programs and manage their courses in the selected cohort.</div>
+                        <button
+                            onClick={() => navTo('/admin/programs')}
+                            style={{ padding: '6px 14px', borderRadius: '8px', border: 'none', background: '#0f172a', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700, color: '#fff' }}
+                        >
+                            Manage programs
                         </button>
                     </div>
 

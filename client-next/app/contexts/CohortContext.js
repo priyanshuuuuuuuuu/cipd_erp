@@ -20,6 +20,7 @@ export function CohortProvider({ children }) {
   const [activeCohort, setActiveCohort] = useState(''); // schema of the default cohort
   const [selectedCohort, setSelectedCohort] = useState('');
   const [loading, setLoading] = useState(true);
+  const [cohortsLoaded, setCohortsLoaded] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   const fetchCohorts = useCallback(async () => {
@@ -27,11 +28,18 @@ export function CohortProvider({ children }) {
     // redirect has selected /admin, /faculty, or /dashboard before asking for
     // cohorts, so the API client reads the matching role-scoped token.
     if (!user || pathname === '/') {
+      if (!user) {
+        setCohorts([]);
+        setActiveCohort('');
+        setSelectedCohort('');
+      }
+      setCohortsLoaded(false);
       setLoading(false);
       return;
     }
     try {
       setLoading(true);
+      setCohortsLoaded(false);
       const data = await api.get('/api/cohorts');
       const list = data.cohorts || [];
       setCohorts(list);
@@ -46,7 +54,9 @@ export function CohortProvider({ children }) {
 
       setSelectedCohort(initial);
       if (initial) localStorage.setItem(`${role}_cohort`, initial);
+      setCohortsLoaded(true);
     } catch (err) {
+      setCohortsLoaded(false);
       console.error('Failed to load cohorts:', err);
     } finally {
       setLoading(false);
@@ -57,8 +67,14 @@ export function CohortProvider({ children }) {
     if (authReady) fetchCohorts();
   }, [authReady, fetchCohorts]);
 
-  const switchCohort = useCallback((schemaName) => {
-    if (!schemaName || schemaName === selectedCohort) return;
+  const needsCohortCreation = user?.role === 'admin' && cohortsLoaded && cohorts.length === 0;
+
+  useEffect(() => {
+    if (needsCohortCreation) setIsCreateOpen(true);
+  }, [needsCohortCreation]);
+
+  const switchCohort = useCallback((schemaName, { forceReload = false } = {}) => {
+    if (!schemaName || (schemaName === selectedCohort && !forceReload)) return;
     const role = getCohortRole();
     localStorage.setItem(`${role}_cohort`, schemaName);
     setSelectedCohort(schemaName);
@@ -97,6 +113,7 @@ export function CohortProvider({ children }) {
         selectedCohortObj,
         isReadOnly,
         loading,
+        needsCohortCreation,
         isCreateOpen,
         openCreateModal: () => setIsCreateOpen(true),
         closeCreateModal: () => setIsCreateOpen(false),

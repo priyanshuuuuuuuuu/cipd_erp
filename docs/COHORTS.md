@@ -8,6 +8,8 @@
   - `core.accounts`: one row per **person** (one email, one password). Old duplicates of the same person are aliases (`merged_into`)
   - `core.cohort_memberships`: which person belongs to which cohort and in what state (`active | completed | transferred_out | withdrawn`)
   - `core.programs`, `core.schema_migrations`, `core.account_conflicts`
+- Programs are global (`core.programs`), while their courses remain isolated inside each cohort schema. A course's
+  `program_id` points to its program; legacy courses with no program are shared with every student in that cohort.
 - The database enforces the rules: a `users` row in a cohort schema cannot exist without a membership **in that cohort**
   (composite foreign key + CHECK), and a membership cannot point at a missing cohort or person.
 - The API never trusts the browser for the cohort. The `x-cohort` header is only a *preference*; the server resolves the cohort
@@ -23,6 +25,7 @@
 | Archive / un-archive | Admin > Cohorts > Archive. Archiving marks active members `completed` |
 | Retry a failed creation | Admin > Cohorts > Retry (status `failed` shows the error) |
 | Add a student | Admin > Student Management > Add Student. The **cohort** (running ones only) and **program** are dropdowns |
+| Create a program and courses | Cohort switcher > **Programs & courses** (or Admin > Settings > Programs & Courses) |
 | Move a student to another cohort | Student drawer > Cohort membership > Transfer. History stays in the old cohort |
 | Remove a student from a cohort but keep data | Withdraw |
 | Delete a student's data in a cohort | Delete, then type the student's email. Irreversible |
@@ -30,6 +33,10 @@
 New cohorts are built from the versioned migrations (`client-next/migrations/cohort/*.sql`), never by copying another
 cohort's tables. "Reference cohort" only supplies courses, categories, skills, session types, venues, settings, feedback
 questions and the active faculty.
+
+Program-specific courses automatically enroll students from that program. Courses whose `program_id` is `NULL` are
+legacy/shared courses and continue to enroll every student. Changing a student's program adds the new program's courses
+without deleting old enrollments, so attendance and submission history is preserved.
 
 ## Deleting a cohort (deliberately not in the UI)
 ```bash

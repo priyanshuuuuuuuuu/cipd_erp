@@ -179,7 +179,11 @@ export async function getCohortConfig() {
              schema_version, last_error
       FROM core.cohorts
       ORDER BY id ASC`;
-    value = rows.length ? buildConfig(rows) : envCohortFallback();
+    // An existing but empty registry is a valid application state: the first
+    // admin must create a cohort.  Do not invent cohort ids from the env in
+    // that case, because those ids have no matching core.cohorts row and will
+    // violate the cohort_memberships foreign key.
+    value = buildConfig(rows);
   } catch (err) {
     if (err?.code === '42P01') {
       // Registry table does not exist yet (fresh bootstrap): use env fallback.

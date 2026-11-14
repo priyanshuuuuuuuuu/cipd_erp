@@ -5,7 +5,7 @@ import { updateCohort } from '@/lib/cohorts';
 import { errorResponse } from '@/lib/sql-ident';
 
 // PATCH /api/admin/cohorts/[id]
-// Body: any of { label, program, starts_on, ends_on, status: 'running'|'archived', is_default }.
+// Body: any of { label, program, starts_on, ends_on, roll_no_prefix, status: 'running'|'archived', is_default }.
 // schema_name is immutable. Archiving completes all active memberships. There is deliberately no HTTP delete:
 // use scripts/cohort-delete.mjs (it takes a backup first).
 async function patchHandler(req, { params }) {
@@ -17,4 +17,4 @@ async function patchHandler(req, { params }) {
   }
 }
 
-export const PATCH = withRole(patchHandler, ['admin'], { allowArchivedWrites: true });
+export const PATCH = withRole(patchHandler, ['admin'], { allowArchivedWrites: true, allowNoCohort: true });

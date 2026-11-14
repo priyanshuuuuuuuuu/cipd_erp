@@ -6,6 +6,7 @@ import { useCohort } from '../contexts/CohortContext';
 import { api } from '@/lib/api';
 
 const COHORT_NAME_RE = /^[a-z][a-z0-9_]{2,40}$/;
+const ROLL_PREFIX_RE = /^[A-Za-z0-9._/-]{1,20}$/;
 
 const field = { width: '100%', padding: '9px 11px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.85rem', boxSizing: 'border-box', background: '#fff' };
 const labelStyle = { display: 'block', fontSize: '0.72rem', fontWeight: 700, color: '#475569', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.3px' };
@@ -16,15 +17,20 @@ const labelStyle = { display: 'block', fontSize: '0.72rem', fontWeight: 700, col
  * and the faculty list.
  */
 export default function CreateCohortModal() {
-  const { isCreateOpen, closeCreateModal, cohorts, runningCohorts, activeCohort, switchCohort, refreshCohorts } = useCohort();
+  const {
+    isCreateOpen, closeCreateModal, cohorts, runningCohorts, activeCohort,
+    switchCohort, refreshCohorts, needsCohortCreation,
+  } = useCohort();
 
   const defaultObj = cohorts.find((c) => c.schema === activeCohort);
+  const mustBeDefault = runningCohorts.length === 0;
   const [label, setLabel] = useState('');
   const [schemaName, setSchemaName] = useState('');
   const [customSchema, setCustomSchema] = useState(false);
   const [program, setProgram] = useState('');
   const [startsOn, setStartsOn] = useState('');
   const [endsOn, setEndsOn] = useState('');
+  const [rollPrefix, setRollPrefix] = useState('');
   const [referenceId, setReferenceId] = useState('');
   const [copyFromId, setCopyFromId] = useState('');
   const [makeDefault, setMakeDefault] = useState(false);
@@ -69,6 +75,7 @@ export default function CreateCohortModal() {
     if (!isValidSchema) return setError('Schema name must be 3-41 characters: lowercase letters, digits and underscores, starting with a letter.');
     if (isDuplicate) return setError(`A cohort with schema name "${schemaName}" already exists.`);
     if (endsOn && startsOn && endsOn < startsOn) return setError('The end date is before the start date.');
+    if (rollPrefix.trim() && !ROLL_PREFIX_RE.test(rollPrefix.trim())) return setError('Roll-number prefix may use letters, digits and . _ / - only (max 20 characters).');
 
     try {
       setLoading(true);
@@ -78,10 +85,13 @@ export default function CreateCohortModal() {
         program: program.trim() || undefined,
         starts_on: startsOn || undefined,
         ends_on: endsOn || undefined,
+        roll_no_prefix: rollPrefix.trim() || undefined,
         reference_from_cohort_id: referenceId ? Number(referenceId) : (defaultObj?.id ?? undefined),
         copy_active_students_from_cohort_id: copyFromId ? Number(copyFromId) : undefined,
         students: parsedStudents.valid,
-        make_default: makeDefault,
+        // The first running cohort must become the default so login, sign-up,
+        // background jobs and subsequent requests all resolve consistently.
+        make_default: makeDefault || mustBeDefault,
       });
       setResult(res);
       await refreshCohorts();
@@ -96,7 +106,9 @@ export default function CreateCohortModal() {
   const finish = () => {
     const schema = result?.schema;
     closeCreateModal();
-    if (schema) switchCohort(schema);
+    // Pages mounted before the first cohort existed may have received 503s.
+    // Force a reload even though refreshCohorts already selected this schema.
+    if (schema) switchCohort(schema, { forceReload: true });
   };
 
   return (
@@ -106,8 +118,10 @@ export default function CreateCohortModal() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <Layers size={20} />
             <div>
-              <div style={{ fontWeight: 700 }}>New cohort</div>
-              <div style={{ fontSize: '0.72rem', color: '#a1a1aa' }}>Creates a new, empty cohort with the standard structure</div>
+              <div style={{ fontWeight: 700 }}>{needsCohortCreation ? 'Create your first cohort' : 'New cohort'}</div>
+              <div style={{ fontSize: '0.72rem', color: '#a1a1aa' }}>
+                {needsCohortCreation ? 'A cohort is required before the admin workspace can be used' : 'Creates a new, empty cohort with the standard structure'}
+              </div>
             </div>
           </div>
           <button onClick={closeCreateModal} disabled={loading} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer' }}><X size={18} /></button>
@@ -137,6 +151,12 @@ export default function CreateCohortModal() {
           </div>
         ) : (
           <form onSubmit={submit} style={{ padding: 24, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {needsCohortCreation && (
+              <div style={{ display: 'flex', gap: 8, padding: '10px 12px', borderRadius: 8, background: '#eff6ff', color: '#1e40af', fontSize: '0.82rem', lineHeight: 1.5 }}>
+                <AlertCircle size={16} style={{ flexShrink: 0, marginTop: 2 }} />
+                No cohort is available. Create one now to finish setting up the system.
+              </div>
+            )}
             <div>
               <label style={labelStyle}>Label</label>
               <input style={field} value={label} onChange={handleLabelChange} placeholder='e.g. "January 2027"' autoFocus />
@@ -154,6 +174,21 @@ export default function CreateCohortModal() {
               <label style={labelStyle}>Program (optional)</label>
               <input style={field} value={program} onChange={(e) => setProgram(e.target.value)} placeholder="e.g. iPD-CP" />
             </div>
+            <div>
+              <label style={labelStyle}>Roll-number prefix (optional)</label>
+              <input
+                style={{ ...field, fontFamily: 'monospace' }}
+                value={rollPrefix}
+                maxLength={20}
+                onChange={(e) => setRollPrefix(e.target.value)}
+                placeholder="e.g. CIPD26-"
+              />
+              <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: 3 }}>
+                {rollPrefix.trim()
+                  ? `Students get ${rollPrefix.trim()}1, ${rollPrefix.trim()}2, ... in the order they are added.`
+                  : 'Leave blank to not generate roll numbers for this cohort.'}
+              </div>
+            </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div><label style={labelStyle}>Starts on</label><input type="date" style={field} value={startsOn} onChange={(e) => setStartsOn(e.target.value)} /></div>
               <div><label style={labelStyle}>Ends on</label><input type="date" style={field} value={endsOn} onChange={(e) => setEndsOn(e.target.value)} /></div>
@@ -161,7 +196,7 @@ export default function CreateCohortModal() {
             <div>
               <label style={labelStyle}>Copy reference data from</label>
               <select style={field} value={referenceId} onChange={(e) => setReferenceId(e.target.value)}>
-                <option value="">{defaultObj ? `${defaultObj.label} (default)` : 'Default cohort'}</option>
+                <option value="">{defaultObj ? `${defaultObj.label} (default)` : 'None (start with empty reference data)'}</option>
                 {cohorts.filter((c) => c.schema !== activeCohort).map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
               </select>
               <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: 3 }}>Courses, categories, skills, session types, venues, settings, feedback questions and active faculty.</div>
@@ -188,8 +223,9 @@ export default function CreateCohortModal() {
               )}
             </div>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem', color: '#334155' }}>
-              <input type="checkbox" checked={makeDefault} onChange={(e) => setMakeDefault(e.target.checked)} />
-              Make this the default cohort {runningCohorts.length > 0 && <span style={{ color: '#94a3b8' }}>(new sign-ups and background jobs)</span>}
+              <input type="checkbox" checked={mustBeDefault || makeDefault} disabled={mustBeDefault} onChange={(e) => setMakeDefault(e.target.checked)} />
+              {mustBeDefault ? 'Make this the default cohort (required for the first cohort)' : 'Make this the default cohort'}
+              {!mustBeDefault && <span style={{ color: '#94a3b8' }}>(new sign-ups and background jobs)</span>}
             </label>
 
             {error && (

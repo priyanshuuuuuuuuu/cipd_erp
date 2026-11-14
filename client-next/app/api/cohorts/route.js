@@ -33,4 +33,5 @@ async function handler(req) {
   }
 }
 
-export const GET = withAuth(handler);
+// Admins must be able to receive an empty list so the UI can offer first-cohort setup.
+export const GET = withAuth(handler, { allowNoCohort: true });

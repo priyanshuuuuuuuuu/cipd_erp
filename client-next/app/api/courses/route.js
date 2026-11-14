@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import {
   courses,
+  programs,
   courseEnrollments,
   assignments,
   sessions,
@@ -25,8 +26,11 @@ async function handler(req) {
           description: courses.description,
           created_at: courses.createdAt,
           code: courses.code,
+          program_id: courses.programId,
+          program_name: programs.name,
         })
         .from(courses)
+        .leftJoin(programs, eq(courses.programId, programs.id))
         .orderBy(courses.name);
 
       return NextResponse.json({ courses: coursesData || [] });
@@ -40,9 +44,12 @@ async function handler(req) {
         description: courses.description,
         created_at: courses.createdAt,
         code: courses.code,
+        program_id: courses.programId,
+        program_name: programs.name,
       })
       .from(courseEnrollments)
       .leftJoin(courses, eq(courseEnrollments.courseId, courses.id))
+      .leftJoin(programs, eq(courses.programId, programs.id))
       .where(eq(courseEnrollments.studentId, req.user.id));
 
     const baseCourses = enrollments.map(e => ({
@@ -51,6 +58,8 @@ async function handler(req) {
       description: e.description,
       created_at: e.created_at,
       code: e.code,
+      program_id: e.program_id,
+      program_name: e.program_name,
     }));
 
     // Fetch related data for each course to build the rich UI
@@ -132,4 +141,3 @@ async function handler(req) {
 }
 
 export const GET = withAuth(handler);
-

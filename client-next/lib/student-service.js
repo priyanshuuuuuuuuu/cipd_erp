@@ -23,13 +23,34 @@ function inTx(tx, fn) {
 }
 
 async function loadCohort(q, cohortId) {
-  const [c] = await q`SELECT id, schema_name, label, status FROM core.cohorts WHERE id = ${Number(cohortId) || 0}`;
+  const [c] = await q`SELECT id, schema_name, label, status, roll_no_prefix FROM core.cohorts WHERE id = ${Number(cohortId) || 0}`;
   return c || null;
 }
 
 function requireJoinable(cohort) {
   if (!cohort) throw new HttpError(422, 'Cohort does not exist.');
   if (!JOINABLE.has(cohort.status)) throw new HttpError(422, `Cohort "${cohort.label}" is ${cohort.status}; students can only be added to a running cohort.`);
+}
+
+/**
+ * Next roll number for the cohort, or null when no prefix is configured.
+ * The counter advances with a single UPDATE ... RETURNING: the row lock makes concurrent creations take turns
+ * (the second waits for the first to commit) and a rolled-back student gives its number back. The unique index on
+ * students.roll_no is the backstop; the loop only skips a number if a different prefix already produced the same
+ * string (prefix "A1" + 1 vs prefix "A" + 11).
+ */
+async function allocateRollNo(tx, cohort) {
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const [row] = await tx`
+      UPDATE core.cohorts SET roll_no_next = roll_no_next + 1
+       WHERE id = ${cohort.id} AND roll_no_prefix IS NOT NULL
+      RETURNING roll_no_prefix, roll_no_next - 1 AS seq`;
+    if (!row) return null;
+    const rollNo = `${row.roll_no_prefix}${row.seq}`;
+    const taken = await tx.unsafe(`SELECT 1 FROM ${qid(cohort.schema_name)}.students WHERE roll_no = $1`, [rollNo]);
+    if (!taken.length) return rollNo;
+  }
+  throw new HttpError(409, 'Could not allocate a unique roll number. Check the cohort roll-number prefix.');
 }
 
 async function programName(q, programId) {
@@ -69,6 +90,8 @@ async function assertEnrollmentFree(tx, cohort, enrollmentNo, accountId) {
 /** Membership + users + students + enrollments for an existing canonical account. */
 async function enrollAccount(tx, { account, cohort, firstName, lastName, enrollmentNo, program, prev }) {
   const schema = qid(cohort.schema_name);
+  const selectedProgramId = program.id ?? prev?.program_id ?? null;
+  const selectedProgramName = program.name || prev?.program_name || null;
 
   await tx`INSERT INTO core.cohort_memberships (account_id, cohort_id, status) VALUES (${account.id}, ${cohort.id}, 'active')`;
 
@@ -78,16 +101,21 @@ async function enrollAccount(tx, { account, cohort, firstName, lastName, enrollm
     [account.id, account.email, account.password_hash, firstName ?? account.first_name ?? '', lastName ?? account.last_name ?? '',
      JSON.stringify(prev?.preferences ?? {}), cohort.id]);
 
+  const rollNo = await allocateRollNo(tx, cohort);
   await tx.unsafe(
-    `INSERT INTO ${schema}.students (id, enrollment_no, program_name, program_id, device_hash, mac_address, mac_verified, photo_url)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-    [account.id, enrollmentNo || null, program.name || prev?.program_name || null, program.id ?? prev?.program_id ?? null,
-     prev?.device_hash || null, prev?.mac_address || null, prev?.mac_verified ?? false, prev?.photo_url || null]);
+    `INSERT INTO ${schema}.students (id, enrollment_no, program_name, program_id, device_hash, mac_address, mac_verified, photo_url, roll_no)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+    [account.id, enrollmentNo || null, selectedProgramName, selectedProgramId,
+     prev?.device_hash || null, prev?.mac_address || null, prev?.mac_verified ?? false, prev?.photo_url || null, rollNo]);
 
   // The students trigger already does this; keep both so a missing trigger can never leave a gap.
   await tx.unsafe(
-    `INSERT INTO ${schema}.course_enrollments (student_id, course_id) SELECT $1, id FROM ${schema}.courses ON CONFLICT DO NOTHING`,
-    [account.id]);
+    `INSERT INTO ${schema}.course_enrollments (student_id, course_id)
+     SELECT $1, id FROM ${schema}.courses
+      WHERE program_id IS NULL OR program_id = $2
+     ON CONFLICT DO NOTHING`,
+    [account.id, selectedProgramId]);
+  return rollNo;
 }
 
 /** Queue a "set your password" email (7-day link) in the cohort's notification outbox. */
@@ -151,15 +179,20 @@ export async function createStudent(input, { tx = null, sendEmail = true } = {})
     if (!created) await assertEnrollmentFree(q, cohort, chosenEnrollment, account.id);
     const program = await programName(q, input.programId);
 
-    await enrollAccount(q, { account, cohort, firstName: firstName || null, lastName: lastName || null, enrollmentNo: chosenEnrollment, program, prev });
-    if (created && sendEmail) await queueSetPasswordEmail(q, cohort, account);
+    const rollNo = await enrollAccount(q, { account, cohort, firstName: firstName || null, lastName: lastName || null, enrollmentNo: chosenEnrollment, program, prev });
+    // Set-password link only for people who are in no other cohort: a brand-new account, or an existing one that
+    // never joined any cohort (it only has the random placeholder password). Returning students keep their login.
+    const neverInACohort = created || !ctx?.memberships?.length;
+    const emailQueued = neverInACohort && sendEmail;
+    if (emailQueued) await queueSetPasswordEmail(q, cohort, account);
 
     return {
       created,
       reused: !created,
+      emailQueued,
       student: {
         id: account.id, email: account.email, first_name: firstName || account.first_name, last_name: lastName || account.last_name,
-        enrollment_no: chosenEnrollment, cohort_id: cohort.id, cohort: cohort.schema_name, program_id: program.id ?? prev?.program_id ?? null,
+        enrollment_no: chosenEnrollment, roll_no: rollNo, cohort_id: cohort.id, cohort: cohort.schema_name, program_id: program.id ?? prev?.program_id ?? null,
         mac_address: prev?.mac_address || null, mac_verified: prev?.mac_verified ?? false,
       },
     };
@@ -218,6 +251,7 @@ export async function updateStudent(localId, cohort, patch) {
     const sets = [];
     const params = [membership.local_user_id];
     const add = (col, val) => { params.push(val); sets.push(`${col} = $${params.length}`); };
+    let changedProgramId;
 
     if (patch.enrollment_no !== undefined) {
       const e = patch.enrollment_no ? String(patch.enrollment_no).trim() : null;
@@ -229,6 +263,7 @@ export async function updateStudent(localId, cohort, patch) {
       const p = await programName(tx, patch.program_id);
       add('program_id', p.id);
       add('program_name', p.name);
+      changedProgramId = p.id;
     }
     if (patch.mac_verified !== undefined) add('mac_verified', Boolean(patch.mac_verified));
     if (patch.mac_address !== undefined) {
@@ -241,6 +276,16 @@ export async function updateStudent(localId, cohort, patch) {
       }
     }
     if (sets.length) await tx.unsafe(`UPDATE ${schema}.students SET ${sets.join(', ')} WHERE id = $1`, params);
+    if (patch.program_id !== undefined) {
+      // Preserve old enrollments (they may own attendance/submissions), but add
+      // every shared and newly matching course for the student's new program.
+      await tx.unsafe(
+        `INSERT INTO ${schema}.course_enrollments (student_id, course_id)
+         SELECT $1, id FROM ${schema}.courses
+          WHERE program_id IS NULL OR program_id = $2
+         ON CONFLICT DO NOTHING`,
+        [membership.local_user_id, changedProgramId]);
+    }
 
     if (patch.is_active !== undefined) {
       const active = Boolean(patch.is_active);
@@ -355,23 +400,11 @@ export async function purgeStudentFromCohort(localId, cohortId, { confirm } = {}
   return out;
 }
 
-export async function listPrograms() {
-  return connection`SELECT id, name FROM core.programs ORDER BY name`;
-}
-
-export async function createProgram(name) {
-  const n = String(name || '').trim();
-  if (!n) throw new HttpError(400, 'Program name is required.');
-  const [row] = await connection`INSERT INTO core.programs (name) VALUES (${n})
-                                  ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name RETURNING id, name`;
-  return row;
-}
-
 /** Students of a cohort for the admin list (includes program and membership state). */
 export async function listCohortStudents(cohort) {
   const schema = qid(cohort.schema_name);
   const rows = await connection.unsafe(`
-    SELECT s.id, u.email, u.first_name, u.last_name, u.is_active, s.enrollment_no, s.program_name, s.program_id,
+    SELECT s.id, u.email, u.first_name, u.last_name, u.is_active, s.enrollment_no, s.roll_no, s.program_name, s.program_id,
            p.name AS program, s.mac_address, s.mac_verified, s.created_at, m.status AS membership_status
       FROM ${schema}.students s
       JOIN ${schema}.users u ON u.id = s.id
@@ -390,7 +423,7 @@ export async function listCohortStudents(cohort) {
   }
   return rows.map((s) => ({
     id: s.id, first_name: s.first_name || '', last_name: s.last_name || '', email: s.email || '',
-    is_active: s.is_active ?? true, enrollment_no: s.enrollment_no || '',
+    is_active: s.is_active ?? true, enrollment_no: s.enrollment_no || '', roll_no: s.roll_no || '',
     program_name: s.program || s.program_name || '', program_id: s.program_id ?? null,
     mac_address: s.mac_address || '', mac_verified: s.mac_verified ?? false, created_at: s.created_at,
     membership_status: s.membership_status || null, courses: byStudent.get(s.id) || [],

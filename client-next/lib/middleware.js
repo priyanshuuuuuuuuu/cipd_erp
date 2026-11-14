@@ -16,8 +16,9 @@ import { resolveRequestContext, readOnlyViolation } from './cohorts';
  *   req.account         the global account row (core.accounts)
  *
  * @param {Function} handler
- * @param {{ allowArchivedWrites?: boolean }} [options] set for account-level routes that must keep working on
- *        archived cohorts (password change, notification read-marks, cohort administration)
+ * @param {{ allowArchivedWrites?: boolean, allowNoCohort?: boolean }} [options]
+ *        `allowArchivedWrites` is for account-level routes that must keep working on archived cohorts.
+ *        `allowNoCohort` is for the small set of admin routes needed to create/manage the first cohort.
  */
 export function withAuth(handler, options = {}) {
   return async (req, context) => {
@@ -28,7 +29,7 @@ export function withAuth(handler, options = {}) {
 
     let resolved;
     try {
-      resolved = await resolveRequestContext(req, user);
+      resolved = await resolveRequestContext(req, user, options);
     } catch (err) {
       if (err?.status) return NextResponse.json({ error: err.message }, { status: err.status });
       console.error('withAuth: cohort resolution failed:', err);
@@ -53,6 +54,8 @@ export function withAuth(handler, options = {}) {
     req.cohortInfo = resolved.cohort;
     req.membership = resolved.membership;
     req.account = resolved.ctx.account; // global identity row (core.accounts)
+    // Registry/account-level setup routes can run before a cohort schema exists.
+    if (!resolved.schema) return handler(req, context);
     return runWithSchema(resolved.schema, () => handler(req, context));
   };
 }

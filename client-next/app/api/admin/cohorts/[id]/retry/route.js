@@ -13,4 +13,4 @@ async function postHandler(req, { params }) {
   }
 }
 
-export const POST = withRole(postHandler, ['admin'], { allowArchivedWrites: true });
+export const POST = withRole(postHandler, ['admin'], { allowArchivedWrites: true, allowNoCohort: true });
