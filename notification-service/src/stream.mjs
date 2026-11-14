@@ -1,11 +1,8 @@
-import { createClient } from '@supabase/supabase-js';
+import postgres from 'postgres';
 import { config } from './config.mjs';
-import { sendFeedbackAvailableEmail, sendPasswordResetEmail, sendAttendanceSummaryEmail } from '../../client-next/lib/emailer.js';
+import { sendFeedbackAvailableEmail, sendPasswordResetEmail, sendAttendanceSummaryEmail, sendGeneralNotificationEmail, sendWeeklyScheduleEmail } from '../../client-next/lib/emailer.js';
 
-const db = createClient(config.supabaseUrl, config.serviceRoleKey, {
-  db: { schema: config.schema },
-  auth: { autoRefreshToken: false, persistSession: false },
-});
+const sql = postgres(config.databaseUrl, { prepare: false, max: 4 });
 
 const maxAttempts = 6;
 
@@ -13,75 +10,60 @@ function retryDelayMs(attempt) {
   return Math.min(30 * 60 * 1000, 60 * 1000 * (2 ** Math.max(0, attempt - 1)));
 }
 
+// The app writes to the selected cohort's schema, so drain every schema that has the outbox table.
+async function outboxSchemas() {
+  const rows = await sql`
+    SELECT table_schema FROM information_schema.tables
+    WHERE table_name = 'notification_stream'
+      AND table_schema NOT IN ('information_schema', 'pg_catalog')`;
+  return rows.map((r) => r.table_schema);
+}
+
 export async function getQueueCounts() {
-  const { data, error } = await db
-    .from('notification_stream')
-    .select('status');
-
-  if (error) throw new Error(error.message);
-
-  return (data || []).reduce((counts, row) => {
-    counts[row.status] = (counts[row.status] || 0) + 1;
-    return counts;
-  }, { queued: 0, processing: 0, retry: 0, sent: 0, failed: 0 });
+  const counts = { queued: 0, processing: 0, retry: 0, sent: 0, failed: 0 };
+  for (const schema of await outboxSchemas()) {
+    const rows = await sql`SELECT status, count(*)::int AS n FROM ${sql(schema)}.notification_stream GROUP BY status`;
+    for (const r of rows) counts[r.status] = (counts[r.status] || 0) + r.n;
+  }
+  return counts;
 }
 
 export async function listMessages(limit = 50) {
-  const { data, error } = await db
-    .from('notification_stream')
-    .select('id, event_type, recipient_email, status, attempts, available_at, sent_at, provider_message_id, last_error, created_at')
-    .order('created_at', { ascending: false })
-    .limit(limit);
-
-  if (error) throw new Error(error.message);
-  return data || [];
+  const all = [];
+  for (const schema of await outboxSchemas()) {
+    const rows = await sql`
+      SELECT id, event_type, recipient_email, status, attempts, available_at, sent_at,
+             provider_message_id, last_error, created_at
+      FROM ${sql(schema)}.notification_stream ORDER BY created_at DESC LIMIT ${limit}`;
+    all.push(...rows.map((r) => ({ ...r, schema })));
+  }
+  return all.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, limit);
 }
 
-async function claimAvailableMessages(limit) {
-  const now = new Date().toISOString();
-  const { data: candidates, error } = await db
-    .from('notification_stream')
-    .select('*')
-    .in('status', ['queued', 'retry'])
-    .lte('available_at', now)
-    .order('created_at', { ascending: true })
-    .limit(limit);
-
-  if (error) throw new Error(error.message);
-
-  const claimed = [];
-  for (const candidate of candidates || []) {
-    const { data: job, error: claimError } = await db
-      .from('notification_stream')
-      .update({
-        status: 'processing',
-        attempts: (candidate.attempts || 0) + 1,
-        locked_at: now,
-        locked_by: 'notification-service',
-        updated_at: now,
-      })
-      .eq('id', candidate.id)
-      .in('status', ['queued', 'retry'])
-      .select()
-      .maybeSingle();
-
-    if (claimError) {
-      console.error('[notification-service] claim failed:', claimError.message);
-    } else if (job) {
-      claimed.push(job);
-    }
-  }
-  return claimed;
+async function claimAvailableMessages(schema, limit) {
+  return sql`
+    UPDATE ${sql(schema)}.notification_stream
+    SET status = 'processing', attempts = attempts + 1, locked_at = now(),
+        locked_by = 'notification-service', updated_at = now()
+    WHERE id IN (
+      SELECT id FROM ${sql(schema)}.notification_stream
+      WHERE status IN ('queued', 'retry') AND available_at <= now()
+      ORDER BY created_at ASC LIMIT ${limit}
+      FOR UPDATE SKIP LOCKED)
+    RETURNING *`;
 }
 
 export async function drainStream(limit = 20) {
   const result = { claimed: 0, sent: 0, retried: 0, failed: 0, errors: [] };
-  const jobs = await claimAvailableMessages(limit);
+  const jobs = [];
+  for (const schema of await outboxSchemas()) {
+    for (const job of await claimAvailableMessages(schema, limit)) jobs.push({ ...job, _schema: schema });
+  }
   result.claimed = jobs.length;
 
   for (const job of jobs) {
     try {
-      if (!['feedback_available', 'password_reset', 'attendance_summary'].includes(job.event_type) || job.channel !== 'email') {
+      if (!['feedback_available', 'password_reset', 'attendance_summary', 'general_notification', 'class_reminder', 'weekly_schedule'].includes(job.event_type) || job.channel !== 'email') {
         throw new Error('Unsupported event ' + job.event_type + ' over ' + job.channel);
       }
 
@@ -104,6 +86,20 @@ export async function drainStream(limit = 20) {
           firstName: job.recipient_name || 'Student',
           resetUrl: job.payload.resetUrl || 'https://cipd-erp-ic24.vercel.app/reset-password?token=' + job.payload.resetToken
         });
+      } else if (job.event_type === 'general_notification' || job.event_type === 'class_reminder') {
+        info = await sendGeneralNotificationEmail(
+          job.recipient_email,
+          job.recipient_name || 'Student',
+          job.payload.title,
+          job.payload.message,
+          job.payload.type || job.event_type
+        );
+      } else if (job.event_type === 'weekly_schedule') {
+        info = await sendWeeklyScheduleEmail(
+          job.recipient_email,
+          job.recipient_name || 'Student',
+          job.payload.sessions
+        );
       } else if (job.event_type === 'attendance_summary') {
         info = await sendAttendanceSummaryEmail(
           job.recipient_email,
@@ -113,40 +109,34 @@ export async function drainStream(limit = 20) {
         );
       }
 
-      const { error } = await db
-        .from('notification_stream')
-        .update({
-          status: 'sent',
-          sent_at: new Date().toISOString(),
-          provider_message_id: info?.messageId || null,
-          last_error: null,
-          locked_at: null,
-          locked_by: null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', job.id);
+      if (info?.rejected?.length) {
+        throw new Error('SMTP rejected recipient: ' + info.rejected.join(', '));
+      }
+      console.log('[notification-service] SENT ' + job.event_type + ' -> ' + job.recipient_email
+        + ' (' + (info?.messageId || 'no id') + ') smtp: ' + (info?.response || 'n/a'));
 
-      if (error) throw new Error(error.message);
+      await sql`
+        UPDATE ${sql(job._schema)}.notification_stream
+        SET status = 'sent', sent_at = now(), provider_message_id = ${info?.messageId || null},
+            last_error = null, locked_at = null, locked_by = null, updated_at = now()
+        WHERE id = ${job.id}`;
       result.sent += 1;
     } catch (error) {
+      console.error('[notification-service] FAILED ' + job.event_type + ' -> ' + job.recipient_email + ': ' + error.message);
       const terminal = job.attempts >= maxAttempts;
-      const { error: updateError } = await db
-        .from('notification_stream')
-        .update({
-          status: terminal ? 'failed' : 'retry',
-          available_at: terminal
-            ? job.available_at
-            : new Date(Date.now() + retryDelayMs(job.attempts)).toISOString(),
-          last_error: error.message,
-          locked_at: null,
-          locked_by: null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', job.id);
-
-      if (updateError) result.errors.push(job.id + ': ' + updateError.message);
-      else if (terminal) result.failed += 1;
-      else result.retried += 1;
+      const nextAt = new Date(Date.now() + retryDelayMs(job.attempts));
+      try {
+        await sql`
+          UPDATE ${sql(job._schema)}.notification_stream
+          SET status = ${terminal ? 'failed' : 'retry'},
+              available_at = ${terminal ? job.available_at : nextAt},
+              last_error = ${error.message}, locked_at = null, locked_by = null, updated_at = now()
+          WHERE id = ${job.id}`;
+        if (terminal) result.failed += 1;
+        else result.retried += 1;
+      } catch (updateError) {
+        result.errors.push(job.id + ': ' + updateError.message);
+      }
       result.errors.push(job.id + ': ' + error.message);
     }
   }
@@ -154,24 +144,14 @@ export async function drainStream(limit = 20) {
 }
 
 export async function retryMessage(id) {
-  const { data, error } = await db
-    .from('notification_stream')
-    .update({
-      status: 'queued',
-      attempts: 0,
-      available_at: new Date().toISOString(),
-      last_error: null,
-      locked_at: null,
-      locked_by: null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', id)
-    .in('status', ['failed', 'retry'])
-    .select('id, status')
-    .maybeSingle();
-
-  if (error) throw new Error(error.message);
-  if (!data) throw new Error('Message is not retryable.');
-  return data;
+  for (const schema of await outboxSchemas()) {
+    const [row] = await sql`
+      UPDATE ${sql(schema)}.notification_stream
+      SET status = 'queued', attempts = 0, available_at = now(), last_error = null,
+          locked_at = null, locked_by = null, updated_at = now()
+      WHERE id = ${id} AND status IN ('failed', 'retry')
+      RETURNING id, status`;
+    if (row) return row;
+  }
+  throw new Error('Message is not retryable.');
 }
-
