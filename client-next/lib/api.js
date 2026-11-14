@@ -81,6 +81,10 @@ export async function apiFetch(path, options = {}) {
   const data = await res.json();
 
   if (!res.ok) {
+    if (data?.code === 'PASSWORD_CHANGE_REQUIRED' && typeof window !== 'undefined'
+        && !window.location.pathname.startsWith('/faculty/change-password')) {
+      window.location.href = '/faculty/change-password';
+    }
     throw new Error(data.error || `Request failed with status ${res.status}`);
   }
 

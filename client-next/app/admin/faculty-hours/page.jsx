@@ -362,7 +362,7 @@ export default function AdminFacultyHoursPage() {
         setAddError(''); setAddSuccess(''); setAddLoading(true);
         try {
             await api.post('/api/admin/faculty-hours', addForm);
-            setAddSuccess(`Faculty "${addForm.firstName} ${addForm.lastName}" added successfully! Default password: cipd@123`);
+            setAddSuccess(`Faculty "${addForm.firstName} ${addForm.lastName}" added successfully! Login details emailed (default password: 12345678).`);
             setAddForm({ firstName: '', lastName: '', email: '', yearsExperience: '', designation: '' });
             fetchFaculty();
         } catch (err) {
@@ -560,7 +560,7 @@ export default function AdminFacultyHoursPage() {
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                                     <div>
                                         <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#111' }}>Add New Faculty</div>
-                                        <div style={{ fontSize: '0.72rem', color: '#888', marginTop: '2px' }}>A default login password <code style={{ background: '#f3f4f6', padding: '1px 6px', borderRadius: '4px', fontFamily: 'monospace' }}>cipd@123</code> will be assigned.</div>
+                                        <div style={{ fontSize: '0.72rem', color: '#888', marginTop: '2px' }}>A default login password <code style={{ background: '#f3f4f6', padding: '1px 6px', borderRadius: '4px', fontFamily: 'monospace' }}>12345678</code> will be assigned and emailed to the faculty.</div>
                                     </div>
                                     <button onClick={() => setShowManagePanel(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#aaa', padding: '4px' }}><X size={16} /></button>
                                 </div>

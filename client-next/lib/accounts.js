@@ -37,7 +37,8 @@ export async function getAccountContext(anyAccountId) {
   if (!row) return null;
   const canonicalId = row.merged_into || row.id;
 
-  const [account] = await connection`SELECT id, merged_into, email, password_hash, role, first_name, last_name, enrollment_no, is_active
+  const [account] = await connection`SELECT id, merged_into, email, password_hash, role, first_name, last_name, enrollment_no, is_active,
+                                          must_change_password
                                    FROM core.accounts WHERE id = ${canonicalId}`;
   if (!account) return null;
   const aliases = await connection`SELECT id FROM core.accounts WHERE merged_into = ${canonicalId}`;
@@ -138,7 +139,7 @@ export async function updateAccount(canonicalId, patch) {
 /** The one place a password changes: core.accounts only. */
 export async function setPassword(canonicalId, passwordHash) {
   const rows = await connection`
-    UPDATE core.accounts SET password_hash = ${passwordHash}, updated_at = now()
+    UPDATE core.accounts SET password_hash = ${passwordHash}, must_change_password = false, updated_at = now()
      WHERE id = ${canonicalId} AND merged_into IS NULL RETURNING id`;
   if (!rows.length) throw Object.assign(new Error('Account not found'), { status: 404 });
   invalidateAccountCache();

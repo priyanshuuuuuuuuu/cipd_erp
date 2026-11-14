@@ -36,6 +36,11 @@ export function withAuth(handler, options = {}) {
       return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
     }
 
+    // Accounts still on a default password may only reach routes that let them change it.
+    if (resolved.ctx.account.must_change_password && !options.allowPasswordChangePending) {
+      return NextResponse.json({ error: 'You must change your password before continuing.', code: 'PASSWORD_CHANGE_REQUIRED' }, { status: 403 });
+    }
+
     const blocked = readOnlyViolation(req.method, resolved, options);
     if (blocked) {
       return NextResponse.json({ error: blocked }, { status: 409 });

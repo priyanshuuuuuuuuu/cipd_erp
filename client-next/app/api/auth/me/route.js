@@ -53,4 +53,4 @@ async function handler(req) {
   }
 }
 
-export const GET = withAuth(handler);
+export const GET = withAuth(handler, { allowPasswordChangePending: true });

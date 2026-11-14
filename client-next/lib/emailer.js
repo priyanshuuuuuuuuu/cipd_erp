@@ -32,6 +32,7 @@ const BG        = '#F7F7F7';   // page background
 const CARD_BG   = '#FFFFFF';
 const ACCENT    = '#1A1A1A';   // pill / badge background (dark)
 
+import { DEFAULT_FACULTY_PASSWORD } from './faculty-defaults.js';
 const APP_URL = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
 // ── Shell ─────────────────────────────────────────────────────────────────────
@@ -779,6 +780,55 @@ export async function sendPasswordResetEmail({ to, firstName, resetUrl }) {
     to,
     subject: 'Reset your CiPD 360 password',
     html: shell(content, `Password reset link for your CiPD 360 account — expires in 15 minutes`),
+  });
+}
+
+// ── Faculty Welcome (account created by admin) ───────────────────────────────
+const escHtml = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+/**
+ * Tells a newly created faculty member their login details.
+ * @param {{ to: string, firstName: string }} opts  username is the recipient address
+ */
+export async function sendFacultyWelcomeEmail({ to, firstName }) {
+  const content = `
+    <tr>
+      <td class="hero-pad" style="background:${DARK};padding:48px 48px 40px;text-align:center;border-radius:16px 16px 0 0;">
+        <h1 class="hero-title" style="margin:0 0 12px;font-size:32px;font-weight:900;color:#FFFFFF;letter-spacing:-0.5px;line-height:1.1;">Your Faculty Account</h1>
+        <p style="margin:0;font-size:15px;color:rgba(255,255,255,0.65);line-height:1.6;">Hi ${escHtml(firstName) || 'there'}, an account has been created for you on CiPD 360.</p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:32px 40px 8px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background:#F7F7F7;border-radius:12px;border:1px solid ${BORDER};">
+          <tr>
+            <td style="padding:20px 24px;">
+              <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:${MUTED};text-transform:uppercase;letter-spacing:0.5px;">Username</p>
+              <p style="margin:0 0 16px;font-size:15px;color:${INK};font-family:monospace;">${escHtml(to)}</p>
+              <p style="margin:0 0 6px;font-size:13px;font-weight:700;color:${MUTED};text-transform:uppercase;letter-spacing:0.5px;">Password</p>
+              <p style="margin:0;font-size:15px;color:${INK};font-family:monospace;">${escHtml(DEFAULT_FACULTY_PASSWORD)}</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:24px 40px 8px;text-align:center;">
+        ${ctaButton('Log In', `${APP_URL}/login`)}
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:12px 40px 32px;text-align:center;">
+        <p style="margin:0;font-size:12px;color:${MUTED};">This is a default password. Please change it after your first login.</p>
+      </td>
+    </tr>
+  `;
+
+  return await transporter.sendMail({
+    from: fromAddress(),
+    to,
+    subject: 'Your CiPD 360 faculty account has been created',
+    html: shell(content, 'Your CiPD 360 faculty login details'),
   });
 }
 

@@ -49,7 +49,7 @@ export async function POST(req) {
     const defaultCohort = await defaultCohortForAccount(ctx);
 
     // Return token in JSON body only — client stores it in role-scoped localStorage.
-    return NextResponse.json({ token, user: payload, defaultCohort });
+    return NextResponse.json({ token, user: { ...payload, mustChangePassword: !!account.must_change_password }, defaultCohort });
   } catch (err) {
     console.error('Login error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

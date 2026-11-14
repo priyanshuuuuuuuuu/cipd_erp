@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import '../Dashboard.css';
 import {
   LayoutGrid, Calendar, Clock, LogOut, Menu, ChevronLeft, ChevronRight, Search,
@@ -29,6 +29,17 @@ export default function FacultyLayout({ children }) {
     router.push(path);
     setIsMobileMenuOpen(false);
   };
+
+  const isChangePasswordPage = pathname === '/faculty/change-password';
+  const mustChange = !!user?.mustChangePassword;
+
+  useEffect(() => {
+    if (mustChange && !isChangePasswordPage) router.replace('/faculty/change-password');
+  }, [mustChange, isChangePasswordPage, router]);
+
+  // Forced password change: no sidebar, nothing else reachable until it is done.
+  if (isChangePasswordPage) return <>{children}</>;
+  if (mustChange) return null;
 
   return (
     <div className="dashboard-container">

@@ -32,4 +32,4 @@ async function handler(req) {
   }
 }
 
-export const POST = withAuth(handler, { allowArchivedWrites: true });
+export const POST = withAuth(handler, { allowArchivedWrites: true, allowPasswordChangePending: true });

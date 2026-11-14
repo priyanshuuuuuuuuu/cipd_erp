@@ -79,6 +79,15 @@ export function AuthProvider({ children }) {
     return data.user;
   };
 
+  const markPasswordChanged = () => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, mustChangePassword: false };
+      localStorage.setItem(`${next.role}_user`, JSON.stringify(next));
+      return next;
+    });
+  };
+
   const completeGoogleLogin = (data) => {
     if (!data?.token || !data?.user || data.user.role !== 'student') {
       throw new Error('Google sign-in did not return an eligible student account');
@@ -109,7 +118,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, authReady: !loading, login, completeGoogleLogin, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, authReady: !loading, login, completeGoogleLogin, logout, markPasswordChanged }}>
       {children}
     </AuthContext.Provider>
   );

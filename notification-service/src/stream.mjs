@@ -1,6 +1,6 @@
 import postgres from 'postgres';
 import { config } from './config.mjs';
-import { sendFeedbackAvailableEmail, sendPasswordResetEmail, sendAttendanceSummaryEmail } from '../../client-next/lib/emailer.js';
+import { sendFeedbackAvailableEmail, sendPasswordResetEmail, sendAttendanceSummaryEmail, sendFacultyWelcomeEmail } from '../../client-next/lib/emailer.js';
 
 // Notifications are read from the college VM PostgreSQL (no Supabase).
 // One table per cohort: "<schema>".notification_stream. All running cohorts are served.
@@ -95,7 +95,7 @@ async function claimAvailableMessages(schema, limit) {
 }
 
 async function sendJob(job) {
-  if (!['feedback_available', 'password_reset', 'attendance_summary'].includes(job.event_type) || job.channel !== 'email') {
+  if (!['feedback_available', 'password_reset', 'attendance_summary', 'faculty_welcome'].includes(job.event_type) || job.channel !== 'email') {
     throw new Error('Unsupported event ' + job.event_type + ' over ' + job.channel);
   }
 
@@ -111,6 +111,9 @@ async function sendJob(job) {
       job.payload.deadline,
       { messageId: '<cipd-feedback-' + job.id + '@iiitd.ac.in>' }
     );
+  }
+  if (job.event_type === 'faculty_welcome') {
+    return sendFacultyWelcomeEmail({ to: job.recipient_email, firstName: job.recipient_name || 'there' });
   }
   if (job.event_type === 'password_reset') {
     let resetUrl = job.payload.resetUrl;

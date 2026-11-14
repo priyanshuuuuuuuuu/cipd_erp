@@ -117,7 +117,9 @@ const Login = () => {
     try {
       const user = await login(identifier.trim(), password);
       // Honour any ?redirect= destination; otherwise fall back to role defaults
-      if (redirectTo) {
+      if (user.mustChangePassword && user.role === 'faculty') {
+        router.push('/faculty/change-password');
+      } else if (redirectTo) {
         router.push(redirectTo);
       } else if (user.role === 'admin') {
         router.push('/admin');

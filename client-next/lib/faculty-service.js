@@ -3,10 +3,22 @@ import { connection } from '@/lib/db';
 import { hashPassword } from '@/lib/auth';
 import { qid, HttpError } from '@/lib/sql-ident';
 import { getAccountContext, invalidateAccountCache } from '@/lib/accounts';
-import { queueSetPasswordEmail } from '@/lib/student-service';
+import { DEFAULT_FACULTY_PASSWORD } from '@/lib/faculty-defaults';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DEFAULT_RATE = 2000;
+
+/** Queue the "account created" email (username + default password) in the cohort's notification outbox.
+ *  The password is NOT stored in the payload; the worker's template supplies it. */
+async function queueFacultyWelcomeEmail(tx, cohort, account) {
+  await tx.unsafe(
+    `INSERT INTO ${schemaOf(cohort)}.notification_stream
+       (dedupe_key, event_type, channel, recipient_id, recipient_email, recipient_name, payload, status, available_at)
+     VALUES ($1, 'faculty_welcome', 'email', $2, $3, $4, '{}'::jsonb, 'queued', now())
+     ON CONFLICT (dedupe_key) DO NOTHING`,
+    ['faculty_welcome:' + account.id, account.id, account.email, account.first_name || null]);
+}
+const schemaOf = (cohort) => qid(cohort.schema_name);
 
 /**
  * Add a faculty member to a RUNNING cohort. One global account per person: if the email already belongs to a faculty
@@ -30,10 +42,10 @@ export async function createFaculty(cohort, { firstName, lastName, email, design
       const ctx = await getAccountContext(account.id);
       if (ctx?.memberships.some((m) => m.cohort_id === cohort.id)) throw new HttpError(409, 'A user with this email already exists in this cohort.');
     } else {
-      const hash = await hashPassword(crypto.randomBytes(24).toString('base64url'));
+      const hash = await hashPassword(DEFAULT_FACULTY_PASSWORD);
       [account] = await tx`
-        INSERT INTO core.accounts (id, email, password_hash, role, first_name, last_name)
-        VALUES (${crypto.randomUUID()}, ${addr}, ${hash}, 'faculty', ${firstName.trim()}, ${lastName.trim()})
+        INSERT INTO core.accounts (id, email, password_hash, role, first_name, last_name, must_change_password)
+        VALUES (${crypto.randomUUID()}, ${addr}, ${hash}, 'faculty', ${firstName.trim()}, ${lastName.trim()}, true)
         RETURNING id, email, password_hash, role, first_name, last_name, is_active`;
       created = true;
     }
@@ -46,7 +58,7 @@ export async function createFaculty(cohort, { firstName, lastName, email, design
     await tx.unsafe(
       `INSERT INTO ${schema}.faculty (id, designation, years_experience, honorarium_rate_per_hour) VALUES ($1, $2, $3, $4)`,
       [account.id, designation?.trim() || null, yearsExperience ? parseInt(yearsExperience, 10) : null, DEFAULT_RATE]);
-    if (created) await queueSetPasswordEmail(tx, cohort, account);
+    if (created) await queueFacultyWelcomeEmail(tx, cohort, account);
     return { id: account.id, created };
   });
   invalidateAccountCache();
