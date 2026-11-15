@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import '../Dashboard.css';
 import {
   LayoutGrid, Calendar, Clock, LogOut, Menu, ChevronLeft, ChevronRight, Search,
+  CheckCircle, BookOpen, Bell, Star, CalendarOff,
 } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
@@ -11,6 +12,11 @@ import { useAuth } from '../contexts/AuthContext';
 const NAV_ITEMS = [
   { path: '/faculty/dashboard', label: 'Dashboard', icon: LayoutGrid },
   { path: '/faculty/schedule', label: 'My Schedule', icon: Calendar },
+  { path: '/faculty/attendance', label: 'Attendance', icon: CheckCircle },
+  { path: '/faculty/modules', label: 'Modules', icon: BookOpen },
+  { path: '/faculty/notifications', label: 'Notifications', icon: Bell },
+  { path: '/faculty/feedback', label: 'Feedback', icon: Star },
+  { path: '/faculty/leave', label: 'Leave', icon: CalendarOff },
   { path: '/faculty/profile', label: 'Hours & Profile', icon: Clock },
 ];
 
@@ -100,7 +106,7 @@ export default function FacultyLayout({ children }) {
               <div
                 key={path}
                 onClick={() => navTo(path)}
-                className={`nav-item ${pathname === path ? 'active' : ''}`}
+                className={`nav-item ${pathname === path || pathname.startsWith(path + '/') ? 'active' : ''}`}
                 style={{ cursor: 'pointer' }}
               >
                 <Icon size={18} /> <span>{label}</span>

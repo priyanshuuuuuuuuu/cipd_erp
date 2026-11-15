@@ -21,7 +21,8 @@ const defaultProps = {
 const ForgotPasswordText = (props) => {
     return (
         <span style={styles.Text}>
-            {props.text ?? defaultProps.text}
+            {props.text ?? defaultProps.text}{' '}
+            <a href="/forgot-password" style={{ color: '#555', textDecoration: 'underline' }}>Faculty: reset by email</a>
         </span>
     );
 };

@@ -69,6 +69,7 @@ async function handler(req) {
         date: dObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
         date_raw: s.session_date,
         duration: `${durationHrs.toFixed(1)}h`,
+        hours: Math.round(durationHrs * 100) / 100,
         status: s.status,
       };
     });

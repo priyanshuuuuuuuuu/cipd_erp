@@ -5,6 +5,7 @@ import { Calendar, Clock, BookOpen, ChevronRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '@/lib/api';
+import WeekCalendar from '../components/WeekCalendar';
 
 export default function FacultyDashboardPage() {
   const router = useRouter();
@@ -72,6 +73,8 @@ export default function FacultyDashboardPage() {
               </div>
             ))}
           </div>
+
+          <WeekCalendar />
 
           <div style={cardStyle}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>

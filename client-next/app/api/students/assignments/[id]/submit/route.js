@@ -38,6 +38,8 @@ async function handler(req, { params }) {
         course_id: assignments.courseId,
         title: assignments.title,
         due_date: assignments.dueDate,
+        total_marks: assignments.totalMarks,
+        allow_late: assignments.allowLate,
       })
       .from(assignments)
       .where(eq(assignments.id, assignmentId))
@@ -45,6 +47,10 @@ async function handler(req, { params }) {
 
     if (!assignment) {
       return NextResponse.json({ error: 'Assignment not found' }, { status: 404 });
+    }
+
+    if (!assignment.allow_late && assignment.due_date && new Date(assignment.due_date) < new Date()) {
+      return NextResponse.json({ error: 'The deadline has passed and late submissions are not accepted.' }, { status: 403 });
     }
 
     const [enrollment] = await db
@@ -66,7 +72,7 @@ async function handler(req, { params }) {
     const storagePath = `${req.user.id}/${assignmentId}/${Date.now()}-${safeName}`;
 
     const [existing] = await db
-      .select({ id: assignmentSubmissions.id, file_url: assignmentSubmissions.fileUrl })
+      .select({ id: assignmentSubmissions.id, file_url: assignmentSubmissions.fileUrl, grade: assignmentSubmissions.grade })
       .from(assignmentSubmissions)
       .where(
         and(
@@ -75,6 +81,10 @@ async function handler(req, { params }) {
         )
       )
       .limit(1);
+
+    if (existing?.grade != null) {
+      return NextResponse.json({ error: 'This submission has already been graded and can no longer be changed.' }, { status: 409 });
+    }
 
     await uploadToStorage(BUCKET, storagePath, file);
 
@@ -123,7 +133,7 @@ async function handler(req, { params }) {
         id: assignment.id,
         title: assignment.title,
         due_date: assignment.due_date,
-        total_marks: 100,
+        total_marks: Number(assignment.total_marks ?? 100),
         submission,
         is_submitted: true,
         submission_status: submission.grade != null ? 'graded' : 'submitted',

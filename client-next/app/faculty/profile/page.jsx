@@ -4,8 +4,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Clock, User } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '@/lib/api';
+import { useRouter } from 'next/navigation';
 
 export default function FacultyProfilePage() {
+  const router = useRouter();
   const { user, authReady } = useAuth();
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(null);
@@ -88,10 +90,13 @@ export default function FacultyProfilePage() {
             ))}
           </div>
 
+          <BankDetailsCard cardStyle={cardStyle} />
+
           <div style={cardStyle}>
             <div style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Clock size={16} /> Session History
-              <span style={{ marginLeft: 'auto', fontSize: '0.82rem', color: '#7c3aed', fontWeight: 600 }}>
+              <button onClick={() => router.push('/faculty/statement')} style={{ marginLeft: 'auto', fontSize: '0.78rem', fontWeight: 600, border: '1px solid #e5e7eb', background: '#fff', borderRadius: 8, padding: '4px 10px', cursor: 'pointer' }}>Monthly statement</button>
+              <span style={{ fontSize: '0.82rem', color: '#7c3aed', fontWeight: 600 }}>
                 Est. Honorarium: ₹{(hours?.estimatedHonorarium || 0).toLocaleString()}
               </span>
             </div>
@@ -126,5 +131,39 @@ export default function FacultyProfilePage() {
         </>
       )}
     </>
+  );
+}
+
+function BankDetailsCard({ cardStyle }) {
+  const [bank, setBank] = useState({ bank_account_number: '', bank_account_holder: '', bank_ifsc_code: '', bank_branch: '' });
+  const [msg, setMsg] = useState({ type: '', text: '' });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    api.get('/api/faculty/profile').then((d) => setBank((b) => ({ ...b, ...Object.fromEntries(Object.entries(d.bank || {}).map(([k, v]) => [k, v || ''])) }))).catch(() => {});
+  }, []);
+
+  const save = async (e) => {
+    e.preventDefault();
+    setSaving(true); setMsg({ type: '', text: '' });
+    try { await api.patch('/api/faculty/profile', bank); setMsg({ type: 'ok', text: 'Bank details saved.' }); }
+    catch (err) { setMsg({ type: 'error', text: err.message || 'Failed to save' }); } finally { setSaving(false); }
+  };
+  const inp = { width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.85rem', boxSizing: 'border-box' };
+  const field = (k, label) => (
+    <div><label style={{ fontSize: '0.75rem', color: '#888' }}>{label}</label><input style={inp} value={bank[k]} onChange={(e) => setBank({ ...bank, [k]: e.target.value })} /></div>
+  );
+  return (
+    <form onSubmit={save} style={cardStyle}>
+      <div style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '1rem' }}>Bank details (for honorarium)</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+        {field('bank_account_holder', 'Account holder')}
+        {field('bank_account_number', 'Account number')}
+        {field('bank_ifsc_code', 'IFSC code')}
+        {field('bank_branch', 'Branch')}
+      </div>
+      <button disabled={saving} style={{ marginTop: 14, padding: '8px 18px', borderRadius: 8, border: 'none', background: '#111', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>{saving ? 'Saving…' : 'Save'}</button>
+      {msg.text && <span style={{ marginLeft: 12, fontSize: '0.82rem', color: msg.type === 'ok' ? '#166534' : '#b91c1c' }}>{msg.text}</span>}
+    </form>
   );
 }

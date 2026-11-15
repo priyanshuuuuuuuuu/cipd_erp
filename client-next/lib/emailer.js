@@ -832,6 +832,39 @@ export async function sendFacultyWelcomeEmail({ to, firstName }) {
   });
 }
 
+// ── General notification (admin / faculty message to students) ───────────────
+/**
+ * @param {{ to: string, firstName: string, title: string, message: string, senderName?: string, courseName?: string }} opts
+ */
+export async function sendCourseMessageEmail({ to, firstName, title, message, senderName, courseName }) {
+  const body = escHtml(message).split('\n').join('<br>');
+  const content = `
+    <tr>
+      <td class="hero-pad" style="background:${DARK};padding:40px 48px 32px;text-align:center;border-radius:16px 16px 0 0;">
+        <h1 class="hero-title" style="margin:0 0 10px;font-size:26px;font-weight:900;color:#FFFFFF;line-height:1.2;">${escHtml(title)}</h1>
+        <p style="margin:0;font-size:14px;color:rgba(255,255,255,0.65);">${courseName ? escHtml(courseName) + ' · ' : ''}${senderName ? 'From ' + escHtml(senderName) : 'CiPD 360'}</p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:28px 40px 8px;">
+        <p style="margin:0 0 6px;font-size:14px;color:${MUTED};">Hi ${escHtml(firstName) || 'there'},</p>
+        <p style="margin:0;font-size:15px;color:${SUBTLE};line-height:1.7;">${body}</p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:20px 40px 32px;text-align:center;">
+        ${ctaButton('Open CiPD 360', APP_URL)}
+      </td>
+    </tr>
+  `;
+  return await transporter.sendMail({
+    from: fromAddress(),
+    to,
+    subject: `${title} — CiPD 360`,
+    html: shell(content, String(message).slice(0, 100)),
+  });
+}
+
 // ── Connection test ───────────────────────────────────────────────────────────
 export async function verifyEmailConnection() {
   try {

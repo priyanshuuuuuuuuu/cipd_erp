@@ -11,7 +11,7 @@ import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 
 // ── Default options (used on first load; persisted in localStorage) ────────────
-const DEFAULT_DESIGNATION_OPTIONS = ['Professor', 'Visiting Faculty', 'Student'];
+const ADD_FACULTY_DESIGNATIONS = ['Professor', 'Visiting Professor', 'Guest Lecturer', 'Instructor', 'Other'];
 const DEFAULT_DEPARTMENT_OPTIONS = [
     'Computer Science and Engineering (CSE)',
     'Electronics and Communication Engineering (ECE)',
@@ -333,10 +333,8 @@ export default function AdminFacultyHoursPage() {
     const [editSuccess, setEditSuccess] = useState('');
 
     // ── Dropdown option lists (persisted in localStorage) ──────────────────────
-    const [designationOptions, setDesignationOptions] = useState(() => loadOptions('cipd_designation_opts', DEFAULT_DESIGNATION_OPTIONS));
     const [departmentOptions, setDepartmentOptions] = useState(() => loadOptions('cipd_department_opts', DEFAULT_DEPARTMENT_OPTIONS));
 
-    const updateDesignationOptions = (opts) => { setDesignationOptions(opts); saveOptions('cipd_designation_opts', opts); };
     const updateDepartmentOptions  = (opts) => { setDepartmentOptions(opts);  saveOptions('cipd_department_opts', opts); };
 
     const navTo = p => router.push(p);
@@ -589,8 +587,11 @@ export default function AdminFacultyHoursPage() {
                                             <input type="number" min="0" max="60" placeholder="e.g. 10" value={addForm.yearsExperience} onChange={e => setAddForm(f => ({ ...f, yearsExperience: e.target.value }))} style={inp} />
                                         </div>
                                         <div>
-                                            <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: '#555', marginBottom: '5px' }}>Designation / Dept.</label>
-                                            <input type="text" placeholder="e.g. Senior Lecturer" value={addForm.designation} onChange={e => setAddForm(f => ({ ...f, designation: e.target.value }))} style={inp} />
+                                            <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: '#555', marginBottom: '5px' }}>Designation</label>
+                                            <select value={addForm.designation} onChange={e => setAddForm(f => ({ ...f, designation: e.target.value }))} style={{ ...inp, cursor: 'pointer', color: addForm.designation ? undefined : '#9ca3af' }}>
+                                                <option value="">Select designation…</option>
+                                                {ADD_FACULTY_DESIGNATIONS.map(d => <option key={d} value={d}>{d}</option>)}
+                                            </select>
                                         </div>
                                     </div>
                                     <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -774,14 +775,18 @@ export default function AdminFacultyHoursPage() {
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
                                 <div>
                                     <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: '#555', marginBottom: '5px' }}>Designation</label>
-                                    <EditableDropdown
+                                    <select
                                         value={editForm.designation || ''}
-                                        onChange={v => setEditForm(f => ({ ...f, designation: v }))}
-                                        options={designationOptions}
-                                        onOptionsChange={updateDesignationOptions}
-                                        placeholder="Select designation…"
-                                        inputStyle={inp}
-                                    />
+                                        onChange={e => setEditForm(f => ({ ...f, designation: e.target.value }))}
+                                        style={{ ...inp, cursor: 'pointer', color: editForm.designation ? undefined : '#9ca3af' }}
+                                    >
+                                        <option value="">Select designation…</option>
+                                        {/* Keep a legacy free-text value selectable so it isn't silently wiped */}
+                                        {editForm.designation && !ADD_FACULTY_DESIGNATIONS.includes(editForm.designation) && (
+                                            <option value={editForm.designation}>{editForm.designation} (legacy)</option>
+                                        )}
+                                        {ADD_FACULTY_DESIGNATIONS.map(d => <option key={d} value={d}>{d}</option>)}
+                                    </select>
                                 </div>
                                 <div>
                                     <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: '#555', marginBottom: '5px' }}>Department</label>

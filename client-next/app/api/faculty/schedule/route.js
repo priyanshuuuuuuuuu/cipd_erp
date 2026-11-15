@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { sessions, courses, venues } from '@/drizzle/schema';
-import { eq, and, ne, gte, asc } from 'drizzle-orm';
+import { eq, and, ne, gte, lte, asc } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
 import { getISTDateString } from '@/lib/ist-date';
 
@@ -12,6 +12,11 @@ async function handler(req) {
     const upcoming = searchParams.get('upcoming') === 'true';
 
     const conditions = [eq(sessions.facultyId, req.user.id)];
+    const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+    const from = searchParams.get('from');
+    const to = searchParams.get('to');
+    if (from && DATE_RE.test(from)) conditions.push(gte(sessions.sessionDate, from));
+    if (to && DATE_RE.test(to)) conditions.push(lte(sessions.sessionDate, to));
     if (upcoming) {
       const today = getISTDateString(); // IST date
       conditions.push(gte(sessions.sessionDate, today));
@@ -41,6 +46,7 @@ async function handler(req) {
       title: s.title || 'Untitled',
       course: s.course_name || 'Unknown',
       course_id: s.course_id,
+      sessionStatus: s.status,
       venue: s.venue_name || 'TBA',
       date: s.session_date,
       time: s.start_time?.slice(0, 5),

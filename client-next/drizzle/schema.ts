@@ -69,6 +69,8 @@ export const assignments = pgTable("assignments", {
 	dueDate: timestamp("due_date", { mode: 'string' }),
 	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow(),
 	totalMarks: numeric("total_marks").default('100'),
+	fileUrl: text("file_url"),
+	allowLate: boolean("allow_late").default(true).notNull(),
 }, (table) => [
 	foreignKey({
 			columns: [table.courseId],
@@ -551,6 +553,8 @@ export const assignmentSubmissions = pgTable("assignment_submissions", {
 	submittedAt: timestamp("submitted_at", { mode: 'string' }).defaultNow(),
 	grade: numeric({ precision: 5, scale:  2 }),
 	feedback: text(),
+	gradedAt: timestamp("graded_at", { mode: 'string' }),
+	gradedBy: uuid("graded_by"),
 }, (table) => [
 	uniqueIndex("idx_assignment_submissions_student_assignment").using("btree", table.assignmentId.asc().nullsLast().op("uuid_ops"), table.studentId.asc().nullsLast().op("uuid_ops")),
 	foreignKey({
@@ -583,3 +587,60 @@ export const sessionSkills = pgTable("session_skills", {
 		}).onDelete("cascade"),
 	primaryKey({ columns: [table.sessionId, table.skillId], name: "session_skills_pkey"}),
 ]);
+
+// ── Faculty portal (migrations/cohort/0006_faculty_portal.sql) ───────────────
+export const courseFaculty = pgTable("course_faculty", {
+	courseId: uuid("course_id").notNull(),
+	facultyId: uuid("faculty_id").notNull(),
+	assignedAt: timestamp("assigned_at", { mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	primaryKey({ columns: [table.courseId, table.facultyId], name: "course_faculty_pkey" }),
+]);
+
+export const coursePosts = pgTable("course_posts", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	courseId: uuid("course_id").notNull(),
+	authorId: uuid("author_id"),
+	type: text().notNull(),
+	title: text().notNull(),
+	body: text(),
+	fileUrl: text("file_url"),
+	fileBucket: text("file_bucket"),
+	fileType: text("file_type"),
+	linkUrl: text("link_url"),
+	sessionId: uuid("session_id"),
+	assignmentId: uuid("assignment_id"),
+	pinned: boolean().default(false).notNull(),
+	legacyMaterialId: uuid("legacy_material_id"),
+	createdAt: timestamp("created_at", { mode: 'string' }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().notNull(),
+});
+
+export const sessionChangeRequests = pgTable("session_change_requests", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	sessionId: uuid("session_id").notNull(),
+	facultyId: uuid("faculty_id").notNull(),
+	kind: text().notNull(),
+	proposedDate: date("proposed_date"),
+	proposedStart: time("proposed_start"),
+	proposedEnd: time("proposed_end"),
+	reason: text().notNull(),
+	status: text().default('pending').notNull(),
+	adminNotes: text("admin_notes"),
+	decidedBy: uuid("decided_by"),
+	decidedAt: timestamp("decided_at", { withTimezone: true, mode: 'string' }),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+});
+
+export const facultyLeave = pgTable("faculty_leave", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	facultyId: uuid("faculty_id").notNull(),
+	fromDate: date("from_date").notNull(),
+	toDate: date("to_date").notNull(),
+	reason: text().notNull(),
+	status: text().default('pending').notNull(),
+	adminNotes: text("admin_notes"),
+	reviewedBy: uuid("reviewed_by"),
+	reviewedAt: timestamp("reviewed_at", { withTimezone: true, mode: 'string' }),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+});

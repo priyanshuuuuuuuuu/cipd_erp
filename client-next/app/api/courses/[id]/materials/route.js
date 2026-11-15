@@ -4,6 +4,7 @@ import { sessionMaterials, sessions, faculty, users } from '@/drizzle/schema';
 import { eq, desc } from 'drizzle-orm';
 import { withAuth } from '@/lib/middleware';
 import { resolveFileUrl } from '@/lib/storage';
+import { canViewCourse, forbidden } from '@/lib/faculty-access';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,6 +13,7 @@ const BUCKET = 'session-materials';
 async function handler(req, { params }) {
   try {
     const { id } = params;
+    if (!(await canViewCourse(req.user, id))) return forbidden('You are not enrolled in this module');
 
     const rows = await db
       .select({

@@ -12,6 +12,7 @@ import { api } from '@/lib/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCohort } from '../../contexts/CohortContext';
 import ProgramCourseModal from '../../components/ProgramCourseModal';
+import CourseFacultyModal from '../../components/CourseFacultyModal';
 
 const button = { display: 'inline-flex', alignItems: 'center', gap: 5, padding: '7px 12px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', fontSize: '0.74rem', fontWeight: 700, color: '#334155' };
 
@@ -26,6 +27,7 @@ export default function AdminProgramsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [modal, setModal] = useState(null); // { program: null|object }
+  const [facultyModal, setFacultyModal] = useState(null); // course being assigned faculty
   const navTo = (path) => router.push(path);
 
   const load = useCallback(async () => {
@@ -126,6 +128,7 @@ export default function AdminProgramsPage() {
                     {program.courses.map((course) => (
                       <div key={course.id} style={{ border: '1px solid #f1f5f9', background: '#f8fafc', borderRadius: 9, padding: '10px 11px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}><span style={{ color: '#1e293b', fontWeight: 700, fontSize: '0.82rem' }}>{course.name}</span><code style={{ color: '#475569', fontSize: '0.7rem', background: '#e2e8f0', padding: '2px 6px', borderRadius: 5 }}>{course.code}</code></div>
+                        <button style={{ ...button, padding: '3px 8px', marginTop: 6, fontSize: '0.68rem' }} onClick={() => setFacultyModal(course)}><Users size={11} /> Faculty</button>
                         {course.description && <div style={{ color: '#64748b', fontSize: '0.72rem', lineHeight: 1.45, marginTop: 5 }}>{course.description}</div>}
                       </div>
                     ))}
@@ -146,6 +149,7 @@ export default function AdminProgramsPage() {
         </div>
       </div>
 
+      {facultyModal && <CourseFacultyModal course={facultyModal} readOnly={isReadOnly} onClose={() => setFacultyModal(null)} />}
       {modal && <ProgramCourseModal program={modal.program} onClose={() => setModal(null)} onSaved={async () => { setModal(null); await load(); }} />}
     </div>
   );

@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
+import FacultyRequestsPanel from '../../components/FacultyRequestsPanel';
 
 export default function AdminLeaveRequestsPage() {
   const router = useRouter();
@@ -165,6 +166,8 @@ export default function AdminLeaveRequestsPage() {
               })}
             </div>
           )}
+
+          <FacultyRequestsPanel />
         </div>
       </div>
     </div>

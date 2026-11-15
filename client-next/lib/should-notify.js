@@ -23,6 +23,10 @@ const TYPE_TO_PREF = {
   schedule_change: 'systemAnnouncements',
   attendance_warning: 'attendanceAlerts',
   grade_update: 'gradeUpdates',
+  course_announcement: 'systemAnnouncements',
+  material_posted: 'systemAnnouncements',
+  assignment_posted: 'assignmentDeadlines',
+  faculty_message: 'systemAnnouncements',
 };
 
 /**

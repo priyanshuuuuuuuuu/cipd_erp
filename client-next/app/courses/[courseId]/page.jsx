@@ -11,8 +11,9 @@ import {
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '@/lib/api';
+import PostCard from '../../faculty/components/PostCard';
 
-const TABS = ['Materials', 'Assignments'];
+const TABS = ['Stream', 'Materials', 'Assignments'];
 
 const StatusBadge = ({ status }) => {
     const map = {
@@ -38,15 +39,16 @@ export default function CourseDetailPage() {
     const { user, logout, authReady } = useAuth();
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-    const [activeTab, setActiveTab] = useState(tabParam === 'Assignments' ? 'Assignments' : 'Materials');
+    const [activeTab, setActiveTab] = useState(TABS.includes(tabParam) ? tabParam : 'Stream');
 
     useEffect(() => {
-        if (tabParam === 'Assignments' || tabParam === 'Materials') {
+        if (TABS.includes(tabParam)) {
             setActiveTab(tabParam);
         }
     }, [tabParam]);
     const [course, setCourse] = useState(null);
     const [materials, setMaterials] = useState([]);
+    const [posts, setPosts] = useState([]);
     const [assignments, setAssignments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedAssignment, setSelectedAssignment] = useState(null);
@@ -63,11 +65,13 @@ export default function CourseDetailPage() {
 
     const fetchData = useCallback(async () => {
         try {
-            const [courseRes, matRes, asnRes] = await Promise.allSettled([
+            const [courseRes, matRes, asnRes, postRes] = await Promise.allSettled([
                 api.get(`/api/courses/${courseId}`),
                 api.get(`/api/courses/${courseId}/materials`),
                 api.get(`/api/students/assignments?course_id=${courseId}`),
+                api.get(`/api/courses/${courseId}/posts`),
             ]);
+            if (postRes.status === 'fulfilled') setPosts(postRes.value.posts || []);
             if (courseRes.status === 'fulfilled') setCourse(courseRes.value.course || courseRes.value);
             if (matRes.status === 'fulfilled') setMaterials(matRes.value.materials || []);
             if (asnRes.status === 'fulfilled') setAssignments(asnRes.value.assignments || []);
@@ -224,6 +228,23 @@ export default function CourseDetailPage() {
                         </div>
 
                         {/* ── MATERIALS TAB ── */}
+                        {activeTab === 'Stream' && (
+                            <div>
+                                {posts.length === 0 && <div style={{ textAlign: 'center', color: '#aaa', padding: '2.5rem', fontSize: '0.9rem' }}>Your instructors haven&apos;t posted anything in this module yet.</div>}
+                                {posts.map((p) => (
+                                    <PostCard
+                                        key={p.id}
+                                        post={p}
+                                        footer={p.assignment && (
+                                            <button onClick={() => setActiveTab('Assignments')} style={{ marginTop: 10, border: '1px solid #e5e7eb', background: '#fff', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>
+                                                View / submit assignment
+                                            </button>
+                                        )}
+                                    />
+                                ))}
+                            </div>
+                        )}
+
                         {activeTab === 'Materials' && (
                             <div>
                                 {materials.length === 0 ? (

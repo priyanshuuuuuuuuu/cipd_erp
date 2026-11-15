@@ -4,8 +4,10 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Calendar, MapPin, Upload, X, Loader2, FileText } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '@/lib/api';
+import { useRouter } from 'next/navigation';
 
 export default function FacultySchedulePage() {
+  const router = useRouter();
   const { authReady } = useAuth();
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -145,7 +147,13 @@ export default function FacultySchedulePage() {
                     <td style={{ padding: '12px 16px', fontFamily: 'monospace', color: '#555' }}>{formatDate(s.date)}</td>
                     <td style={{ padding: '12px 16px', fontFamily: 'monospace', color: '#555' }}>{s.time} – {s.endTime}</td>
                     <td style={{ padding: '12px 16px' }}>{statusBadge(s.status)}</td>
-                    <td style={{ padding: '12px 16px' }}>
+                    <td style={{ padding: '12px 16px', display: 'flex', gap: '6px' }}>
+                      <button
+                        onClick={() => router.push(`/faculty/schedule/${s.id}`)}
+                        style={{ padding: '4px 10px', borderRadius: '6px', border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', color: '#333', fontSize: '0.75rem', fontWeight: 600 }}
+                      >
+                        Details
+                      </button>
                       <button
                         onClick={() => openUpload(s)}
                         className="change-status-btn"
