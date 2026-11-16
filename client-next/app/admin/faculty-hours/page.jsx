@@ -10,7 +10,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 
-// ── Default options (used on first load; persisted in localStorage) ────────────
+// ── Default options (shown until the shared lists load from the database) ──────
 const ADD_FACULTY_DESIGNATIONS = ['Professor', 'Visiting Professor', 'Guest Lecturer', 'Instructor', 'Other'];
 const DEFAULT_DEPARTMENT_OPTIONS = [
     'Computer Science and Engineering (CSE)',
@@ -22,15 +22,30 @@ const DEFAULT_DEPARTMENT_OPTIONS = [
     'Other',
 ];
 
-function loadOptions(key, defaults) {
-    if (typeof window === 'undefined') return defaults;
-    try {
-        const stored = localStorage.getItem(key);
-        return stored ? JSON.parse(stored) : defaults;
-    } catch { return defaults; }
-}
-function saveOptions(key, arr) {
-    try { localStorage.setItem(key, JSON.stringify(arr)); } catch {}
+// Option lists live in the database (core.dropdown_options) so every admin sees the same ones.
+// Defaults are shown until the list loads (or if it cannot be loaded).
+function useSharedOptions(kind, defaults) {
+    const [options, setOptions] = useState(defaults);
+    useEffect(() => {
+        let cancelled = false;
+        api.get(`/api/admin/dropdown-options?kind=${kind}`)
+            .then(res => { if (!cancelled && Array.isArray(res.options)) setOptions(res.options); })
+            .catch(err => console.error(`Failed to load ${kind} options:`, err));
+        return () => { cancelled = true; };
+    }, [kind]);
+    const update = async (next) => {
+        const previous = options;
+        setOptions(next); // optimistic
+        try {
+            const res = await api.put('/api/admin/dropdown-options', { kind, options: next });
+            if (Array.isArray(res.options)) setOptions(res.options);
+        } catch (err) {
+            console.error(`Failed to save ${kind} options:`, err);
+            setOptions(previous);
+            alert('Could not save the change to the list. Please try again.');
+        }
+    };
+    return [options, update];
 }
 
 // ── EditableDropdown ───────────────────────────────────────────────────────────
@@ -336,9 +351,8 @@ export default function AdminFacultyHoursPage() {
     const [resetMessage, setResetMessage] = useState('');
 
     // ── Dropdown option lists (persisted in localStorage) ──────────────────────
-    const [departmentOptions, setDepartmentOptions] = useState(() => loadOptions('cipd_department_opts', DEFAULT_DEPARTMENT_OPTIONS));
-
-    const updateDepartmentOptions  = (opts) => { setDepartmentOptions(opts);  saveOptions('cipd_department_opts', opts); };
+    const [departmentOptions, updateDepartmentOptions] = useSharedOptions('faculty_department', DEFAULT_DEPARTMENT_OPTIONS);
+    const [designationOptions, updateDesignationOptions] = useSharedOptions('faculty_designation', ADD_FACULTY_DESIGNATIONS);
 
     const navTo = p => router.push(p);
 
@@ -613,7 +627,7 @@ export default function AdminFacultyHoursPage() {
                                             <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: '#555', marginBottom: '5px' }}>Designation</label>
                                             <select value={addForm.designation} onChange={e => setAddForm(f => ({ ...f, designation: e.target.value }))} style={{ ...inp, cursor: 'pointer', color: addForm.designation ? undefined : '#9ca3af' }}>
                                                 <option value="">Select designation…</option>
-                                                {ADD_FACULTY_DESIGNATIONS.map(d => <option key={d} value={d}>{d}</option>)}
+                                                {designationOptions.map(d => <option key={d} value={d}>{d}</option>)}
                                             </select>
                                         </div>
                                     </div>
@@ -798,18 +812,14 @@ export default function AdminFacultyHoursPage() {
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
                                 <div>
                                     <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: '#555', marginBottom: '5px' }}>Designation</label>
-                                    <select
+                                    <EditableDropdown
                                         value={editForm.designation || ''}
-                                        onChange={e => setEditForm(f => ({ ...f, designation: e.target.value }))}
-                                        style={{ ...inp, cursor: 'pointer', color: editForm.designation ? undefined : '#9ca3af' }}
-                                    >
-                                        <option value="">Select designation…</option>
-                                        {/* Keep a legacy free-text value selectable so it isn't silently wiped */}
-                                        {editForm.designation && !ADD_FACULTY_DESIGNATIONS.includes(editForm.designation) && (
-                                            <option value={editForm.designation}>{editForm.designation} (legacy)</option>
-                                        )}
-                                        {ADD_FACULTY_DESIGNATIONS.map(d => <option key={d} value={d}>{d}</option>)}
-                                    </select>
+                                        onChange={v => setEditForm(f => ({ ...f, designation: v }))}
+                                        options={designationOptions}
+                                        onOptionsChange={updateDesignationOptions}
+                                        placeholder="Select designation…"
+                                        inputStyle={inp}
+                                    />
                                 </div>
                                 <div>
                                     <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, color: '#555', marginBottom: '5px' }}>Department</label>
