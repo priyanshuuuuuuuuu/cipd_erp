@@ -4,6 +4,7 @@ import { hashPassword } from '@/lib/auth';
 import { qid, HttpError } from '@/lib/sql-ident';
 import { getAccountContext, invalidateAccountCache } from '@/lib/accounts';
 import { DEFAULT_FACULTY_PASSWORD } from '@/lib/faculty-defaults';
+import { isNotificationSandboxEnabled, isUnrestrictedTestCohort, notificationSandboxRecipients } from '@/lib/notification-stream';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DEFAULT_RATE = 2000;
@@ -14,9 +15,10 @@ async function queueFacultyWelcomeEmail(tx, cohort, account) {
   await tx.unsafe(
     `INSERT INTO ${schemaOf(cohort)}.notification_stream
        (dedupe_key, event_type, channel, recipient_id, recipient_email, recipient_name, payload, status, available_at)
-     VALUES ($1, 'faculty_welcome', 'email', $2, $3, $4, '{}'::jsonb, 'queued', now())
+     VALUES ($1, 'faculty_welcome', 'email', $2, $3, $4, $5::jsonb, 'queued', now())
      ON CONFLICT (dedupe_key) DO NOTHING`,
-    ['faculty_welcome:' + account.id, account.id, account.email, account.first_name || null]);
+    ['faculty_welcome:' + account.id, account.id, account.email, account.first_name || null,
+      tx.json({ sandbox: isNotificationSandboxEnabled(cohort.schema_name), testCohort: isUnrestrictedTestCohort(cohort.schema_name) })]);
 }
 const schemaOf = (cohort) => qid(cohort.schema_name);
 
@@ -58,8 +60,9 @@ export async function createFaculty(cohort, { firstName, lastName, email, design
     await tx.unsafe(
       `INSERT INTO ${schema}.faculty (id, designation, years_experience, honorarium_rate_per_hour) VALUES ($1, $2, $3, $4)`,
       [account.id, designation?.trim() || null, yearsExperience ? parseInt(yearsExperience, 10) : null, DEFAULT_RATE]);
-    if (created) await queueFacultyWelcomeEmail(tx, cohort, account);
-    return { id: account.id, created };
+    const emailQueued = created && (!isNotificationSandboxEnabled(cohort.schema_name) || notificationSandboxRecipients().includes(addr));
+    if (emailQueued) await queueFacultyWelcomeEmail(tx, cohort, account);
+    return { id: account.id, created, emailQueued };
   });
   invalidateAccountCache();
   return out;

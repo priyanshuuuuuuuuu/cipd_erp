@@ -40,10 +40,10 @@ async function handler(req) {
       resetToken,
     });
 
-    return NextResponse.json({ success: true, message: `Password reset email sent to ${account.email}` });
+    return NextResponse.json({ success: true, message: `Password reset email queued for ${account.email}. The link expires 15 minutes after it was requested.` });
   } catch (err) {
     console.error('Admin reset-password error:', err);
-    return NextResponse.json({ error: err.message || 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ error: err.message || 'Internal server error' }, { status: err.status || 500 });
   }
 }
 

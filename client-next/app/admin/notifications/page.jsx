@@ -326,7 +326,7 @@ export default function AdminNotificationsPage() {
                         ))}
                     </div>
 
-                    <EmailDeliveryLog messages={emailLog} error={emailLogError} />
+            <EmailDeliveryLog messages={emailLog} error={emailLogError} onRefresh={loadEmailLog} />
 
                     {/* Notification History */}
                     <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', borderTop: `3px solid ${activeTab === 'all' ? '#00A5A0' : '#3B2D82'}`, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>

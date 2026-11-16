@@ -576,8 +576,8 @@ function AddStudentModal({ onClose, onAdded, runningCohorts = [], defaultCohortI
         setError(''); setLoading(true);
         try {
             if (!form.cohort_id) throw new Error('Choose a cohort.');
-            await api.post('/api/admin/students', { ...form, cohort_id: Number(form.cohort_id), program_id: form.program_id === '' ? null : Number(form.program_id) });
-            onAdded();
+            const result = await api.post('/api/admin/students', { ...form, cohort_id: Number(form.cohort_id), program_id: form.program_id === '' ? null : Number(form.program_id) });
+            onAdded(result);
         } catch (err) {
             setError(err.message || 'Failed to create student.');
         } finally {
@@ -891,6 +891,7 @@ export default function AdminStudentsPage() {
     const [deletingStudent, setDeletingStudent] = useState(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
     const [showAddModal, setShowAddModal] = useState(false);
+    const [addStudentNotice, setAddStudentNotice] = useState('');
     const [expandedStudentId, setExpandedStudentId] = useState(null);
 
     const [selectedStudents, setSelectedStudents] = useState([]);
@@ -1032,6 +1033,8 @@ export default function AdminStudentsPage() {
                             <img src="/logo.png" alt="Logo" style={{ height: '30px' }} />
                         </div>
                     </header>
+
+                    {addStudentNotice && <div role="status" style={{ marginBottom: '1rem', padding: '10px 14px', borderRadius: 10, background: '#eff6ff', color: '#1e40af', fontSize: '0.85rem' }}>{addStudentNotice}</div>}
 
                     {/* Archived cohort notice (the cohort itself is chosen in the sidebar switcher) */}
                     {isReadOnly && (
@@ -1259,7 +1262,7 @@ export default function AdminStudentsPage() {
 
             {/* Modals */}
             {showAddModal && (
-                <AddStudentModal onClose={() => setShowAddModal(false)} onAdded={() => { setShowAddModal(false); fetchStudents(); }} runningCohorts={runningCohorts} defaultCohortId={selectedCohortObj?.status === 'running' ? selectedCohortObj.id : runningCohorts.find(c => c.is_default)?.id} programOptions={programOptions} onProgramAdded={loadPrograms} />
+                <AddStudentModal onClose={() => setShowAddModal(false)} onAdded={(result) => { setAddStudentNotice(result.email_queued ? `Student added. A password setup email is queued for ${result.student.email}.` : result.created ? 'Student added. No email was queued because the address is not on the sandbox allowlist.' : 'Existing student account added to this cohort. Their existing login remains unchanged.'); setShowAddModal(false); fetchStudents(); }} runningCohorts={runningCohorts} defaultCohortId={selectedCohortObj?.status === 'running' ? selectedCohortObj.id : runningCohorts.find(c => c.is_default)?.id} programOptions={programOptions} onProgramAdded={loadPrograms} />
             )}
             {editingStudent && (
                 <StudentDrawer student={editingStudent} courses={courses} onClose={() => setEditingStudent(null)} onSaved={fetchStudents} programOptions={programOptions} runningCohorts={runningCohorts} currentCohortId={selectedCohortObj?.id} isReadOnly={isReadOnly} />

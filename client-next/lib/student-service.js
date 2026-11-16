@@ -4,6 +4,7 @@ import { connection } from '@/lib/db';
 import { hashPassword } from '@/lib/auth';
 import { qid, HttpError } from '@/lib/sql-ident';
 import { getAccountContext, invalidateAccountCache } from '@/lib/accounts';
+import { isNotificationSandboxEnabled, isUnrestrictedTestCohort, notificationSandboxRecipients } from '@/lib/notification-stream';
 
 /**
  * Student lifecycle. Every function runs in ONE transaction, takes cohort schemas only from core.cohorts
@@ -124,10 +125,10 @@ export async function queueSetPasswordEmail(tx, cohort, account) {
   await tx.unsafe(
     `INSERT INTO ${qid(cohort.schema_name)}.notification_stream
        (dedupe_key, event_type, channel, recipient_id, recipient_email, recipient_name, payload, status, available_at)
-     VALUES ($1, 'password_reset', 'email', $2, $3, $4, $5::jsonb, 'queued', now())
+     VALUES ($1, 'student_welcome', 'email', $2, $3, $4, $5::jsonb, 'queued', now())
      ON CONFLICT (dedupe_key) DO NOTHING`,
-    ['password_reset:' + account.id + ':' + resetToken.slice(-16), account.id, account.email, account.first_name || null,
-     JSON.stringify({ resetToken })]);
+    ['student_welcome:' + account.id + ':' + resetToken.slice(-16), account.id, account.email, account.first_name || null,
+     tx.json({ resetToken, sandbox: isNotificationSandboxEnabled(cohort.schema_name), testCohort: isUnrestrictedTestCohort(cohort.schema_name), studentWelcome: true })]);
 }
 
 /**
@@ -183,7 +184,7 @@ export async function createStudent(input, { tx = null, sendEmail = true } = {})
     // Set-password link only for people who are in no other cohort: a brand-new account, or an existing one that
     // never joined any cohort (it only has the random placeholder password). Returning students keep their login.
     const neverInACohort = created || !ctx?.memberships?.length;
-    const emailQueued = neverInACohort && sendEmail;
+    const emailQueued = neverInACohort && sendEmail && (!isNotificationSandboxEnabled(cohort.schema_name) || notificationSandboxRecipients().includes(email));
     if (emailQueued) await queueSetPasswordEmail(q, cohort, account);
 
     return {

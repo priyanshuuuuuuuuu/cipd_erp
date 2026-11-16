@@ -786,6 +786,22 @@ export async function sendPasswordResetEmail({ to, firstName, resetUrl }) {
 // ── Faculty Welcome (account created by admin) ───────────────────────────────
 const escHtml = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
+/** Welcome a newly created student and provide their password setup link. */
+export async function sendStudentWelcomeEmail({ to, firstName, resetUrl }) {
+  const content = `
+    <tr><td class="hero-pad" style="background:${DARK};padding:48px 40px;text-align:center;border-radius:16px 16px 0 0;">
+      <h1 class="hero-title" style="margin:0 0 12px;font-size:32px;font-weight:900;color:#fff;">Welcome to CiPD 360</h1>
+      <p style="margin:0;color:rgba(255,255,255,.75);font-size:15px;">Hi ${escHtml(firstName) || 'there'}, your student account is ready.</p>
+    </td></tr>
+    <tr><td style="padding:32px 40px;color:${SUBTLE};font-size:14px;line-height:1.7;">
+      <p>Use your email address <strong>${escHtml(to)}</strong> to sign in after setting your password.</p>
+      <p>This setup link expires seven days after your account was created. Keep this email private.</p>
+      <p style="text-align:center;padding:12px 0;">${ctaButton('Set your password', resetUrl)}</p>
+      <p style="font-size:12px;word-break:break-all;">Or copy this link: ${escHtml(resetUrl)}</p>
+    </td></tr>`;
+  return transporter.sendMail({ from: fromAddress(), to, subject: 'Welcome to CiPD 360 — set up your account', html: shell(content, 'Welcome to CiPD 360. Set up your student account.') });
+}
+
 /**
  * Tells a newly created faculty member their login details.
  * @param {{ to: string, firstName: string }} opts  username is the recipient address

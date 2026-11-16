@@ -359,8 +359,12 @@ export default function AdminFacultyHoursPage() {
         e.preventDefault();
         setAddError(''); setAddSuccess(''); setAddLoading(true);
         try {
-            await api.post('/api/admin/faculty-hours', addForm);
-            setAddSuccess(`Faculty "${addForm.firstName} ${addForm.lastName}" added successfully! Login details emailed (default password: 12345678).`);
+            const result = await api.post('/api/admin/faculty-hours', addForm);
+            setAddSuccess(result.email_queued
+                ? `Faculty added. A welcome email is queued for ${addForm.email}.`
+                : result.created
+                    ? 'Faculty added. No welcome email was queued because the address is not on the sandbox allowlist.'
+                    : 'Existing faculty account added to this cohort. Their existing login remains unchanged.');
             setAddForm({ firstName: '', lastName: '', email: '', yearsExperience: '', designation: '' });
             fetchFaculty();
         } catch (err) {

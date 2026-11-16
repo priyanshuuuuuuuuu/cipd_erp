@@ -1,6 +1,7 @@
 'use client';
 import React, { useMemo, useState } from 'react';
 import { Mail, ChevronDown, ChevronUp, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
+import { api } from '@/lib/api';
 
 // Plain-language view of the email outbox for non-technical admins.
 const STAGES = {
@@ -19,6 +20,7 @@ const EVENT_NAMES = {
     feedback_available: 'Feedback form',
     attendance_summary: 'Attendance summary',
     password_reset: 'Password reset',
+    student_welcome: 'Student welcome',
 };
 
 function stageOf(m) {
@@ -54,7 +56,7 @@ function buildBatches(messages) {
     return [...map.values()].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 }
 
-function BatchCard({ batch, defaultOpen }) {
+function BatchCard({ batch, defaultOpen, onCancel, cancelling }) {
     const [open, setOpen] = useState(defaultOpen);
     const total = batch.items.length;
     const counts = batch.items.reduce((c, m) => ({ ...c, [m.stage]: (c[m.stage] || 0) + 1 }), {});
@@ -109,6 +111,13 @@ function BatchCard({ batch, defaultOpen }) {
                                     {reason && <div style={{ color: '#888', fontSize: '0.72rem', marginTop: 2 }}>{reason}</div>}
                                 </div>
                                 <span style={{ color: st.color, background: st.bg, border: `1px solid ${st.border}`, borderRadius: 6, padding: '2px 8px', fontWeight: 600, fontSize: '0.7rem', whiteSpace: 'nowrap' }}>{st.label}</span>
+                                {['queued', 'retry'].includes(m.status) && (
+                                    <button type="button" disabled={cancelling === m.id} onClick={() => onCancel(m)}
+                                        aria-label={`Cancel queued email to ${m.recipient_email}`}
+                                        style={{ border: '1px solid #fecaca', background: '#fff', color: '#b91c1c', borderRadius: 6, padding: '3px 8px', fontSize: '0.7rem', cursor: cancelling === m.id ? 'wait' : 'pointer' }}>
+                                        {cancelling === m.id ? 'Cancelling…' : 'Cancel'}
+                                    </button>
+                                )}
                                 <span style={{ color: '#888', fontSize: '0.72rem', width: 78, textAlign: 'right' }}>{timeOf(m.sent_at || m.updated_at || m.created_at)}</span>
                             </div>
                         );
@@ -119,7 +128,23 @@ function BatchCard({ batch, defaultOpen }) {
     );
 }
 
-export default function EmailDeliveryLog({ messages, error }) {
+export default function EmailDeliveryLog({ messages, error, onRefresh }) {
+    const [cancelling, setCancelling] = useState(null);
+    const [actionMessage, setActionMessage] = useState('');
+    const cancelEmail = async (message) => {
+        if (!window.confirm(`Remove the queued email to ${message.recipient_email}?`)) return;
+        setCancelling(message.id);
+        setActionMessage('');
+        try {
+            const result = await api.delete('/api/admin/email-log', { ids: [message.id] });
+            setActionMessage(result.removed ? 'Queued email cancelled.' : 'This email was already being processed or is no longer in the queue.');
+            await onRefresh();
+        } catch (err) {
+            setActionMessage(err.message || 'Could not cancel the queued email.');
+        } finally {
+            setCancelling(null);
+        }
+    };
     const batches = useMemo(() => buildBatches(messages), [messages]);
     const all = batches.flatMap(b => b.items);
     const delivered = all.filter(m => m.stage === 'delivered').length;
@@ -160,13 +185,14 @@ export default function EmailDeliveryLog({ messages, error }) {
             </div>
 
             {error && <div style={{ padding: '8px 1.5rem', color: '#dc2626', fontSize: '0.8rem' }}>{error}</div>}
+            {actionMessage && <div role="status" style={{ padding: '8px 1.5rem', color: '#555', fontSize: '0.8rem' }}>{actionMessage}</div>}
 
             <div style={{ padding: '12px 1.5rem 8px', maxHeight: 460, overflowY: 'auto' }}>
                 {batches.length === 0 ? (
                     <div style={{ padding: '1.5rem', textAlign: 'center', color: '#888', fontSize: '0.85rem' }}>
                         No emails sent yet. Once you send a notification, delivery progress appears here.
                     </div>
-                ) : batches.slice(0, 12).map((b, i) => <BatchCard key={b.key} batch={b} defaultOpen={i === 0} />)}
+                ) : batches.slice(0, 12).map((b, i) => <BatchCard key={b.key} batch={b} defaultOpen={i === 0} onCancel={cancelEmail} cancelling={cancelling} />)}
             </div>
         </div>
     );

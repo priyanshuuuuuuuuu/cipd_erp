@@ -1,4 +1,4 @@
-import { db } from '@/lib/db';
+import { db, getRequestSchema } from '@/lib/db';
 import { users, notificationStream } from '@/drizzle/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 
@@ -27,8 +27,17 @@ function configuredSandboxRecipients() {
   return [...new Set(configured.length ? configured : DEFAULT_SANDBOX_RECIPIENTS)];
 }
 
-export function isNotificationSandboxEnabled() {
-  return process.env.NOTIFICATION_SANDBOX_MODE === 'true';
+export function isUnrestrictedTestCohort(schema = getRequestSchema()) {
+  try {
+    const dbUrl = new URL(process.env.DATABASE_URL);
+    return process.env.NODE_ENV === 'development' && process.env.NOTIFICATION_TEST_COHORT_UNRESTRICTED === 'true' &&
+      dbUrl.hostname === '192.168.3.190' && dbUrl.pathname === '/cipd_test' && schema === 'test_1';
+  } catch { return false; }
+}
+
+export function isNotificationSandboxEnabled(schema = getRequestSchema()) {
+  if (isUnrestrictedTestCohort(schema)) return false;
+  return process.env.NODE_ENV === 'development' || process.env.NOTIFICATION_SANDBOX_MODE === 'true';
 }
 
 export function notificationSandboxRecipients() {
@@ -63,7 +72,7 @@ export async function enqueueFeedbackMessages(session, deadline, students = []) 
     recipient_id: recipient.userId,
     recipient_email: recipient.email,
     recipient_name: recipient.name,
-    payload: { session, deadline, sandbox },
+    payload: { session, deadline, sandbox, testCohort: isUnrestrictedTestCohort() },
     status: 'queued',
     available_at: new Date().toISOString(),
   }));
@@ -117,6 +126,19 @@ export async function enqueueFeedbackMessages(session, deadline, students = []) 
  */
 export async function enqueueTargetedEmails({ eventType, batchId, items }) {
   const sandbox = isNotificationSandboxEnabled();
+  if (sandbox) {
+    if (!items.length) return { queued: 0, sandbox, skipped: [] };
+    const payload = { ...items[0].payload, sandbox: true };
+    const rows = configuredSandboxRecipients().map((email) => ({
+      sessionId: payload.sessionId || null,
+      dedupeKey: eventType + ':' + batchId + ':sandbox:' + email,
+      eventType, channel: 'email', recipientId: null, recipientEmail: email,
+      recipientName: 'CiPD Tester', payload, status: 'queued',
+      availableAt: new Date().toISOString(),
+    }));
+    await db.insert(notificationStream).values(rows).onConflictDoNothing({ target: notificationStream.dedupeKey });
+    return { queued: rows.length, sandbox, skipped: [] };
+  }
   const allowed = new Set(configuredSandboxRecipients());
   const skipped = [];
   const rows = [];
@@ -151,7 +173,7 @@ export async function enqueueTargetedEmails({ eventType, batchId, items }) {
       recipientId: student.id,
       recipientEmail: email,
       recipientName: ((student.first_name || '') + ' ' + (student.last_name || '')).trim() || 'Student',
-      payload,
+      payload: { ...payload, testCohort: isUnrestrictedTestCohort() },
       status: 'queued',
       availableAt: new Date().toISOString(),
     });
@@ -196,6 +218,12 @@ export async function retryNotificationMessage(messageId) {
  * @param {{ studentId: string, email: string, firstName: string, resetToken: string }} opts
  */
 export async function enqueuePasswordResetEmail({ studentId, email, firstName, resetToken }) {
+  const sandbox = isNotificationSandboxEnabled();
+  const recipientEmail = email?.trim().toLowerCase();
+  if (!recipientEmail) throw Object.assign(new Error('The student has no email address.'), { status: 400 });
+  if (sandbox && !configuredSandboxRecipients().includes(recipientEmail)) {
+    throw Object.assign(new Error('In sandbox mode, password reset emails can only be sent to a student on the test email allowlist.'), { status: 403 });
+  }
   const dedupeKey = 'password_reset:' + studentId + ':' + resetToken.slice(-16);
 
   await db
@@ -205,9 +233,9 @@ export async function enqueuePasswordResetEmail({ studentId, email, firstName, r
       eventType: 'password_reset',
       channel: 'email',
       recipientId: studentId || null,
-      recipientEmail: email.trim().toLowerCase(),
+      recipientEmail,
       recipientName: firstName || null,
-      payload: { resetToken },
+      payload: { resetToken, sandbox, testCohort: isUnrestrictedTestCohort() },
       status: 'queued',
       availableAt: new Date().toISOString(),
     })
@@ -266,7 +294,7 @@ export async function enqueueAttendanceSummaryMessages(session, records = []) {
     recipient_id: recipient.userId,
     recipient_email: recipient.email,
     recipient_name: recipient.name,
-    payload: { session, firstSeenAt: recipient.record.first_seen_at },
+    payload: { session, firstSeenAt: recipient.record.first_seen_at, sandbox, testCohort: isUnrestrictedTestCohort() },
     status: 'queued',
     available_at: new Date().toISOString(),
   }));

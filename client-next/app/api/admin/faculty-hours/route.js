@@ -130,10 +130,12 @@ async function createFacultyHandler(request) {
 
         const safeEmail = email.toLowerCase().trim();
 
-        const { id: newUserId } = await createFaculty(request.cohortInfo, { firstName, lastName, email: safeEmail, designation, yearsExperience });
+        const { id: newUserId, created, emailQueued } = await createFaculty(request.cohortInfo, { firstName, lastName, email: safeEmail, designation, yearsExperience });
 
         return NextResponse.json({
             success: true,
+            created,
+            email_queued: emailQueued,
             faculty: {
                 id: newUserId,
                 name: `Prof. ${firstName.trim()} ${lastName.trim()}`,

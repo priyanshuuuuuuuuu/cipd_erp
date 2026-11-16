@@ -11,7 +11,7 @@ import {
   shouldNotifyUser,
 } from '@/lib/should-notify';
 import { getISTWeekRange } from '@/lib/ist-date';
-import { enqueueTargetedEmails } from '@/lib/notification-stream';
+import { enqueueTargetedEmails, isNotificationSandboxEnabled } from '@/lib/notification-stream';
 
 // POST - Send notifications (supports feedback reminders, class reminders, general)
 async function postHandler(req) {
@@ -140,7 +140,7 @@ async function postHandler(req) {
     notificationsToInsert = filterNotificationsByPrefs(notificationsToInsert, prefMap, notifType);
 
     // Batch insert notifications into DB
-    if (notificationsToInsert.length > 0) {
+    if (notificationsToInsert.length > 0 && !isNotificationSandboxEnabled()) {
       const insertValues = notificationsToInsert.map(n => ({
         recipientId: n.recipient_id,
         type: n.type,
