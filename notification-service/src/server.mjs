@@ -58,7 +58,7 @@ app.listen(config.port, () => {
   setInterval(async () => {
     try {
       const result = await drainStream(20);
-      if (result.claimed || result.retried || result.failed) {
+      if (result.claimed || result.retried || result.failed || result.errors.length) {
         console.log('[notification-service] ' + JSON.stringify(result));
       }
     } catch (error) {

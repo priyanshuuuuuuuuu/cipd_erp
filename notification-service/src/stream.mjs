@@ -1,6 +1,6 @@
 import postgres from 'postgres';
 import { config } from './config.mjs';
-import { sendFeedbackAvailableEmail, sendPasswordResetEmail, sendAttendanceSummaryEmail, sendFacultyWelcomeEmail } from '../../client-next/lib/emailer.js';
+import { sendFeedbackAvailableEmail, sendPasswordResetEmail, sendStudentWelcomeEmail, sendAttendanceSummaryEmail, sendFacultyWelcomeEmail, sendGeneralNotificationEmail, sendWeeklyScheduleEmail } from '../../client-next/lib/emailer.js';
 
 // Notifications are read from the college VM PostgreSQL (no Supabase).
 // One table per cohort: "<schema>".notification_stream. All running cohorts are served.
@@ -85,22 +85,29 @@ async function claimAvailableMessages(schema, limit) {
       WHERE n.id IN (
         SELECT id FROM ${qid(schema)}.notification_stream
          WHERE status IN ('queued','retry') AND available_at <= now()
-           AND ($2::boolean = false OR lower(recipient_email) = ANY($3::text[]))
+           AND ($2::boolean = false OR (lower(recipient_email) = ANY($3::text[]) AND payload->>'sandbox' = 'true') OR ($4::boolean AND payload->>'testCohort' = 'true'))
          ORDER BY created_at
          LIMIT $1
          FOR UPDATE SKIP LOCKED)
       RETURNING n.*`,
-    [limit, sandboxOnly, [...config.sandboxRecipients]]
+    [limit, sandboxOnly, [...config.sandboxRecipients], config.unrestrictedTestCohort && schema === 'test_1']
   );
 }
 
-async function sendJob(job) {
-  if (!['feedback_available', 'password_reset', 'attendance_summary', 'faculty_welcome'].includes(job.event_type) || job.channel !== 'email') {
+async function sendJob(job, schema) {
+  if (!['feedback_available', 'password_reset', 'student_welcome', 'attendance_summary', 'faculty_welcome', 'general_notification', 'class_reminder', 'weekly_schedule'].includes(job.event_type) || job.channel !== 'email') {
     throw new Error('Unsupported event ' + job.event_type + ' over ' + job.channel);
   }
 
-  if (config.sandbox && !config.sandboxRecipients.has(job.recipient_email.toLowerCase())) {
+  if (config.sandbox && !(config.unrestrictedTestCohort && schema === 'test_1' && job.payload?.testCohort === true) && !config.sandboxRecipients.has(job.recipient_email.toLowerCase())) {
     throw new Error('Sandbox blocked non-test recipient: ' + job.recipient_email);
+  }
+
+  if (job.event_type === 'general_notification' || job.event_type === 'class_reminder') {
+    return sendGeneralNotificationEmail(job.recipient_email, job.recipient_name || 'Student', job.payload.title, job.payload.message, job.payload.type);
+  }
+  if (job.event_type === 'weekly_schedule') {
+    return sendWeeklyScheduleEmail(job.recipient_email, job.recipient_name || 'Student', job.payload.sessions || []);
   }
 
   if (job.event_type === 'feedback_available') {
@@ -115,13 +122,23 @@ async function sendJob(job) {
   if (job.event_type === 'faculty_welcome') {
     return sendFacultyWelcomeEmail({ to: job.recipient_email, firstName: job.recipient_name || 'there' });
   }
-  if (job.event_type === 'password_reset') {
+  if (job.event_type === 'password_reset' || job.event_type === 'student_welcome') {
+    if (job.payload.resetToken) {
+      try {
+        const claims = JSON.parse(Buffer.from(job.payload.resetToken.split('.')[1], 'base64url').toString('utf8'));
+        if (!Number.isFinite(claims.exp) || claims.exp <= Date.now() / 1000) {
+          throw new Error('Password reset link has expired; request a new email.');
+        }
+      } catch (error) {
+        throw Object.assign(new Error(error.message === 'Password reset link has expired; request a new email.' ? error.message : 'Invalid password reset token; request a new email.'), { terminal: true });
+      }
+    }
     let resetUrl = job.payload.resetUrl;
     if (!resetUrl) {
       if (!config.appUrl) throw new Error('APP_URL is not set; cannot build the password reset link');
       resetUrl = config.appUrl + '/reset-password?token=' + job.payload.resetToken;
     }
-    return sendPasswordResetEmail({
+    return (job.event_type === 'student_welcome' || job.payload.studentWelcome ? sendStudentWelcomeEmail : sendPasswordResetEmail)({
       to: job.recipient_email,
       firstName: job.recipient_name || 'Student',
       resetUrl,
@@ -143,7 +160,7 @@ async function drainSchema(schema, limit, result) {
 
   for (const job of jobs) {
     try {
-      const info = await sendJob(job);
+      const info = await sendJob(job, schema);
       await sql.unsafe(
         `UPDATE ${qid(schema)}.notification_stream
             SET status = 'sent', sent_at = now(), provider_message_id = $2, last_error = NULL,
@@ -154,7 +171,7 @@ async function drainSchema(schema, limit, result) {
       bucket.sent += 1;
       result.sent += 1;
     } catch (error) {
-      const terminal = job.attempts >= maxAttempts;
+      const terminal = error.terminal || job.attempts >= maxAttempts;
       try {
         await sql.unsafe(
           `UPDATE ${qid(schema)}.notification_stream
