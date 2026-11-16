@@ -1,6 +1,6 @@
 import postgres from 'postgres';
 import { config } from './config.mjs';
-import { sendFeedbackAvailableEmail, sendPasswordResetEmail, sendStudentWelcomeEmail, sendAttendanceSummaryEmail, sendFacultyWelcomeEmail, sendGeneralNotificationEmail, sendWeeklyScheduleEmail } from '../../client-next/lib/emailer.js';
+import { sendFeedbackAvailableEmail, sendPasswordResetEmail, sendStudentWelcomeEmail, sendAttendanceSummaryEmail, sendFacultyWelcomeEmail, sendGeneralNotificationEmail, sendWeeklyScheduleEmail, sendCourseMessageEmail } from '../../client-next/lib/emailer.js';
 
 // Notifications are read from the college VM PostgreSQL (no Supabase).
 // One table per cohort: "<schema>".notification_stream. All running cohorts are served.
@@ -103,6 +103,17 @@ async function sendJob(job, schema) {
     throw new Error('Sandbox blocked non-test recipient: ' + job.recipient_email);
   }
 
+  // Faculty course messages carry senderName/courseName and use the course-message template.
+  if (job.event_type === 'general_notification' && (job.payload.courseName || job.payload.senderName)) {
+    return sendCourseMessageEmail({
+      to: job.recipient_email,
+      firstName: job.recipient_name || 'there',
+      title: job.payload.title || 'Notification',
+      message: job.payload.message || '',
+      senderName: job.payload.senderName,
+      courseName: job.payload.courseName,
+    });
+  }
   if (job.event_type === 'general_notification' || job.event_type === 'class_reminder') {
     return sendGeneralNotificationEmail(job.recipient_email, job.recipient_name || 'Student', job.payload.title, job.payload.message, job.payload.type);
   }
