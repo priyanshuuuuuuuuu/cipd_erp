@@ -6,7 +6,7 @@ import { eq } from 'drizzle-orm';
 import { getSnapshotsBetween, wifiErrorResponse } from '@/lib/wifi-snapshots';
 import { normalizeMac, isValidMac } from '@/lib/attendance-mac';
 import { withRole } from '@/lib/middleware';
-import XLSX from 'xlsx';
+import * as XLSX from 'xlsx';
 
 const SLOTS = [
   { id: 'slot1', label: '09:30 - 11:00', shortLabel: '9:30-11am', start: '09:30:00', end: '11:00:00' },

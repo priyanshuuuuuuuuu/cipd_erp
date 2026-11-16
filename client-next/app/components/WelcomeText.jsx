@@ -8,7 +8,7 @@ const styles = {
         fontWeight: 700,
         lineHeight: '32px',
         // opacity: 0.57,
-        marginBottom: '20px',
+        margin: '0 0 20px',
         textAlign: 'left',
     },
 };
@@ -19,9 +19,9 @@ const defaultProps = {
 
 const WelcomeText = (props) => {
     return (
-        <div style={styles.Text}>
+        <h1 style={styles.Text}>
             {props.text ?? defaultProps.text}
-        </div>
+        </h1>
     );
 };
 

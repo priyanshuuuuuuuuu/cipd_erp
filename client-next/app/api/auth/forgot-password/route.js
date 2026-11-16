@@ -42,7 +42,7 @@ export async function POST(req) {
     await connection.unsafe(
       `INSERT INTO ${qid(membership.schema)}.notification_stream
          (dedupe_key, event_type, channel, recipient_id, recipient_email, recipient_name, payload, status, available_at)
-       VALUES ($1, 'password_reset', 'email', $2, $3, $4, $5::jsonb, 'queued', now())
+       VALUES ($1, 'password_reset', 'email', $2, $3, $4, $5::text::jsonb, 'queued', now())
        ON CONFLICT (dedupe_key) DO NOTHING`,
       ['password_reset:' + account.id + ':' + resetToken.slice(-16), membership.local_user_id, account.email, account.first_name || null,
        JSON.stringify({ resetToken })]);

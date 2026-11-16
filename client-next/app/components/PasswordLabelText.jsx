@@ -19,7 +19,7 @@ const defaultProps = {
 
 const PasswordLabelText = (props) => {
     return (
-        <label style={{ display: 'block', ...styles.Text }}>
+        <label htmlFor={props.htmlFor} style={{ display: 'block', ...styles.Text }}>
             {props.text ?? defaultProps.text}
         </label>
     );

@@ -1,0 +1,88 @@
+@keyframes attendance-shimmer { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }
+
+/* ── Attendance Page Mobile Responsive ── */
+@media (max-width: 768px) {
+    /* Top grid: stack left side & calendar */
+    .attendance-page .att-top-grid {
+        grid-template-columns: 1fr !important;
+        gap: 1rem !important;
+    }
+    .attendance-page .att-stats-bento {
+        grid-template-columns: 1fr 1fr 1fr !important;
+        gap: 8px !important;
+    }
+    .attendance-page .att-stats-bento > div {
+        padding: 1rem 0.8rem !important;
+    }
+    /* Calendar card */
+    .attendance-page .att-calendar-card {
+        padding: 1rem !important;
+    }
+    .attendance-page .att-cal-header {
+        flex-direction: column !important;
+        gap: 8px !important;
+        align-items: flex-start !important;
+    }
+    .attendance-page .att-cal-legend {
+        flex-wrap: wrap !important;
+        gap: 6px !important;
+    }
+    /* Course-wise grid */
+    .attendance-page .att-course-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 8px !important;
+    }
+    .attendance-page .att-course-shimmer-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 8px !important;
+    }
+    /* Session history header */
+    .attendance-page .att-session-header {
+        flex-direction: column !important;
+        gap: 8px !important;
+        align-items: flex-start !important;
+    }
+    .attendance-page .att-session-controls {
+        flex-direction: column !important;
+        gap: 6px !important;
+        width: 100%;
+    }
+    .attendance-page .att-session-controls input[type="date"],
+    .attendance-page .att-session-controls select {
+        width: 100% !important;
+        box-sizing: border-box;
+    }
+    /* Session rows compact */
+    .attendance-page .att-session-row-inner {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 6px !important;
+    }
+    .attendance-page .att-session-row-left {
+        gap: 10px !important;
+    }
+    .attendance-page .att-session-row-right {
+        align-self: flex-end;
+    }
+    /* Header presence badge */
+    .attendance-page .att-presence-badge {
+        padding: 3px 8px !important;
+        font-size: 0.65rem !important;
+    }
+    .attendance-page .att-presence-signal,
+    .attendance-page .att-presence-time {
+        display: none !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .attendance-page .att-course-grid {
+        grid-template-columns: 1fr 1fr !important;
+    }
+    .attendance-page .att-stats-bento {
+        grid-template-columns: 1fr !important;
+    }
+    .attendance-page .att-session-row-left .att-course-badge {
+        display: none !important;
+    }
+}

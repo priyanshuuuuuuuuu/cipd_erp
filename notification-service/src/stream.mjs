@@ -134,9 +134,14 @@ async function sendJob(job, schema) {
     return sendFacultyWelcomeEmail({ to: job.recipient_email, firstName: job.recipient_name || 'there' });
   }
   if (job.event_type === 'password_reset' || job.event_type === 'student_welcome') {
-    if (job.payload.resetToken) {
+    // Older self-service resets encoded the JSON object as a JSON string.
+    const payload = typeof job.payload === 'string' ? JSON.parse(job.payload) : job.payload;
+    if (!payload?.resetToken && !payload?.resetUrl) {
+      throw Object.assign(new Error('Missing password reset link; request a new email.'), { terminal: true });
+    }
+    if (payload.resetToken) {
       try {
-        const claims = JSON.parse(Buffer.from(job.payload.resetToken.split('.')[1], 'base64url').toString('utf8'));
+        const claims = JSON.parse(Buffer.from(payload.resetToken.split('.')[1], 'base64url').toString('utf8'));
         if (!Number.isFinite(claims.exp) || claims.exp <= Date.now() / 1000) {
           throw new Error('Password reset link has expired; request a new email.');
         }
@@ -144,12 +149,12 @@ async function sendJob(job, schema) {
         throw Object.assign(new Error(error.message === 'Password reset link has expired; request a new email.' ? error.message : 'Invalid password reset token; request a new email.'), { terminal: true });
       }
     }
-    let resetUrl = job.payload.resetUrl;
+    let resetUrl = payload.resetUrl;
     if (!resetUrl) {
       if (!config.appUrl) throw new Error('APP_URL is not set; cannot build the password reset link');
-      resetUrl = config.appUrl + '/reset-password?token=' + job.payload.resetToken;
+      resetUrl = config.appUrl + '/reset-password?token=' + payload.resetToken;
     }
-    return (job.event_type === 'student_welcome' || job.payload.studentWelcome ? sendStudentWelcomeEmail : sendPasswordResetEmail)({
+    return (job.event_type === 'student_welcome' || payload.studentWelcome ? sendStudentWelcomeEmail : sendPasswordResetEmail)({
       to: job.recipient_email,
       firstName: job.recipient_name || 'Student',
       resetUrl,
@@ -214,9 +219,19 @@ export async function drainStream(limit = 20) {
 }
 
 export async function retryMessage(schema, id) {
-  const [s] = await resolveSchemas(schema);
+  const schemas = await resolveSchemas(schema);
+  if (!schema) {
+    const locations = await Promise.all(schemas.map(async (name) => {
+      const [message] = await sql.unsafe(`SELECT id FROM ${qid(name)}.notification_stream WHERE id = $1`, [id]);
+      return message ? name : null;
+    }));
+    const matches = locations.filter(Boolean);
+    if (matches.length > 1) throw new Error('Message ID exists in multiple cohorts. Specify the cohort in the retry URL.');
+    [schema] = matches;
+    if (!schema) throw new Error('Message is not retryable.');
+  }
   const rows = await sql.unsafe(
-    `UPDATE ${qid(s)}.notification_stream
+    `UPDATE ${qid(schema)}.notification_stream
         SET status = 'queued', attempts = 0, available_at = now(), last_error = NULL,
             locked_at = NULL, locked_by = NULL, updated_at = now()
       WHERE id = $1 AND status IN ('failed','retry')
@@ -224,7 +239,7 @@ export async function retryMessage(schema, id) {
     [id]
   );
   if (!rows.length) throw new Error('Message is not retryable.');
-  return { schema: s, ...rows[0] };
+  return { schema, ...rows[0] };
 }
 
 export async function closeStream() {

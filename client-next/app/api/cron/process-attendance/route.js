@@ -4,28 +4,23 @@ import { getLatestSnapshot, isWifiSourceUnavailable } from '@/lib/wifi-snapshots
 import { forEachRunningCohort, sumField, cronHandlerRunner } from '@/lib/cohort-jobs';
 import { db } from '@/lib/db';
 import { sessions } from '@/drizzle/schema';
-import { eq, and, ne, or, lt, asc } from 'drizzle-orm';
+import { eq, and, ne, or, lt, lte, asc } from 'drizzle-orm';
 import { rolloutFeedbackForSession } from '@/lib/feedback-rollout';
 import { processSessionAttendance } from '@/lib/process-session-attendance';
 import { enqueueAttendanceSummaryMessages } from '@/lib/notification-stream';
+import { getISTNow } from '@/lib/ist-date';
 
 /**
  * Server-side cron endpoint: processes attendance for all ongoing/recent sessions.
  * Called automatically every 6 minutes by the background worker.
  */
 
-async function cronHandler(req) {
-  const authHeader = req.headers.get('authorization');
-  const cronSecret = process.env.CRON_SECRET;
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
+async function cronHandler() {
   try {
     const now = new Date();
-    const nowIST = new Date(now.getTime() + 5.5 * 60 * 60 * 1000);
-    const today = nowIST.toISOString().split('T')[0];
-    const currentTime = `${String(nowIST.getHours()).padStart(2, '0')}:${String(nowIST.getMinutes()).padStart(2, '0')}:${String(nowIST.getSeconds()).padStart(2, '0')}`;
+    const campusTime = getISTNow(now).toISOString();
+    const today = campusTime.slice(0, 10);
+    const currentTime = campusTime.slice(11, 19);
 
     const activeSessionsList = await db
       .select({
@@ -38,17 +33,16 @@ async function cronHandler(req) {
         course_id: sessions.courseId,
       })
       .from(sessions)
-      .where(eq(sessions.sessionDate, today))
+      .where(and(eq(sessions.sessionDate, today), ne(sessions.status, 'cancelled')))
       .orderBy(asc(sessions.startTime));
 
-    const tenMinAgo = new Date(now.getTime() - 10 * 60000);
-    const tenMinAgoTime = `${String(tenMinAgo.getHours()).padStart(2, '0')}:${String(tenMinAgo.getMinutes()).padStart(2, '0')}:00`;
+    const tenMinAgo = now.getTime() - 10 * 60000;
 
     const activeSessions = (activeSessionsList || []).filter((s) => {
       const isOngoing =
         s.start_time <= currentTime && s.end_time > currentTime;
-      const justEnded =
-        s.end_time <= currentTime && s.end_time >= tenMinAgoTime;
+      const justEnded = s.end_time <= currentTime &&
+        new Date(`${s.session_date}T${s.end_time}+05:30`).getTime() >= tenMinAgo;
       return isOngoing || justEnded;
     });
 
@@ -94,10 +88,12 @@ async function cronHandler(req) {
       );
 
       if (!isOngoing && session.status !== 'completed') {
-        await db
+        const [completed] = await db
           .update(sessions)
           .set({ status: 'completed' })
-          .where(eq(sessions.id, session.id));
+          .where(and(eq(sessions.id, session.id), eq(sessions.status, 'scheduled')))
+          .returning({ id: sessions.id });
+        if (!completed) continue;
 
         const presentStudentIds = result.records
           .filter((r) => r.status === 'present' || r.status === 'partial')
@@ -143,7 +139,7 @@ async function cronHandler(req) {
           ne(sessions.status, 'cancelled'),
           or(
             lt(sessions.sessionDate, today),
-            and(eq(sessions.sessionDate, today), lt(sessions.endTime, currentTime))
+            and(eq(sessions.sessionDate, today), lte(sessions.endTime, currentTime))
           )
         )
       );
@@ -161,7 +157,7 @@ async function cronHandler(req) {
       );
 
       for (const session of missed) {
-        let missedResult = null;
+        let missedResult;
         try {
           missedResult = await processSessionAttendance(session, {
             isOngoing: false,
@@ -174,6 +170,8 @@ async function cronHandler(req) {
             `Cron Pass 2: attendance backfill failed for ${session.id}:`,
             err.message
           );
+          skippedSessions.push({ sessionId: session.id, title: session.title, reason: 'attendance_processing_failed' });
+          continue;
         }
 
         if (missedResult?.skipped) {
@@ -182,10 +180,12 @@ async function cronHandler(req) {
         }
 
         try {
-          await db
+          const [completed] = await db
             .update(sessions)
             .set({ status: 'completed' })
-            .where(eq(sessions.id, session.id));
+            .where(and(eq(sessions.id, session.id), eq(sessions.status, 'scheduled')))
+            .returning({ id: sessions.id });
+          if (!completed) continue;
         } catch (updateErr) {
           console.error(
             `Cron: Failed to mark session ${session.id} completed:`,
@@ -249,10 +249,11 @@ async function cronHandler(req) {
 // Cron jobs run once for every RUNNING cohort. Top-level totals are sums over cohorts, so
 // scripts/attendance-worker.js (which reads sessionsProcessed) keeps working unchanged.
 export async function GET(req) {
-  if (req.headers.get('x-cron-secret') !== process.env.CRON_SECRET) {
+  const secret = process.env.CRON_SECRET;
+  if (!secret || (req.headers.get('x-cron-secret') !== secret && req.headers.get('authorization') !== `Bearer ${secret}`)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  const cohorts = await forEachRunningCohort(cronHandlerRunner(cronHandler, req));
+  const cohorts = await forEachRunningCohort(cronHandlerRunner(cronHandler));
   const sessionsProcessed = sumField(cohorts, 'sessionsProcessed');
   const missedSessionsCompleted = sumField(cohorts, 'missedSessionsCompleted');
   const skippedSessions = Object.entries(cohorts).flatMap(([schema, r]) =>

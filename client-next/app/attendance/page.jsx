@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import '../Dashboard.css';
+import './attendance.css';
 import {
     LayoutGrid, Calendar, BookOpen, Users, MessageSquare, Settings,
     LogOut, Bell, Search, Menu, ChevronLeft, ChevronRight,
@@ -269,7 +270,7 @@ export default function AttendancePage() {
     );
 
     return (
-        <div className="dashboard-container">
+        <div className="dashboard-container attendance-page">
             <div className={`sidebar-overlay ${isMobileMenuOpen ? 'visible' : ''}`} onClick={() => setIsMobileMenuOpen(false)} />
             <Sidebar />
             <div className="main-content">
@@ -475,9 +476,9 @@ export default function AttendancePage() {
                         {loading ? (
                             <div className="att-course-shimmer-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px' }}>{[1,2,3,4,5].map(i => (
                                 <div key={i} style={{ background: '#fff', border: '1px solid #eee', borderRadius: '20px', padding: '1.2rem 1rem', textAlign: 'center' }}>
-                                    <div style={{ width: '52px', height: '52px', borderRadius: '50%', background: '#f0f0f0', margin: '0 auto 10px', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.15}s` }} />
-                                    <div style={{ width: '60%', height: '12px', borderRadius: '4px', background: '#f0f0f0', margin: '0 auto 6px', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.2}s` }} />
-                                    <div style={{ width: '80%', height: '9px', borderRadius: '3px', background: '#f5f5f5', margin: '0 auto', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.25}s` }} />
+                                    <div style={{ width: '52px', height: '52px', borderRadius: '50%', background: '#f0f0f0', margin: '0 auto 10px', animation: 'attendance-shimmer 1.5s infinite', animationDelay: `${i * 0.15}s` }} />
+                                    <div style={{ width: '60%', height: '12px', borderRadius: '4px', background: '#f0f0f0', margin: '0 auto 6px', animation: 'attendance-shimmer 1.5s infinite', animationDelay: `${i * 0.2}s` }} />
+                                    <div style={{ width: '80%', height: '9px', borderRadius: '3px', background: '#f5f5f5', margin: '0 auto', animation: 'attendance-shimmer 1.5s infinite', animationDelay: `${i * 0.25}s` }} />
                                 </div>
                             ))}</div>
                         ) : courses.length === 0 ? (
@@ -653,12 +654,12 @@ export default function AttendancePage() {
                             {loading ? (
                                 <div>{[1,2,3].map(i => (
                                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '16px', background: '#fff', borderRadius: '16px', marginBottom: '12px' }}>
-                                        <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#f1f5f9', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.15}s` }} />
+                                        <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#f1f5f9', animation: 'attendance-shimmer 1.5s infinite', animationDelay: `${i * 0.15}s` }} />
                                         <div style={{ flex: 1 }}>
-                                            <div style={{ width: `${40 + i * 10}%`, height: '14px', borderRadius: '4px', background: '#f1f5f9', marginBottom: '8px', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.2}s` }} />
-                                            <div style={{ width: `${20 + i * 8}%`, height: '10px', borderRadius: '3px', background: '#f8fafc', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.25}s` }} />
+                                            <div style={{ width: `${40 + i * 10}%`, height: '14px', borderRadius: '4px', background: '#f1f5f9', marginBottom: '8px', animation: 'attendance-shimmer 1.5s infinite', animationDelay: `${i * 0.2}s` }} />
+                                            <div style={{ width: `${20 + i * 8}%`, height: '10px', borderRadius: '3px', background: '#f8fafc', animation: 'attendance-shimmer 1.5s infinite', animationDelay: `${i * 0.25}s` }} />
                                         </div>
-                                        <div style={{ width: '80px', height: '30px', borderRadius: '10px', background: '#f8fafc', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.12}s` }} />
+                                        <div style={{ width: '80px', height: '30px', borderRadius: '10px', background: '#f8fafc', animation: 'attendance-shimmer 1.5s infinite', animationDelay: `${i * 0.12}s` }} />
                                     </div>
                                 ))}</div>
                             ) : filtered.length === 0 ? (
@@ -699,96 +700,6 @@ export default function AttendancePage() {
                     </div>
                 </div>
             </div>
-            <style>{`
-                @keyframes shimmer { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }
-
-                /* ── Attendance Page Mobile Responsive ── */
-                @media (max-width: 768px) {
-                    /* Top grid: stack left side & calendar */
-                    .att-top-grid {
-                        grid-template-columns: 1fr !important;
-                        gap: 1rem !important;
-                    }
-                    .att-stats-bento {
-                        grid-template-columns: 1fr 1fr 1fr !important;
-                        gap: 8px !important;
-                    }
-                    .att-stats-bento > div {
-                        padding: 1rem 0.8rem !important;
-                    }
-                    /* Calendar card */
-                    .att-calendar-card {
-                        padding: 1rem !important;
-                    }
-                    .att-cal-header {
-                        flex-direction: column !important;
-                        gap: 8px !important;
-                        align-items: flex-start !important;
-                    }
-                    .att-cal-legend {
-                        flex-wrap: wrap !important;
-                        gap: 6px !important;
-                    }
-                    /* Course-wise grid */
-                    .att-course-grid {
-                        grid-template-columns: repeat(2, 1fr) !important;
-                        gap: 8px !important;
-                    }
-                    .att-course-shimmer-grid {
-                        grid-template-columns: repeat(2, 1fr) !important;
-                        gap: 8px !important;
-                    }
-                    /* Session history header */
-                    .att-session-header {
-                        flex-direction: column !important;
-                        gap: 8px !important;
-                        align-items: flex-start !important;
-                    }
-                    .att-session-controls {
-                        flex-direction: column !important;
-                        gap: 6px !important;
-                        width: 100%;
-                    }
-                    .att-session-controls input[type="date"],
-                    .att-session-controls select {
-                        width: 100% !important;
-                        box-sizing: border-box;
-                    }
-                    /* Session rows compact */
-                    .att-session-row-inner {
-                        flex-direction: column !important;
-                        align-items: flex-start !important;
-                        gap: 6px !important;
-                    }
-                    .att-session-row-left {
-                        gap: 10px !important;
-                    }
-                    .att-session-row-right {
-                        align-self: flex-end;
-                    }
-                    /* Header presence badge */
-                    .att-presence-badge {
-                        padding: 3px 8px !important;
-                        font-size: 0.65rem !important;
-                    }
-                    .att-presence-signal,
-                    .att-presence-time {
-                        display: none !important;
-                    }
-                }
-
-                @media (max-width: 480px) {
-                    .att-course-grid {
-                        grid-template-columns: 1fr 1fr !important;
-                    }
-                    .att-stats-bento {
-                        grid-template-columns: 1fr !important;
-                    }
-                    .att-session-row-left .att-course-badge {
-                        display: none !important;
-                    }
-                }
-            `}</style>
         </div>
     );
 }

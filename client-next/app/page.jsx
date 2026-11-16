@@ -136,7 +136,7 @@ const Login = () => {
   };
 
   return (
-    <div className="login-container">
+    <main className="login-container">
       <CardContainer>
         <div className="logo-section" style={{ marginBottom: '0' }}>
           <img
@@ -154,10 +154,11 @@ const Login = () => {
           <form onSubmit={handleLogin} style={{ width: '100%' }} noValidate>
             {/* Identifier field — accepts email OR enrollment number */}
             <div className="form-group">
-              <label style={{ fontSize: '14px', fontWeight: 600, color: '#333', display: 'block', marginBottom: '6px', fontFamily: 'DM Sans, sans-serif' }}>
+              <label htmlFor="login-identifier" style={{ fontSize: '14px', fontWeight: 600, color: '#333', display: 'block', marginBottom: '6px', fontFamily: 'DM Sans, sans-serif' }}>
                 Email or Enrollment Number
               </label>
               <input
+                id="login-identifier"
                 style={inputStyle}
                 type="text"
                 placeholder="Enter your email or enrollment no."
@@ -169,9 +170,10 @@ const Login = () => {
 
             {/* Password field with show/hide toggle */}
             <div className="form-group">
-              <PasswordLabelText />
+              <PasswordLabelText htmlFor="login-password" />
               <div style={{ position: 'relative', width: '100%' }}>
                 <input
+                  id="login-password"
                   style={{ ...inputStyle, paddingRight: '44px', marginBottom: 0 }}
                   type={showPassword ? 'text' : 'password'}
                   placeholder="Enter your password"
@@ -246,7 +248,7 @@ const Login = () => {
           </form>
         </div>
       </CardContainer>
-    </div>
+    </main>
   );
 };
 

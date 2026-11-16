@@ -5,6 +5,7 @@ The database is `cipd` on the VM. Each cohort is a PostgreSQL schema; shared reg
 `npm run migrate` (`scripts/migrate.mjs`).
 
 ```
+migrations/bootstrap.sql         prerequisites for an empty database
 migrations/core/NNNN_name.sql     applied once, to the `core` schema
 migrations/cohort/NNNN_name.sql   applied once to EVERY cohort schema (public, july, junedecember2026, any new cohort)
 migrations/archive/               historical, never run
@@ -31,6 +32,8 @@ npm run drift                            # compare every cohort with the newest 
 ```
 `npm run migrate` is run by the deploy workflow before the app is restarted, followed by `npm run drift`.
 A failure in one cohort is logged and the others continue; the exit code is non-zero.
+
+On an empty PostgreSQL database, `npm run migrate` first creates the shared enums and initial cohort schemas.
 
 Existing cohorts that already have a `users` table are adopted at `0001_baseline` automatically (recorded with
 `executed = false`). A brand-new cohort runs `0001_baseline`, `0002_reconcile`, ... in order.

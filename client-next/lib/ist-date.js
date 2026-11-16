@@ -14,15 +14,13 @@
 const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000; // +05:30 in milliseconds
 
 /**
- * Returns a Date whose internal UTC value has been shifted so that
- * getFullYear() / getMonth() / getDate() / getHours() / getMinutes()
- * all reflect the current IST wall-clock time.
+ * Returns a shifted Date whose UTC fields represent the IST calendar and clock.
  *
  * ⚠️  Do NOT pass this to toISOString() and expect a real timestamp —
  *     use it only for calendar arithmetic (year/month/date extraction).
  */
-export function getISTNow() {
-  return new Date(Date.now() + IST_OFFSET_MS);
+export function getISTNow(now = new Date()) {
+  return new Date(now.getTime() + IST_OFFSET_MS);
 }
 
 /**

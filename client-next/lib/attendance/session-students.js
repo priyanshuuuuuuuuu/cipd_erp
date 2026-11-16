@@ -61,6 +61,9 @@ export async function sessionStudentsHandler(req) {
     if (!session) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
+    if (session.status === 'cancelled') {
+      return NextResponse.json({ error: 'Attendance is unavailable for cancelled sessions' }, { status: 409 });
+    }
 
     if (session && !session.venues?.id) {
       session.venues = null;
@@ -86,13 +89,8 @@ export async function sessionStudentsHandler(req) {
     windowEnd.setMinutes(windowEnd.getMinutes() + 2);
 
     const now = new Date();
-    const today = now.toISOString().split('T')[0];
-    const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
-    const isOngoing =
-      date === today &&
-      session.start_time <= currentTime &&
-      session.end_time > currentTime;
-    const finalizeAbsent = !isOngoing;
+    const isOngoing = sessionStartDate <= now && now < sessionEndDate;
+    const finalizeAbsent = now >= sessionEndDate;
 
     const snapshots = await getSnapshotsBetween(
       sessionStartDate.toISOString(),

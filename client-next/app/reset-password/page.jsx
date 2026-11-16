@@ -70,7 +70,7 @@ function ResetPasswordForm() {
     };
 
     return (
-        <div style={{
+        <main style={{
             minHeight: '100vh', background: 'linear-gradient(135deg, #0f4c75 0%, #1b6ca8 50%, #3B82F6 100%)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem',
             fontFamily: "'Inter', -apple-system, sans-serif",
@@ -96,7 +96,7 @@ function ResetPasswordForm() {
                             <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                         </svg>
                     </div>
-                    <div style={{ fontSize: '1.4rem', fontWeight: 800, lineHeight: 1.1 }}>Set New Password</div>
+                    <h1 style={{ fontSize: '1.4rem', fontWeight: 800, lineHeight: 1.1, margin: 0 }}>Set New Password</h1>
                     <div style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.75)', marginTop: 8, lineHeight: 1.5 }}>
                         Choose a strong password for your CiPD 360 account.<br />This link expires in 15 minutes.
                     </div>
@@ -140,11 +140,13 @@ function ResetPasswordForm() {
                         <form onSubmit={handleSubmit}>
                             {/* New Password */}
                             <div style={{ marginBottom: '1.2rem' }}>
-                                <label style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>
+                                <label htmlFor="reset-password" style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>
                                     New Password
                                 </label>
                                 <div style={{ position: 'relative' }}>
                                     <input
+                                        id="reset-password"
+                                        autoComplete="new-password"
                                         type={showNew ? 'text' : 'password'}
                                         value={newPassword}
                                         onChange={e => setNewPassword(e.target.value)}
@@ -159,7 +161,7 @@ function ResetPasswordForm() {
                                         onFocus={e => e.target.style.borderColor = '#3B82F6'}
                                         onBlur={e => e.target.style.borderColor = '#e5e7eb'}
                                     />
-                                    <button type="button" onClick={() => setShowNew(v => !v)} style={{
+                                    <button type="button" aria-label={showNew ? 'Hide new password' : 'Show new password'} onClick={() => setShowNew(v => !v)} style={{
                                         position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
                                         background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 0, display: 'flex',
                                     }}>
@@ -188,11 +190,13 @@ function ResetPasswordForm() {
 
                             {/* Confirm Password */}
                             <div style={{ marginBottom: '1.4rem' }}>
-                                <label style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>
+                                <label htmlFor="reset-confirm-password" style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'block', marginBottom: 6 }}>
                                     Confirm Password
                                 </label>
                                 <div style={{ position: 'relative' }}>
                                     <input
+                                        id="reset-confirm-password"
+                                        autoComplete="new-password"
                                         type={showConfirm ? 'text' : 'password'}
                                         value={confirmPassword}
                                         onChange={e => setConfirmPassword(e.target.value)}
@@ -207,7 +211,7 @@ function ResetPasswordForm() {
                                         onFocus={e => e.target.style.borderColor = confirmPassword && confirmPassword !== newPassword ? '#ef4444' : '#3B82F6'}
                                         onBlur={e => e.target.style.borderColor = confirmPassword && confirmPassword !== newPassword ? '#fca5a5' : '#e5e7eb'}
                                     />
-                                    <button type="button" onClick={() => setShowConfirm(v => !v)} style={{
+                                    <button type="button" aria-label={showConfirm ? 'Hide password confirmation' : 'Show password confirmation'} onClick={() => setShowConfirm(v => !v)} style={{
                                         position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
                                         background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 0, display: 'flex',
                                     }}>
@@ -269,7 +273,7 @@ function ResetPasswordForm() {
                     )}
 
                     {/* Footer */}
-                    <div style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: '0.75rem', color: '#94a3b8', lineHeight: 1.6 }}>
+                    <div style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: '0.75rem', color: '#64748b', lineHeight: 1.6 }}>
                         Having trouble? Contact your program coordinator.
                     </div>
                 </div>
@@ -278,7 +282,7 @@ function ResetPasswordForm() {
             <style>{`
                 @keyframes spin { to { transform: rotate(360deg); } }
             `}</style>
-        </div>
+        </main>
     );
 }
 

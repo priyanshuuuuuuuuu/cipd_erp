@@ -92,6 +92,22 @@ export async function applyCoreMigrations(sql, { dryRun = false, log = console.l
   const files = await loadMigrations('core');
   const applied = await appliedFor(sql, 'core');
   verifyChecksums('core', files, applied);
+
+  // The sealed registry migration expects these prerequisites to come from a
+  // legacy database. Create them separately when there are no ERP user tables.
+  const [{ needs_bootstrap }] = await sql`
+    SELECT to_regclass('core.accounts') IS NULL
+       AND to_regclass('public.users') IS NULL
+       AND to_regclass('july.users') IS NULL
+       AND to_regclass('junedecember2026.users') IS NULL AS needs_bootstrap`;
+  if (needs_bootstrap) {
+    if (!dryRun) {
+      const bootstrap = await fs.readFile(path.join(MIGRATIONS_ROOT, 'bootstrap.sql'), 'utf8');
+      await sql.begin((tx) => tx.unsafe(bootstrap));
+    }
+    log(dryRun ? '[dry-run] bootstrap.sql' : 'applied bootstrap.sql');
+  }
+
   const ran = [];
   for (const f of files) {
     if (applied.has(f.version)) continue;

@@ -7,7 +7,7 @@ async function handler() {
   return NextResponse.json(
     {
       error: 'Notification stream management has moved to notification-service.',
-      action: 'Use its protected /messages, /drain, and /messages/:id/retry endpoints.',
+      action: 'Use its protected /messages, /drain, and /messages/:schema/:id/retry endpoints.',
     },
     { status: 410 }
   );

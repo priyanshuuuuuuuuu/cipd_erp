@@ -119,7 +119,7 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="login-container">
+    <main className="login-container">
       <CardContainer>
         {/* Logo */}
         <div className="logo-section" style={{ marginBottom: "0" }}>
@@ -132,7 +132,7 @@ export default function SignupPage() {
           <div
             style={{
               fontSize: "0.72rem",
-              color: "#00AEAE",
+              color: "#006e6e",
               fontWeight: 500,
               letterSpacing: "0.5px",
             }}
@@ -142,18 +142,18 @@ export default function SignupPage() {
         </div>
 
         <div style={{ width: "100%", textAlign: "left", marginTop: "20px" }}>
-          <h2
+          <h1
             style={{
               fontSize: "1.4rem",
               fontWeight: 700,
               color: "#000",
-              marginBottom: "4px",
+              margin: "0 0 4px",
             }}
           >
             Create Account
-          </h2>
+          </h1>
           <p
-            style={{ fontSize: "0.78rem", color: "#777", marginBottom: "18px" }}
+            style={{ fontSize: "0.78rem", color: "#666", marginBottom: "18px" }}
           >
             Register as a student — your enrollment ID will be generated
             automatically
@@ -198,7 +198,7 @@ export default function SignupPage() {
                   {successData.enrollmentNo}
                 </span>
               </div>
-              <div style={{ fontSize: "0.72rem", color: "#6ee7b7" }}>
+              <div style={{ fontSize: "0.72rem", color: "#065f46" }}>
                 Redirecting to dashboard...
               </div>
             </div>
@@ -232,8 +232,10 @@ export default function SignupPage() {
                 }}
               >
                 <div className="form-group">
-                  <label style={labelStyle}>First Name</label>
+                  <label htmlFor="signup-first-name" style={labelStyle}>First Name</label>
                   <input
+                    id="signup-first-name"
+                    autoComplete="given-name"
                     style={inputStyle}
                     placeholder="First name"
                     value={form.firstName}
@@ -241,8 +243,10 @@ export default function SignupPage() {
                   />
                 </div>
                 <div className="form-group">
-                  <label style={labelStyle}>Last Name</label>
+                  <label htmlFor="signup-last-name" style={labelStyle}>Last Name</label>
                   <input
+                    id="signup-last-name"
+                    autoComplete="family-name"
                     style={inputStyle}
                     placeholder="Last name"
                     value={form.lastName}
@@ -252,8 +256,10 @@ export default function SignupPage() {
               </div>
 
               <div className="form-group">
-                <label style={labelStyle}>Email Address</label>
+                <label htmlFor="signup-email" style={labelStyle}>Email Address</label>
                 <input
+                  id="signup-email"
+                  autoComplete="email"
                   style={inputStyle}
                   type="email"
                   placeholder="Enter your college email"
@@ -263,8 +269,10 @@ export default function SignupPage() {
               </div>
 
               <div className="form-group">
-                <label style={labelStyle}>Password</label>
+                <label htmlFor="signup-password" style={labelStyle}>Password</label>
                 <input
+                  id="signup-password"
+                  autoComplete="new-password"
                   style={inputStyle}
                   type="password"
                   placeholder="Min. 6 characters"
@@ -274,8 +282,10 @@ export default function SignupPage() {
               </div>
 
               <div className="form-group">
-                <label style={labelStyle}>Confirm Password</label>
+                <label htmlFor="signup-confirm-password" style={labelStyle}>Confirm Password</label>
                 <input
+                  id="signup-confirm-password"
+                  autoComplete="new-password"
                   style={inputStyle}
                   type="password"
                   placeholder="Re-enter password"
@@ -332,26 +342,26 @@ export default function SignupPage() {
                   textAlign: "center",
                   marginTop: "14px",
                   fontSize: "0.78rem",
-                  color: "#777",
+                  color: "#666",
                 }}
               >
                 Already have an account?{" "}
-                <span
-                  onClick={() => router.push("/")}
+                <a
+                  href="/"
                   style={{
-                    color: "#00AEAE",
+                    color: "#006e6e",
                     fontWeight: 600,
                     cursor: "pointer",
                     textDecoration: "underline",
                   }}
                 >
                   Log in
-                </span>
+                </a>
               </p>
             </form>
           )}
         </div>
       </CardContainer>
-    </div>
+    </main>
   );
 }

@@ -45,9 +45,9 @@ app.post('/drain', requireToken, async (req, res) => {
   }
 });
 
-app.post('/messages/:id/retry', requireToken, async (req, res) => {
+app.post(['/messages/:schema/:id/retry', '/messages/:id/retry'], requireToken, async (req, res) => {
   try {
-    res.json(await retryMessage(req.params.id));
+    res.json(await retryMessage(req.params.schema, req.params.id));
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
