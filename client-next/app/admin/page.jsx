@@ -66,6 +66,15 @@ export default function AdminDashboard() {
     const [notifyStatus, setNotifyStatus] = useState(null);
     const [reminderStatus, setReminderStatus] = useState(null);
     const [newClass, setNewClass] = useState({ course_id: '', faculty_id: '', date: '', start_time: '', end_time: '', venue_id: '', title: '' });
+    const [showAddCourse, setShowAddCourse] = useState(false);
+    const [newCourse, setNewCourse] = useState({ name: '', code: '', program_id: '' });
+    const [programList, setProgramList] = useState([]);
+    const [addCourseLoading, setAddCourseLoading] = useState(false);
+    const [addCourseError, setAddCourseError] = useState('');
+    const [showAddVenue, setShowAddVenue] = useState(false);
+    const [newVenueName, setNewVenueName] = useState('');
+    const [addVenueLoading, setAddVenueLoading] = useState(false);
+    const [addVenueError, setAddVenueError] = useState('');
     const [scheduleLoading, setScheduleLoading] = useState(false);
     const [scheduleError, setScheduleError] = useState('');
 
@@ -208,6 +217,54 @@ export default function AdminDashboard() {
             alert(e.message || `Failed to ${action} leave request`);
         } finally {
             setLeaveActionBusy(null);
+        }
+    };
+
+    const openAddCourse = async () => {
+        setShowAddCourse(true); setAddCourseError('');
+        if (programList.length === 0) {
+            try {
+                const res = await api.get('/api/admin/programs');
+                setProgramList(res.programs || []);
+            } catch (err) {
+                setAddCourseError(err.message || 'Failed to load programs.');
+            }
+        }
+    };
+
+    const handleAddCourse = async () => {
+        const { name, code, program_id } = newCourse;
+        if (!name.trim() || !code.trim() || !program_id) {
+            setAddCourseError('Course name, code and program are all required.');
+            return;
+        }
+        setAddCourseError(''); setAddCourseLoading(true);
+        try {
+            const res = await api.post(`/api/admin/programs/${program_id}/courses`, { courses: [{ name: name.trim(), code: code.trim() }] });
+            const created = res.courses?.[0];
+            if (!created) throw new Error('Course was not created.');
+            setLookupData(prev => ({ ...prev, courses: [...prev.courses, { id: created.id, name: created.name }].sort((a, b) => a.name.localeCompare(b.name)) }));
+            setNewClass(prev => ({ ...prev, course_id: created.id }));
+            setNewCourse({ name: '', code: '', program_id: '' }); setShowAddCourse(false);
+        } catch (err) {
+            setAddCourseError(err.message || 'Failed to add course.');
+        } finally {
+            setAddCourseLoading(false);
+        }
+    };
+
+    const handleAddVenue = async () => {
+        if (!newVenueName.trim()) return;
+        setAddVenueError(''); setAddVenueLoading(true);
+        try {
+            const res = await api.post('/api/admin/venues', { name: newVenueName.trim() });
+            setLookupData(prev => ({ ...prev, venues: [...prev.venues, res.venue].sort((a, b) => a.name.localeCompare(b.name)) }));
+            setNewClass(prev => ({ ...prev, venue_id: res.venue.id }));
+            setNewVenueName(''); setShowAddVenue(false);
+        } catch (err) {
+            setAddVenueError(err.message || 'Failed to add venue.');
+        } finally {
+            setAddVenueLoading(false);
         }
     };
 
@@ -605,6 +662,41 @@ export default function AdminDashboard() {
                                     <option value=''>Select a course...</option>
                                     {lookupData.courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                 </select>
+                                {!showAddCourse ? (
+                                    <button type="button" onClick={openAddCourse}
+                                        style={{ marginTop: '6px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.75rem', color: '#3B2D82', fontWeight: 600, padding: '2px 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        <Plus size={12} /> Add new course
+                                    </button>
+                                ) : (
+                                    <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                        <input autoFocus type="text" placeholder="Course name, e.g. AI for Design" value={newCourse.name}
+                                            onChange={e => { setNewCourse(c => ({ ...c, name: e.target.value })); setAddCourseError(''); }}
+                                            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddCourse(); } if (e.key === 'Escape') setShowAddCourse(false); }}
+                                            style={{ padding: '6px 10px', borderRadius: '7px', border: '1px solid #e5e7eb', fontSize: '0.82rem', fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box', width: '100%' }} />
+                                        <div style={{ display: 'flex', gap: '6px' }}>
+                                            <input type="text" placeholder="Code, e.g. AI-FDE" value={newCourse.code}
+                                                onChange={e => { setNewCourse(c => ({ ...c, code: e.target.value })); setAddCourseError(''); }}
+                                                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddCourse(); } if (e.key === 'Escape') setShowAddCourse(false); }}
+                                                style={{ flex: 1, minWidth: 0, padding: '6px 10px', borderRadius: '7px', border: '1px solid #e5e7eb', fontSize: '0.82rem', fontFamily: 'inherit', outline: 'none', textTransform: 'uppercase' }} />
+                                            <select value={newCourse.program_id} onChange={e => { setNewCourse(c => ({ ...c, program_id: e.target.value })); setAddCourseError(''); }}
+                                                style={{ flex: 1, minWidth: 0, padding: '6px 10px', borderRadius: '7px', border: '1px solid #e5e7eb', fontSize: '0.82rem', fontFamily: 'inherit', background: '#fff', cursor: 'pointer' }}>
+                                                <option value=''>Program…</option>
+                                                {programList.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                            </select>
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '6px' }}>
+                                            <button type="button" onClick={handleAddCourse} disabled={addCourseLoading}
+                                                style={{ padding: '6px 12px', borderRadius: '7px', border: 'none', background: '#3B2D82', color: '#fff', cursor: addCourseLoading ? 'not-allowed' : 'pointer', fontSize: '0.78rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
+                                                {addCourseLoading ? <RefreshCw size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <Plus size={12} />} Save course
+                                            </button>
+                                            <button type="button" onClick={() => { setShowAddCourse(false); setNewCourse({ name: '', code: '', program_id: '' }); setAddCourseError(''); }}
+                                                style={{ padding: '6px 8px', borderRadius: '7px', border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', color: '#888' }}>
+                                                <X size={12} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                                {addCourseError && <div style={{ fontSize: '0.72rem', color: '#dc2626', marginTop: '4px' }}>⚠ {addCourseError}</div>}
                             </div>
                             <div>
                                 <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>Lecture Title *</label>
@@ -647,6 +739,28 @@ export default function AdminDashboard() {
                                     <option value=''>Select venue...</option>
                                     {lookupData.venues.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
                                 </select>
+                                {!showAddVenue ? (
+                                    <button type="button" onClick={() => { setShowAddVenue(true); setAddVenueError(''); }}
+                                        style={{ marginTop: '6px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.75rem', color: '#3B2D82', fontWeight: 600, padding: '2px 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        <Plus size={12} /> Add new venue
+                                    </button>
+                                ) : (
+                                    <div style={{ marginTop: '8px', display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                        <input autoFocus type="text" placeholder="e.g. Room A-101" value={newVenueName}
+                                            onChange={e => { setNewVenueName(e.target.value); setAddVenueError(''); }}
+                                            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddVenue(); } if (e.key === 'Escape') setShowAddVenue(false); }}
+                                            style={{ flex: 1, padding: '6px 10px', borderRadius: '7px', border: `1px solid ${addVenueError ? '#fca5a5' : '#e5e7eb'}`, fontSize: '0.82rem', fontFamily: 'inherit', outline: 'none' }} />
+                                        <button type="button" onClick={handleAddVenue} disabled={addVenueLoading || !newVenueName.trim()}
+                                            style={{ padding: '6px 12px', borderRadius: '7px', border: 'none', background: '#3B2D82', color: '#fff', cursor: addVenueLoading ? 'not-allowed' : 'pointer', fontSize: '0.78rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
+                                            {addVenueLoading ? <RefreshCw size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <Plus size={12} />} Save
+                                        </button>
+                                        <button type="button" onClick={() => { setShowAddVenue(false); setNewVenueName(''); setAddVenueError(''); }}
+                                            style={{ padding: '6px 8px', borderRadius: '7px', border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', color: '#888' }}>
+                                            <X size={12} />
+                                        </button>
+                                    </div>
+                                )}
+                                {addVenueError && <div style={{ fontSize: '0.72rem', color: '#dc2626', marginTop: '4px' }}>⚠ {addVenueError}</div>}
                             </div>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', padding: '1rem 1.5rem', borderTop: '1px solid #f0f0f0' }}>

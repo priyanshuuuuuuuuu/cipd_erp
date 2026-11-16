@@ -5,7 +5,7 @@ import '../../Dashboard.css';
 import {
   AlertCircle, Archive, Bell, BookOpen, Calendar, CheckCircle, ChevronLeft, ChevronRight,
   Clock, FileBarChart, GraduationCap, Layers, LayoutGrid, LogOut, Menu, MessageSquare,
-  Plus, RefreshCw, Settings, Trophy, Users, Wifi,
+  Pencil, Plus, RefreshCw, Settings, Trophy, Users, Wifi, X,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
@@ -28,7 +28,29 @@ export default function AdminProgramsPage() {
   const [error, setError] = useState('');
   const [modal, setModal] = useState(null); // { program: null|object }
   const [facultyModal, setFacultyModal] = useState(null); // course being assigned faculty
+  const [editing, setEditing] = useState(null); // { type: 'program'|'course', item, name, code, description }
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState('');
   const navTo = (path) => router.push(path);
+
+  const openEdit = (type, item) => setEditing({ type, item, name: item.name || '', code: item.code || '', description: item.description || '' });
+  const saveEdit = async () => {
+    if (!editing) return;
+    setEditSaving(true); setEditError('');
+    try {
+      if (editing.type === 'program') {
+        await api.patch(`/api/admin/programs/${editing.item.id}`, { name: editing.name });
+      } else {
+        await api.patch(`/api/admin/courses/${editing.item.id}`, { name: editing.name, code: editing.code, description: editing.description });
+      }
+      setEditing(null);
+      await load();
+    } catch (err) {
+      setEditError(err.message || 'Failed to save changes.');
+    } finally {
+      setEditSaving(false);
+    }
+  };
 
   const load = useCallback(async () => {
     if (!selectedCohort) return;
@@ -90,6 +112,13 @@ export default function AdminProgramsPage() {
 
       <div className="main-content" style={{ padding: '2rem 3rem' }}>
         <div className="content-center admin-full" style={{ maxWidth: 1120, margin: '0 auto' }}>
+          <button
+            type="button"
+            onClick={() => router.push('/admin/settings')}
+            style={{ display: 'inline-flex', alignSelf: 'flex-start', width: 'fit-content', alignItems: 'center', gap: 6, marginBottom: 12, padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600, color: '#334155' }}
+          >
+            <ChevronLeft size={14} /> Back to Settings
+          </button>
           <header className="dashboard-header" style={{ borderBottom: 0, padding: '0 0 1.5rem', background: 'transparent' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
               <div className="mobile-menu-btn" onClick={() => setIsMobileMenuOpen(true)} style={{ cursor: 'pointer' }}><Menu size={24} /></div>
@@ -121,7 +150,7 @@ export default function AdminProgramsPage() {
               {programs.map((program) => (
                 <section key={program.id} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14, overflow: 'hidden' }}>
                   <div style={{ padding: '14px 16px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-                    <div><h2 style={{ margin: 0, color: '#0f172a', fontSize: '1rem' }}>{program.name}</h2><div style={{ color: '#94a3b8', fontSize: '0.7rem', marginTop: 2 }}>{program.courses.length} course{program.courses.length === 1 ? '' : 's'} in this cohort</div></div>
+                    <div><h2 style={{ margin: 0, color: '#0f172a', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: 6 }}>{program.name}<button title="Rename program" disabled={isReadOnly} onClick={() => openEdit('program', program)} style={{ background: 'none', border: 'none', cursor: isReadOnly ? 'not-allowed' : 'pointer', color: '#94a3b8', padding: 2, display: 'flex' }}><Pencil size={13} /></button></h2><div style={{ color: '#94a3b8', fontSize: '0.7rem', marginTop: 2 }}>{program.courses.length} course{program.courses.length === 1 ? '' : 's'} in this cohort</div></div>
                     <button style={{ ...button, padding: '5px 9px', opacity: isReadOnly ? 0.5 : 1 }} disabled={isReadOnly} onClick={() => setModal({ program })}><Plus size={12} /> Add courses</button>
                   </div>
                   <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -129,6 +158,7 @@ export default function AdminProgramsPage() {
                       <div key={course.id} style={{ border: '1px solid #f1f5f9', background: '#f8fafc', borderRadius: 9, padding: '10px 11px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}><span style={{ color: '#1e293b', fontWeight: 700, fontSize: '0.82rem' }}>{course.name}</span><code style={{ color: '#475569', fontSize: '0.7rem', background: '#e2e8f0', padding: '2px 6px', borderRadius: 5 }}>{course.code}</code></div>
                         <button style={{ ...button, padding: '3px 8px', marginTop: 6, fontSize: '0.68rem' }} onClick={() => setFacultyModal(course)}><Users size={11} /> Faculty</button>
+                        <button style={{ ...button, padding: '3px 8px', marginTop: 6, marginLeft: 6, fontSize: '0.68rem', opacity: isReadOnly ? 0.5 : 1 }} disabled={isReadOnly} onClick={() => openEdit('course', course)}><Pencil size={11} /> Edit</button>
                         {course.description && <div style={{ color: '#64748b', fontSize: '0.72rem', lineHeight: 1.45, marginTop: 5 }}>{course.description}</div>}
                       </div>
                     ))}
@@ -149,6 +179,37 @@ export default function AdminProgramsPage() {
         </div>
       </div>
 
+
+      {editing && (
+        <div onClick={() => setEditing(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, width: 440, maxWidth: '92vw', boxShadow: '0 20px 60px rgba(0,0,0,0.18)', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.4rem', borderBottom: '1px solid #f1f5f9' }}>
+              <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>{editing.type === 'program' ? 'Rename Program' : 'Edit Course'}</h3>
+              <button onClick={() => setEditing(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888' }}><X size={18} /></button>
+            </div>
+            <div style={{ padding: '1.2rem 1.4rem', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {editError && <div style={{ padding: '8px 12px', borderRadius: 8, background: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c', fontSize: '0.78rem' }}>{editError}</div>}
+              <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#555' }}>Name
+                <input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} style={{ display: 'block', width: '100%', marginTop: 5, padding: '9px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.85rem', boxSizing: 'border-box' }} />
+              </label>
+              {editing.type === 'course' && (
+                <>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#555' }}>Code
+                    <input value={editing.code} onChange={(e) => setEditing({ ...editing, code: e.target.value })} style={{ display: 'block', width: '100%', marginTop: 5, padding: '9px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.85rem', boxSizing: 'border-box', textTransform: 'uppercase' }} />
+                  </label>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#555' }}>Description <span style={{ fontWeight: 400, color: '#aaa' }}>— optional</span>
+                    <textarea rows={3} value={editing.description} onChange={(e) => setEditing({ ...editing, description: e.target.value })} style={{ display: 'block', width: '100%', marginTop: 5, padding: '9px 12px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.85rem', fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' }} />
+                  </label>
+                </>
+              )}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '1rem 1.4rem', borderTop: '1px solid #f1f5f9' }}>
+              <button onClick={() => setEditing(null)} style={button}>Cancel</button>
+              <button onClick={saveEdit} disabled={editSaving} style={{ ...button, border: 0, background: '#0f172a', color: '#fff', opacity: editSaving ? 0.6 : 1 }}>{editSaving ? 'Saving…' : 'Save changes'}</button>
+            </div>
+          </div>
+        </div>
+      )}
       {facultyModal && <CourseFacultyModal course={facultyModal} readOnly={isReadOnly} onClose={() => setFacultyModal(null)} />}
       {modal && <ProgramCourseModal program={modal.program} onClose={() => setModal(null)} onSaved={async () => { setModal(null); await load(); }} />}
     </div>

@@ -93,7 +93,7 @@ export default function AdminSettingsPage() {
     };
 
     const handleAddBssid = async () => {
-        if (!newBssid.bssid || !newBssid.venue) return;
+        if (!newBssid.venue.trim()) return;
         try {
             const result = await api.post('/api/admin/settings/bssid', { bssid: newBssid.bssid, venue: newBssid.venue });
             if (result?.data) {
@@ -119,19 +119,21 @@ export default function AdminSettingsPage() {
     };
 
     const handleEditBssid = async () => {
-        if (!editingBssid || !editingBssid.router_bssid || !editingBssid.name) return;
+        if (!editingBssid || !editingBssid.name?.trim()) return;
         try {
-            await api.patch('/api/admin/settings/bssid', { 
-                id: editingBssid.id, 
-                router_bssid: editingBssid.router_bssid, 
-                name: editingBssid.name 
+            await api.patch('/api/admin/settings/bssid', {
+                id: editingBssid.id,
+                router_bssid: editingBssid.router_bssid || '',
+                name: editingBssid.name,
+                building: editingBssid.building || '',
             });
-            setBssidList(prev => prev.map(b => b.id === editingBssid.id ? editingBssid : b));
+            const saved = { ...editingBssid, router_bssid: (editingBssid.router_bssid || '').trim() || null };
+            setBssidList(prev => prev.map(b => b.id === saved.id ? saved : b));
             setShowEditModal(false);
             setEditingBssid(null);
         } catch (err) {
-            console.error("Error editing BSSID:", err);
-            alert("Failed to update BSSID");
+            console.error("Error editing venue:", err);
+            alert(err.message || "Failed to update venue");
         }
     };
 
@@ -229,6 +231,53 @@ export default function AdminSettingsPage() {
                         </button>
                     </div>
 
+                    {/* Venues (with their Wi-Fi BSSIDs) */}
+                    <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', borderTop: '3px solid #3B2D82', overflow: 'hidden', marginBottom: '1.5rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.8rem 1.5rem', borderBottom: '1px solid #f0f0f0' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.95rem', fontWeight: 700 }}><Wifi size={16} /> Venues</div>
+                            <button onClick={() => setShowBssidModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 14px', borderRadius: '8px', border: 'none', background: '#111', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, color: '#fff' }}><Plus size={13} /> Add BSSID</button>
+                        </div>
+                        <div style={{ overflowX: 'auto' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                                <thead>
+                                    <tr style={{ background: '#fafafa' }}>
+                                        {['BSSID', 'Venue', 'Status', ''].map(h => (
+                                            <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: '0.68rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#aaa', borderBottom: '1px solid #f0f0f0' }}>{h}</th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {bssidList.map(b => (
+                                        <tr key={b.id} className="attendance-row" style={{ borderBottom: '1px solid #f5f5f5', opacity: b.is_active !== false ? 1 : 0.5 }}>
+                                            <td style={{ padding: '10px 16px', fontFamily: 'monospace', fontWeight: 600, fontSize: '0.82rem', color: '#333' }}>{b.router_bssid || b.bssid || <span style={{ color: '#bbb', fontFamily: 'inherit', fontWeight: 400 }}>Not linked</span>}</td>
+                                            <td style={{ padding: '10px 16px', color: '#555' }}>{b.name || b.venue}{b.building && b.building !== 'Default' ? <span style={{ color: '#aaa' }}>, {b.building}</span> : null}</td>
+                                            <td style={{ padding: '10px 16px' }}>
+                                                <button onClick={() => toggleBssid(b.id)} className="change-status-btn" style={{ padding: '3px 10px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600, border: 'none', cursor: 'pointer', background: b.is_active !== false ? '#ecfdf5' : '#fef2f2', color: b.is_active !== false ? '#166534' : '#991b1b' }}>
+                                                    {b.is_active !== false ? 'Active' : 'Inactive'}
+                                                </button>
+                                            </td>
+                                            <td style={{ padding: '10px 16px' }}>
+                                                <div style={{ display: 'flex', gap: '6px' }}>
+                                                    <button 
+                                                        onClick={() => {
+                                                            setEditingBssid({ ...b });
+                                                            setShowEditModal(true);
+                                                        }}
+                                                        className="change-status-btn" 
+                                                        style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', color: '#888' }}
+                                                    >
+                                                        <Edit3 size={13} />
+                                                    </button>
+                                                    <button onClick={() => removeBssid(b.id)} className="change-status-btn" style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', color: '#ccc' }}><Trash2 size={13} /></button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
                     {/* Attendance Detection Config */}
                     <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', borderTop: '3px solid #00A5A0', overflow: 'hidden', marginBottom: '1.5rem' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.8rem 1.5rem', borderBottom: '1px solid #f0f0f0' }}>
@@ -257,53 +306,6 @@ export default function AdminSettingsPage() {
                                     Scanner captures every <strong style={{ color: '#111' }}>{detectionConfig.scannerInterval} min</strong>. A 90-min session expects <strong style={{ color: '#111' }}>{Math.floor(90 / (detectionConfig.scannerInterval || 6))}</strong> snapshots. Only signals <strong style={{ color: '#111' }}>{'>'} {detectionConfig.minSignal}</strong> are counted.
                                 </div>
                             </div>
-                        </div>
-                    </div>
-
-                    {/* BSSID Whitelist */}
-                    <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e8e8e8', borderTop: '3px solid #3B2D82', overflow: 'hidden', marginBottom: '1.5rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.8rem 1.5rem', borderBottom: '1px solid #f0f0f0' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.95rem', fontWeight: 700 }}><Wifi size={16} /> BSSID Whitelist</div>
-                            <button onClick={() => setShowBssidModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 14px', borderRadius: '8px', border: 'none', background: '#111', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, color: '#fff' }}><Plus size={13} /> Add BSSID</button>
-                        </div>
-                        <div style={{ overflowX: 'auto' }}>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
-                                <thead>
-                                    <tr style={{ background: '#fafafa' }}>
-                                        {['BSSID', 'Venue', 'Status', ''].map(h => (
-                                            <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontSize: '0.68rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#aaa', borderBottom: '1px solid #f0f0f0' }}>{h}</th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {bssidList.map(b => (
-                                        <tr key={b.id} className="attendance-row" style={{ borderBottom: '1px solid #f5f5f5', opacity: b.is_active !== false ? 1 : 0.5 }}>
-                                            <td style={{ padding: '10px 16px', fontFamily: 'monospace', fontWeight: 600, fontSize: '0.82rem', color: '#333' }}>{b.router_bssid || b.bssid}</td>
-                                            <td style={{ padding: '10px 16px', color: '#555' }}>{b.name || b.venue}</td>
-                                            <td style={{ padding: '10px 16px' }}>
-                                                <button onClick={() => toggleBssid(b.id)} className="change-status-btn" style={{ padding: '3px 10px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 600, border: 'none', cursor: 'pointer', background: b.is_active !== false ? '#ecfdf5' : '#fef2f2', color: b.is_active !== false ? '#166534' : '#991b1b' }}>
-                                                    {b.is_active !== false ? 'Active' : 'Inactive'}
-                                                </button>
-                                            </td>
-                                            <td style={{ padding: '10px 16px' }}>
-                                                <div style={{ display: 'flex', gap: '6px' }}>
-                                                    <button 
-                                                        onClick={() => {
-                                                            setEditingBssid({ ...b });
-                                                            setShowEditModal(true);
-                                                        }}
-                                                        className="change-status-btn" 
-                                                        style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', color: '#888' }}
-                                                    >
-                                                        <Edit3 size={13} />
-                                                    </button>
-                                                    <button onClick={() => removeBssid(b.id)} className="change-status-btn" style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', color: '#ccc' }}><Trash2 size={13} /></button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
                         </div>
                     </div>
 
@@ -408,7 +410,7 @@ export default function AdminSettingsPage() {
                         </div>
                         <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '14px' }}>
                             <div>
-                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>BSSID (MAC Address)</label>
+                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>BSSID (MAC Address) <span style={{ fontWeight: 400, color: '#aaa' }}>— optional</span></label>
                                 <input type="text" placeholder="e.g. C4:E9:84:A2:3F:06" value={newBssid.bssid} onChange={e => setNewBssid({ ...newBssid, bssid: e.target.value })}
                                     style={{ ...inputStyle, fontFamily: 'monospace' }} onFocus={e => e.target.style.borderColor = '#111'} onBlur={e => e.target.style.borderColor = '#e5e7eb'} />
                             </div>
@@ -437,13 +439,18 @@ export default function AdminSettingsPage() {
                         </div>
                         <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '14px' }}>
                             <div>
-                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>BSSID (MAC Address)</label>
+                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>BSSID (MAC Address) <span style={{ fontWeight: 400, color: '#aaa' }}>— optional</span></label>
                                 <input type="text" value={editingBssid.router_bssid || ''} onChange={e => setEditingBssid({ ...editingBssid, router_bssid: e.target.value })}
                                     style={{ ...inputStyle, fontFamily: 'monospace' }} onFocus={e => e.target.style.borderColor = '#111'} onBlur={e => e.target.style.borderColor = '#e5e7eb'} />
                             </div>
                             <div>
                                 <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>Venue Name</label>
                                 <input type="text" value={editingBssid.name || ''} onChange={e => setEditingBssid({ ...editingBssid, name: e.target.value })}
+                                    style={inputStyle} onFocus={e => e.target.style.borderColor = '#111'} onBlur={e => e.target.style.borderColor = '#e5e7eb'} />
+                            </div>
+                            <div>
+                                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>Building <span style={{ fontWeight: 400, color: '#aaa' }}>— optional</span></label>
+                                <input type="text" placeholder="e.g. Academic Block" value={editingBssid.building && editingBssid.building !== 'Default' ? editingBssid.building : ''} onChange={e => setEditingBssid({ ...editingBssid, building: e.target.value })}
                                     style={inputStyle} onFocus={e => e.target.style.borderColor = '#111'} onBlur={e => e.target.style.borderColor = '#e5e7eb'} />
                             </div>
                         </div>

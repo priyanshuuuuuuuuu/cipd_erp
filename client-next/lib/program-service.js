@@ -112,6 +112,42 @@ export async function createProgramWithCourses(input, cohort) {
   });
 }
 
+/** Rename a (global) program. */
+export async function updateProgram(programId, input) {
+  const id = Number(programId);
+  if (!Number.isInteger(id) || id <= 0) throw new HttpError(400, 'Invalid program id.');
+  const name = normalizeProgramName(input?.name);
+
+  return connection.begin(async (tx) => {
+    await tx`SELECT pg_advisory_xact_lock(hashtext('core.programs:name'))`;
+    const [clash] = await tx`SELECT id FROM core.programs WHERE lower(name) = ${name.toLowerCase()} AND id <> ${id}`;
+    if (clash) throw new HttpError(409, `A program named "${name}" already exists.`);
+    const [program] = await tx`UPDATE core.programs SET name = ${name} WHERE id = ${id} RETURNING id, name`;
+    if (!program) throw new HttpError(404, 'Program not found.');
+    return program;
+  });
+}
+
+/** Edit a course's name, code and description in the resolved cohort. */
+export async function updateCourse(courseId, input, cohort) {
+  requireRunningCohort(cohort);
+  const [course] = normalizeCourses([{ name: input?.name, code: input?.code, description: input?.description }]);
+  const schema = qid(cohort.schema_name || cohort.schema);
+  try {
+    const rows = await connection.unsafe(
+      `UPDATE ${schema}.courses SET name = $1, code = $2, description = $3
+        WHERE id = $4
+        RETURNING id, name, code, description, program_id, created_at`,
+      [course.name, course.code, course.description, courseId]
+    );
+    if (!rows.length) throw new HttpError(404, 'Course not found.');
+    return rows[0];
+  } catch (err) {
+    if (err?.code === '23505') throw new HttpError(409, `Course code "${course.code}" already exists in this cohort.`);
+    throw err;
+  }
+}
+
 /** Add one or more courses to an existing program in the resolved cohort. */
 export async function addCoursesToProgram(programId, courses, cohort) {
   requireRunningCohort(cohort);

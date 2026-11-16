@@ -328,7 +328,7 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 JWT_SECRET=your-jwt-secret
 EMAIL_FROM=your-gmail@gmail.com
 EMAIL_PASSWORD=your-gmail-app-password
-NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_APP_URL=http://ipdcp-erp.iiitd.edu.in
 ```
 
 ### Run Development Server

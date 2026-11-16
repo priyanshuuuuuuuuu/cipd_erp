@@ -25,12 +25,15 @@ async function handler(req) {
     
     if (req.method === 'POST') {
       const { bssid, venue } = await req.json();
-      
+      if (!String(venue || '').trim()) {
+        return NextResponse.json({ error: 'Venue name is required.' }, { status: 400 });
+      }
+
       const [data] = await db
         .insert(venues)
-        .values({ 
-          routerBssid: bssid, 
-          name: venue,
+        .values({
+          routerBssid: String(bssid || '').trim() || null,
+          name: String(venue).trim(),
           building: 'Default',
           isActive: true,
         })
@@ -47,12 +50,17 @@ async function handler(req) {
     }
 
     if (req.method === 'PATCH') {
-      const { id, is_active, router_bssid, name } = await req.json();
-      
+      const { id, is_active, router_bssid, name, building } = await req.json();
+
       const updateData = {};
       if (is_active !== undefined) updateData.isActive = is_active;
-      if (router_bssid !== undefined) updateData.routerBssid = router_bssid;
-      if (name !== undefined) updateData.name = name;
+      // A blank BSSID means "not linked to a router": store NULL (the column is unique)
+      if (router_bssid !== undefined) updateData.routerBssid = String(router_bssid || '').trim() || null;
+      if (name !== undefined) {
+        if (!String(name).trim()) return NextResponse.json({ error: 'Venue name is required.' }, { status: 400 });
+        updateData.name = String(name).trim();
+      }
+      if (building !== undefined) updateData.building = String(building || '').trim() || null;
 
       await db
         .update(venues)

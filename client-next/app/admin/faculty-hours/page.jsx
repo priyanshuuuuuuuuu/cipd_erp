@@ -331,6 +331,9 @@ export default function AdminFacultyHoursPage() {
     const [editLoading, setEditLoading] = useState(false);
     const [editError, setEditError] = useState('');
     const [editSuccess, setEditSuccess] = useState('');
+    const [resetSending, setResetSending] = useState(false);
+    const [resetStatus, setResetStatus] = useState('');   // '' | 'success' | 'error'
+    const [resetMessage, setResetMessage] = useState('');
 
     // ── Dropdown option lists (persisted in localStorage) ──────────────────────
     const [departmentOptions, setDepartmentOptions] = useState(() => loadOptions('cipd_department_opts', DEFAULT_DEPARTMENT_OPTIONS));
@@ -395,7 +398,23 @@ export default function AdminFacultyHoursPage() {
         setEditSuccess('');
     };
 
-    const closeEdit = () => { setEditFaculty(null); setEditError(''); setEditSuccess(''); };
+    const closeEdit = () => { setEditFaculty(null); setEditError(''); setEditSuccess(''); setResetStatus(''); setResetMessage(''); };
+
+    // ── Send password reset email ──────────────────────────────────────────────
+    const handleResetPassword = async () => {
+        if (!editFaculty) return;
+        setResetSending(true); setResetStatus(''); setResetMessage('');
+        try {
+            const res = await api.post('/api/admin/faculty-hours/reset-password', { faculty_id: editFaculty.id });
+            setResetStatus('success');
+            setResetMessage(res.message || `Reset email sent to ${editFaculty.email}`);
+        } catch (err) {
+            setResetStatus('error');
+            setResetMessage(err.message || 'Failed to send reset email.');
+        } finally {
+            setResetSending(false);
+        }
+    };
 
     // ── Save Edit ──────────────────────────────────────────────────────────────
     const handleEditSave = async (e) => {
@@ -888,6 +907,24 @@ export default function AdminFacultyHoursPage() {
                                 </button>
                             </div>
                         </form>
+
+                        {/* ── Password Reset section ── */}
+                        <div style={{ marginTop: '1.3rem', paddingTop: '1.2rem', borderTop: '1px solid #e2e8f0' }}>
+                            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '0.5rem' }}>Password Reset</div>
+                            <div style={{ fontSize: '0.78rem', color: '#64748b', lineHeight: 1.6, marginBottom: '0.8rem' }}>
+                                Send a password reset link to <strong>{editFaculty.email}</strong>. The link expires in 15 minutes.
+                            </div>
+                            {resetStatus === 'success' && <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '8px', padding: '8px 14px', fontSize: '0.78rem', color: '#16a34a', marginBottom: '10px' }}>✓ {resetMessage}</div>}
+                            {resetStatus === 'error' && <div style={{ background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: '8px', padding: '8px 14px', fontSize: '0.78rem', color: '#dc2626', marginBottom: '10px' }}>⚠ {resetMessage}</div>}
+                            <button
+                                type="button"
+                                onClick={handleResetPassword}
+                                disabled={resetSending || resetStatus === 'success'}
+                                style={{ width: '100%', padding: '9px', borderRadius: '10px', border: '1.5px solid', borderColor: resetStatus === 'success' ? '#a7f3d0' : '#bfdbfe', background: resetStatus === 'success' ? '#ecfdf5' : '#eff6ff', color: resetStatus === 'success' ? '#065f46' : '#1d4ed8', cursor: (resetSending || resetStatus === 'success') ? 'not-allowed' : 'pointer', fontSize: '0.82rem', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: resetStatus === 'success' ? 0.75 : 1 }}
+                            >
+                                {resetSending ? <><Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Sending...</> : resetStatus === 'success' ? <><CheckCircle size={14} /> Email Sent</> : 'Send Password Reset Email'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

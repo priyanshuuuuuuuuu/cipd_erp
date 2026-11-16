@@ -141,6 +141,13 @@ export default function AdminCohortsPage() {
 
             <div className="main-content" style={{ padding: '2rem 3rem' }}>
                 <div className="content-center admin-full" style={{ maxWidth: 1200, margin: '0 auto' }}>
+                    <button
+                        type="button"
+                        onClick={() => router.push('/admin/settings')}
+                        style={{ display: 'inline-flex', alignSelf: 'flex-start', width: 'fit-content', alignItems: 'center', gap: 6, marginBottom: 12, padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600, color: '#334155' }}
+                    >
+                        <ChevronLeft size={14} /> Back to Settings
+                    </button>
                     <header className="dashboard-header" style={{ borderBottom: 'none', padding: '0 0 1.5rem 0', background: 'transparent' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                             <div className="mobile-menu-btn" onClick={() => setIsMobileMenuOpen(true)} style={{ cursor: 'pointer' }}><Menu size={24} /></div>

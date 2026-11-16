@@ -325,6 +325,19 @@ export default function AdminSchedulePage() {
     const [addTypeLoading, setAddTypeLoading] = useState(false);
     const [addTypeError, setAddTypeError] = useState('');
 
+    // ── Add-venue inline state (shared by the new-class and edit modals) ─────
+    const [showAddVenue, setShowAddVenue] = useState(false);
+    const [newVenueName, setNewVenueName] = useState('');
+    const [addVenueLoading, setAddVenueLoading] = useState(false);
+    const [addVenueError, setAddVenueError] = useState('');
+
+    // ── Add-course inline state (shared by the new-class and edit modals) ────
+    const [showAddCourse, setShowAddCourse] = useState(false);
+    const [newCourse, setNewCourse] = useState({ name: '', code: '', program_id: '' });
+    const [programList, setProgramList] = useState([]);
+    const [addCourseLoading, setAddCourseLoading] = useState(false);
+    const [addCourseError, setAddCourseError] = useState('');
+
     // ── Edit-session modal state ─────────────────────────────────────────────
     const [editSession, setEditSession] = useState(null);   // full session object
     const [editForm, setEditForm] = useState({});
@@ -457,6 +470,67 @@ export default function AdminSchedulePage() {
             setAddTypeError(err.message || 'Failed to add type.');
         } finally {
             setAddTypeLoading(false);
+        }
+    };
+
+    // Creates a venue, adds it to the dropdown and selects it via onCreated(newId)
+    const handleAddVenue = async (onCreated) => {
+        if (!newVenueName.trim()) return;
+        setAddVenueError('');
+        setAddVenueLoading(true);
+        try {
+            const res = await api.post('/api/admin/venues', { name: newVenueName.trim() });
+            setLookupData(prev => ({
+                ...prev,
+                venues: [...prev.venues, res.venue].sort((a, b) => a.name.localeCompare(b.name)),
+            }));
+            onCreated(res.venue.id);
+            setNewVenueName('');
+            setShowAddVenue(false);
+        } catch (err) {
+            setAddVenueError(err.message || 'Failed to add venue.');
+        } finally {
+            setAddVenueLoading(false);
+        }
+    };
+
+    const openAddCourse = async () => {
+        setShowAddCourse(true); setAddCourseError('');
+        if (programList.length === 0) {
+            try {
+                const res = await api.get('/api/admin/programs');
+                setProgramList(res.programs || []);
+            } catch (err) {
+                setAddCourseError(err.message || 'Failed to load programs.');
+            }
+        }
+    };
+
+    // Creates a course in the selected cohort, adds it to the dropdown and selects it via onCreated(newId)
+    const handleAddCourse = async (onCreated) => {
+        const { name, code, program_id } = newCourse;
+        if (!name.trim() || !code.trim() || !program_id) {
+            setAddCourseError('Course name, code and program are all required.');
+            return;
+        }
+        setAddCourseError(''); setAddCourseLoading(true);
+        try {
+            const res = await api.post(`/api/admin/programs/${program_id}/courses`, {
+                courses: [{ name: name.trim(), code: code.trim() }],
+            });
+            const created = res.courses?.[0];
+            if (!created) throw new Error('Course was not created.');
+            setLookupData(prev => ({
+                ...prev,
+                courses: [...prev.courses, { id: created.id, name: created.name }].sort((a, b) => a.name.localeCompare(b.name)),
+            }));
+            onCreated(created.id);
+            setNewCourse({ name: '', code: '', program_id: '' });
+            setShowAddCourse(false);
+        } catch (err) {
+            setAddCourseError(err.message || 'Failed to add course.');
+        } finally {
+            setAddCourseLoading(false);
         }
     };
 
@@ -859,6 +933,126 @@ export default function AdminSchedulePage() {
 
     // Shared input style
     const inp = { width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: '0.85rem', fontFamily: 'inherit', color: '#333', outline: 'none', boxSizing: 'border-box' };
+
+    // ── Course dropdown + inline add (reusable JSX) ───────────────────────────
+    const courseField = (value, onSelect) => (
+        <div>
+            <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>Course *</label>
+            <select value={value} onChange={e => onSelect(e.target.value)} style={{ ...inp, cursor: 'pointer', background: '#fff' }}>
+                <option value=''>Select a course...</option>
+                {lookupData.courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+
+            {!showAddCourse ? (
+                <button
+                    type="button"
+                    onClick={openAddCourse}
+                    style={{ marginTop: '6px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.75rem', color: '#3B2D82', fontWeight: 600, padding: '2px 0', display: 'flex', alignItems: 'center', gap: '4px' }}
+                >
+                    <Plus size={12} /> Add new course
+                </button>
+            ) : (
+                <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <input
+                        autoFocus
+                        type="text"
+                        placeholder="Course name, e.g. AI for Design"
+                        value={newCourse.name}
+                        onChange={e => { setNewCourse(c => ({ ...c, name: e.target.value })); setAddCourseError(''); }}
+                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddCourse(onSelect); } if (e.key === 'Escape') setShowAddCourse(false); }}
+                        style={{ ...inp, padding: '6px 10px', fontSize: '0.82rem' }}
+                    />
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                        <input
+                            type="text"
+                            placeholder="Code, e.g. AI-FDE"
+                            value={newCourse.code}
+                            onChange={e => { setNewCourse(c => ({ ...c, code: e.target.value })); setAddCourseError(''); }}
+                            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddCourse(onSelect); } if (e.key === 'Escape') setShowAddCourse(false); }}
+                            style={{ ...inp, flex: 1, padding: '6px 10px', fontSize: '0.82rem', textTransform: 'uppercase' }}
+                        />
+                        <select
+                            value={newCourse.program_id}
+                            onChange={e => { setNewCourse(c => ({ ...c, program_id: e.target.value })); setAddCourseError(''); }}
+                            style={{ ...inp, flex: 1, padding: '6px 10px', fontSize: '0.82rem', cursor: 'pointer', background: '#fff' }}
+                        >
+                            <option value=''>Program…</option>
+                            {programList.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        </select>
+                    </div>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                        <button
+                            type="button"
+                            onClick={() => handleAddCourse(onSelect)}
+                            disabled={addCourseLoading}
+                            style={{ padding: '6px 12px', borderRadius: '7px', border: 'none', background: '#3B2D82', color: '#fff', cursor: addCourseLoading ? 'not-allowed' : 'pointer', fontSize: '0.78rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}
+                        >
+                            {addCourseLoading ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <Plus size={12} />}
+                            Save course
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => { setShowAddCourse(false); setNewCourse({ name: '', code: '', program_id: '' }); setAddCourseError(''); }}
+                            style={{ padding: '6px 8px', borderRadius: '7px', border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', color: '#888' }}
+                        >
+                            <X size={12} />
+                        </button>
+                    </div>
+                </div>
+            )}
+            {addCourseError && <div style={{ fontSize: '0.72rem', color: '#dc2626', marginTop: '4px' }}>⚠ {addCourseError}</div>}
+        </div>
+    );
+
+    // ── Venue dropdown + inline add (reusable JSX) ────────────────────────────
+    const venueField = (value, onSelect) => (
+        <div>
+            <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>Venue</label>
+            <select value={value} onChange={e => onSelect(e.target.value)} style={{ ...inp, cursor: 'pointer', background: '#fff' }}>
+                <option value=''>Select venue...</option>
+                {lookupData.venues.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+            </select>
+
+            {!showAddVenue ? (
+                <button
+                    type="button"
+                    onClick={() => { setShowAddVenue(true); setAddVenueError(''); }}
+                    style={{ marginTop: '6px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.75rem', color: '#3B2D82', fontWeight: 600, padding: '2px 0', display: 'flex', alignItems: 'center', gap: '4px' }}
+                >
+                    <Plus size={12} /> Add new venue
+                </button>
+            ) : (
+                <div style={{ marginTop: '8px', display: 'flex', gap: '6px', alignItems: 'center' }}>
+                    <input
+                        autoFocus
+                        type="text"
+                        placeholder="e.g. Room A-101"
+                        value={newVenueName}
+                        onChange={e => { setNewVenueName(e.target.value); setAddVenueError(''); }}
+                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddVenue(onSelect); } if (e.key === 'Escape') setShowAddVenue(false); }}
+                        style={{ flex: 1, padding: '6px 10px', borderRadius: '7px', border: `1px solid ${addVenueError ? '#fca5a5' : '#e5e7eb'}`, fontSize: '0.82rem', fontFamily: 'inherit', outline: 'none' }}
+                    />
+                    <button
+                        type="button"
+                        onClick={() => handleAddVenue(onSelect)}
+                        disabled={addVenueLoading || !newVenueName.trim()}
+                        style={{ padding: '6px 12px', borderRadius: '7px', border: 'none', background: '#3B2D82', color: '#fff', cursor: addVenueLoading ? 'not-allowed' : 'pointer', fontSize: '0.78rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}
+                    >
+                        {addVenueLoading ? <Loader2 size={12} style={{ animation: 'spin 1s linear infinite' }} /> : <Plus size={12} />}
+                        Save
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => { setShowAddVenue(false); setNewVenueName(''); setAddVenueError(''); }}
+                        style={{ padding: '6px 8px', borderRadius: '7px', border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', color: '#888' }}
+                    >
+                        <X size={12} />
+                    </button>
+                </div>
+            )}
+            {addVenueError && <div style={{ fontSize: '0.72rem', color: '#dc2626', marginTop: '4px' }}>⚠ {addVenueError}</div>}
+        </div>
+    );
 
     // ── Class type dropdown + inline add (reusable JSX) ───────────────────────
     const typeField = (formKey, setForm, showAdd, setShowAdd, newName, setNewName, addLoad, setAddLoad, addErr, setAddErr, onAddFn) => (
@@ -1377,13 +1571,7 @@ export default function AdminSchedulePage() {
                                         <AlertCircle size={14} />{scheduleError}
                                     </div>
                                 )}
-                                <div>
-                                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>Course *</label>
-                                    <select value={newClass.course_id} onChange={e => setNewClass({ ...newClass, course_id: e.target.value })} style={{ ...inp, cursor: 'pointer', background: '#fff' }}>
-                                        <option value=''>Select a course...</option>
-                                        {lookupData.courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                    </select>
-                                </div>
+                                {courseField(newClass.course_id, id => setNewClass(prev => ({ ...prev, course_id: id })))}
                                 <div>
                                     <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>Lecture Title *</label>
                                     <input type='text' placeholder='e.g. Lec 15 - AVL Trees' value={newClass.title} onChange={e => setNewClass({ ...newClass, title: e.target.value })} style={inp}
@@ -1465,13 +1653,7 @@ export default function AdminSchedulePage() {
                                             onFocus={e => e.target.style.borderColor = '#111'} onBlur={e => e.target.style.borderColor = '#e5e7eb'} />
                                     </div>
                                 </div>
-                                <div>
-                                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>Venue</label>
-                                    <select value={newClass.venue_id} onChange={e => setNewClass({ ...newClass, venue_id: e.target.value })} style={{ ...inp, cursor: 'pointer', background: '#fff' }}>
-                                        <option value=''>Select venue...</option>
-                                        {lookupData.venues.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
-                                    </select>
-                                </div>
+                                {venueField(newClass.venue_id, id => setNewClass(prev => ({ ...prev, venue_id: id })))}
                                 {typeField(
                                     newClass.session_type_id,
                                     setNewClass,
@@ -1640,13 +1822,7 @@ export default function AdminSchedulePage() {
                                 {editError   && <div style={{ padding: '10px 14px', borderRadius: '8px', background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '8px' }}><AlertCircle size={14} />{editError}</div>}
                                 {editSuccess && <div style={{ padding: '10px 14px', borderRadius: '8px', background: '#f0fdf4', border: '1px solid #86efac', color: '#16a34a', fontSize: '0.82rem' }}>✓ {editSuccess}</div>}
 
-                                <div>
-                                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>Course *</label>
-                                    <select value={editForm.course_id || ''} onChange={e => setEditForm(f => ({ ...f, course_id: e.target.value }))} style={{ ...inp, cursor: 'pointer', background: '#fff' }}>
-                                        <option value=''>Select a course...</option>
-                                        {lookupData.courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                    </select>
-                                </div>
+                                {courseField(editForm.course_id || '', id => setEditForm(f => ({ ...f, course_id: id })))}
                                 <div>
                                     <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>Lecture Title *</label>
                                     <input type='text' value={editForm.title || ''} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} style={inp}
@@ -1728,13 +1904,7 @@ export default function AdminSchedulePage() {
                                             onFocus={e => e.target.style.borderColor = '#3B2D82'} onBlur={e => e.target.style.borderColor = '#e5e7eb'} />
                                     </div>
                                 </div>
-                                <div>
-                                    <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#555', display: 'block', marginBottom: '5px' }}>Venue</label>
-                                    <select value={editForm.venue_id || ''} onChange={e => setEditForm(f => ({ ...f, venue_id: e.target.value }))} style={{ ...inp, cursor: 'pointer', background: '#fff' }}>
-                                        <option value=''>Select venue...</option>
-                                        {lookupData.venues.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
-                                    </select>
-                                </div>
+                                {venueField(editForm.venue_id || '', id => setEditForm(f => ({ ...f, venue_id: id })))}
                                 {typeField(
                                     editForm.session_type_id || '',
                                     setEditForm,

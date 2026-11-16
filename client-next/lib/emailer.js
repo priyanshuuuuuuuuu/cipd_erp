@@ -33,7 +33,7 @@ const CARD_BG   = '#FFFFFF';
 const ACCENT    = '#1A1A1A';   // pill / badge background (dark)
 
 import { DEFAULT_FACULTY_PASSWORD } from './faculty-defaults.js';
-const APP_URL = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+const APP_URL = (process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://ipdcp-erp.iiitd.edu.in').replace(/\/+$/, '');
 
 // ── Shell ─────────────────────────────────────────────────────────────────────
 function shell(content, previewText = '') {
