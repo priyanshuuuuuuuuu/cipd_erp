@@ -5,6 +5,8 @@ import { sessions, courses, faculty, users, venues, courseEnrollments, sessionSk
 import { eq, ne, and, inArray, asc, count } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
 import { getISTDateString } from '@/lib/ist-date';
+import { enqueueTargetedEmails } from '@/lib/notification-stream';
+import { randomUUID } from 'node:crypto';
 
 async function getHandler(req) {
   try {
@@ -131,7 +133,23 @@ async function postHandler(req) {
       }
     }
 
-    return NextResponse.json({ session: inserted }, { status: 201 });
+    let facultyEmail = null;
+    if (faculty_id && inserted) {
+      try {
+        const [recipient] = await db.select({ id: users.id, email: users.email, first_name: users.firstName, last_name: users.lastName }).from(users).where(eq(users.id, faculty_id));
+        if (recipient?.email) {
+          const result = await enqueueTargetedEmails({ eventType: 'general_notification', batchId: randomUUID(), items: [{ student: recipient, payload: {
+            type: 'class_reminder', title: `New class scheduled: ${title}`,
+            message: `A class has been assigned to you: ${title} on ${session_date}, ${start_time}–${end_time} (India time). Please check your schedule for details.`,
+          } }] });
+          facultyEmail = { queued: result.queued, sandbox: result.sandbox };
+        } else facultyEmail = { queued: 0, error: 'Faculty email address not found.' };
+      } catch (error) {
+        console.error('Faculty class notification queue error:', error);
+        facultyEmail = { queued: 0, error: 'Could not queue faculty email.' };
+      }
+    }
+    return NextResponse.json({ session: inserted, facultyEmail }, { status: 201 });
   } catch (err) {
     console.error('Create session error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

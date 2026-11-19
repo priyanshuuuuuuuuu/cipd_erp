@@ -667,7 +667,7 @@ export default function AdminAttendancePage() {
                                                                     const st = getStatusStyle(s.status);
                                                                     return (
                                                                         <React.Fragment key={i}>
-                                                                        <tr onClick={() => setExpandedStudent(expandedStudent === s.studentId ? null : s.studentId)} style={{ borderBottom: '1px solid #f0f0f0', background: expandedStudent === s.studentId ? '#f0f7ff' : s.penalty ? '#fef2f2' : s.status === 'leave' ? '#fff7ed' : s.adminOverride ? '#fffbeb' : s.status === 'absent' ? '#fefefe' : '#fff', cursor: 'pointer', transition: 'background 0.15s' }}>
+                                                                        <tr onClick={() => setExpandedStudent(expandedStudent === s.studentId ? null : s.studentId)} style={{ borderBottom: '1px solid #f0f0f0', background: s.penalty ? '#fef2f2' : s.adminOverride ? '#fffbeb' : expandedStudent === s.studentId ? '#f0f7ff' : s.status === 'leave' ? '#fff7ed' : s.status === 'absent' ? '#fefefe' : '#fff', cursor: 'pointer', transition: 'background 0.15s' }}>
                                                                             <td style={{ padding: '9px 14px' }}>
                                                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                                                     <span style={{ fontWeight: 600, color: s.status === 'leave' ? '#c2410c' : s.status === 'absent' ? '#aaa' : '#111' }}>{s.name}</span>

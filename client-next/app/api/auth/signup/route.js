@@ -56,7 +56,7 @@ export async function POST(req) {
       enrollmentNo,
       programId,
       passwordHash: await hashPassword(password),
-    }, { sendEmail: false });
+    });
 
     const payload = {
       id: student.id,

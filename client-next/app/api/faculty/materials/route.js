@@ -83,7 +83,7 @@ async function handler(req) {
   } catch (err) {
     console.error('Faculty materials upload error:', err);
     return NextResponse.json(
-      { error: err.message || 'Failed to upload material' },
+      { error: err.code === 'EACCES' || err.code === 'EPERM' ? 'The server cannot write to the materials storage directory. Please contact an administrator.' : (err.message || 'Failed to upload material') },
       { status: 500 }
     );
   }

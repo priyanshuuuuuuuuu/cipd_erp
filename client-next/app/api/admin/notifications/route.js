@@ -18,7 +18,14 @@ async function postHandler(req) {
   try {
     const body = await req.json();
     const { type, message, session_id, session_ids, course_id, recipients } = body;
-    const targetSessionIds = session_ids || (session_id ? [session_id] : []);
+    let targetSessionIds = session_ids || (session_id ? [session_id] : []);
+    if (type === 'weekly_schedule' && !targetSessionIds.length) {
+      const { start, end } = getISTWeekRange();
+      const week = await db.select({ id: sessions.id }).from(sessions)
+        .where(and(gte(sessions.sessionDate, start), lte(sessions.sessionDate, end), ne(sessions.status, 'cancelled')));
+      targetSessionIds = week.map((s) => s.id);
+      if (!targetSessionIds.length) return NextResponse.json({ recipientCount: 0, emailsQueued: 0, message: 'No classes scheduled this week.' });
+    }
 
     if (!message) {
       return NextResponse.json({ error: 'message is required' }, { status: 400 });
@@ -53,7 +60,7 @@ async function postHandler(req) {
           });
         }
       }
-    } else if (type === 'class_reminder' && targetSessionIds.length > 0) {
+    } else if ((type === 'class_reminder' || type === 'weekly_schedule') && targetSessionIds.length > 0) {
       // Send class reminder to all enrolled students for these sessions
       const sessionsList = await db
         .select({
@@ -160,7 +167,7 @@ async function postHandler(req) {
     const batchId = randomUUID();
     let emailSummary = { queued: 0, skipped: [] };
     try {
-      if (type === 'class_reminder' && targetSessionIds.length > 0) {
+      if ((type === 'class_reminder' || type === 'weekly_schedule') && targetSessionIds.length > 0) {
         const bgSessions = await db
           .select({
             id: sessions.id,
@@ -201,7 +208,7 @@ async function postHandler(req) {
           const emailPrefMap = await fetchPreferencesMap(studentUsers.map((s) => s.id));
           const eligible = studentUsers.filter((s) => shouldNotifyUser(emailPrefMap, s.id, 'class_reminder'));
 
-          if (targeted) {
+          if (targeted || type === 'class_reminder') {
             const sessionSummary = bgSessions
               .map(s => `${s.course_name || s.title} on ${s.session_date} at ${s.start_time?.slice(0, 5)} (${s.venue_name || 'TBA'})`)
               .join(', ');

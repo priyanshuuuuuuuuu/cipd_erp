@@ -269,16 +269,20 @@ export default function AdminDashboard() {
     };
 
     const handleNotifyAll = async (sessionId) => {
-        setNotifyStatus('sending');
+        const key = sessionId || 'weekly';
+        setNotifyStatus({ key, state: 'sending' });
         try {
-            await api.post('/api/admin/notifications', {
-                type: 'class_reminder',
-                session_id: sessionId,
-                message: 'Reminder: Class is scheduled. Please attend.',
+            const result = await api.post('/api/admin/notifications', {
+                type: sessionId ? 'class_reminder' : 'weekly_schedule',
+                ...(sessionId ? { session_id: sessionId } : {}),
+                message: sessionId ? 'Reminder: Class is scheduled. Please attend.' : 'Your weekly class schedule is available.',
             });
-            setNotifyStatus('sent');
+            if (result.emailError) throw new Error(result.emailError);
+            if (!result.emailsQueued) throw new Error(result.message || 'No emails were queued for this notification.');
+            setNotifyStatus({ key, state: 'sent' });
             setTimeout(() => setNotifyStatus(null), 2500);
-        } catch {
+        } catch (error) {
+            alert(error.message || 'Could not send notification.');
             setNotifyStatus(null);
         }
     };
@@ -319,7 +323,7 @@ export default function AdminDashboard() {
 
         setScheduleLoading(true);
         try {
-            await api.post('/api/admin/sessions', {
+            const result = await api.post('/api/admin/sessions', {
                 course_id: newClass.course_id,
                 faculty_id: newClass.faculty_id || null,
                 venue_id: newClass.venue_id || null,
@@ -329,6 +333,7 @@ export default function AdminDashboard() {
                 end_time: endTime,
             });
             setShowScheduleModal(false);
+            if (result.facultyEmail?.error) alert(`Class created, but ${result.facultyEmail.error}`);
             setNewClass({ course_id: '', faculty_id: '', date: '', start_time: '', end_time: '', venue_id: '', title: '' });
             setScheduleError('');
             fetchAll();
@@ -450,6 +455,7 @@ export default function AdminDashboard() {
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.5rem', borderBottom: '1px solid #f0f0f0' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1rem', fontWeight: 700 }}><Calendar size={16} /> Today&apos;s Classes</div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <button type="button" onClick={() => handleNotifyAll(null)} disabled={notifyStatus?.state === 'sending'} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', fontSize: '0.8rem' }}>{notifyStatus?.key === 'weekly' && notifyStatus?.state === 'sent' ? 'Schedule queued' : 'Send weekly schedule'}</button>
                                     <button onClick={() => router.push('/admin/schedule')} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 14px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, color: '#1e293b' }}>
                                         <Upload size={13} /> Import CSV
                                     </button>
@@ -499,8 +505,8 @@ export default function AdminDashboard() {
                                                     </span>
                                                 );
                                             })()}
-                                            <button onClick={() => handleNotifyAll(cls.id)} disabled={notifyStatus === 'sending'} className="change-status-btn" style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 12px', borderRadius: '8px', border: '1px solid #eee', background: notifyStatus === 'sent' ? '#ecfdf5' : '#fff', cursor: notifyStatus === 'sending' ? 'wait' : 'pointer', fontSize: '0.75rem', fontWeight: 500, color: notifyStatus === 'sent' ? '#166534' : '#555' }}>
-                                                {notifyStatus === 'sending' ? <><RefreshCw size={11} style={{ animation: 'spin 1s linear infinite' }} /> Sending...</> : notifyStatus === 'sent' ? <><CheckCircle size={11} /> Sent!</> : <><Send size={11} /> Notify All</>}
+                                            <button onClick={() => handleNotifyAll(cls.id)} disabled={notifyStatus?.state === 'sending'} className="change-status-btn" style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 12px', borderRadius: '8px', border: '1px solid #eee', background: notifyStatus?.key === cls.id && notifyStatus?.state === 'sent' ? '#ecfdf5' : '#fff', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 500, color: '#555' }}>
+                                                {notifyStatus?.key === cls.id && notifyStatus?.state === 'sending' ? 'Queuing...' : notifyStatus?.key === cls.id && notifyStatus?.state === 'sent' ? 'Queued' : <><Send size={11} /> Notify All</>}
                                             </button>
                                         </div>
                                     </div>

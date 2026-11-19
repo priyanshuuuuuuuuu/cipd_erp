@@ -830,7 +830,7 @@ export async function sendFacultyWelcomeEmail({ to, firstName }) {
     </tr>
     <tr>
       <td style="padding:24px 40px 8px;text-align:center;">
-        ${ctaButton('Log In', `${APP_URL}/login`)}
+        ${ctaButton('Log In', APP_URL)}
       </td>
     </tr>
     <tr>

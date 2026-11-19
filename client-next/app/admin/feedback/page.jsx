@@ -139,7 +139,7 @@ export default function AdminFeedbackPage() {
     // Deadline edit handler
     const handleEditDeadline = (form) => {
         setEditingDeadlineForm(form);
-        setNewDeadline(form.deadline ? new Date(form.deadline).toISOString().slice(0, 16) : '');
+        setNewDeadline(form.deadline ? new Date(new Date(form.deadline).getTime() + 330 * 60000).toISOString().slice(0, 16) : '');
         setShowDeadlineModal(true);
     };
 
@@ -149,7 +149,7 @@ export default function AdminFeedbackPage() {
         try {
             await api.patch('/api/admin/feedback/forms', {
                 session_id: editingDeadlineForm.session_id,
-                feedback_deadline: newDeadline ? new Date(newDeadline).toISOString() : null,
+                feedback_deadline: newDeadline ? new Date(`${newDeadline}:00+05:30`).toISOString() : null,
             });
             setShowDeadlineModal(false);
             fetchForms();
@@ -842,7 +842,8 @@ export default function AdminFeedbackPage() {
                         <p style={{ margin: '0 0 1rem', fontSize: '0.78rem', color: '#888' }}>Session: {editingDeadlineForm?.title}</p>
                         <div style={{ marginBottom: '1.2rem' }}>
                             <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#555', marginBottom: '6px' }}>New Deadline</label>
-                            <input type="datetime-local" value={newDeadline} onChange={e => setNewDeadline(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e8e8e8', fontSize: '0.85rem', boxSizing: 'border-box' }} />
+                            <input aria-label="Feedback deadline (India time)" type="datetime-local" value={newDeadline} onChange={e => setNewDeadline(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #e8e8e8', fontSize: '0.85rem', boxSizing: 'border-box' }} />
+                            <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 6 }}>Time shown in India (IST)</div>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
                             <button onClick={() => setShowDeadlineModal(false)} style={{ padding: '8px 16px', borderRadius: '6px', border: '1px solid #e8e8e8', background: '#fff', cursor: 'pointer', fontSize: '0.8rem', color: '#555' }}>Cancel</button>
