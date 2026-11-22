@@ -1,0 +1,12 @@
+@media (max-width: 768px) {
+  .student-settings-page .main-content { overflow: visible !important; min-width: 0; }
+  .student-settings-page .settings-layout { flex-direction: column; overflow: visible !important; min-width: 0; }
+  .student-settings-page .settings-sections { width: 100% !important; display: flex; gap: 8px; overflow-x: auto; padding: 12px 14px !important; border-right: 0 !important; border-bottom: 1px solid #e9edf4; background: #f7f8fc !important; -webkit-overflow-scrolling: touch; }
+  .student-settings-page .settings-section-button { width: auto !important; min-height: 42px; flex: 0 0 auto; white-space: nowrap; margin: 0 !important; padding: 10px 12px !important; border: 1px solid #e3e7f0 !important; background: #fff !important; color: #45526b !important; }
+  .student-settings-page .settings-section-button[aria-pressed="true"] { background: #373381 !important; border-color: #373381 !important; color: #fff !important; }
+  .student-settings-page .settings-content { flex: auto !important; width: 100%; min-width: 0; overflow: visible !important; padding: 20px 16px 28px !important; }
+  .student-settings-page .settings-content input { min-width: 0; max-width: 100%; }
+  .student-settings-page .settings-device-status { flex-wrap: wrap; }
+  .student-settings-page .settings-device-status > div { min-width: 0; }
+  .student-settings-page .settings-mac-input input { width: 0; }
+}

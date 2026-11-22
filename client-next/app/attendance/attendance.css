@@ -86,3 +86,15 @@
         display: none !important;
     }
 }
+
+/* Compact attendance overview on phones. */
+@media (max-width: 768px) {
+    .attendance-page, .attendance-page .main-content { background: #f5f7fc; }
+    .attendance-page .att-stats-bento { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 8px !important; }
+    .attendance-page .att-stats-bento > div { min-width: 0; padding: 12px 9px !important; border-radius: 14px !important; gap: 9px !important; }
+    .attendance-page .att-stats-bento > div > div:last-child > div:first-child { font-size: 1.4rem !important; }
+    .attendance-page .att-stats-bento > div > div:last-child > div:last-child { font-size: .62rem !important; letter-spacing: 0 !important; }
+    .attendance-page .att-overview-ring svg { width: 96px; height: 96px; }
+    .attendance-page .att-session-row-inner { border-radius: 14px; }
+    .attendance-page .att-session-row-right { align-self: flex-start; }
+}

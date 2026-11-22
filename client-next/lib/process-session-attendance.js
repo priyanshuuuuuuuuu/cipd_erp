@@ -337,7 +337,7 @@ export async function processSessionAttendance(session, options = {}) {
         set: {
           pingCount: sql`excluded.ping_count`,
           points: sql`excluded.points`,
-          status: sql`excluded.status`,
+          status: sql`CASE WHEN EXISTS (SELECT 1 FROM qr_attendance_scans q WHERE q.session_id=excluded.session_id AND q.student_id=excluded.student_id) THEN 'present' ELSE excluded.status END`,
           calculatedAt: sql`excluded.calculated_at`,
           firstSeenAt: sql`excluded.first_seen_at`,
           lastSeenAt: sql`excluded.last_seen_at`,

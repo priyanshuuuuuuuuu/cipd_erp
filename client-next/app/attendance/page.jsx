@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '@/lib/api';
 
@@ -18,7 +19,7 @@ const Donut = ({ pct, size = 120, stroke = 10, color = '#66d9e8', bg = '#f0f0f0'
     const circ = 2 * Math.PI * r;
     const offset = circ - (pct / 100) * circ;
     return (
-        <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-label={`${Math.round(pct)}% attendance`} role="img" style={{ transform: 'rotate(-90deg)' }}>
             <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={bg} strokeWidth={stroke} />
             <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke}
                 strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
@@ -253,7 +254,7 @@ export default function AttendancePage() {
                 </div>
                 <nav className="nav-menu">
                     <div onClick={() => router.push('/dashboard')} className="nav-item" style={{ cursor: 'pointer' }}><LayoutGrid size={18} /> <span>Home</span></div>
-                    <div className="nav-item active"><Users size={18} /> <span>Attendance</span></div>
+                    <Link href="/attendance" className="nav-item active" onClick={() => setIsMobileMenuOpen(false)}><Users size={18} /> <span>Attendance</span></Link>
                     <div onClick={() => router.push('/grades')} className="nav-item" style={{ cursor: 'pointer' }}><BookOpen size={18} /> <span>Grades</span></div>
                     <div onClick={() => router.push('/teachers')} className="nav-item" style={{ cursor: 'pointer' }}><Users size={18} /> <span>Teachers</span></div>
                     <div onClick={() => router.push('/feedback')} className="nav-item" style={{ cursor: 'pointer' }}><MessageSquare size={18} /> <span>Feedback</span></div>
@@ -277,7 +278,7 @@ export default function AttendancePage() {
                 <div className="content-center admin-full">
                     <header className="dashboard-header">
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <div className="mobile-menu-btn" onClick={() => setIsMobileMenuOpen(true)} style={{ cursor: 'pointer' }}><Menu size={24} /></div>
+                            <button type="button" className="mobile-menu-btn" aria-label="Open navigation" aria-expanded={isMobileMenuOpen} onClick={() => setIsMobileMenuOpen(true)}><Menu size={24} /></button>
                             <h1>My Attendance</h1>
                             {/* Live Presence Indicator */}
                             <div className="att-presence-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 12px', borderRadius: '8px', fontSize: '0.72rem', fontWeight: 600, background: presence.present ? '#ecfdf5' : '#fef2f2', color: presence.present ? '#166534' : '#991b1b', border: `1px solid ${presence.present ? '#a7f3d0' : '#fecaca'}` }}>
@@ -329,7 +330,7 @@ export default function AttendancePage() {
                                         </div>
                                     </div>
                                 </div>
-                                <div style={{ position: 'relative', zIndex: 1, filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.2))' }}>
+                                <div className="att-overview-ring" style={{ position: 'relative', zIndex: 1, filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.2))' }}>
                                     <Donut pct={overall.pct} size={120} stroke={12} color="#38bdf8" bg="rgba(255,255,255,0.1)" />
                                 </div>
                             </div>
