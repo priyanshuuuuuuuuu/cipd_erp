@@ -12,6 +12,7 @@ import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '@/lib/api';
 import PostCard from '../../faculty/components/PostCard';
+import CohortSlot from '@/app/components/CohortSlot';
 
 const TABS = ['Stream', 'Materials', 'Assignments'];
 
@@ -152,6 +153,7 @@ export default function CourseDetailPage() {
                             {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
                         </div>
                     </div>
+                    <CohortSlot collapsed={isCollapsed} />
                     <nav className="nav-menu">
                         <div onClick={() => navTo('/dashboard')} className="nav-item" style={{ cursor: 'pointer' }}><LayoutGrid size={18} /> <span>Home</span></div>
                         <div onClick={() => navTo('/attendance')} className="nav-item" style={{ cursor: 'pointer' }}><Users size={18} /> <span>Attendance</span></div>

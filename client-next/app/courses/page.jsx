@@ -10,6 +10,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '@/lib/api';
+import CohortSlot from '@/app/components/CohortSlot';
 
 const COURSE_COLORS = [
     { bg: '#dbeafe', border: '#93c5fd', text: '#1e40af', dot: '#3b82f6' },
@@ -66,6 +67,7 @@ export default function CoursesPage() {
                             {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
                         </div>
                     </div>
+                    <CohortSlot collapsed={isCollapsed} />
                     <nav className="nav-menu">
                         <div onClick={() => navTo('/dashboard')} className="nav-item" style={{ cursor: 'pointer' }}><LayoutGrid size={18} /> <span>Home</span></div>
                         <div onClick={() => navTo('/attendance')} className="nav-item" style={{ cursor: 'pointer' }}><Users size={18} /> <span>Attendance</span></div>

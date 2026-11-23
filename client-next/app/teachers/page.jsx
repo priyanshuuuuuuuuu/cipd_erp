@@ -9,6 +9,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '@/lib/api';
+import CohortSlot from '@/app/components/CohortSlot';
 
 export default function TeachersPage() {
     const router = useRouter();
@@ -52,6 +53,7 @@ export default function TeachersPage() {
                             {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
                         </div>
                     </div>
+                    <CohortSlot collapsed={isCollapsed} />
                     <nav className="nav-menu">
                         <div onClick={() => navTo('/dashboard')} className="nav-item" style={{ cursor: 'pointer' }}><LayoutGrid size={18} /> <span>Home</span></div>
                         <div onClick={() => navTo('/attendance')} className="nav-item" style={{ cursor: 'pointer' }}><Users size={18} /> <span>Attendance</span></div>

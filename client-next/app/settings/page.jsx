@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '@/lib/api';
 import { dispatchAppearanceUpdate } from '../contexts/AppearanceContext';
+import CohortSlot from '@/app/components/CohortSlot';
 
 const SETTING_SECTIONS = [
     { id: 'device', label: 'Device & Attendance', icon: Wifi },
@@ -307,6 +308,7 @@ export default function SettingsPage() {
                         </div>
                         <div className="user-info"><h3>{displayName}</h3><p>{user?.email}</p></div>
                     </div>
+                    <CohortSlot />
                     <nav className="nav-menu">
                         <div onClick={() => navTo('/dashboard')} className="nav-item" style={{ cursor: 'pointer' }}><LayoutGrid size={18} /> <span>Home</span></div>
                         <div onClick={() => navTo('/attendance')} className="nav-item" style={{ cursor: 'pointer' }}><Users size={18} /> <span>Attendance</span></div>

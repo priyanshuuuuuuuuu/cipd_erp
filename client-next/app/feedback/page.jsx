@@ -11,6 +11,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '@/lib/api';
+import CohortSlot from '@/app/components/CohortSlot';
 
 /* ─── MCQ options for engagement question ─── */
 const MCQ_OPTIONS = ['Highly Engaging', 'Engaging', 'Average', 'Poor'];
@@ -214,6 +215,7 @@ export default function FeedbackPage() {
                             {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
                         </div>
                     </div>
+                    <CohortSlot collapsed={isCollapsed} />
                     <nav className="nav-menu">
                         <div className="nav-item" onClick={() => navTo('/dashboard')} style={{ cursor: 'pointer' }}><LayoutGrid size={18} /> <span>Home</span></div>
                         <div className="nav-item" onClick={() => navTo('/attendance')} style={{ cursor: 'pointer' }}><Users size={18} /> <span>Attendance</span></div>

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
+import CohortSlot from '@/app/components/CohortSlot';
 
 const NAV_ITEMS = [
   { path: '/faculty/dashboard', label: 'Dashboard', icon: LayoutGrid },
@@ -98,6 +99,7 @@ export default function FacultyLayout({ children }) {
             </div>
           </div>
 
+          <CohortSlot collapsed={isCollapsed} />
           <nav className="nav-menu">
             <div style={{ fontSize: '0.6rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', color: '#555', padding: '8px 1rem 4px' }}>
               <span>Faculty</span>

@@ -12,6 +12,7 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '@/lib/api';
+import CohortSlot from '@/app/components/CohortSlot';
 
 const Donut = ({ pct, size = 120, stroke = 10, color = '#66d9e8', bg = '#f0f0f0' }) => {
     const r = (size - stroke) / 2;
@@ -251,6 +252,7 @@ export default function AttendancePage() {
                         {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
                     </div>
                 </div>
+                <CohortSlot collapsed={isCollapsed} />
                 <nav className="nav-menu">
                     <div onClick={() => router.push('/dashboard')} className="nav-item" style={{ cursor: 'pointer' }}><LayoutGrid size={18} /> <span>Home</span></div>
                     <div className="nav-item active"><Users size={18} /> <span>Attendance</span></div>

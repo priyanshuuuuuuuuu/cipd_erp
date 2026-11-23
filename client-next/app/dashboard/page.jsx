@@ -12,6 +12,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Cell }
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '@/lib/api';
 import NotificationBell from '../components/NotificationBell';
+import CohortSlot from '@/app/components/CohortSlot';
 
 const DAY_KEYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -204,6 +205,7 @@ const StudentDashboard = () => {
                             <p>{user?.email}</p>
                         </div>
                     </div>
+                    <CohortSlot collapsed={isCollapsed} />
                     <nav className="nav-menu">
                         <div className="nav-item active"><LayoutGrid size={18} /> <span>Home</span></div>
                         <div onClick={() => router.push('/attendance')} className="nav-item" style={{ cursor: 'pointer' }}><Users size={18} /> <span>Attendance</span></div>
