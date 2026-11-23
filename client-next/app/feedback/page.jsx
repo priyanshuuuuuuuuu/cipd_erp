@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import '../Dashboard.css';
+import './feedback-mobile.css';
 import {
     LayoutGrid, Calendar, BookOpen, Users, MessageSquare, Settings,
     LogOut, Bell, Search, Menu, ChevronLeft, ChevronRight,
@@ -260,7 +261,7 @@ export default function FeedbackPage() {
                                     <div style={{ flex: 1, borderRadius: '16px', background: '#f5f5f5', height: '140px', animation: 'shimmer 1.5s infinite' }} />
                                 </div>
                             ) : (
-                                <div style={{ 
+                                <div className="feedback-summary" style={{
                                     background: '#fff', 
                                     borderRadius: '16px', 
                                     padding: '24px 28px', 
@@ -280,7 +281,7 @@ export default function FeedbackPage() {
                                             You&apos;ve earned ... <strong style={{ color: '#0f172a' }}>{totalPointsEarned} Points</strong> from feedback.
                                         </p>
                                     </div> 
-                                    <div style={{ display: 'flex', gap: '12px' }}>
+                                    <div className="feedback-summary-counts" style={{ display: 'flex', gap: '12px' }}>
                                         <div style={{ textAlign: 'center', padding: '10px 16px', background: '#fffbeb', borderRadius: '12px', border: '1px solid #fde68a' }}>
                                             <div style={{ fontSize: '0.7rem', color: '#b45309', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '2px' }}>Pending</div>
                                             <div style={{ fontSize: '1.3rem', fontWeight: 700, color: '#92400e', lineHeight: 1 }}>{pendingForms.length}</div>
@@ -305,7 +306,7 @@ export default function FeedbackPage() {
                                     </div>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                         {pendingForms.map(form => (
-                                            <div key={form.session_id} onClick={() => openForm(form)} style={{ background: '#fff', borderRadius: '12px', border: '1px solid #fde68a', padding: '16px 20px', cursor: 'pointer', transition: 'all 0.15s', boxShadow: '0 1px 2px rgba(0,0,0,0.02)', display: 'flex', alignItems: 'center', gap: '16px' }}
+                                            <div className="feedback-form-row" key={form.session_id} onClick={() => openForm(form)} style={{ background: '#fff', borderRadius: '12px', border: '1px solid #fde68a', padding: '16px 20px', cursor: 'pointer', transition: 'all 0.15s', boxShadow: '0 1px 2px rgba(0,0,0,0.02)', display: 'flex', alignItems: 'center', gap: '16px' }}
                                                 onMouseOver={e => { e.currentTarget.style.borderColor = '#fbbf24'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(251,191,36,0.1)'; }}
                                                 onMouseOut={e => { e.currentTarget.style.borderColor = '#fde68a'; e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.02)'; }}>
                                                 
@@ -346,7 +347,7 @@ export default function FeedbackPage() {
                                     </div>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                         {submittedForms.slice(0, visibleSubmitted).map(form => (
-                                            <div key={form.session_id} style={{ background: '#fff', borderRadius: '12px', border: '1px solid #bbf7d0', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+                                            <div className="feedback-form-row" key={form.session_id} style={{ background: '#fff', borderRadius: '12px', border: '1px solid #bbf7d0', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
                                                 <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#f8fafc', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: '0.85rem', flexShrink: 0, border: '1px solid #f1f5f9' }}>
                                                     {form.course?.name?.match(/\b(\w)/g)?.join('').substring(0, 2).toUpperCase() || 'FB'}
                                                 </div>
@@ -398,7 +399,7 @@ export default function FeedbackPage() {
                                     </div>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                         {expiredForms.slice(0, visibleExpired).map(form => (
-                                            <div key={form.session_id} style={{ background: '#fff', borderRadius: '12px', border: '1px solid #fecaca', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '16px', opacity: 0.8 }}>
+                                            <div className="feedback-form-row" key={form.session_id} style={{ background: '#fff', borderRadius: '12px', border: '1px solid #fecaca', padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '16px', opacity: 0.8 }}>
                                                 <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#f8fafc', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: '0.85rem', flexShrink: 0, border: '1px solid #f1f5f9' }}>
                                                     {form.course?.name?.match(/\b(\w)/g)?.join('').substring(0, 2).toUpperCase() || 'FB'}
                                                 </div>

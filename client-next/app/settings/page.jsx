@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import '../Dashboard.css';
+import './settings-mobile.css';
 import {
     LayoutGrid, Calendar, BookOpen, Users, MessageSquare, Settings,
     LogOut, Search, Menu, Wifi, Bell, User, Palette, Shield,
@@ -298,7 +299,7 @@ export default function SettingsPage() {
     // Components were moved outside of SettingsPage to prevent re-mounting
 
     return (
-        <div className="dashboard-container">
+        <div className="dashboard-container student-settings-page">
             <div className={`sidebar-overlay ${isMobileMenuOpen ? 'visible' : ''}`} onClick={() => setIsMobileMenuOpen(false)} />
             <aside className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
                 <div>
@@ -338,15 +339,15 @@ export default function SettingsPage() {
                     </div>
                 </header>
 
-                <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+                <div className="settings-layout" style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
                     {/* Settings sidebar */}
-                    <div style={{ width: '220px', flexShrink: 0, borderRight: '1px solid #f0f0f0', padding: '1.5rem 1rem', background: '#fafafa' }}>
+                    <div className="settings-sections" aria-label="Settings sections" style={{ width: '220px', flexShrink: 0, borderRight: '1px solid #f0f0f0', padding: '1.5rem 1rem', background: '#fafafa' }}>
                         {SETTING_SECTIONS.map(sec => {
                             const Icon = sec.icon;
                             const isActive = activeSection === sec.id;
                             return (
-                                <div key={sec.id} onClick={() => setActiveSection(sec.id)} style={{
-                                    display: 'flex', alignItems: 'center', gap: '10px',
+                                <button type="button" className="settings-section-button" key={sec.id} aria-pressed={isActive} onClick={() => setActiveSection(sec.id)} style={{
+                                    display: 'flex', alignItems: 'center', gap: '10px', width: '100%', border: 0, textAlign: 'left',
                                     padding: '0.7rem 0.8rem', borderRadius: '10px', cursor: 'pointer',
                                     background: isActive ? '#111' : 'transparent',
                                     color: isActive ? '#fff' : '#666',
@@ -355,13 +356,13 @@ export default function SettingsPage() {
                                 }}>
                                     <Icon size={16} />
                                     {sec.label}
-                                </div>
+                                </button>
                             );
                         })}
                     </div>
 
                     {/* Settings content */}
-                    <div style={{ flex: 1, overflowY: 'auto', padding: '1.5rem 2rem' }}>
+                    <div className="settings-content" style={{ flex: 1, overflowY: 'auto', padding: '1.5rem 2rem' }}>
 
                         {/* ── DEVICE & ATTENDANCE ── */}
                         {activeSection === 'device' && (
@@ -373,7 +374,7 @@ export default function SettingsPage() {
 
                                 <SectionCard title={`MAC Address Registration — ${profile?.first_name || user?.firstName || 'Student'}`} subtitle="Your device's MAC address is used by the attendance system to detect your presence in class.">
                                     {/* Current status */}
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', background: profile?.mac_verified ? '#f0fdf4' : '#fef9c3', borderRadius: '10px', marginBottom: '1.5rem' }}>
+                                    <div className="settings-device-status" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', background: profile?.mac_verified ? '#f0fdf4' : '#fef9c3', borderRadius: '10px', marginBottom: '1.5rem' }}>
                                         {profile?.mac_verified
                                             ? <CheckCircle size={18} color="#16a34a" />
                                             : <AlertCircle size={18} color="#b45309" />}
@@ -428,7 +429,7 @@ export default function SettingsPage() {
                                         <div style={{ fontSize: '0.72rem', color: '#888', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
                                             {profile?.mac_address ? 'Update MAC Address' : 'Register MAC Address'}
                                         </div>
-                                        <div style={{ display: 'flex', gap: '10px' }}>
+                                        <div className="settings-mac-input" style={{ display: 'flex', gap: '10px' }}>
                                             <input
                                                 value={macInput}
                                                 onChange={e => {

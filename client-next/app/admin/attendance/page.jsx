@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
+import AttendanceQrDisplay from '../../components/AttendanceQrDisplay';
 
 /** Presence Timeline: step-function graph showing present(1) / absent(0) at each snapshot */
 function PresenceTimeline({ student, session, snapshotTimestamps }) {
@@ -145,6 +146,8 @@ export default function AdminAttendancePage() {
     const [loading, setLoading] = useState(true);
     const [expandedSession, setExpandedSession] = useState(null);
     const [sessionStudents, setSessionStudents] = useState(null);
+    const [studentStatusFilter, setStudentStatusFilter] = useState('all');
+    const [studentsError, setStudentsError] = useState('');
     const [studentsLoading, setStudentsLoading] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [nextRefreshIn, setNextRefreshIn] = useState(null);
@@ -160,6 +163,7 @@ export default function AdminAttendancePage() {
     const [overrideLoading, setOverrideLoading] = useState(null); // studentId being overridden
     const [confirmOverride, setConfirmOverride] = useState(null); // { studentId, studentName, action, sessionId }
     const [confirmPresent, setConfirmPresent] = useState(null); // { studentId, studentName, sessionId }
+    const [qrSessionId, setQrSessionId] = useState(null);
     const [presentPoints, setPresentPoints] = useState('5'); // custom points input for manual present
     const [showPointsInfo, setShowPointsInfo] = useState(false); // points info modal
     const [expandedStudent, setExpandedStudent] = useState(null); // studentId for timeline graph
@@ -289,6 +293,9 @@ export default function AdminAttendancePage() {
         }
         try {
             setStudentsLoading(true);
+            setStudentsError('');
+            setStudentStatusFilter('all');
+            setSessionStudents(null);
             setExpandedSession(sessionId);
             clearRefreshTimer();
             const json = await api.get(`/api/admin/attendance/session-students?session_id=${sessionId}`);
@@ -300,10 +307,22 @@ export default function AdminAttendancePage() {
             }
         } catch (err) {
             console.error('Failed to fetch session students:', err);
+            setStudentsError(err.message || 'Could not load attendance for this class.');
         } finally {
             setStudentsLoading(false);
         }
     };
+
+    // Open a class selected from Schedule Management.
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const date = params.get('date');
+        const sessionId = params.get('session');
+        if (/^\d{4}-\d{2}-\d{2}$/.test(date || '')) setDateFilter(date);
+        if (/^[0-9a-f-]{36}$/i.test(sessionId || '')) fetchSessionStudents(sessionId);
+    // The link is read once when the page opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Cleanup timer on unmount
     useEffect(() => {
@@ -396,6 +415,7 @@ export default function AdminAttendancePage() {
 
     return (
         <div className="dashboard-container">
+            {qrSessionId && <AttendanceQrDisplay sessionId={qrSessionId} onClose={() => setQrSessionId(null)} />}
             <div className={`sidebar-overlay ${isMobileMenuOpen ? 'visible' : ''}`} onClick={() => setIsMobileMenuOpen(false)} />
             {sidebarNav}
             <div className="main-content">
@@ -435,7 +455,7 @@ export default function AdminAttendancePage() {
                     <div style={{ background: '#fff', borderRadius: '10px', border: '1px solid #e8e8e8', marginBottom: '1.2rem', overflow: 'hidden' }}>
                         <div className="am-date-strip" style={{ display: 'flex', alignItems: 'center', padding: '10px 1.5rem', gap: '16px', fontSize: '0.78rem', flexWrap: 'wrap' }}>
                             <span style={{ fontWeight: 700, color: '#111', display: 'flex', alignItems: 'center', gap: '6px' }}><Calendar size={14} /> Select Date</span>
-                            <input type="date" value={dateFilter} onChange={e => setDateFilter(e.target.value)}
+                            <input type="date" value={dateFilter} onChange={e => { setDateFilter(e.target.value); setExpandedSession(null); setSessionStudents(null); setStudentsError(''); clearRefreshTimer(); }}
                                 style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #eee', fontSize: '0.82rem', color: '#555', fontFamily: 'inherit' }} />
                             <span style={{ color: '#bbb', fontSize: '0.72rem' }}>
                                 {new Date(dateFilter + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
@@ -528,6 +548,7 @@ export default function AdminAttendancePage() {
                                             <div style={{ fontSize: '0.7rem', color: '#888' }}>{session.facultyName ? `Prof. ${session.facultyName}` : session.title}</div>
                                         </div>
 
+                                        <button type="button" onClick={(e) => { e.stopPropagation(); setQrSessionId(session.id); }} style={{ padding:'7px 10px', border:'1px solid #c4b5fd', borderRadius:8, color:'#4338ca', background:'#fff', cursor:'pointer' }}>Show QR</button>
                                         {/* Detected students */}
                                         <div className="am-session-detected" style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: '90px' }}>
                                             <Users size={13} color="#888" />
@@ -629,7 +650,7 @@ export default function AdminAttendancePage() {
                                                     ))}
                                                 </div>
                                             ) : !sessionStudents ? (
-                                                <div style={{ padding: '2rem', textAlign: 'center', color: '#aaa', fontSize: '0.82rem' }}>No data available</div>
+                                                <div role={studentsError ? 'alert' : undefined} style={{ padding: '2rem', textAlign: 'center', color: studentsError ? '#b91c1c' : '#aaa', fontSize: '0.82rem' }}>{studentsError || 'No data available'}</div>
                                             ) : (
                                                 <>
                                                     {/* Summary strip */}
@@ -652,6 +673,16 @@ export default function AdminAttendancePage() {
                                                         <span style={{ color: '#888' }}>Enrolled: <span style={{ fontWeight: 700, color: '#555', fontFamily: 'monospace' }}>{sessionStudents.summary?.enrolled || sessionStudents.summary?.total || 0}</span></span>
                                                     </div>
 
+                                                    <div aria-label="Filter students by attendance" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', padding: '12px 1.5rem' }}>
+                                                        {[
+                                                            ['all', 'All'], ['present', 'Present'], ['absent', 'Absent'],
+                                                            ['partial', 'Partial'], ['leave', 'On leave'], ['unverified', 'Unverified'],
+                                                        ].map(([value, label]) => {
+                                                            const count = value === 'all' ? (sessionStudents.students || []).length : (sessionStudents.students || []).filter(student => student.status === value).length;
+                                                            return <button type="button" key={value} onClick={() => setStudentStatusFilter(value)} aria-pressed={studentStatusFilter === value} style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #e2e8f0', background: studentStatusFilter === value ? '#3b2d82' : '#fff', color: studentStatusFilter === value ? '#fff' : '#475569', fontSize: '0.75rem', cursor: 'pointer' }}>{label} ({count})</button>;
+                                                        })}
+                                                    </div>
+                                                    {studentStatusFilter === 'unverified' && <p style={{ padding: '0 1.5rem 10px', color: '#64748b', fontSize: '0.75rem' }}>Unverified students do not have a verified attendance device and are not automatically counted as absent.</p>}
                                                     {/* Student table */}
                                                     <div style={{ overflowX: 'auto' }}>
                                                         <table className="am-student-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
@@ -663,7 +694,7 @@ export default function AdminAttendancePage() {
                                                                 </tr>
                                                             </thead>
                                                             <tbody>
-                                                                {(sessionStudents.students || []).map((s, i) => {
+                                                                {(sessionStudents.students || []).filter(s => studentStatusFilter === 'all' || s.status === studentStatusFilter).map((s, i) => {
                                                                     const st = getStatusStyle(s.status);
                                                                     return (
                                                                         <React.Fragment key={i}>

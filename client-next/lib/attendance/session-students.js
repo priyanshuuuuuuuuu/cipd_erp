@@ -10,7 +10,7 @@ import {
   users,
   attendanceRecords,
 } from '@/drizzle/schema';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { normalizeMac } from '@/lib/attendance-mac';
 import {
   buildMacTimeline,
@@ -187,6 +187,9 @@ export async function sessionStudentsHandler(req) {
       recordMap[r.student_id] = r;
     });
 
+    const qrRows = await db.execute(sql`SELECT DISTINCT student_id FROM qr_attendance_scans WHERE session_id = ${sessionId}`);
+    const qrCompleted = new Set(qrRows.map((r) => r.student_id));
+
     const studentResults = [];
 
     enrolledStudentIds.forEach((studentId) => {
@@ -215,8 +218,9 @@ export async function sessionStudentsHandler(req) {
           durationMinutes: 0,
           pingCount: 0,
           points: existing?.points ?? null,
-          pointsBreakdown: { reason: existing?.admin_override ? 'Admin override' : 'MAC not verified — attendance not tracked' },
-          status: existing?.admin_override ? existing.status : 'unverified',
+          pointsBreakdown: { reason: (existing?.admin_override || existing?.penalty) ? 'Admin override' : qrCompleted.has(studentId) ? 'QR attendance' : 'MAC not verified — attendance not tracked' },
+          status: (existing?.admin_override || existing?.penalty) ? existing.status : qrCompleted.has(studentId) ? 'present' : 'unverified',
+          qrAttendance: qrCompleted.has(studentId),
           adminOverride: !!existing?.admin_override,
           penalty: !!existing?.penalty,
           penaltyReason: existing?.penalty_reason || '',
@@ -342,7 +346,8 @@ export async function sessionStudentsHandler(req) {
         pingCount,
         points: displayPoints,
         pointsBreakdown: scoring.breakdown,
-        status,
+        status: qrCompleted.has(studentId) ? 'present' : status,
+        qrAttendance: qrCompleted.has(studentId),
         adminOverride: false,
         penalty: false,
         penaltyReason: '',

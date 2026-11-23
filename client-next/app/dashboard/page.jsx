@@ -5,14 +5,17 @@ import '../Dashboard.css';
 import {
     LayoutGrid, Calendar, BookOpen, Users, MessageSquare, Settings, LogOut, Search,
     ChevronDown, Clock, FileText, AlertCircle, CheckCircle, XCircle, Menu, ChevronLeft,
-    ChevronRight, Wifi, X, Fingerprint, ExternalLink, RefreshCw, Trophy
+    ChevronRight, Wifi, X, Fingerprint, ExternalLink, RefreshCw, Trophy, QrCode
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Cell } from 'recharts';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '@/lib/api';
 import NotificationBell from '../components/NotificationBell';
 import CohortSlot from '@/app/components/CohortSlot';
+import AttendanceQrScanner from '../components/AttendanceQrScanner';
+import StudentInstallPrompt from '../components/StudentInstallPrompt';
 
 const DAY_KEYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -22,9 +25,11 @@ const StudentDashboard = () => {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [showProfile, setShowProfile] = useState(false);
+    const [showAttendanceScanner, setShowAttendanceScanner] = useState(false);
 
     // Live data
     const [todaySessions, setTodaySessions] = useState([]);
+    const [scheduleLoading, setScheduleLoading] = useState(true);
     const [weekSessions, setWeekSessions] = useState([]);
     const [attendance, setAttendance] = useState(null);
     const [sessionHistory, setSessionHistory] = useState([]);
@@ -62,6 +67,7 @@ const StudentDashboard = () => {
             api.get('/api/students/profile'),
         ]);
         if (todayRes.status === 'fulfilled') setTodaySessions(todayRes.value.sessions || []);
+        setScheduleLoading(false);
         if (weekRes.status === 'fulfilled') setWeekSessions(weekRes.value.sessions || []);
         if (attRes.status === 'fulfilled') setAttendance(attRes.value);
         if (sesRes.status === 'fulfilled') setSessionHistory(sesRes.value.sessions || []);
@@ -185,13 +191,14 @@ const StudentDashboard = () => {
     );
     const formatMobileDate = (date) => {
         if (!date) return 'This week';
-        return new Date(`${date}T12:00:00`).toLocaleDateString('en-IN', {
+        return new Date(`${String(date).slice(0, 10)}T12:00:00`).toLocaleDateString('en-IN', {
             weekday: 'short', day: 'numeric', month: 'short',
         });
     };
 
     return (
-        <div className="dashboard-container">
+        <div className="dashboard-container student-home">
+            {showAttendanceScanner && <AttendanceQrScanner onClose={() => { setShowAttendanceScanner(false); fetchAll(); }} />}
             <div className={`sidebar-overlay ${isMobileMenuOpen ? 'visible' : ''}`} onClick={() => setIsMobileMenuOpen(false)} />
 
             <aside className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
@@ -208,13 +215,14 @@ const StudentDashboard = () => {
                     <CohortSlot collapsed={isCollapsed} />
                     <nav className="nav-menu">
                         <div className="nav-item active"><LayoutGrid size={18} /> <span>Home</span></div>
-                        <div onClick={() => router.push('/attendance')} className="nav-item" style={{ cursor: 'pointer' }}><Users size={18} /> <span>Attendance</span></div>
+                        <Link href="/attendance" className="nav-item"><Users size={18} /> <span>Attendance</span></Link>
                         <div onClick={() => router.push('/grades')} className="nav-item" style={{ cursor: 'pointer' }}><BookOpen size={18} /> <span>Grades</span></div>
                         <div className="nav-item" onClick={() => router.push('/teachers')} style={{ cursor: 'pointer' }}><Users size={18} /> <span>Teachers</span></div>
                         <div onClick={() => router.push('/feedback')} className="nav-item" style={{ cursor: 'pointer' }}><MessageSquare size={18} /> <span>Feedback</span></div>
                         <div onClick={() => router.push('/leaderboard')} className="nav-item" style={{ cursor: 'pointer' }}><Trophy size={18} /> <span>Leaderboard</span></div>
                         <div onClick={() => router.push('/courses')} className="nav-item" style={{ cursor: 'pointer' }}><BookOpen size={18} /> <span>Courses</span></div>
-                        <div className="nav-item" onClick={() => router.push('/calendar')} style={{ cursor: 'pointer' }}><Calendar size={18} /> <span>Calendar</span></div>
+                        <Link href="/calendar" className="nav-item"><Calendar size={18} /> <span>Calendar</span></Link>
+                        <Link href="/notifications" className="nav-item"><AlertCircle size={18} /> <span>Reminders & notifications</span></Link>
                     </nav>
                 </div>
                 <div className="sidebar-footer">
@@ -228,19 +236,26 @@ const StudentDashboard = () => {
                 <div className="content-center">
                     <header className="dashboard-header">
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <div className="mobile-menu-btn" onClick={() => setIsMobileMenuOpen(true)} style={{ cursor: 'pointer' }}><Menu size={24} /></div>
+                            <button type="button" className="mobile-menu-btn" aria-label="Open navigation" aria-expanded={isMobileMenuOpen} onClick={() => setIsMobileMenuOpen(true)} style={{ cursor: 'pointer' }}><Menu size={24} /></button>
                             <h1>Home</h1>
                         </div>
                         <div className="header-actions">
                             <NotificationBell />
+                            <img className="student-home-mobile-logo" src="/logo.png" alt="CiPD" />
                         </div>
                     </header>
 
+                    <div className="student-mobile-intro">
+                        <div><span>YOUR STUDENT SPACE</span><h2>Hi, {(user?.firstName || 'there').trim()} 👋</h2><p>Your classes and campus essentials, all in one place.</p></div>
+                        <button type="button" onClick={() => setShowAttendanceScanner(true)}><QrCode size={19} /> Scan attendance</button>
+                    </div>
+                    <StudentInstallPrompt />
+
                     {/* Today's Schedule */}
                     <section>
-                        <div className="section-title">Today&apos;s Schedule</div>
+                        <div className="section-title">Today&apos;s Schedule <button className="student-desktop-scan" type="button" onClick={() => setShowAttendanceScanner(true)} style={{ marginLeft:12, padding:'8px 12px', borderRadius:8, border:'1px solid #c4b5fd', background:'#fff', color:'#4338ca', cursor:'pointer' }}>Mark attendance</button></div>
                         <div className="schedule-cards">
-                            {todaySessions.length === 0 && !attendance ? (
+                            {todaySessions.length === 0 && scheduleLoading ? (
                                 <div style={{ display: 'flex', gap: '1rem' }}>{[1,2,3].map(i => (
                                     <div key={i} style={{ background: '#fff', border: '1px solid #e8e8e8', borderRadius: '16px', padding: '1.2rem', flex: 1, minWidth: '180px' }}>
                                         <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#f0f0f0', marginBottom: '10px', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.15}s` }} />
@@ -248,17 +263,18 @@ const StudentDashboard = () => {
                                         <div style={{ width: '50%', height: '9px', borderRadius: '3px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.25}s` }} />
                                     </div>
                                 ))}</div>
-                            ) : todaySessions.map((s, i) => (
-                                <div key={s.id} className={`schedule-card${i === 1 ? ' active' : ''}`}>
-                                    {i === 1 && <div className="next-class-badge">Next Class</div>}
+                            ) : todaySessions.length === 0 ? <div className="student-today-empty">No classes scheduled for today. Enjoy your day!</div> : todaySessions.map((s, i) => (
+                                <div key={s.id} className="schedule-card">
                                     <div className="icon-container">
                                         <img src={courseImages[i % courseImages.length]} alt="Course" style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '5px' }} />
                                     </div>
-                                    <div className="course-title">{s.courses?.name || s.title}</div>
-                                    <div className="course-info">
-                                        {s.topic || ''}<br />
-                                        Venue: {s.venues?.name || 'TBA'}<br />
-                                        {s.start_time ? s.start_time.slice(0, 5) : ''}
+                                    <div className="student-schedule-body">
+                                        <div className="course-title">{s.courses?.name || s.title}</div>
+                                        <div className="course-info">
+                                            {s.topic && <span>{s.topic}<br /></span>}
+                                            {s.start_time ? s.start_time.slice(0, 5) : 'Time TBA'}{s.end_time ? ` – ${s.end_time.slice(0, 5)}` : ''}<br />
+                                            {s.venues?.name || 'Venue TBA'}
+                                        </div>
                                     </div>
                                 </div>
                             ))}
@@ -304,15 +320,15 @@ const StudentDashboard = () => {
                                     })}
                                 </div>
                             </div>
-                            <div className="dashboard-mobile-week-agenda">
-                                {mobileWeekSessions.length ? mobileWeekSessions.map((s) => (
-                                    <button key={s.id} type="button" className="mobile-week-event" onClick={() => router.push('/calendar')}>
+                            <div className="dashboard-mobile-week-agenda" aria-label="Weekly classes, swipe horizontally">
+                                {mobileWeekSessions.length ? mobileWeekSessions.map((s, index) => (
+                                    <Link key={s.id} href="/calendar" className={`mobile-week-event mobile-week-color-${mobileWeekSessions.slice(0, index).filter(event => event.session_date === s.session_date).length % 4}`}>
                                         <span className="mobile-week-event-date">{formatMobileDate(s.session_date)}</span>
                                         <span className="mobile-week-event-details">
                                             <strong>{s.courses?.name || s.title}</strong>
                                             <span>{s.start_time?.slice(0, 5) || 'Time TBA'} · {s.venues?.name || 'Venue TBA'}</span>
                                         </span>
-                                    </button>
+                                    </Link>
                                 )) : <p className="mobile-empty-state">No classes scheduled this week.</p>}
                             </div>
                         </div>
@@ -323,7 +339,7 @@ const StudentDashboard = () => {
                 <div className="content-right">
                     <div className="section-title">
                         Weekly Attendance
-                        <img src="/logo.png" alt="Logo" style={{ height: '30px' }} />
+                        <img className="student-home-desktop-logo" src="/logo.png" alt="CiPD" style={{ height: '30px' }} />
                     </div>
                     <div className="stat-card" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                         <div style={{ position: 'relative', cursor: 'default', width: '100%', height: '130px' }}>
@@ -491,7 +507,6 @@ const StudentDashboard = () => {
                     )}
                 </div>
             </div>
-
             {/* PROFILE PANEL OVERLAY */}
             {showProfile && (
                 <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.25)', zIndex: 9999, display: 'flex', justifyContent: 'flex-end' }} onClick={() => setShowProfile(false)}>

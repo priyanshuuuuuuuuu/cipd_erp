@@ -11,12 +11,14 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '@/lib/api';
 import Papa from 'papaparse';
+import AttendanceQrDisplay from '../../components/AttendanceQrDisplay';
 
 export default function AdminSchedulePage() {
     const router = useRouter();
     const { user, logout, authReady } = useAuth();
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [qrSessionId, setQrSessionId] = useState(null);
     const [viewMode, setViewMode] = useState('list');
     const [activeFilter, setActiveFilter] = useState('all');
     const [showScheduleModal, setShowScheduleModal] = useState(false);
@@ -1115,6 +1117,7 @@ export default function AdminSchedulePage() {
 
     return (
         <div className="dashboard-container">
+            {qrSessionId && <AttendanceQrDisplay sessionId={qrSessionId} onClose={() => setQrSessionId(null)} />}
             <div className={`sidebar-overlay ${isMobileMenuOpen ? 'visible' : ''}`} onClick={() => setIsMobileMenuOpen(false)} />
 
             <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobileMenuOpen ? 'open' : ''}`}>
@@ -1348,6 +1351,8 @@ export default function AdminSchedulePage() {
                                                                 style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #3B2D82', background: '#f5f3ff', cursor: 'pointer', color: '#3B2D82' }}
                                                                 title="Edit session"
                                                             ><Edit3 size={13} /></button>
+                                                            <button type="button" onClick={() => router.push(`/admin/attendance?date=${encodeURIComponent(s.date)}&session=${encodeURIComponent(s.id)}`)} title="View class attendance" style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #bbf7d0', background: '#f0fdf4', color: '#166534', cursor: 'pointer' }}>Attendance</button>
+                                                            <button type="button" onClick={() => setQrSessionId(s.id)} title="Show attendance QR" style={{ padding:'4px 8px', borderRadius:6, border:'1px solid #c4b5fd', background:'#fff', color:'#4338ca', cursor:'pointer' }}>QR</button>
                                                             <button
                                                                 onClick={() => openUploadMaterial(s)}
                                                                 className="change-status-btn"

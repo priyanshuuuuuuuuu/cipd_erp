@@ -1,0 +1,10 @@
+@media (max-width: 768px) {
+  .feedback-summary { flex-direction: column; align-items: stretch !important; gap: 16px; padding: 20px 16px !important; }
+  .feedback-summary-counts { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px !important; width: 100%; }
+  .feedback-summary-counts > div { min-width: 0; padding: 10px 4px !important; }
+  .feedback-summary-counts > div > div:first-child { font-size: .6rem !important; letter-spacing: 0 !important; }
+  .feedback-form-row { flex-wrap: wrap; gap: 10px !important; padding: 14px !important; }
+  .feedback-form-row > div:nth-child(2) { min-width: 0; overflow-wrap: anywhere; }
+  .feedback-form-row > div:nth-child(2) > div:nth-child(2) { flex-wrap: wrap; }
+  .feedback-form-row > div:nth-child(3) { margin-left: 50px; flex-wrap: wrap; }
+}
