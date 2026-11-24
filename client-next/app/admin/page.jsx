@@ -6,11 +6,12 @@ import {
     LayoutGrid, Calendar, BookOpen, Users, MessageSquare, Settings, LogOut, Bell, Search, Menu,
     ChevronLeft, ChevronRight, Wifi, Clock, FileBarChart, RefreshCw, Activity, CheckCircle,
     AlertTriangle, Filter, Plus, Send, Mail, MapPin, User, AlertCircle, X, BarChart3, Trophy, GraduationCap,
-    CalendarX, CheckSquare, XSquare, Upload
+    CalendarX, CheckSquare, XSquare, Upload, QrCode
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '@/lib/api';
+import AttendanceQrDisplay from '../components/AttendanceQrDisplay';
 
 // ---------------------------------------------------------------------------
 // IST helpers (client-side mirror of lib/ist-date.js)
@@ -64,6 +65,7 @@ export default function AdminDashboard() {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [showScheduleModal, setShowScheduleModal] = useState(false);
     const [notifyStatus, setNotifyStatus] = useState(null);
+    const [qrSessionId, setQrSessionId] = useState(null);
     const [reminderStatus, setReminderStatus] = useState(null);
     const [newClass, setNewClass] = useState({ course_id: '', faculty_id: '', date: '', start_time: '', end_time: '', venue_id: '', title: '' });
     const [showAddCourse, setShowAddCourse] = useState(false);
@@ -505,6 +507,9 @@ export default function AdminDashboard() {
                                                     </span>
                                                 );
                                             })()}
+                                            <button type="button" onClick={() => setQrSessionId(cls.id)} title="Show attendance QR" className="change-status-btn" style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 12px', borderRadius: '8px', border: '1px solid #c4b5fd', background: '#fff', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 500, color: '#4338ca' }}>
+                                                <QrCode size={11} /> QR
+                                            </button>
                                             <button onClick={() => handleNotifyAll(cls.id)} disabled={notifyStatus?.state === 'sending'} className="change-status-btn" style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 12px', borderRadius: '8px', border: '1px solid #eee', background: notifyStatus?.key === cls.id && notifyStatus?.state === 'sent' ? '#ecfdf5' : '#fff', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 500, color: '#555' }}>
                                                 {notifyStatus?.key === cls.id && notifyStatus?.state === 'sending' ? 'Queuing...' : notifyStatus?.key === cls.id && notifyStatus?.state === 'sent' ? 'Queued' : <><Send size={11} /> Notify All</>}
                                             </button>
@@ -648,6 +653,8 @@ export default function AdminDashboard() {
             </div>
 
             {/* Schedule Modal */}
+            {qrSessionId && <AttendanceQrDisplay sessionId={qrSessionId} onClose={() => setQrSessionId(null)} />}
+
             {showScheduleModal && (
                 <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000 }} onClick={() => { setShowScheduleModal(false); setScheduleError(''); }}>
                     <div style={{ background: '#fff', borderRadius: '16px', width: '480px', maxWidth: '90vw', boxShadow: '0 20px 60px rgba(0,0,0,0.15)', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>

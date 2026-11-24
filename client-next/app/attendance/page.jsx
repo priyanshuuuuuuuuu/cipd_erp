@@ -559,12 +559,33 @@ export default function AttendancePage() {
                         </div>
                     )}
 
+                    {/* How points work */}
+                    <div className="stat-card" style={{ padding: '1.25rem 1.5rem', borderRadius: '20px', marginBottom: '1rem', border: '1px solid #e8e8e8' }}>
+                        <div style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>How you earn points</div>
+                        <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px', marginBottom: '12px' }}>Up to 7 points per class. You are marked Present if you earn any points.</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
+                            {[
+                                ['Scan the QR at the start (Wi-Fi then not counted)', '+5 pts'],
+                                ['No start QR: Wi-Fi within 5 min of start', '+4 pts'],
+                                ['No start QR: Wi-Fi 5–10 min after start', '+3 pts'],
+                                ['No start QR: Wi-Fi 10–15 min after start', '+2 pts'],
+                                ['Scan the QR at the end of class', '+2 pts'],
+                                ['Not seen / no scans', '0 pts · Absent'],
+                            ].map(([label, pts]) => (
+                                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', padding: '10px 12px', background: '#f8fafc', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                                    <span style={{ fontSize: '0.78rem', color: '#334155' }}>{label}</span>
+                                    <span style={{ fontFamily: 'monospace', fontSize: '0.8rem', fontWeight: 700, color: '#166534', whiteSpace: 'nowrap' }}>{pts}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
                     {/* Leave Requests */}
                     <div className="stat-card" style={{ padding: '1.25rem 1.5rem', borderRadius: '20px', marginBottom: '1rem', border: '1px solid #e8e8e8' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: showLeaveForm || leaveRequests.length ? '1rem' : 0 }}>
                             <div>
                                 <div style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>Leave Requests</div>
-                                <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px' }}>Request leave before class to avoid the −2 absent penalty</div>
+                                <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '4px' }}>Request leave before class so an unscored session is recorded as leave, not absent</div>
                             </div>
                             <button onClick={() => setShowLeaveForm(!showLeaveForm)} style={{ padding: '8px 16px', borderRadius: '10px', border: 'none', background: '#111', color: '#fff', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer' }}>
                                 {showLeaveForm ? 'Cancel' : 'Request Leave'}
@@ -686,7 +707,7 @@ export default function AttendancePage() {
                                             <div className="att-session-row-right" style={{ display:'flex', alignItems:'center', gap:'16px' }}>
                                                 <span style={{ fontFamily:'monospace', fontSize:'0.8rem', fontWeight: 600, color: s.pings >= 3 ? '#16a34a' : '#e11d48', background: s.pings >= 3 ? '#dcfce7' : '#ffe4e6', padding: '4px 10px', borderRadius: '8px' }}>{s.pings} pings</span>
                                                 {s.points != null && s.points !== 0 && (
-                                                    <span style={{ fontFamily:'monospace', fontSize:'0.8rem', fontWeight: 700, color: s.points >= 3 ? '#166534' : s.points < 0 ? '#991b1b' : '#64748b', background: '#f8fafc', padding: '4px 10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>{s.points} pts</span>
+                                                    <span style={{ fontFamily:'monospace', fontSize:'0.8rem', fontWeight: 700, color: s.points >= 5 ? '#166534' : s.points < 0 ? '#991b1b' : '#64748b', background: '#f8fafc', padding: '4px 10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>{s.points} pts</span>
                                                 )}
                                                 {s.points === -2 && (
                                                     <span style={{ fontFamily:'monospace', fontSize:'0.8rem', fontWeight: 700, color: '#991b1b', background: '#fef2f2', padding: '4px 10px', borderRadius: '8px' }}>−2 pts</span>

@@ -16,10 +16,12 @@ import {
   buildMacTimeline,
   loadAttendanceSettings,
   loadApprovedLeaves,
+  loadQrPhases,
   processSessionAttendance,
 } from '@/lib/process-session-attendance';
 import {
   calculatePoints,
+  calculateQrPoints,
   resolveAttendanceStatus,
 } from '@/lib/attendance-points';
 
@@ -187,8 +189,8 @@ export async function sessionStudentsHandler(req) {
       recordMap[r.student_id] = r;
     });
 
-    const qrRows = await db.execute(sql`SELECT DISTINCT student_id FROM qr_attendance_scans WHERE session_id = ${sessionId}`);
-    const qrCompleted = new Set(qrRows.map((r) => r.student_id));
+    const qrPhases = await loadQrPhases(sessionId);
+    const qrCompleted = new Set(qrPhases.keys());
 
     const studentResults = [];
 
@@ -310,6 +312,8 @@ export async function sessionStudentsHandler(req) {
       const presencePercent =
         totalSnapshots > 0 ? (pingCount / totalSnapshots) * 100 : 0;
 
+      const studentQr = qrPhases.get(studentId) || [];
+      const qrPoints = calculateQrPoints(studentQr);
       const scoring = calculatePoints({
         firstSeenAt: firstSeen,
         lastSeenAt: lastSeen,
@@ -318,17 +322,18 @@ export async function sessionStudentsHandler(req) {
         leaveApproved: approvedLeaves.has(student.id),
         detected,
         finalizeAbsent,
+        qrPhases: studentQr,
       });
 
       const status = resolveAttendanceStatus({
-        durationPercent: scoring.durationPercent ?? 0,
+        points: isOngoing ? qrPoints : scoring.points,
         detected,
         leaveApproved: approvedLeaves.has(student.id),
         finalizeAbsent,
         isOngoing,
       });
 
-      const displayPoints = isOngoing ? 0 : (existing?.points ?? scoring.points);
+      const displayPoints = isOngoing ? qrPoints : (existing?.points ?? scoring.points);
 
       studentResults.push({
         studentId: student.id,
@@ -346,7 +351,7 @@ export async function sessionStudentsHandler(req) {
         pingCount,
         points: displayPoints,
         pointsBreakdown: scoring.breakdown,
-        status: qrCompleted.has(studentId) ? 'present' : status,
+        status,
         qrAttendance: qrCompleted.has(studentId),
         adminOverride: false,
         penalty: false,

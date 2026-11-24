@@ -1,14 +1,14 @@
 /**
  * Unit Tests for Attendance Points System
+ * Wi-Fi (first detection 0-5/5-10/10-15 min → 4/3/2) + QR (start 5, end 2).
  * Run: node scripts/test-attendance-points.js
  */
 
 import {
   calculatePoints,
-  calculateArrivalBonus,
-  calculateDurationScore,
+  calculateWifiScore,
+  calculateQrPoints,
   resolveAttendanceStatus,
-  MIN_DURATION_PERCENT,
 } from '../lib/attendance-points.js';
 
 let passed = 0;
@@ -27,119 +27,74 @@ function assert(condition, testName, details = '') {
 const sessionStart = new Date('2026-06-01T10:00:00+05:30');
 const sessionEnd = new Date('2026-06-01T12:00:00+05:30'); // 120 min
 
-console.log('\n=== Arrival bonus ===');
-assert(calculateArrivalBonus(0) === 1, 'On time → +1');
-assert(calculateArrivalBonus(6) === 1, '6 min → +1');
-assert(calculateArrivalBonus(6.2) === 0, '6.2 min → +0');
-assert(calculateArrivalBonus(15) === 0, '15 min → +0');
+const base = { sessionStartAt: sessionStart, sessionEndAt: sessionEnd, finalizeAbsent: true };
+const seen = (first, last = first) =>
+  calculatePoints({ ...base, firstSeenAt: new Date(first), lastSeenAt: new Date(last), detected: true });
 
-console.log('\n=== Duration score ===');
-assert(calculateDurationScore(85) === 4, '85% → 4');
-assert(calculateDurationScore(75) === 3, '75% → 3');
-assert(calculateDurationScore(65) === 2, '65% → 2');
-assert(calculateDurationScore(55) === 1, '55% → 1');
-assert(calculateDurationScore(30) === 0.5, '30% → 0.5');
+console.log('\n=== Wi-Fi tiers ===');
+assert(calculateWifiScore(-3) === 4, 'Before start → 4');
+assert(calculateWifiScore(5) === 4, '5 min → 4');
+assert(calculateWifiScore(5.1) === 3, '5.1 min → 3');
+assert(calculateWifiScore(10) === 3, '10 min → 3');
+assert(calculateWifiScore(10.1) === 2, '10.1 min → 2');
+assert(calculateWifiScore(15) === 2, '15 min → 2');
+assert(calculateWifiScore(15.1) === 0, '15.1 min → 0');
+
+console.log('\n=== QR points ===');
+assert(calculateQrPoints(['start']) === 5, 'Start QR → 5');
+assert(calculateQrPoints(['end']) === 2, 'End QR → 2');
+assert(calculateQrPoints(['start', 'end', 'start']) === 7, 'Both (deduped) → 7');
 
 console.log('\n=== Full scoring ===');
+assert(seen('2026-06-01T10:03:00+05:30').points === 4, 'Seen at 3 min → 4');
+assert(seen('2026-06-01T10:07:00+05:30').points === 3, 'Seen at 7 min → 3');
+assert(seen('2026-06-01T10:12:00+05:30').points === 2, 'Seen at 12 min → 2');
 {
-  const firstSeen = new Date('2026-06-01T10:05:00+05:30'); // 5 mins late -> +1 arrival
-  const lastSeen = new Date('2026-06-01T11:55:00+05:30'); // 110 mins duration -> 91% -> +4
+  const r = seen('2026-06-01T10:20:00+05:30');
+  assert(r.points === 0 && r.status === 'absent', 'Seen at 20 min → 0 pts, absent', `got ${r.points} ${r.status}`);
+}
+{
   const r = calculatePoints({
-    firstSeenAt: firstSeen,
-    lastSeenAt: lastSeen,
-    sessionStartAt: sessionStart,
-    sessionEndAt: sessionEnd,
+    ...base,
+    firstSeenAt: new Date('2026-06-01T10:02:00+05:30'),
+    lastSeenAt: new Date('2026-06-01T10:03:00+05:30'),
     detected: true,
-    finalizeAbsent: true,
+    qrPhases: ['start', 'end'],
   });
-  assert(r.points === 5, 'On time + 91% duration → 5', `got ${r.points}`);
+  assert(r.points === 7 && r.status === 'present', 'Start QR + end QR, Wi-Fi ignored → 7', `got ${r.points}`);
 }
-
 {
-  const firstSeen = new Date('2026-06-01T10:15:00+05:30'); // 15 min late -> 0 arrival
-  const lastSeen = new Date('2026-06-01T11:45:00+05:30'); // 90 min duration -> 75% -> +3
+  const r = calculatePoints({ ...base, firstSeenAt: null, lastSeenAt: null, detected: false, qrPhases: ['start'] });
+  assert(r.points === 5 && r.status === 'present', 'QR only, no Wi-Fi → 5, present (no penalty)', `got ${r.points} ${r.status}`);
+}
+{
   const r = calculatePoints({
-    firstSeenAt: firstSeen,
-    lastSeenAt: lastSeen,
-    sessionStartAt: sessionStart,
-    sessionEndAt: sessionEnd,
+    ...base,
+    firstSeenAt: new Date('2026-06-01T10:02:00+05:30'),
+    lastSeenAt: new Date('2026-06-01T10:03:00+05:30'),
     detected: true,
-    finalizeAbsent: true,
+    qrPhases: ['end'],
   });
-  assert(r.points === 3, '15 min late + 75% duration → 3', `got ${r.points}`);
+  assert(r.points === 6, 'No start QR: Wi-Fi 4 + end QR 2 → 6', `got ${r.points}`);
 }
 
+console.log('\n=== No-show ===');
 {
-  const r = calculatePoints({
-    firstSeenAt: null,
-    lastSeenAt: null,
-    sessionStartAt: sessionStart,
-    sessionEndAt: sessionEnd,
-    leaveApproved: true,
-    detected: false,
-    finalizeAbsent: true,
-  });
-  const st = resolveAttendanceStatus({
-    durationPercent: 0,
-    detected: false,
-    leaveApproved: true,
-    finalizeAbsent: true,
-  });
-  assert(r.points === 0 && st === 'leave', 'Leave → 0', `got ${r.points} ${st}`);
+  const r = calculatePoints({ ...base, firstSeenAt: null, lastSeenAt: null, leaveApproved: true, detected: false });
+  assert(r.points === 0 && r.status === 'leave', 'Leave → 0, leave', `got ${r.points} ${r.status}`);
 }
-
 {
-  const r = calculatePoints({
-    firstSeenAt: null,
-    lastSeenAt: null,
-    sessionStartAt: sessionStart,
-    sessionEndAt: sessionEnd,
-    leaveApproved: false,
-    detected: false,
-    finalizeAbsent: true,
-  });
-  const st = resolveAttendanceStatus({
-    durationPercent: 0,
-    detected: false,
-    leaveApproved: false,
-    finalizeAbsent: true,
-    isOngoing: false,
-  });
-  assert(r.points === -2 && st === 'absent', 'No-show → −2 pts, absent', `got ${r.points} ${st}`);
+  const r = calculatePoints({ ...base, firstSeenAt: null, lastSeenAt: null, detected: false });
+  assert(r.points === 0 && r.status === 'absent', 'No-show → 0 pts (no penalty), absent', `got ${r.points} ${r.status}`);
 }
 
-console.log('\n=== Status vs points (separate) ===');
-{
-  const firstSeen = new Date('2026-06-01T10:05:00+05:30'); // arrival +1
-  const lastSeen = new Date('2026-06-01T10:29:00+05:30'); // duration 24 min = 20% -> +0.5
-  const r = calculatePoints({
-    firstSeenAt: firstSeen,
-    lastSeenAt: lastSeen,
-    sessionStartAt: sessionStart,
-    sessionEndAt: sessionEnd,
-    detected: true,
-    finalizeAbsent: true,
-  });
-  const st = resolveAttendanceStatus({
-    durationPercent: 20, // less than 25
-    detected: true,
-    finalizeAbsent: true,
-    isOngoing: false,
-  });
-  assert(st === 'absent', '20% duration → absent status');
-  assert(r.points === 1.5, '20% duration earns 1.5 pts', `got ${r.points}`);
-}
-
-console.log('\n=== Ongoing live status ===');
-assert(
-  resolveAttendanceStatus({ detected: true, isOngoing: true }) === 'partial',
-  'Ongoing + detected → partial (Attending)'
-);
-assert(
-  resolveAttendanceStatus({ detected: false, isOngoing: true }) === 'missing',
-  'Ongoing + not detected → missing'
-);
-assert(MIN_DURATION_PERCENT === 25, 'Min duration is 25%');
+console.log('\n=== Status ===');
+assert(resolveAttendanceStatus({ points: 2, finalizeAbsent: true }) === 'present', 'Positive points → present');
+assert(resolveAttendanceStatus({ points: 5, leaveApproved: true, finalizeAbsent: true }) === 'present', 'Positive points beat leave');
+assert(resolveAttendanceStatus({ points: 0, detected: true, finalizeAbsent: true }) === 'absent', 'Detected but 0 pts → absent');
+assert(resolveAttendanceStatus({ points: 0, detected: true, isOngoing: true }) === 'partial', 'Ongoing + detected → partial');
+assert(resolveAttendanceStatus({ points: 0, detected: false, isOngoing: true }) === 'missing', 'Ongoing + not detected → missing');
+assert(resolveAttendanceStatus({ points: 5, isOngoing: true }) === 'present', 'Ongoing + QR points → present');
 
 console.log('\n' + '═'.repeat(50));
 console.log(`Results: ${passed} passed, ${failed} failed`);

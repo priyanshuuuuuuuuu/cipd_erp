@@ -11,7 +11,7 @@ import {
 import { eq, and, inArray, isNotNull, sql } from 'drizzle-orm';
 import { getSnapshotsBetween, isWifiSourceUnavailable } from '@/lib/wifi-snapshots';
 import { normalizeMac, isValidMac } from '@/lib/attendance-mac';
-import { calculatePoints, resolveAttendanceStatus } from '@/lib/attendance-points';
+import { calculatePoints, calculateQrPoints, resolveAttendanceStatus } from '@/lib/attendance-points';
 
 /**
  * Load system settings for attendance processing.
@@ -108,6 +108,25 @@ export async function loadApprovedLeaves(sessionId, sessionDate, studentIds) {
   });
 
   return leaveMap;
+}
+
+/** Wi-Fi points (dropped if a start QR exists) + QR points (start 5, end 2), computed in-DB to avoid races. */
+const QR_TOTAL_SQL = sql`(CASE WHEN EXISTS (SELECT 1 FROM qr_attendance_scans s WHERE s.session_id = excluded.session_id AND s.student_id = excluded.student_id AND s.phase = 'start') THEN 0 ELSE excluded.points END + COALESCE((SELECT SUM(CASE q.phase WHEN 'start' THEN 5 WHEN 'end' THEN 2 ELSE 0 END) FROM qr_attendance_scans q WHERE q.session_id = excluded.session_id AND q.student_id = excluded.student_id), 0))`;
+
+/**
+ * QR phases scanned per student for a session: Map<studentId, string[]>.
+ * @param {string} sessionId
+ */
+export async function loadQrPhases(sessionId) {
+  const rows = await db.execute(
+    sql`SELECT student_id, phase FROM qr_attendance_scans WHERE session_id = ${sessionId}`
+  );
+  const map = new Map();
+  for (const r of rows) {
+    if (!map.has(r.student_id)) map.set(r.student_id, []);
+    map.get(r.student_id).push(r.phase);
+  }
+  return map;
 }
 
 /**
@@ -235,6 +254,8 @@ export async function processSessionAttendance(session, options = {}) {
       .map((r) => r.student_id)
   );
 
+  const qrPhases = await loadQrPhases(session.id);
+
   const records = [];
   const summary = { present: 0, partial: 0, absent: 0, leave: 0, skipped: 0 };
 
@@ -271,6 +292,9 @@ export async function processSessionAttendance(session, options = {}) {
     const actualSnapshots = orderedSnapshotIds.length;
     const totalSnapshots = Math.max(actualSnapshots, expectedTotalSnapshots || 0);
 
+    const studentQr = qrPhases.get(student.id) || [];
+    const qrPoints = calculateQrPoints(studentQr);
+
     const scoring = calculatePoints({
       firstSeenAt: firstSeen,
       lastSeenAt: lastSeen,
@@ -279,10 +303,11 @@ export async function processSessionAttendance(session, options = {}) {
       leaveApproved,
       detected,
       finalizeAbsent,
+      qrPhases: studentQr,
     });
 
     const status = resolveAttendanceStatus({
-      durationPercent: scoring.durationPercent ?? 0,
+      points: isOngoing ? qrPoints : scoring.points,
       detected,
       leaveApproved,
       finalizeAbsent,
@@ -293,13 +318,15 @@ export async function processSessionAttendance(session, options = {}) {
       continue;
     }
 
-    const finalPoints = isOngoing ? 0 : scoring.points;
+    // Wi-Fi points are only awarded once the session ends; QR points count immediately.
+    const finalPoints = isOngoing ? qrPoints : scoring.points;
 
     records.push({
       session_id: session.id,
       student_id: student.id,
       ping_count: pingCount,
       points: finalPoints,
+      wifi_points: isOngoing ? 0 : scoring.wifiScore,
       status: status === 'missing' ? 'absent' : status,
       calculated_at: now.toISOString(),
       first_seen_at: firstSeen ? firstSeen.toISOString() : null,
@@ -320,7 +347,8 @@ export async function processSessionAttendance(session, options = {}) {
       sessionId: row.session_id,
       studentId: row.student_id,
       pingCount: row.ping_count,
-      points: String(row.points),
+      // Wi-Fi component only; QR points are added from qr_attendance_scans in the upsert
+      points: String(row.wifi_points),
       status: row.status,
       calculatedAt: row.calculated_at,
       firstSeenAt: row.first_seen_at,
@@ -336,8 +364,8 @@ export async function processSessionAttendance(session, options = {}) {
         target: [attendanceRecords.sessionId, attendanceRecords.studentId],
         set: {
           pingCount: sql`excluded.ping_count`,
-          points: sql`excluded.points`,
-          status: sql`CASE WHEN EXISTS (SELECT 1 FROM qr_attendance_scans q WHERE q.session_id=excluded.session_id AND q.student_id=excluded.student_id) THEN 'present' ELSE excluded.status END`,
+          points: sql`${QR_TOTAL_SQL}`,
+          status: sql`CASE WHEN ${QR_TOTAL_SQL} > 0 THEN 'present' ELSE excluded.status END`,
           calculatedAt: sql`excluded.calculated_at`,
           firstSeenAt: sql`excluded.first_seen_at`,
           lastSeenAt: sql`excluded.last_seen_at`,

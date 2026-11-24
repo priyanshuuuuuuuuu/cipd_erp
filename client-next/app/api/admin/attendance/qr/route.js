@@ -11,7 +11,7 @@ async function handler(req) {
     const session = await qrSession(req.cohort, sessionId);
     if (!session) return NextResponse.json({ error: 'Class not found.' }, { status: 404 });
     const phase = qrPhase(session);
-    if (!phase) return NextResponse.json({ error: 'QR is available during the first five minutes and for 15 minutes after class ends.' }, { status: 409 });
+    if (!phase) return NextResponse.json({ error: 'QR is available from 5 minutes before class until it starts, and for 15 minutes after class ends.' }, { status: 409 });
     if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET is missing');
     const now = Date.now();
     const interval = qrRotationIntervalMs();

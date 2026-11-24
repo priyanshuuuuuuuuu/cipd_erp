@@ -21,7 +21,6 @@ const { normalizeMac, isValidMac } = await import('../lib/attendance-mac.js');
 const {
   calculatePoints,
   resolveAttendanceStatus,
-  MIN_DURATION_PERCENT,
 } = await import('../lib/attendance-points.js');
 
 // Supabase client specifically for wifi_snapshots as per migration rule
@@ -49,7 +48,7 @@ export async function generateWifiAttendanceReportWithCodeRules(options = {}) {
 
   console.log(`\n======================================================`);
   console.log(`📊 GENERATING WI-FI REPORT WITH CODE RULES`);
-  console.log(`📏 Rule: MIN_DURATION_PERCENT = ${MIN_DURATION_PERCENT}% (lib/attendance-points.js)`);
+  console.log('📏 Rule: first Wi-Fi detection ≤5 min → 3 pts, ≤10 min → 2 pts, later → 0 (lib/attendance-points.js)');
   console.log(`📅 Period: ${dateFrom} to ${dateTo}`);
   console.log(`🕒 Slots: ${SLOTS.map(s => s.label).join(' | ')}`);
   console.log(`💾 Output Directory: ${outputDir}`);
@@ -213,7 +212,7 @@ export async function generateWifiAttendanceReportWithCodeRules(options = {}) {
         }
 
         // Codebase Official Rule:
-        // calculatePoints + resolveAttendanceStatus (MIN_DURATION_PERCENT = 25%)
+        // calculatePoints + resolveAttendanceStatus (any detection = present)
         let status = 'absent';
         let scoring = { points: 0, durationPercent: 0, durationMin: 0 };
         let pingCount = 0;
@@ -441,7 +440,7 @@ export async function generateWifiAttendanceReportWithCodeRules(options = {}) {
   const reportPayload = {
     metadata: {
       generatedAt: new Date().toISOString(),
-      ruleApplied: `Official Codebase Rule: resolveAttendanceStatus with MIN_DURATION_PERCENT = ${MIN_DURATION_PERCENT}%`,
+      ruleApplied: `Official Codebase Rule: resolveAttendanceStatus (any detection = present)`,
       dateFrom,
       dateTo,
       totalDays: dates.length,
@@ -629,7 +628,7 @@ function buildCodeRulesA4Html(payload) {
         </h1>
         <div class="header-meta">
           Period: <strong>10 Sep – 11 Oct 2026</strong> (32 Days) &nbsp;|&nbsp;
-          Rule: <strong>resolveAttendanceStatus (MIN_DURATION_PERCENT = 25%)</strong> &nbsp;|&nbsp;
+          Rule: <strong>resolveAttendanceStatus (any detection = present)</strong> &nbsp;|&nbsp;
           Columns: <strong>26 Students × 4 Slots</strong>
         </div>
       </div>
@@ -762,7 +761,7 @@ function buildCodeRulesA4Html(payload) {
 
     <div class="footer">
       <div>
-        Rule Applied: <strong>lib/attendance-points.js (MIN_DURATION_PERCENT = 25%)</strong> • Generated on ${new Date().toLocaleDateString('en-GB')}.
+        Rule Applied: <strong>lib/attendance-points.js (any detection = present)</strong> • Generated on ${new Date().toLocaleDateString('en-GB')}.
       </div>
       <div>
         Delta vs Single Detection: <strong>331 → 263 marks (-68 marks / -20.5%)</strong>
@@ -853,7 +852,7 @@ function buildViewerHtml(payload) {
       </div>
       <div class="card">
         <div class="title">Rule Enforced</div>
-        <div class="val" style="font-size:1.1rem; color:#38bdf8; margin-top:8px;">MIN_DURATION 25%</div>
+        <div class="val" style="font-size:1.1rem; color:#38bdf8; margin-top:8px;">FIRST-SEEN 3/2/0</div>
         <div class="sub" style="color:#94a3b8;">lib/attendance-points.js</div>
       </div>
     </div>

@@ -467,13 +467,13 @@ export default function AdminAttendancePage() {
                             <span style={{ color: '#ddd' }}>·</span>
                             <span>Window: <span style={{ color: '#888', fontWeight: 500 }}>Start → End + 2 min</span></span>
                             <span style={{ color: '#ddd' }}>·</span>
-                            <span>Points: <span style={{ color: '#888', fontWeight: 500 }}>5 max</span></span>
+                            <span>Points: <span style={{ color: '#888', fontWeight: 500 }}>7 max</span></span>
                             <span style={{ color: '#ddd' }}>·</span>
-                            <span>On-time: <span style={{ color: '#16a34a', fontWeight: 500 }}>+1</span></span>
+                            <span>Start: <span style={{ color: '#16a34a', fontWeight: 500 }}>QR 5 or Wi-Fi 4/3/2</span></span>
                             <span style={{ color: '#ddd' }}>·</span>
-                            <span>Duration ≥80%: <span style={{ color: '#16a34a', fontWeight: 500 }}>+4</span></span>
+                            <span>QR: <span style={{ color: '#16a34a', fontWeight: 500 }}>end +2</span></span>
                             <span style={{ color: '#ddd' }}>·</span>
-                            <span>Absent: <span style={{ color: '#dc2626', fontWeight: 500 }}>−2</span></span>
+                            <span>Absent: <span style={{ color: '#dc2626', fontWeight: 500 }}>0</span></span>
                             {nextRefreshIn !== null && nextRefreshIn > 0 && (
                                 <>
                                     <span style={{ color: '#ddd' }}>·</span>
@@ -638,7 +638,7 @@ export default function AdminAttendancePage() {
                                                             <div style={{ width: '50px', height: '10px', borderRadius: '3px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.18}s` }} />
                                                             <div style={{ width: '25px', height: '10px', borderRadius: '3px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.2}s` }} />
                                                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                                <div style={{ width: '36px', height: '6px', borderRadius: '3px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.22}s` }} />
+                                                                <div style={{ width: '44px', height: '6px', borderRadius: '3px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.22}s` }} />
                                                                 <div style={{ width: '20px', height: '10px', borderRadius: '3px', background: '#f5f5f5', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.24}s` }} />
                                                             </div>
                                                             <div style={{ width: '60px', height: '22px', borderRadius: '6px', background: '#f0f0f0', animation: 'shimmer 1.5s infinite', animationDelay: `${i * 0.26}s` }} />
@@ -743,16 +743,16 @@ export default function AdminAttendancePage() {
                                                                                 {s.points != null ? (() => { const pts = parseFloat(s.points); return (
                                                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                                                                         <div style={{
-                                                                                            width: '36px', height: '6px', borderRadius: '3px', background: '#f0f0f0', overflow: 'hidden',
+                                                                                            width: '44px', height: '6px', borderRadius: '3px', background: '#f0f0f0', overflow: 'hidden',
                                                                                         }}>
                                                                                             <div style={{
-                                                                                                width: `${(pts || 0) * 100}%`, height: '100%', borderRadius: '3px',
-                                                                                                background: pts >= 0.8 ? '#16a34a' : pts >= 0.5 ? '#b45309' : pts > 0 ? '#dc2626' : '#e5e5e5',
+                                                                                                width: `${Math.min(100, Math.max(0, (pts || 0) / 7 * 100))}%`, height: '100%', borderRadius: '3px',
+                                                                                                background: pts >= 5 ? '#16a34a' : pts >= 3 ? '#b45309' : pts > 0 ? '#dc2626' : '#e5e5e5',
                                                                                             }} />
                                                                                         </div>
                                                                                         <span style={{
                                                                                             fontWeight: 700, fontFamily: 'monospace', fontSize: '0.78rem',
-                                                                                            color: pts >= 0.8 ? '#16a34a' : pts >= 0.5 ? '#b45309' : pts > 0 ? '#dc2626' : '#ccc',
+                                                                                            color: pts >= 5 ? '#16a34a' : pts >= 3 ? '#b45309' : pts > 0 ? '#dc2626' : '#ccc',
                                                                                         }}>{pts.toFixed(1)}</span>
                                                                                     </div>
                                                                                 ); })() : (
@@ -962,16 +962,19 @@ export default function AdminAttendancePage() {
                             {/* Max score callout */}
                             <div style={{ background: '#eef2ff', borderRadius: '10px', padding: '10px 14px', marginBottom: '1.2rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
                                 <Trophy size={16} color="#6366f1" />
-                                <span style={{ fontSize: '0.8rem', color: '#4338ca', fontWeight: 600 }}>Maximum score per session: <span style={{ fontFamily: 'monospace', fontSize: '0.95rem' }}>5 pts</span> &nbsp;(on-time +1 &amp; duration ≥80% +4)</span>
+                                <span style={{ fontSize: '0.8rem', color: '#4338ca', fontWeight: 600 }}>Maximum score per session: <span style={{ fontFamily: 'monospace', fontSize: '0.95rem' }}>7 pts</span> &nbsp;(start QR 5 or Wi-Fi up to 4, + end QR 2)</span>
                             </div>
 
-                            {/* Arrival bonus */}
+                            {/* Wi-Fi arrival score */}
                             <div style={{ marginBottom: '1rem' }}>
-                                <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: '#6366f1', marginBottom: '6px' }}>① Arrival Bonus</div>
+                                <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: '#6366f1', marginBottom: '6px' }}>① Start of Class: QR <em>or</em> Wi-Fi <span style={{ color: '#aaa', fontSize: '0.65rem', fontWeight: 500 }}>(only one counts)</span></div>
                                 <div style={{ background: '#f8fafc', borderRadius: '8px', overflow: 'hidden', border: '1px solid #f0f0f0' }}>
                                     {[
-                                        ['Arrives on time (≤ 6 min after start)', '+1 pt', '#16a34a', '#ecfdf5'],
-                                        ['Arrives late (> 6 min after start)', '+0 pts', '#888', '#fafafa'],
+                                        ['Scanned QR before class (Wi-Fi then ignored)', '+5 pts', '#16a34a', '#ecfdf5'],
+                                        ['No start QR · Wi-Fi detected 0–5 min after start', '+4 pts', '#16a34a', '#ecfdf5'],
+                                        ['No start QR · Wi-Fi detected 5–10 min', '+3 pts', '#15803d', '#f0fdf4'],
+                                        ['No start QR · Wi-Fi detected 10–15 min', '+2 pts', '#b45309', '#fffbeb'],
+                                        ['No start QR · Wi-Fi detected after 15 min', '+0 pts', '#888', '#fafafa'],
                                     ].map(([label, pts, color, bg]) => (
                                         <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: bg, borderBottom: '1px solid #f0f0f0' }}>
                                             <span style={{ fontSize: '0.78rem', color: '#444' }}>{label}</span>
@@ -981,16 +984,12 @@ export default function AdminAttendancePage() {
                                 </div>
                             </div>
 
-                            {/* Duration score */}
+                            {/* QR scans */}
                             <div style={{ marginBottom: '1rem' }}>
-                                <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: '#6366f1', marginBottom: '6px' }}>② Duration Score <span style={{ color: '#aaa', fontSize: '0.65rem', fontWeight: 500 }}>(time detected / session length)</span></div>
+                                <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: '#6366f1', marginBottom: '6px' }}>② End of Class QR <span style={{ color: '#aaa', fontSize: '0.65rem', fontWeight: 500 }}>(added on top)</span></div>
                                 <div style={{ background: '#f8fafc', borderRadius: '8px', overflow: 'hidden', border: '1px solid #f0f0f0' }}>
                                     {[
-                                        ['≥ 80% of session', '+4 pts', '#16a34a', '#ecfdf5'],
-                                        ['≥ 70% of session', '+3 pts', '#15803d', '#f0fdf4'],
-                                        ['≥ 60% of session', '+2 pts', '#b45309', '#fffbeb'],
-                                        ['≥ 50% of session', '+1 pt',  '#b45309', '#fefce8'],
-                                        ['< 50% of session', '+0.5 pts', '#dc2626', '#fef2f2'],
+                                        ['Scans QR shown at end of class', '+2 pts', '#15803d', '#f0fdf4'],
                                     ].map(([label, pts, color, bg]) => (
                                         <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: bg, borderBottom: '1px solid #f0f0f0' }}>
                                             <span style={{ fontSize: '0.78rem', color: '#444' }}>{label}</span>
@@ -1005,9 +1004,9 @@ export default function AdminAttendancePage() {
                                 <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: '#6366f1', marginBottom: '6px' }}>③ Absence &amp; Status Rules</div>
                                 <div style={{ background: '#f8fafc', borderRadius: '8px', overflow: 'hidden', border: '1px solid #f0f0f0' }}>
                                     {[
-                                        ['No-show, no approved leave', '−2 pts, Absent', '#dc2626', '#fef2f2'],
-                                        ['No-show with approved leave', '0 pts, Leave', '#888', '#f8fafc'],
-                                        ['Detected but < 25% duration', 'Absent status', '#dc2626', '#fff5f5'],
+                                        ['Total points > 0', 'Present', '#16a34a', '#ecfdf5'],
+                                        ['No points, no approved leave', '0 pts, Absent', '#dc2626', '#fef2f2'],
+                                        ['No points with approved leave', '0 pts, Leave', '#888', '#f8fafc'],
                                         ['Admin faking penalty', '−2 pts + ±1 week cascade', '#991b1b', '#fff1f2'],
                                     ].map(([label, pts, color, bg]) => (
                                         <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: bg, borderBottom: '1px solid #f0f0f0' }}>
@@ -1020,7 +1019,7 @@ export default function AdminAttendancePage() {
 
                             {/* Admin override note */}
                             <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', padding: '10px 14px', fontSize: '0.75rem', color: '#92400e', lineHeight: 1.5 }}>
-                                <strong>Admin Override:</strong> Admin can manually mark a student present with a custom point value (−2 to +5). The ADMIN badge appears on overridden records.
+                                <strong>Admin Override:</strong> Admin can manually mark a student present with a custom point value (−2 to +7). The ADMIN badge appears on overridden records.
                             </div>
 
                         </div>
@@ -1054,12 +1053,12 @@ export default function AdminAttendancePage() {
                             <div style={{ marginBottom: '1.2rem' }}>
                                 <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#444', marginBottom: '6px' }}>
                                     Points to Award
-                                    <span style={{ fontWeight: 400, color: '#aaa', marginLeft: '6px' }}>(range: −2 to 5, default: 5)</span>
+                                    <span style={{ fontWeight: 400, color: '#aaa', marginLeft: '6px' }}>(range: −2 to 7, default: 5)</span>
                                 </label>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                     <input
                                         type="number"
-                                        min="-2" max="5" step="1"
+                                        min="-2" max="7" step="1"
                                         value={presentPoints}
                                         onChange={e => setPresentPoints(e.target.value)}
                                         style={{

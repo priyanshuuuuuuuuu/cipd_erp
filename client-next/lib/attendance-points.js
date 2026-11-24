@@ -1,43 +1,43 @@
 /**
  * Attendance Points Calculator
  *
- * Arrival Bonus:
- *   ≤ 6.1 min after start (or before start) → +1 point
+ * Start credit (EITHER/OR — a student gets one, never both):
+ *   scanned the start QR → 5 pts (Wi-Fi is ignored)
+ *   otherwise Wi-Fi first detection after session start:
+ *     0–5 min → 4, 5–10 min → 3, 10–15 min → 2, later → 0
+ * End-of-class QR → +2 (always additive). Max total = 7.
  *
- * Duration Score (lastSeen - firstSeen):
- *   ≥ 80% of session → +4
- *   ≥ 70% of session → +3
- *   ≥ 60% of session → +2
- *   ≥ 50% of session → +1
- *   < 50% of session → +0.5
- *
- * Final Score = Arrival Bonus + Duration Score
- *
- * No-show without approved leave: −2
- * No-show with approved leave: 0 (status: leave)
+ * Status: present if total points > 0. No-show = 0 pts, absent
+ * (no penalty); approved leave with no points → leave.
  */
 
 const MS_PER_MIN = 60 * 1000;
 /** Small buffer for cron/scanner lag (6 seconds) */
 export const CRON_TIMING_BUFFER_MS = 6 * 1000;
 
+/** Wi-Fi tiers: [max minutes after start, points]. */
+export const WIFI_TIERS = [
+  [5, 4],
+  [10, 3],
+  [15, 2],
+];
+export const QR_POINTS = { start: 5, end: 2 };
+
 /**
  * @param {number} minutesAfterStart - minutes from session start (negative = early)
  */
-export function calculateArrivalBonus(minutesAfterStart) {
-  return minutesAfterStart <= 6.1 ? 1 : 0;
+export function calculateWifiScore(minutesAfterStart) {
+  for (const [maxMin, pts] of WIFI_TIERS) {
+    if (minutesAfterStart <= maxMin) return pts;
+  }
+  return 0;
 }
 
-/**
- * @param {number} durationPercent
- * @returns {number} duration score
- */
-export function calculateDurationScore(durationPercent) {
-  if (durationPercent >= 80) return 4;
-  if (durationPercent >= 70) return 3;
-  if (durationPercent >= 60) return 2;
-  if (durationPercent >= 50) return 1;
-  return 0.5;
+/** @param {Iterable<string>} phases - QR phases scanned ('start' | 'end') */
+export function calculateQrPoints(phases = []) {
+  let total = 0;
+  for (const phase of new Set(phases)) total += QR_POINTS[phase] || 0;
+  return total;
 }
 
 /**
@@ -49,7 +49,8 @@ export function calculateDurationScore(durationPercent) {
  * @param {boolean} [params.leaveApproved]
  * @param {boolean} [params.detected]
  * @param {boolean} [params.finalizeAbsent]
- * @returns {{ points: number, arrivalBonus: number, durationScore: number, durationPercent: number, status: string, breakdown: object }}
+ * @param {string[]} [params.qrPhases] - QR phases scanned ('start' | 'end')
+ * @returns {{ points: number, wifiScore: number, durationPercent: number, status: string, breakdown: object }}
  */
 export function calculatePoints({
   firstSeenAt,
@@ -59,120 +60,106 @@ export function calculatePoints({
   leaveApproved = false,
   detected = true,
   finalizeAbsent = false,
+  qrPhases = [],
 }) {
+  const qrPoints = calculateQrPoints(qrPhases);
+  const startQr = qrPhases.includes('start');
   const sessionDurationMin = Math.max(
     1,
     (sessionEndAt.getTime() - sessionStartAt.getTime()) / MS_PER_MIN
   );
 
-  if (!detected || !firstSeenAt || !lastSeenAt) {
-    if (!finalizeAbsent) {
-      return {
-        points: 0,
-        arrivalBonus: 0,
-        durationScore: 0,
-        durationPercent: 0,
-        status: 'absent',
-        breakdown: {
-          reason: 'Not yet detected',
-          tier: 'pending',
-          durationPercent: 0,
-        },
-      };
-    }
+  let wifiScore = 0;
+  let durationPercent = 0;
+  let minutesAfterStart = null;
+  let durationMin = 0;
+  const wifiDetected = detected && firstSeenAt && lastSeenAt;
+  // Start QR and Wi-Fi are mutually exclusive: a start scan replaces the Wi-Fi tier.
 
-    if (leaveApproved) {
-      return {
-        points: 0,
-        arrivalBonus: 0,
-        durationScore: 0,
-        durationPercent: 0,
-        status: 'leave',
-        breakdown: {
-          reason: 'Approved leave — no penalty',
-          tier: 'leave',
-          durationPercent: 0,
-        },
-      };
-    }
-
-    return {
-      points: -2,
-      arrivalBonus: 0,
-      durationScore: 0,
-      durationPercent: 0,
-      status: 'absent',
-      breakdown: {
-        reason: 'Absent without approved leave → −2 pts',
-        tier: 'absent',
-        durationPercent: 0,
-      },
-    };
+  if (wifiDetected) {
+    // Duration is informational only; it no longer affects points or status.
+    durationMin = (lastSeenAt.getTime() - firstSeenAt.getTime()) / MS_PER_MIN;
+    durationPercent = Math.min(100, (durationMin / sessionDurationMin) * 100);
+    minutesAfterStart =
+      (firstSeenAt.getTime() - sessionStartAt.getTime() - CRON_TIMING_BUFFER_MS) / MS_PER_MIN;
+    wifiScore = startQr ? 0 : calculateWifiScore(minutesAfterStart);
   }
 
-  const durationMin = (lastSeenAt.getTime() - firstSeenAt.getTime()) / MS_PER_MIN;
-  let durationPercent = (durationMin / sessionDurationMin) * 100;
-  
-  // Cap at 100% just in case of slight timing overflow
-  if (durationPercent > 100) durationPercent = 100;
+  const points = wifiScore + qrPoints;
 
-  const msAfterStart =
-    firstSeenAt.getTime() - sessionStartAt.getTime() + CRON_TIMING_BUFFER_MS;
-  const minutesAfterStart = msAfterStart / MS_PER_MIN;
+  let status;
+  let tier;
+  if (points > 0) {
+    status = 'present';
+    tier = startQr
+      ? 'Start QR scanned (Wi-Fi not counted)'
+      : wifiDetected
+      ? `Wi-Fi first seen ${Math.round(minutesAfterStart * 10) / 10} min after start → ${wifiScore} pts`
+      : 'Not seen on Wi-Fi';
+    if (qrPhases.includes('end')) tier += ', end QR +2';
+  } else if (!finalizeAbsent) {
+    status = 'absent';
+    tier = 'pending';
+  } else if (leaveApproved) {
+    status = 'leave';
+    tier = 'leave';
+  } else {
+    status = 'absent';
+    tier = 'absent';
+  }
 
-  const arrivalBonus = calculateArrivalBonus(minutesAfterStart);
-  const durationScore = calculateDurationScore(durationPercent);
-  const points = arrivalBonus + durationScore;
-
-  let tier = `duration ${Math.round(durationPercent)}% → ${durationScore} pts`;
-  if (arrivalBonus > 0) tier += `, on-time bonus +${arrivalBonus}`;
+  const reasons = {
+    pending: 'Not yet scored',
+    leave: 'Approved leave — no penalty',
+    absent: wifiDetected
+      ? `Wi-Fi first seen ${Math.round(minutesAfterStart * 10) / 10} min after start → 0 pts`
+      : 'No score earned → absent',
+  };
 
   return {
     points,
-    arrivalBonus,
-    durationScore,
+    wifiScore,
+    qrPoints,
     durationPercent: Math.round(durationPercent),
+    status,
     breakdown: {
+      wifiScore,
+      qrPoints,
       durationPercent: Math.round(durationPercent),
-      arrivalBonus,
-      durationScore,
-      minutesAfterStart: Math.round(minutesAfterStart * 10) / 10,
+      minutesAfterStart:
+        minutesAfterStart === null ? null : Math.round(minutesAfterStart * 10) / 10,
       durationMin: Math.round(durationMin * 10) / 10,
       tier,
-      reason: `${tier} (Total: ${points} pts)`,
+      reason: points > 0 ? `${tier} (Total: ${points} pts)` : reasons[tier],
     },
   };
 }
 
-/** Minimum duration % to count as present (below this → absent). */
-export const MIN_DURATION_PERCENT = 25;
-
 /**
- * Attendance status is separate from points.
- * Present/absent is driven by duration %; points use duration score + arrival bonus.
+ * Attendance status follows points: present iff total points > 0.
+ * `points` is what the student has earned so far (during a live session that
+ * is just QR points).
  *
  * @returns {'present'|'partial'|'absent'|'leave'|'missing'}
  */
 export function resolveAttendanceStatus({
-  durationPercent = 0,
+  points = 0,
   detected = false,
   leaveApproved = false,
   finalizeAbsent = false,
   isOngoing = false,
 }) {
+  if (points > 0) return 'present';
+
   if (isOngoing) {
     if (leaveApproved) return 'leave';
     if (!detected) return 'missing';
     return 'partial';
   }
 
-  if (!detected) {
-    if (leaveApproved) return 'leave';
-    return finalizeAbsent ? 'absent' : 'missing';
-  }
-
-  if (durationPercent < MIN_DURATION_PERCENT) return 'absent';
-  return 'present';
+  if (leaveApproved) return 'leave';
+  if (!detected && !finalizeAbsent) return 'missing';
+  return 'absent';
 }
 
 /**

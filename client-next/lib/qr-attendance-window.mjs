@@ -7,7 +7,8 @@ export function qrPhase(session, now = Date.now()) {
   const start = Date.parse(`${date}T${session.start_time}+05:30`);
   const end = Date.parse(`${date}T${session.end_time}+05:30`);
   if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return null;
-  if (now >= start && now < Math.min(start + 5 * 60000, end)) return 'start';
+  // Start QR opens 5 minutes before class and closes when it begins.
+  if (now >= start - 5 * 60000 && now < start) return 'start';
   if (now >= end && now < end + 15 * 60000) return 'end';
   return null;
 }
