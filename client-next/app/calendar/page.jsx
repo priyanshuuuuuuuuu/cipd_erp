@@ -124,7 +124,7 @@ export default function CalendarPage() {
         weekday: 'long', day: 'numeric', month: 'short',
     });
     return (
-        <div className="dashboard-container">
+        <div className="dashboard-container student-shell">
             <div className={`sidebar-overlay ${isMobileMenuOpen ? 'visible' : ''}`} onClick={() => setIsMobileMenuOpen(false)} />
 
             <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobileMenuOpen ? 'open' : ''}`}>

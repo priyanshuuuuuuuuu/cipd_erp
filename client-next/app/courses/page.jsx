@@ -17,7 +17,7 @@ const COURSE_COLORS = [
     { bg: '#e0fdf4', border: '#6ee7b7', text: '#065f46', dot: '#10b981' },
     { bg: '#fce7f3', border: '#f9a8d4', text: '#9d174d', dot: '#ec4899' },
     { bg: '#fef3c7', border: '#fcd34d', text: '#92400e', dot: '#f59e0b' },
-    { bg: '#ede9fe', border: '#c4b5fd', text: '#4c1d95', dot: '#8b5cf6' },
+    { bg: '#ede9fe', border: '#cfc6e6', text: '#4c1d95', dot: '#8b5cf6' },
     { bg: '#ffedd5', border: '#fdba74', text: '#7c2d12', dot: '#f97316' },
 ];
 
@@ -56,7 +56,7 @@ export default function CoursesPage() {
     });
 
     return (
-        <div className="dashboard-container">
+        <div className="dashboard-container student-shell">
             <div className={`sidebar-overlay ${isMobileMenuOpen ? 'visible' : ''}`} onClick={() => setIsMobileMenuOpen(false)} />
             <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobileMenuOpen ? 'open' : ''}`}>
                 <div>

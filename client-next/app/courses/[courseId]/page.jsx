@@ -20,7 +20,7 @@ const StatusBadge = ({ status }) => {
     const map = {
         submitted: { bg: '#dcfce7', color: '#16a34a', icon: <CheckCircle size={11} />, label: 'Submitted' },
         pending: { bg: '#fef9c3', color: '#b45309', icon: <Clock size={11} />, label: 'Pending' },
-        graded: { bg: '#e0e7ff', color: '#3730a3', icon: <CheckCircle size={11} />, label: 'Graded' },
+        graded: { bg: '#ece9f4', color: '#3730a3', icon: <CheckCircle size={11} />, label: 'Graded' },
         late: { bg: '#fee2e2', color: '#dc2626', icon: <AlertCircle size={11} />, label: 'Late' },
     };
     const s = map[status] || map['pending'];
@@ -140,12 +140,12 @@ export default function CourseDetailPage() {
     };
 
     return (
-        <div className="dashboard-container">
+        <div className="dashboard-container student-shell">
             <div className={`sidebar-overlay ${isMobileMenuOpen ? 'visible' : ''}`} onClick={() => setIsMobileMenuOpen(false)} />
             <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobileMenuOpen ? 'open' : ''}`}>
                 <div>
                     <div className="user-profile" style={{ position: 'relative' }}>
-                        <div className="user-avatar" style={{ background: '#0b6861', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer' }} onClick={() => navTo('/profile')}>
+                        <div className="user-avatar" style={{ background: '#01A69C', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer' }} onClick={() => navTo('/profile')}>
                             {user?.firstName?.[0]?.toUpperCase() || 'S'}
                         </div>
                         <div className="user-info"><h3>{displayName}</h3><p>{user?.email}</p></div>
@@ -285,12 +285,12 @@ export default function CourseDetailPage() {
                                                             rel="noreferrer"
                                                             style={{
                                                                 display: 'inline-flex', alignItems: 'center', gap: '6px',
-                                                                padding: '7px 16px', background: '#0b6861', color: '#fff',
+                                                                padding: '7px 16px', background: '#01A69C', color: '#fff',
                                                                 borderRadius: '8px', fontSize: '0.82rem', fontWeight: 600,
                                                                 textDecoration: 'none', transition: 'background 0.15s',
                                                             }}
                                                             onMouseEnter={e => e.currentTarget.style.background = '#095550'}
-                                                            onMouseLeave={e => e.currentTarget.style.background = '#0b6861'}
+                                                            onMouseLeave={e => e.currentTarget.style.background = '#01A69C'}
                                                         >
                                                             <Download size={14} /> Download
                                                         </a>
@@ -304,7 +304,7 @@ export default function CourseDetailPage() {
                                                 {selectedMaterial.users && (
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
                                                         <div style={{
-                                                            width: '26px', height: '26px', borderRadius: '50%', background: '#0b6861',
+                                                            width: '26px', height: '26px', borderRadius: '50%', background: '#01A69C',
                                                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                                                             color: '#fff', fontSize: '0.65rem', fontWeight: 700, flexShrink: 0,
                                                         }}>
@@ -502,7 +502,7 @@ export default function CourseDetailPage() {
                                                     onDrop={handleDrop}
                                                     onClick={() => fileInputRef.current?.click()}
                                                     style={{
-                                                        border: `2px dashed ${isDragging ? '#0b6861' : '#e0e0e0'}`,
+                                                        border: `2px dashed ${isDragging ? '#01A69C' : '#e0e0e0'}`,
                                                         borderRadius: '12px',
                                                         padding: '1.5rem',
                                                         textAlign: 'center',
@@ -512,9 +512,9 @@ export default function CourseDetailPage() {
                                                         marginBottom: '1rem',
                                                     }}
                                                 >
-                                                    <Upload size={24} color={isDragging ? '#0b6861' : '#bbb'} style={{ marginBottom: '8px' }} />
+                                                    <Upload size={24} color={isDragging ? '#01A69C' : '#bbb'} style={{ marginBottom: '8px' }} />
                                                     <div style={{ fontSize: '0.82rem', color: '#888', fontWeight: 500 }}>
-                                                        Drag & drop files here, or <span style={{ color: '#0b6861', textDecoration: 'underline' }}>browse</span>
+                                                        Drag & drop files here, or <span style={{ color: '#01A69C', textDecoration: 'underline' }}>browse</span>
                                                     </div>
                                                     <div style={{ fontSize: '0.7rem', color: '#bbb', marginTop: '4px' }}>PDF, DOC, DOCX, PPT, PNG up to 10MB</div>
                                                     <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg" style={{ display: 'none' }} onChange={handleFileSelect} />

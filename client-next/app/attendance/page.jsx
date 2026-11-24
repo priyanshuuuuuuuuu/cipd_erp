@@ -15,7 +15,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { api } from '@/lib/api';
 import CohortSlot from '@/app/components/CohortSlot';
 
-const Donut = ({ pct, size = 120, stroke = 10, color = '#66d9e8', bg = '#f0f0f0' }) => {
+const Donut = ({ pct, size = 120, stroke = 10, color = '#01A69C', bg = '#f0f0f0' }) => {
     const r = (size - stroke) / 2;
     const circ = 2 * Math.PI * r;
     const offset = circ - (pct / 100) * circ;
@@ -148,7 +148,7 @@ export default function AttendancePage() {
         absent:   c.absent  || 0,
         leave:    c.leave   || 0,
         pct: c.pct || 0,
-        color: ['#66d9e8', '#a78bfa', '#93c5fd', '#f9a8d4', '#fdba74'][i % 5],
+        color: ['#01A69C', '#a78bfa', '#93c5fd', '#f9a8d4', '#fdba74'][i % 5],
     }));
 
     // Sessions from API
@@ -273,7 +273,7 @@ export default function AttendancePage() {
     );
 
     return (
-        <div className="dashboard-container attendance-page">
+        <div className="dashboard-container student-shell attendance-page">
             <div className={`sidebar-overlay ${isMobileMenuOpen ? 'visible' : ''}`} onClick={() => setIsMobileMenuOpen(false)} />
             <Sidebar />
             <div className="main-content">
@@ -304,7 +304,7 @@ export default function AttendancePage() {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                             {/* Main Hero Card */}
                             <div style={{ 
-                                background: 'linear-gradient(135deg, #0f172a 0%, #334155 100%)', 
+                                background: '#050816', 
                                 borderRadius: '24px', 
                                 padding: '2rem', 
                                 color: 'white',
@@ -529,7 +529,7 @@ export default function AttendancePage() {
 
                     {/* Live / Ongoing Classes */}
                     {liveSessions.length > 0 && (
-                        <div className="stat-card" style={{ padding: '1.25rem 1.5rem', borderRadius: '20px', marginBottom: '1rem', border: '1px solid #bbf7d0', background: 'linear-gradient(135deg, #f0fdf4 0%, #fff 100%)' }}>
+                        <div className="stat-card" style={{ padding: '1.25rem 1.5rem', borderRadius: '20px', marginBottom: '1rem', border: '1px solid #bbf7d0', background: '#fff' }}>
                             <div style={{ fontSize: '1rem', fontWeight: 700, color: '#166534', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <Wifi size={16} /> Live — Ongoing Classes
                             </div>

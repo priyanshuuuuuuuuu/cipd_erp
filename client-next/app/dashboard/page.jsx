@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Cell, Tooltip } from 'recharts';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '@/lib/api';
 import NotificationBell from '../components/NotificationBell';
@@ -36,6 +36,8 @@ const StudentDashboard = () => {
     const [assignments, setAssignments] = useState([]);
     const [pendingFeedback, setPendingFeedback] = useState(null);
     const [profile, setProfile] = useState(null);
+    const [leaderboard, setLeaderboard] = useState([]);
+    const [lbLoading, setLbLoading] = useState(true);
 
     // Google Classroom state
     const [gcAssignments, setGcAssignments] = useState([]);
@@ -57,7 +59,7 @@ const StudentDashboard = () => {
         const now = new Date();
         const localDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
-        const [todayRes, weekRes, attRes, sesRes, assRes, fbRes, profRes] = await Promise.allSettled([
+        const [todayRes, weekRes, attRes, sesRes, assRes, fbRes, profRes, lbRes] = await Promise.allSettled([
             api.get(`/api/students/schedule/today?date=${localDate}`),
             api.get('/api/students/schedule/week'),
             api.get('/api/students/attendance/summary'),
@@ -65,6 +67,7 @@ const StudentDashboard = () => {
             api.get('/api/students/assignments'),
             api.get('/api/feedback/pending'),
             api.get('/api/students/profile'),
+            api.get('/api/feedback/leaderboard'),
         ]);
         if (todayRes.status === 'fulfilled') setTodaySessions(todayRes.value.sessions || []);
         setScheduleLoading(false);
@@ -78,6 +81,8 @@ const StudentDashboard = () => {
             setPendingFeedback(firstPending || null);
         }
         if (profRes.status === 'fulfilled') setProfile(profRes.value.profile);
+        if (lbRes.status === 'fulfilled') setLeaderboard(lbRes.value.leaderboard || []);
+        setLbLoading(false);
     }, []);
 
     const fetchGcAssignments = useCallback(async () => {
@@ -95,6 +100,15 @@ const StudentDashboard = () => {
 
     useEffect(() => { if (authReady) { fetchAll(); fetchGcAssignments(); } }, [fetchAll, fetchGcAssignments, authReady]);
 
+    // Keep the attendance chart and leaderboard live while the page is open
+    useEffect(() => {
+        if (!authReady) return undefined;
+        const tick = () => { if (document.visibilityState === 'visible') fetchAll(); };
+        const id = setInterval(tick, 60000);
+        document.addEventListener('visibilitychange', tick);
+        return () => { clearInterval(id); document.removeEventListener('visibilitychange', tick); };
+    }, [authReady, fetchAll]);
+
     // Handle ?gc_connected=1 or ?gc_error= query params after OAuth redirect
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -108,55 +122,38 @@ const StudentDashboard = () => {
         }
     }, [fetchGcAssignments]);
 
-    // Build bar chart data: day-wise attendance % for the current Mon-Sun week
+    // Weekly attendance chart: for each day of the current Mon-Sun week, the share of
+    // completed classes (from the live schedule) that the student actually attended.
     const weeklyBarData = (() => {
         const WEEK_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-        // Compute the start (Monday) of the current week
+        const pad = (n) => String(n).padStart(2, '0');
+        const keyOf = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
         const now = new Date();
-        const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon ... 6=Sat
-        const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-        const monday = new Date(now);
-        monday.setDate(now.getDate() + diffToMonday);
-        monday.setHours(0, 0, 0, 0);
-        const sunday = new Date(monday);
-        sunday.setDate(monday.getDate() + 6);
-        sunday.setHours(23, 59, 59, 999);
+        const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+        const todayKey = keyOf(now);
 
-        // Aggregate by day: { attended, total } for sessions falling in this week
-        const dayStats = {};
-        for (let i = 0; i < 7; i++) {
-            const d = new Date(monday);
-            d.setDate(monday.getDate() + i);
-            const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-            dayStats[key] = { attended: 0, total: 0 };
-        }
-
-        (sessionHistory || []).forEach(s => {
-            const sess = s.sessions || s; // handle both shapes
-            let dateStr = sess.session_date || sess.session_date;
-            if (!dateStr) return;
-            // Handle Drizzle returning ISO date strings like '2026-10-02T00:00:00.000Z'
-            dateStr = typeof dateStr === 'string' ? dateStr.slice(0, 10) : new Date(dateStr).toISOString().slice(0, 10);
-            
-            const sessionDate = new Date(`${dateStr}T12:00:00`);
-            if (sessionDate < monday || sessionDate > sunday) return;
-            const key = dateStr;
-            if (!dayStats[key]) return;
-            dayStats[key].total++;
-            if (s.status === 'present' || s.status === 'partial') {
-                dayStats[key].attended++;
-            }
+        const attendedIds = new Set();
+        (sessionHistory || []).forEach((r) => {
+            const sid = r.sessions?.id || r.session_id;
+            if (sid && (r.status === 'present' || r.status === 'partial')) attendedIds.add(sid);
         });
 
         return WEEK_DAYS.map((day, i) => {
             const d = new Date(monday);
             d.setDate(monday.getDate() + i);
-            const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-            const stats = dayStats[key] || { attended: 0, total: 0 };
-            const pct = stats.total > 0 ? Math.round((stats.attended / stats.total) * 100) : 0;
-            return { day, val: pct, hasData: stats.total > 0 };
+            const key = keyOf(d);
+            const daySessions = (weekSessions || []).filter((s) => String(s.session_date).slice(0, 10) === key);
+            const held = daySessions.filter((s) => s.status === 'completed');
+            const attended = held.filter((s) => attendedIds.has(s.id)).length;
+            const pct = held.length ? Math.round((attended / held.length) * 100) : 0;
+            return { day, val: pct, hasData: held.length > 0, attended, total: held.length, scheduled: daySessions.length, isToday: key === todayKey };
         });
     })();
+
+    const myRank = leaderboard.find((e) => e.student_id === user?.id);
+    const top5 = leaderboard.slice(0, 5);
+    const initialsOf = (name = '') => name.split(' ').filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?';
 
     const formatMacInput = (value) => {
         const clean = value.replace(/[^a-fA-F0-9]/g, '').toUpperCase();
@@ -197,7 +194,7 @@ const StudentDashboard = () => {
     };
 
     return (
-        <div className="dashboard-container student-home">
+        <div className="dashboard-container student-shell student-home">
             {showAttendanceScanner && <AttendanceQrScanner onClose={() => { setShowAttendanceScanner(false); fetchAll(); }} />}
             <div className={`sidebar-overlay ${isMobileMenuOpen ? 'visible' : ''}`} onClick={() => setIsMobileMenuOpen(false)} />
 
@@ -246,14 +243,14 @@ const StudentDashboard = () => {
                     </header>
 
                     <div className="student-mobile-intro">
-                        <div><span>YOUR STUDENT SPACE</span><h2>Hi, {(user?.firstName || 'there').trim()} 👋</h2><p>Your classes and campus essentials, all in one place.</p></div>
+                        <div><span>Your student space</span><h2>Hi, {(user?.firstName || 'there').trim()}.</h2><p>Your classes and campus essentials, all in one place.</p></div>
                         <button type="button" onClick={() => setShowAttendanceScanner(true)}><QrCode size={19} /> Scan attendance</button>
                     </div>
                     <StudentInstallPrompt />
 
                     {/* Today's Schedule */}
                     <section>
-                        <div className="section-title">Today&apos;s Schedule <button className="student-desktop-scan" type="button" onClick={() => setShowAttendanceScanner(true)} style={{ marginLeft:12, padding:'8px 12px', borderRadius:8, border:'1px solid #c4b5fd', background:'#fff', color:'#4338ca', cursor:'pointer' }}>Mark attendance</button></div>
+                        <div className="section-title">Today&apos;s Schedule <button className="student-desktop-scan" type="button" onClick={() => setShowAttendanceScanner(true)} style={{ marginLeft:12, padding:'8px 12px', borderRadius:8, border:'1px solid #cfc6e6', background:'#fff', color:'#4F4085', cursor:'pointer' }}>Mark attendance</button></div>
                         <div className="schedule-cards">
                             {todaySessions.length === 0 && scheduleLoading ? (
                                 <div style={{ display: 'flex', gap: '1rem' }}>{[1,2,3].map(i => (
@@ -337,24 +334,75 @@ const StudentDashboard = () => {
 
                 {/* Right Panel */}
                 <div className="content-right">
+                    <div className="st-panel-logo"><img className="student-home-desktop-logo" src="/logo.png" alt="CiPD" style={{ height: '30px' }} /></div>
+
                     <div className="section-title">
-                        Weekly Attendance
-                        <img className="student-home-desktop-logo" src="/logo.png" alt="CiPD" style={{ height: '30px' }} />
+                        Leaderboard
+                        <Link href="/leaderboard" className="st-link">View all</Link>
                     </div>
+                    <div className="st-board">
+                        {lbLoading ? (
+                            [1, 2, 3].map((i) => <div key={i} className="st-board-row st-board-skeleton" />)
+                        ) : leaderboard.length === 0 ? (
+                            <div className="st-board-empty">Rankings appear once classes have been completed.</div>
+                        ) : (
+                            <>
+                                {top5.map((e) => {
+                                    const me = e.student_id === user?.id;
+                                    return (
+                                        <div key={e.student_id} className={`st-board-row ${me ? 'me' : ''}`}>
+                                            <span className={`st-rank r${e.rank <= 3 ? e.rank : ''}`}>{e.rank}</span>
+                                            <span className="st-avatar">{initialsOf(e.name)}</span>
+                                            <span className="st-name">{e.name}{me && <em>You</em>}</span>
+                                            <span className="st-pts">{e.totalPoints}<small>pts</small></span>
+                                        </div>
+                                    );
+                                })}
+                                {myRank && myRank.rank > 5 && (
+                                    <>
+                                        <div className="st-board-gap">· · ·</div>
+                                        <div className="st-board-row me">
+                                            <span className="st-rank">{myRank.rank}</span>
+                                            <span className="st-avatar">{initialsOf(myRank.name)}</span>
+                                            <span className="st-name">{myRank.name}<em>You</em></span>
+                                            <span className="st-pts">{myRank.totalPoints}<small>pts</small></span>
+                                        </div>
+                                    </>
+                                )}
+                                <div className="st-board-foot">
+                                    {myRank ? <>Your rank <b>#{myRank.rank}</b> of {leaderboard.length}</> : <>You have no points yet · {leaderboard.length} ranked</>}
+                                </div>
+                            </>
+                        )}
+                    </div>
+
+                    <div className="section-title">Weekly Attendance</div>
                     <div className="stat-card" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                         <div style={{ position: 'relative', cursor: 'default', width: '100%', height: '130px' }}>
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={weeklyBarData} barSize={10} margin={{ top: 5, right: 5, left: 5, bottom: 15 }}>
-                                    <CartesianGrid vertical={false} stroke="#eee" strokeDasharray="3 3" />
-                                    <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#aaa' }} dy={4} />
-                                    <YAxis hide={false} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#888' }} domain={[0, 100]} width={25} />
-                                    <Bar dataKey="val" radius={[4, 4, 4, 4]} minPointSize={3}>
-                                        {weeklyBarData.map((entry, index) => {
-                                            const todayDayIdx = (() => { const d = new Date().getDay(); return d === 0 ? 6 : d - 1; })();
-                                            const isToday = index === todayDayIdx;
-                                            const color = isToday ? '#003366' : entry.hasData ? '#66d9e8' : '#e8e8e8';
-                                            return <Cell key={`cell-${index}`} fill={color} />;
-                                        })}
+                                <BarChart data={weeklyBarData} barSize={12} margin={{ top: 5, right: 5, left: 5, bottom: 15 }}>
+                                    <CartesianGrid vertical={false} stroke="#eceef4" strokeDasharray="3 3" />
+                                    <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#80849a' }} dy={4} />
+                                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#80849a' }} domain={[0, 100]} ticks={[0, 50, 100]} tickFormatter={(v) => `${v}%`} width={34} />
+                                    <Tooltip
+                                        cursor={{ fill: 'rgba(79,64,133,0.06)' }}
+                                        content={({ active, payload }) => {
+                                            if (!active || !payload?.length) return null;
+                                            const d = payload[0].payload;
+                                            return (
+                                                <div style={{ background: '#050816', color: '#fff', borderRadius: 12, padding: '8px 12px', fontSize: 12 }}>
+                                                    <div style={{ fontWeight: 600 }}>{d.day}{d.isToday ? ' · today' : ''}</div>
+                                                    <div style={{ opacity: 0.85 }}>
+                                                        {d.total > 0 ? `${d.attended} of ${d.total} classes attended (${d.val}%)` : d.scheduled > 0 ? `${d.scheduled} class${d.scheduled > 1 ? 'es' : ''} still to come` : 'No classes'}
+                                                    </div>
+                                                </div>
+                                            );
+                                        }}
+                                    />
+                                    <Bar dataKey="val" radius={[6, 6, 6, 6]} background={{ fill: '#f1f2f7', radius: 6 }} minPointSize={0}>
+                                        {weeklyBarData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={!entry.hasData ? 'transparent' : entry.val === 0 ? '#D4187C' : entry.isToday ? '#4F4085' : '#01A69C'} />
+                                        ))}
                                     </Bar>
                                 </BarChart>
                             </ResponsiveContainer>
@@ -384,17 +432,6 @@ const StudentDashboard = () => {
                             </button>
                         )}
                     </div>
-
-                    {/* Google Classroom not set up */}
-                    {gcConnected === false && (
-                        <div style={{ marginBottom: '10px', padding: '10px 12px', background: '#fafafa', borderRadius: '10px', border: '1px solid #ebebeb' }}>
-                            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#888', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                <img src="https://ssl.gstatic.com/classroom/favicon.png" alt="GC" width={13} height={13} style={{ opacity: 0.5 }} />
-                                Google Classroom
-                            </div>
-                            <div style={{ fontSize: '0.68rem', color: '#aaa', lineHeight: 1.4 }}>Classroom sync not set up yet. Contact your admin.</div>
-                        </div>
-                    )}
 
                     {/* Loading state */}
                     {gcConnected === null && (
@@ -498,7 +535,7 @@ const StudentDashboard = () => {
                                 <div className="feedback-text" style={{ fontSize: '0.9rem' }}>Feedback pending<br />for {pendingFeedback.course?.name || pendingFeedback.courses?.name || 'a session'}</div>
                                 <div className="feedback-sub">Tap to submit your feedback</div>
                             </div>
-                            <div style={{ width: '40px', height: '40px', background: '#e0e7ff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4f46e5' }}>
+                            <div style={{ width: '40px', height: '40px', background: '#ece9f4', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4F4085' }}>
                                 <ChevronDown size={20} style={{ transform: 'rotate(-90deg)' }} />
                             </div>
                         </div>

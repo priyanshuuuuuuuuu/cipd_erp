@@ -1,5 +1,6 @@
 import "./globals.css";
 import "./Dashboard.css";
+import "./student.css";
 import { Providers } from "./providers";
 
 export const metadata = {

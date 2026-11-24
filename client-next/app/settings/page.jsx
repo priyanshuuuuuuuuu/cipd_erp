@@ -299,12 +299,12 @@ export default function SettingsPage() {
     // Components were moved outside of SettingsPage to prevent re-mounting
 
     return (
-        <div className="dashboard-container student-settings-page">
+        <div className="dashboard-container student-shell student-settings-page">
             <div className={`sidebar-overlay ${isMobileMenuOpen ? 'visible' : ''}`} onClick={() => setIsMobileMenuOpen(false)} />
             <aside className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
                 <div>
                     <div className="user-profile">
-                        <div className="user-avatar" style={{ background: '#0b6861', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer' }} onClick={() => navTo('/profile')}>
+                        <div className="user-avatar" style={{ background: '#01A69C', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer' }} onClick={() => navTo('/profile')}>
                             {user?.firstName?.[0]?.toUpperCase() || 'S'}
                         </div>
                         <div className="user-info"><h3>{displayName}</h3><p>{user?.email}</p></div>
@@ -517,7 +517,7 @@ export default function SettingsPage() {
 
                                 <SectionCard title="Detection Rules" subtitle="How the attendance system determines your presence.">
                                     <SettingRow label="Detection Rule" description="Minimum Wi-Fi pings required to mark present">
-                                        <span style={{ padding: '4px 12px', background: '#e0e7ff', color: '#3730a3', borderRadius: '20px', fontSize: '0.78rem', fontWeight: 600 }}>≥ 3 pings</span>
+                                        <span style={{ padding: '4px 12px', background: '#ece9f4', color: '#3730a3', borderRadius: '20px', fontSize: '0.78rem', fontWeight: 600 }}>≥ 3 pings</span>
                                     </SettingRow>
                                     <SettingRow label="Ping Interval" description="How often the system checks for your device">
                                         <span style={{ padding: '4px 12px', background: '#f5f5f5', color: '#555', borderRadius: '20px', fontSize: '0.78rem', fontWeight: 600 }}>10 min</span>

@@ -206,7 +206,7 @@ export default function FeedbackPage() {
     const totalPointsEarned = submittedForms.length * 3;
 
     return (
-        <div className="dashboard-container">
+        <div className="dashboard-container student-shell">
             <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobileMenuOpen ? 'open' : ''}`}>
                 <div>
                     <div className="user-profile" style={{ position: 'relative' }}>
@@ -529,7 +529,7 @@ export default function FeedbackPage() {
                                     })}
                                     <div style={{ display:'flex',justifyContent:'flex-end',paddingTop:'12px',borderTop:'1px solid #f0f0f0',gap:'10px',alignItems:'center' }}>
                                         <span style={{ fontSize: '0.72rem', color: '#bbb' }}>Pre-filled answers will be submitted as-is</span>
-                                        <button onClick={handleSubmit} disabled={submitting} style={{ display:'flex',alignItems:'center',gap:'6px',padding:'10px 24px',borderRadius:'8px',border:'none',background:'#6355F1',color:'#fff',fontSize:'0.85rem',fontWeight:700,cursor:'pointer',transition:'opacity 0.15s',opacity:submitting?0.6:1 }}>
+                                        <button onClick={handleSubmit} disabled={submitting} style={{ display:'flex',alignItems:'center',gap:'6px',padding:'10px 24px',borderRadius:'8px',border:'none',background:'#4F4085',color:'#fff',fontSize:'0.85rem',fontWeight:700,cursor:'pointer',transition:'opacity 0.15s',opacity:submitting?0.6:1 }}>
                                             <Send size={14} /> {submitting ? 'Submitting...' : 'Submit Feedback'}
                                         </button>
                                     </div>
@@ -581,11 +581,11 @@ export default function FeedbackPage() {
 
                                 {/* ── Glassmorphic Top 3 Hero ── */}
                                 {top3.length > 0 && (
-                                    <div style={{ position: 'relative', borderRadius: '24px', overflow: 'hidden', marginBottom: '20px', padding: '32px 24px 28px', background: 'linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%)' }}>
+                                    <div style={{ position: 'relative', borderRadius: '24px', overflow: 'hidden', marginBottom: '20px', padding: '32px 24px 28px', background: '#050816' }}>
                                         {/* Blob lights */}
-                                        <div style={{ position: 'absolute', top: '-60px', left: '-60px', width: '280px', height: '280px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(99,85,241,0.5) 0%, transparent 70%)', filter: 'blur(40px)', pointerEvents: 'none' }} />
-                                        <div style={{ position: 'absolute', bottom: '-80px', right: '-40px', width: '320px', height: '320px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(245,158,11,0.35) 0%, transparent 70%)', filter: 'blur(50px)', pointerEvents: 'none' }} />
-                                        <div style={{ position: 'absolute', top: '40px', right: '30%', width: '180px', height: '180px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(234,88,12,0.25) 0%, transparent 70%)', filter: 'blur(35px)', pointerEvents: 'none' }} />
+                                        <div style={{ position: 'absolute', top: '-60px', left: '-60px', width: '280px', height: '280px', borderRadius: '50%', background: 'none', filter: 'blur(40px)', pointerEvents: 'none' }} />
+                                        <div style={{ position: 'absolute', bottom: '-80px', right: '-40px', width: '320px', height: '320px', borderRadius: '50%', background: 'none', filter: 'blur(50px)', pointerEvents: 'none' }} />
+                                        <div style={{ position: 'absolute', top: '40px', right: '30%', width: '180px', height: '180px', borderRadius: '50%', background: 'none', filter: 'blur(35px)', pointerEvents: 'none' }} />
 
                                         <div style={{ position: 'relative', zIndex: 1, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px', alignItems: 'end' }}>
                                             {[top3[1], top3[0], top3[2]].map((entry, i) => {
@@ -640,8 +640,8 @@ export default function FeedbackPage() {
 
                                 {/* Your current rank indicator */}
                                 {myEntry && (
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px', padding: '9px', marginBottom: '14px', color: '#6355F1', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>
-                                        <Trophy size={13} color="#6355F1" />
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px', padding: '9px', marginBottom: '14px', color: '#4F4085', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1px' }}>
+                                        <Trophy size={13} color="#4F4085" />
                                         Your Current Rank — #{myEntry.rank} of {leaderboard.length}
                                     </div>
                                 )}
@@ -649,7 +649,7 @@ export default function FeedbackPage() {
                                 {/* Full List */}
                                 {loading ? (
                                     <div style={{ padding: '4rem', textAlign: 'center', color: '#a1a1aa' }}>
-                                        <div style={{ width: '34px', height: '34px', border: '3px solid #f0f0f0', borderTopColor: '#6355F1', borderRadius: '50%', margin: '0 auto 12px', animationName: 'spin', animationDuration: '1s', animationTimingFunction: 'linear', animationIterationCount: 'infinite' }} />
+                                        <div style={{ width: '34px', height: '34px', border: '3px solid #f0f0f0', borderTopColor: '#4F4085', borderRadius: '50%', margin: '0 auto 12px', animationName: 'spin', animationDuration: '1s', animationTimingFunction: 'linear', animationIterationCount: 'infinite' }} />
                                         Loading rankings...
                                     </div>
                                 ) : leaderboard.length === 0 ? (
@@ -668,7 +668,7 @@ export default function FeedbackPage() {
                                         {leaderboard.map((entry, idx) => {
                                             const isMe = entry.student_id === user?.id;
                                             const isTop3 = entry.rank <= 3;
-                                            const rc = isTop3 ? rankColors[entry.rank - 1] : isMe ? '#6355F1' : '#d4d4d8';
+                                            const rc = isTop3 ? rankColors[entry.rank - 1] : isMe ? '#4F4085' : '#d4d4d8';
                                             const delay = (idx * 0.02).toFixed(2) + 's';
                                             return (
                                                 <div key={entry.student_id} style={{
@@ -676,7 +676,7 @@ export default function FeedbackPage() {
                                                     padding: '13px 20px', alignItems: 'center', gap: '8px',
                                                     borderBottom: '1px solid #f5f5f5',
                                                     background: isMe ? 'rgba(99,85,241,0.04)' : '#fff',
-                                                    borderLeft: isMe ? '3px solid #6355F1' : '3px solid transparent',
+                                                    borderLeft: isMe ? '3px solid #4F4085' : '3px solid transparent',
                                                     transition: 'background 0.15s',
                                                     animationName: 'slideUp', animationDuration: '0.3s',
                                                     animationTimingFunction: 'ease', animationFillMode: 'forwards',
@@ -693,14 +693,14 @@ export default function FeedbackPage() {
                                                             <Av name={entry.name} size={34} />
                                                         </div>
                                                         <div style={{ minWidth: 0 }}>
-                                                            <div style={{ fontWeight: isMe ? 700 : 600, color: isMe ? '#6355F1' : '#111', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
+                                                            <div style={{ fontWeight: isMe ? 700 : 600, color: isMe ? '#4F4085' : '#111', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
                                                                 {entry.name}
-                                                                {isMe && <span style={{ fontSize: '0.55rem', background: '#6355F1', color: '#fff', padding: '1px 5px', borderRadius: '3px', fontWeight: 800, letterSpacing: '0.4px' }}>YOU</span>}
+                                                                {isMe && <span style={{ fontSize: '0.55rem', background: '#4F4085', color: '#fff', padding: '1px 5px', borderRadius: '3px', fontWeight: 800, letterSpacing: '0.4px' }}>YOU</span>}
                                                             </div>
                                                             <div style={{ fontSize: '0.7rem', color: '#a1a1aa', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.enrollment_no || '—'}</div>
                                                         </div>
                                                     </div>
-                                                    <div style={{ fontWeight: 800, fontSize: '0.95rem', color: isTop3 ? rankColors[entry.rank - 1] : isMe ? '#6355F1' : '#27272a', fontFamily: 'monospace' }}>{entry.totalPoints}</div>
+                                                    <div style={{ fontWeight: 800, fontSize: '0.95rem', color: isTop3 ? rankColors[entry.rank - 1] : isMe ? '#4F4085' : '#27272a', fontFamily: 'monospace' }}>{entry.totalPoints}</div>
                                                     <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#16a34a', fontFamily: 'monospace' }}>{entry.attendancePoints}</div>
                                                     <div style={{ fontWeight: 600, fontSize: '0.85rem', color: entry.bonusPoints > 0 ? '#d97706' : '#d1d5db', fontFamily: 'monospace' }}>{entry.bonusPoints}</div>
                                                     <div style={{ fontWeight: 600, fontSize: '0.85rem', color: entry.feedbackPoints > 0 ? '#2563eb' : '#d1d5db', fontFamily: 'monospace' }}>{entry.feedbackPoints}</div>
@@ -788,7 +788,7 @@ export default function FeedbackPage() {
                                         <span style={{ padding: '4px 14px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 700, background: r.yes_no ? '#f0fdf4' : '#fef2f2', color: r.yes_no ? '#16a34a' : '#dc2626', border: `1px solid ${r.yes_no ? '#bbf7d0' : '#fecaca'}` }}>{r.yes_no ? 'Yes' : 'No'}</span>
                                     );
                                     else if (q.type === 'mcq') answer = (
-                                        <span style={{ padding: '4px 14px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 600, background: '#f5f3ff', color: '#6355F1', border: '1px solid #e0d9ff' }}>{r.text_answer}</span>
+                                        <span style={{ padding: '4px 14px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 600, background: '#f5f3ff', color: '#4F4085', border: '1px solid #e0d9ff' }}>{r.text_answer}</span>
                                     );
                                     else if (q.type === 'text') answer = r.text_answer
                                         ? <span style={{ fontSize: '0.85rem', color: '#333', lineHeight: 1.6, fontStyle: 'italic' }}>&quot;{r.text_answer}&quot;</span>

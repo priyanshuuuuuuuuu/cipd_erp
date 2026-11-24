@@ -55,7 +55,7 @@ export default function NotificationsPage() {
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
   return (
-    <div className="dashboard-container">
+    <div className="dashboard-container student-shell">
       <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobileMenuOpen ? 'open' : ''}`}>
         <div>
           <div className="user-profile" style={{ position: 'relative' }}>

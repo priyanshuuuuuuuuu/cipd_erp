@@ -41,7 +41,7 @@ export default function TeachersPage() {
     const navTo = (p) => router.push(p);
 
     return (
-        <div className="dashboard-container">
+        <div className="dashboard-container student-shell">
             <div className={`sidebar-overlay ${isMobileMenuOpen ? 'visible' : ''}`} onClick={() => setIsMobileMenuOpen(false)} />
 
             <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobileMenuOpen ? 'open' : ''}`}>

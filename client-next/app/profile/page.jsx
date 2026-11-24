@@ -15,7 +15,7 @@ import CohortSlot from '@/app/components/CohortSlot';
 
 const PROFILE_TABS = ['Overview', 'Attendance', 'Feedback', 'Assignments'];
 
-const COURSE_COLORS = ['#66d9e8', '#a78bfa', '#93c5fd', '#6ee7b7', '#f9a8d4', '#fbbf24'];
+const COURSE_COLORS = ['#01A69C', '#a78bfa', '#93c5fd', '#6ee7b7', '#f9a8d4', '#fbbf24'];
 
 const MiniDonut = ({ pct, size = 44, stroke = 5, color }) => {
     const r = (size - stroke) / 2;
@@ -74,12 +74,12 @@ export default function ProfilePage() {
     const pendingAsn = assignments.filter(a => !a.is_submitted && a.submission_status !== 'graded');
 
     return (
-        <div className="dashboard-container">
+        <div className="dashboard-container student-shell">
             <div className={`sidebar-overlay ${isMobileMenuOpen ? 'visible' : ''}`} onClick={() => setIsMobileMenuOpen(false)} />
             <aside className={`sidebar ${isMobileMenuOpen ? 'open' : ''}`}>
                 <div>
                     <div className="user-profile">
-                        <div className="user-avatar" style={{ background: '#0b6861', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer' }} onClick={() => navTo('/profile')}>
+                        <div className="user-avatar" style={{ background: '#01A69C', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer' }} onClick={() => navTo('/profile')}>
                             {user?.firstName?.[0]?.toUpperCase() || 'S'}
                         </div>
                         <div className="user-info"><h3>{displayName}</h3><p>{user?.email}</p></div>
@@ -137,7 +137,7 @@ export default function ProfilePage() {
                     <div style={{ padding: '1.5rem 2rem', flex: 1 }}>
                         {/* Profile header card */}
                         <div style={{ background: '#fff', border: '1px solid #e8e8e8', borderRadius: '20px', padding: '1.5rem 2rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '2rem', flexWrap: 'wrap' }}>
-                            <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: '#0b6861', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '1.8rem', fontWeight: 700, flexShrink: 0 }}>
+                            <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: '#01A69C', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '1.8rem', fontWeight: 700, flexShrink: 0 }}>
                                 {user?.firstName?.[0]?.toUpperCase() || 'S'}
                             </div>
                             <div style={{ flex: 1, minWidth: 0 }}>
@@ -235,7 +235,7 @@ export default function ProfilePage() {
                                         <div style={{ position: 'relative', width: '100px', height: '100px' }}>
                                             <svg width={100} height={100} style={{ transform: 'rotate(-90deg)' }}>
                                                 <circle cx={50} cy={50} r={42} fill="none" stroke="#f0f0f0" strokeWidth={10} />
-                                                <circle cx={50} cy={50} r={42} fill="none" stroke="#66d9e8" strokeWidth={10}
+                                                <circle cx={50} cy={50} r={42} fill="none" stroke="#01A69C" strokeWidth={10}
                                                     strokeDasharray={2 * Math.PI * 42}
                                                     strokeDashoffset={2 * Math.PI * 42 * (1 - overallPct / 100)}
                                                     strokeLinecap="round" style={{ transition: 'stroke-dashoffset 1s ease' }} />
@@ -347,7 +347,7 @@ export default function ProfilePage() {
                                                 const status = isGraded ? 'graded' : (hasSub ? 'submitted' : (asn.is_overdue ? 'late' : 'pending'));
                                                 const statusStyles = {
                                                     submitted: { bg: '#dcfce7', color: '#16a34a', label: 'Submitted' },
-                                                    graded: { bg: '#e0e7ff', color: '#3730a3', label: 'Graded' },
+                                                    graded: { bg: '#ece9f4', color: '#3730a3', label: 'Graded' },
                                                     pending: { bg: '#fef9c3', color: '#b45309', label: 'Pending' },
                                                     late: { bg: '#fee2e2', color: '#dc2626', label: 'Late' },
                                                 };

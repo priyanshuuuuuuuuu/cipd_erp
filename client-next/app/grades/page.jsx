@@ -64,7 +64,7 @@ export default function GradesPage() {
     const pctBg = (p) => p >= 85 ? '#dcfce7' : p >= 70 ? '#fef9c3' : '#fee2e2';
 
     return (
-        <div className="dashboard-container">
+        <div className="dashboard-container student-shell">
             <div className={`sidebar-overlay ${isMobileMenuOpen ? 'visible' : ''}`} onClick={() => setIsMobileMenuOpen(false)} />
             <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobileMenuOpen ? 'open' : ''}`}>
                 <div>
