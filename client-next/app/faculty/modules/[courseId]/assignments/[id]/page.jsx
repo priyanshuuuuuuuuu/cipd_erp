@@ -6,6 +6,8 @@ import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '../../../../../contexts/AuthContext';
 import { api } from '@/lib/api';
 import { formatDateTime } from '../../../../components/PostCard';
+import { PageHeader, Loading, StatTile } from '../../../../components/ui';
+import { ClipboardList, Users, CheckCircle2 } from 'lucide-react';
 
 export default function AssignmentGradingPage() {
   const router = useRouter();
@@ -44,53 +46,54 @@ export default function AssignmentGradingPage() {
     } finally { setSaving((s) => ({ ...s, [sub.id]: false })); }
   };
 
-  if (error) return <div style={{ color: '#dc2626' }}>{error}</div>;
-  if (!data) return <div style={{ textAlign: 'center', padding: '3rem', color: '#888' }}>Loading...</div>;
+  if (error) return <div className="fp-msg fp-msg-error">{error}</div>;
+  if (!data) return <Loading />;
   const { assignment: a, students, summary } = data;
-  const inp = { padding: '6px 8px', borderRadius: 6, border: '1px solid #e5e7eb', fontSize: '0.82rem', fontFamily: 'inherit', boxSizing: 'border-box' };
 
   return (
     <>
-      <button onClick={() => router.push(`/faculty/modules/${courseId}`)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', marginBottom: 8 }}><ArrowLeft size={14} /> Back to module</button>
-      <h1 style={{ fontSize: '1.3rem', fontWeight: 700, margin: '0 0 4px' }}>{a.title}</h1>
-      <div style={{ fontSize: '0.8rem', color: '#777', marginBottom: 16 }}>
-        {a.course_name} · {a.due_date ? `Due ${formatDateTime(a.due_date)}` : 'No due date'} · {a.total_marks} marks ·
-        {' '}{summary.submitted}/{summary.enrolled} submitted · {summary.graded} graded
+      <button className="fp-link" style={{ marginBottom: 10 }} onClick={() => router.push(`/faculty/modules/${courseId}`)}><ArrowLeft size={14} /> Back to module</button>
+      <PageHeader
+        icon={ClipboardList}
+        title={a.title}
+        subtitle={`${a.course_name} · ${a.due_date ? `Due ${formatDateTime(a.due_date)}` : 'No due date'} · ${a.total_marks} marks`}
+      />
+      <div className="fp-stats">
+        <StatTile label="Enrolled" value={summary.enrolled} icon={Users} tone="blue" />
+        <StatTile label="Submitted" value={summary.submitted} icon={FileText} tone="amber" />
+        <StatTile label="Graded" value={summary.graded} icon={CheckCircle2} tone="green" />
       </div>
 
-      <div style={{ background: '#fff', border: '1px solid #e8e8e8', borderRadius: 12, overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.84rem' }}>
+      <div className="fp-card fp-table-wrap">
+        <table className="fp-table">
           <thead>
-            <tr style={{ textAlign: 'left', color: '#888', fontSize: '0.72rem', textTransform: 'uppercase' }}>
-              <th style={{ padding: '10px 14px' }}>Student</th><th style={{ padding: '10px 14px' }}>Submission</th>
-              <th style={{ padding: '10px 14px' }}>Marks / {a.total_marks}</th><th style={{ padding: '10px 14px' }}>Feedback</th><th />
-            </tr>
+            <tr><th>Student</th><th>Submission</th><th>Marks / {a.total_marks}</th><th>Feedback</th><th /></tr>
           </thead>
           <tbody>
             {students.map((s) => {
               const sub = s.submission;
               const d = sub ? drafts[sub.id] : null;
               return (
-                <tr key={s.student_id} style={{ borderTop: '1px solid #f3f3f3', verticalAlign: 'top' }}>
-                  <td style={{ padding: '10px 14px' }}><div style={{ fontWeight: 600 }}>{s.name}</div><div style={{ fontFamily: 'monospace', fontSize: '0.72rem', color: '#888' }}>{s.enrollment_no}</div></td>
-                  <td style={{ padding: '10px 14px' }}>
+                <tr key={s.student_id} style={{ verticalAlign: 'top' }}>
+                  <td><div className="fp-strong" style={{ fontWeight: 700, color: '#0f172a' }}>{s.name}</div><div className="fp-mono" style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '0.74rem', color: '#94a3b8' }}>{s.enrollment_no}</div></td>
+                  <td>
                     {sub ? (
                       <>
-                        {sub.file_url && <a href={sub.file_url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', gap: 5, alignItems: 'center', color: '#2563eb', fontWeight: 600, textDecoration: 'none' }}><FileText size={14} /> Open</a>}
+                        {sub.file_url && <a href={sub.file_url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', gap: 5, alignItems: 'center', color: '#2563eb', fontWeight: 700, textDecoration: 'none' }}><FileText size={14} /> Open</a>}
                         <div style={{ fontSize: '0.72rem', color: sub.late ? '#dc2626' : '#888' }}>{formatDateTime(sub.submitted_at)}{sub.late ? ' · late' : ''}</div>
                       </>
-                    ) : <span style={{ color: '#bbb' }}>Not submitted</span>}
+                    ) : <span className="fp-pill fp-pill-gray">Not submitted</span>}
                   </td>
-                  <td style={{ padding: '10px 14px' }}>
-                    {sub && <input type="number" min="0" max={a.total_marks} step="0.5" style={{ ...inp, width: 80 }} value={d?.grade ?? ''} onChange={(e) => setDrafts((x) => ({ ...x, [sub.id]: { ...x[sub.id], grade: e.target.value } }))} />}
+                  <td>
+                    {sub && <input type="number" min="0" max={a.total_marks} step="0.5" className="fp-input" style={{ width: 90 }} value={d?.grade ?? ''} onChange={(e) => setDrafts((x) => ({ ...x, [sub.id]: { ...x[sub.id], grade: e.target.value } }))} />}
                   </td>
-                  <td style={{ padding: '10px 14px' }}>
-                    {sub && <textarea rows={2} maxLength={2000} style={{ ...inp, width: '100%', minWidth: 180, resize: 'vertical' }} value={d?.feedback ?? ''} onChange={(e) => setDrafts((x) => ({ ...x, [sub.id]: { ...x[sub.id], feedback: e.target.value } }))} />}
+                  <td>
+                    {sub && <textarea rows={2} maxLength={2000} className="fp-input" style={{ minWidth: 200 }} value={d?.feedback ?? ''} onChange={(e) => setDrafts((x) => ({ ...x, [sub.id]: { ...x[sub.id], feedback: e.target.value } }))} />}
                   </td>
-                  <td style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>
+                  <td style={{ whiteSpace: 'nowrap' }}>
                     {sub && (
                       <>
-                        <button disabled={saving[sub.id]} onClick={() => save(sub)} style={{ padding: '6px 12px', borderRadius: 8, border: 'none', background: '#111', color: '#fff', fontWeight: 600, fontSize: '0.78rem', cursor: 'pointer', display: 'inline-flex', gap: 4, alignItems: 'center' }}><Check size={13} /> Save</button>
+                        <button disabled={saving[sub.id]} onClick={() => save(sub)} className="fp-btn fp-btn-sm fp-btn-primary"><Check size={13} /> Save</button>
                         <div style={{ fontSize: '0.7rem', color: msg[sub.id] === 'Saved' ? '#16a34a' : '#dc2626', marginTop: 3 }}>{msg[sub.id]}</div>
                       </>
                     )}
@@ -98,7 +101,7 @@ export default function AssignmentGradingPage() {
                 </tr>
               );
             })}
-            {students.length === 0 && <tr><td colSpan={5} style={{ padding: 24, textAlign: 'center', color: '#aaa' }}>No students enrolled.</td></tr>}
+            {students.length === 0 && <tr><td colSpan={5} style={{ textAlign: 'center', color: '#94a3b8', padding: '2rem' }}>No students enrolled.</td></tr>}
           </tbody>
         </table>
       </div>

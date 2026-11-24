@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import '../Dashboard.css';
+import './faculty.css';
 import {
   LayoutGrid, Calendar, Clock, LogOut, Menu, ChevronLeft, ChevronRight, Search,
   CheckCircle, BookOpen, Bell, Star, CalendarOff,
@@ -49,7 +50,7 @@ export default function FacultyLayout({ children }) {
   if (mustChange) return null;
 
   return (
-    <div className="dashboard-container">
+    <div className="dashboard-container fp-shell">
       <div
         className={`sidebar-overlay ${isMobileMenuOpen ? 'visible' : ''}`}
         onClick={() => setIsMobileMenuOpen(false)}
@@ -58,18 +59,7 @@ export default function FacultyLayout({ children }) {
       <aside className={`sidebar ${isCollapsed ? 'collapsed' : ''} ${isMobileMenuOpen ? 'open' : ''}`}>
         <div>
           <div className="user-profile" style={{ position: 'relative' }}>
-            <div
-              className="user-avatar"
-              style={{
-                background: '#1a1a1a',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#fff',
-                fontSize: '0.9rem',
-                fontWeight: 700,
-              }}
-            >
+            <div className="user-avatar fp-avatar">
               {user?.firstName?.[0]?.toUpperCase() || 'F'}
             </div>
             <div className="user-info">
@@ -101,9 +91,7 @@ export default function FacultyLayout({ children }) {
 
           <CohortSlot collapsed={isCollapsed} />
           <nav className="nav-menu">
-            <div style={{ fontSize: '0.6rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', color: '#555', padding: '8px 1rem 4px' }}>
-              <span>Faculty</span>
-            </div>
+            <div className="fp-nav-label">Faculty</div>
             {NAV_ITEMS.map(({ path, label, icon: Icon }) => (
               <div
                 key={path}
@@ -133,22 +121,16 @@ export default function FacultyLayout({ children }) {
 
       <div className="main-content">
         <div className="content-center admin-full">
-          <header className="dashboard-header">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div
-                className="mobile-menu-btn"
-                onClick={() => setIsMobileMenuOpen(true)}
-                style={{ cursor: 'pointer' }}
-              >
-                <Menu size={24} />
-              </div>
+          <header className="fp-topbar">
+            <div className="mobile-menu-btn" onClick={() => setIsMobileMenuOpen(true)} style={{ cursor: 'pointer' }}>
+              <Menu size={24} />
+            </div>
+            <div className="fp-search">
+              <Search size={16} color="#94a3b8" />
+              <input type="text" placeholder="Search..." />
             </div>
             <div className="header-actions">
-              <div className="search-bar">
-                <Search size={16} color="#aaa" />
-                <input type="text" placeholder="Search..." className="search-input" />
-              </div>
-              <img src="/logo.png" alt="Logo" style={{ height: '30px' }} />
+              <img src="/logo.png" alt="Logo" style={{ height: '32px' }} />
             </div>
           </header>
           {children}

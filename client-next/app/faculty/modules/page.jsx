@@ -5,6 +5,7 @@ import { BookOpen, Users, MessageSquare } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '@/lib/api';
+import { PageHeader, Loading, Empty } from '../components/ui';
 
 export default function FacultyModulesPage() {
   const router = useRouter();
@@ -23,30 +24,29 @@ export default function FacultyModulesPage() {
 
   return (
     <>
-      <h1 style={{ fontSize: '1.4rem', fontWeight: 700, color: '#111', marginBottom: '1.2rem' }}>My Modules</h1>
-      {loading && <div style={{ textAlign: 'center', padding: '3rem', color: '#888' }}>Loading...</div>}
-      {error && <div style={{ color: '#dc2626' }}>{error}</div>}
+      <PageHeader icon={BookOpen} title="My Modules" subtitle="Courses you teach. Open one to post, share materials and manage assignments." />
+      {loading && <Loading />}
+      {error && <div className="fp-msg fp-msg-error">{error}</div>}
       {!loading && !error && modules.length === 0 && (
-        <div style={{ background: '#fff', border: '1px solid #e8e8e8', borderRadius: 12, padding: '2.5rem', textAlign: 'center', color: '#888' }}>
-          No modules assigned yet. Ask the admin to assign you to a module, or you will see it here once you have a scheduled class in it.
+        <div className="fp-card">
+          <Empty icon={BookOpen} title="No modules assigned yet">
+            Ask the admin to assign you to a module, or you will see it here once you have a scheduled class in it.
+          </Empty>
         </div>
       )}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
+      <div className="fp-modules">
         {modules.map((m) => (
-          <div
-            key={m.id}
-            onClick={() => router.push(`/faculty/modules/${m.id}`)}
-            style={{ background: '#fff', border: '1px solid #e8e8e8', borderTop: '3px solid #00A5A0', borderRadius: 12, padding: '1.1rem 1.2rem', cursor: 'pointer' }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-              <BookOpen size={16} color="#00A5A0" />
-              <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{m.name}</div>
-            </div>
-            {m.code && <div style={{ fontFamily: 'monospace', fontSize: '0.72rem', color: '#777', marginBottom: 6 }}>{m.code}</div>}
-            {m.description && <div style={{ fontSize: '0.78rem', color: '#666', marginBottom: 10, lineHeight: 1.4 }}>{m.description}</div>}
-            <div style={{ display: 'flex', gap: 14, fontSize: '0.76rem', color: '#555' }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Users size={13} />{m.student_count} students</span>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><MessageSquare size={13} />{m.post_count} posts</span>
+          <div key={m.id} className="fp-card fp-hover fp-module" style={{ marginBottom: 0 }} onClick={() => router.push(`/faculty/modules/${m.id}`)}>
+            <div className="fp-module-top" />
+            <div className="fp-module-body">
+              <div className="fp-module-icon"><BookOpen size={20} /></div>
+              <div style={{ fontWeight: 800, fontSize: '1rem', color: '#0f172a' }}>{m.name}</div>
+              {m.code && <div style={{ marginTop: 6 }}><span className="fp-tag" style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontSize: '0.72rem' }}>{m.code}</span></div>}
+              {m.description && <div style={{ fontSize: '0.82rem', color: '#64748b', marginTop: 10, lineHeight: 1.5 }}>{m.description}</div>}
+              <div style={{ display: 'flex', gap: 16, fontSize: '0.78rem', color: '#64748b', marginTop: 14, paddingTop: 12, borderTop: '1px solid #f1f5f9', fontWeight: 600 }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><Users size={14} color="#3b82f6" />{m.student_count} students</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}><MessageSquare size={14} color="#555" />{m.post_count} posts</span>
+              </div>
             </div>
           </div>
         ))}

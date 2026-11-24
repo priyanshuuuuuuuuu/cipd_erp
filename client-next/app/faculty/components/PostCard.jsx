@@ -4,7 +4,7 @@ import React from 'react';
 import { Megaphone, FileText, Link as LinkIcon, ClipboardList, Pin, ExternalLink } from 'lucide-react';
 
 const META = {
-  announcement: { icon: Megaphone, color: '#7c3aed', label: 'Announcement' },
+  announcement: { icon: Megaphone, color: '#3b2d82', label: 'Announcement' },
   material: { icon: FileText, color: '#2563eb', label: 'Material' },
   link: { icon: LinkIcon, color: '#0891b2', label: 'Link' },
   assignment: { icon: ClipboardList, color: '#ea580c', label: 'Assignment' },
@@ -21,15 +21,15 @@ export default function PostCard({ post, actions, footer }) {
   const m = META[post.type] || META.announcement;
   const Icon = m.icon;
   return (
-    <div style={{ background: '#fff', border: '1px solid #e8e8e8', borderLeft: `4px solid ${m.color}`, borderRadius: 12, padding: '1rem 1.2rem', marginBottom: 12 }}>
+    <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderLeft: `4px solid ${m.color}`, borderRadius: 16, padding: '1.1rem 1.3rem', marginBottom: 14, boxShadow: '0 4px 6px -1px rgba(15,23,42,0.05)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', minWidth: 0 }}>
-          <Icon size={18} color={m.color} style={{ flexShrink: 0 }} />
+          <div style={{ width: 36, height: 36, borderRadius: 11, background: `${m.color}1a`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon size={18} color={m.color} /></div>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontWeight: 700, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: 6, wordBreak: 'break-word' }}>
+            <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#0f172a', display: 'flex', alignItems: 'center', gap: 6, wordBreak: 'break-word' }}>
               {post.title}{post.pinned && <Pin size={13} color="#888" />}
             </div>
-            <div style={{ fontSize: '0.72rem', color: '#888', marginTop: 2 }}>
+            <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginTop: 2 }}>
               {m.label}{post.author?.name ? ` · ${post.author.name}` : ''} · {formatDateTime(post.created_at)}
             </div>
           </div>
@@ -37,10 +37,10 @@ export default function PostCard({ post, actions, footer }) {
         {actions}
       </div>
 
-      {post.body && <div style={{ marginTop: 10, fontSize: '0.85rem', color: '#333', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{post.body}</div>}
+      {post.body && <div style={{ marginTop: 10, fontSize: '0.88rem', lineHeight: 1.55, color: '#334155', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{post.body}</div>}
 
       {post.assignment && (
-        <div style={{ marginTop: 10, fontSize: '0.78rem', color: '#9a3412', background: '#fff7ed', borderRadius: 8, padding: '6px 10px', display: 'inline-block' }}>
+        <div style={{ marginTop: 10, fontSize: '0.78rem', color: '#9a3412', background: '#fff7ed', borderRadius: 999, padding: '4px 12px', fontWeight: 600, display: 'inline-block' }}>
           {post.assignment.due_date ? `Due ${formatDateTime(post.assignment.due_date)}` : 'No due date'} · {post.assignment.total_marks} marks
           {post.assignment.allow_late === false ? ' · no late submissions' : ''}
         </div>

@@ -1,25 +1,17 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, MapPin, Users } from 'lucide-react';
+import { CheckCircle, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, MapPin, Users } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '@/lib/api';
+import { PageHeader, Loading, Empty, StatusPill } from '../components/ui';
 
 const pad = (n) => String(n).padStart(2, '0');
 const fmt = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const shiftDay = (s, n) => { const [y, m, d] = s.split('-').map(Number); return fmt(new Date(y, m - 1, d + n)); };
 
-const STATUS = {
-  present: { bg: '#dcfce7', color: '#166534', label: 'Present' },
-  partial: { bg: '#fef9c3', color: '#92400e', label: 'Partial' },
-  leave: { bg: '#e0e7ff', color: '#3730a3', label: 'Leave' },
-  absent: { bg: '#fee2e2', color: '#991b1b', label: 'Absent' },
-  unverified: { bg: '#f3f4f6', color: '#555', label: 'Not tracked' },
-};
-const Pill = ({ status }) => {
-  const s = STATUS[status] || STATUS.unverified;
-  return <span style={{ padding: '2px 9px', borderRadius: 8, fontSize: '0.72rem', fontWeight: 600, background: s.bg, color: s.color }}>{s.label}</span>;
-};
+const STATUS_LABEL = { partial: 'Partial', leave: 'Leave', present: 'Present', absent: 'Absent', unverified: 'Not tracked' };
+const Pill = ({ status }) => <StatusPill status={status} label={STATUS_LABEL[status] || 'Not tracked'} />;
 
 export default function FacultyAttendancePage() {
   const { authReady } = useAuth();
@@ -55,71 +47,67 @@ export default function FacultyAttendancePage() {
     }
   };
 
-  const card = { background: '#fff', borderRadius: 12, border: '1px solid #e8e8e8', marginBottom: 12 };
-  const nav = { border: '1px solid #e5e7eb', background: '#fff', borderRadius: 8, padding: '6px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center' };
-
   return (
     <>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem', flexWrap: 'wrap', gap: 8 }}>
-        <h1 style={{ fontSize: '1.4rem', fontWeight: 700, color: '#111', margin: 0 }}>Attendance</h1>
+      <PageHeader icon={CheckCircle} title="Attendance" subtitle="See who attended each of your classes.">
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          <button style={nav} onClick={() => setDate(shiftDay(date, -1))} aria-label="Previous day"><ChevronLeft size={14} /></button>
-          <input type="date" value={date} onChange={(e) => e.target.value && setDate(e.target.value)} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #e5e7eb' }} />
-          <button style={nav} onClick={() => setDate(shiftDay(date, 1))} aria-label="Next day"><ChevronRight size={14} /></button>
+          <button className="fp-btn fp-btn-icon" onClick={() => setDate(shiftDay(date, -1))} aria-label="Previous day"><ChevronLeft size={15} /></button>
+          <input type="date" className="fp-input" style={{ width: 'auto' }} value={date} onChange={(e) => e.target.value && setDate(e.target.value)} />
+          <button className="fp-btn fp-btn-icon" onClick={() => setDate(shiftDay(date, 1))} aria-label="Next day"><ChevronRight size={15} /></button>
         </div>
-      </div>
+      </PageHeader>
 
-      {loading && <div style={{ textAlign: 'center', padding: '3rem', color: '#888' }}>Loading...</div>}
-      {error && <div style={{ color: '#dc2626', marginBottom: 12 }}>{error}</div>}
-      {!loading && !error && sessions.length === 0 && <div style={{ ...card, textAlign: 'center', padding: '2.5rem', color: '#aaa' }}>You have no classes on this date.</div>}
+      {loading && <Loading />}
+      {error && <div className="fp-msg fp-msg-error" style={{ marginTop: 0, marginBottom: 12 }}>{error}</div>}
+      {!loading && !error && sessions.length === 0 && (
+        <div className="fp-card"><Empty icon={CheckCircle} title="No classes on this date">Pick another day to see attendance.</Empty></div>
+      )}
 
       {sessions.map((s) => {
         const d = detail[s.id];
         const open = openId === s.id;
         return (
-          <div key={s.id} style={card}>
-            <div onClick={() => toggle(s.id)} style={{ padding: '14px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', gap: 12, flexWrap: 'wrap' }}>
+          <div key={s.id} className="fp-card">
+            <div onClick={() => toggle(s.id)} style={{ padding: '16px 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', gap: 12, flexWrap: 'wrap' }}>
               <div>
-                <div style={{ fontWeight: 700, fontSize: '0.92rem' }}>{s.courseName || s.title}</div>
-                <div style={{ fontSize: '0.75rem', color: '#777', marginTop: 3, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                  <span>{s.startTime?.slice(0, 5)} – {s.endTime?.slice(0, 5)}</span>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><MapPin size={11} />{s.venueName || 'TBA'}</span>
-                  <span style={{ textTransform: 'capitalize' }}>{s.status}</span>
+                <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#0f172a' }}>{s.courseName || s.title}</div>
+                <div className="fp-session-sub" style={{ marginTop: 5 }}>
+                  <span className="fp-mono" style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontWeight: 600 }}>{s.startTime?.slice(0, 5)} – {s.endTime?.slice(0, 5)}</span>
+                  <span><MapPin size={12} />{s.venueName || 'TBA'}</span>
+                  <StatusPill status={s.status} />
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: '0.85rem', fontWeight: 600 }}><Users size={15} color="#2563eb" />{s.detectedStudents} attended</span>
-                {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                <span className="fp-pill fp-pill-blue" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Users size={14} />{s.detectedStudents} attended</span>
+                {open ? <ChevronUp size={18} color="#94a3b8" /> : <ChevronDown size={18} color="#94a3b8" />}
               </div>
             </div>
 
             {open && (
-              <div style={{ borderTop: '1px solid #f0f0f0', padding: '12px 18px' }}>
-                {d?.loading && <div style={{ color: '#888', fontSize: '0.85rem' }}>Loading students…</div>}
-                {d?.error && <div style={{ color: '#dc2626', fontSize: '0.85rem' }}>{d.error}</div>}
+              <div style={{ borderTop: '1px solid #f1f5f9', padding: '14px 1.5rem', background: '#fff' }}>
+                {d?.loading && <div style={{ color: '#94a3b8', fontSize: '0.85rem' }}>Loading students…</div>}
+                {d?.error && <div className="fp-msg fp-msg-error" style={{ marginTop: 0 }}>{d.error}</div>}
                 {d?.data && (
                   <>
-                    <div style={{ display: 'flex', gap: 16, fontSize: '0.8rem', marginBottom: 10, flexWrap: 'wrap' }}>
-                      <span>Enrolled: <b>{d.data.summary.enrolled}</b></span>
-                      <span style={{ color: '#166534' }}>Present: <b>{d.data.summary.present}</b></span>
-                      <span style={{ color: '#92400e' }}>Partial: <b>{d.data.summary.partial}</b></span>
-                      <span style={{ color: '#991b1b' }}>Absent: <b>{d.data.summary.absent}</b></span>
-                      <span style={{ color: '#3730a3' }}>Leave: <b>{d.data.summary.leave}</b></span>
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+                      <span className="fp-pill fp-pill-gray">Enrolled: {d.data.summary.enrolled}</span>
+                      <span className="fp-pill fp-pill-green">Present: {d.data.summary.present}</span>
+                      <span className="fp-pill fp-pill-amber">Partial: {d.data.summary.partial}</span>
+                      <span className="fp-pill fp-pill-red">Absent: {d.data.summary.absent}</span>
+                      <span className="fp-pill fp-pill-violet">Leave: {d.data.summary.leave}</span>
                     </div>
-                    <div style={{ overflowX: 'auto' }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                    <div className="fp-table-wrap" style={{ border: '1px solid #e2e8f0', borderRadius: 12, background: '#fff' }}>
+                      <table className="fp-table">
                         <thead>
-                          <tr style={{ textAlign: 'left', color: '#888', fontSize: '0.72rem', textTransform: 'uppercase' }}>
-                            <th style={{ padding: '6px 8px' }}>Student</th><th style={{ padding: '6px 8px' }}>Enrollment</th><th style={{ padding: '6px 8px' }}>Status</th><th style={{ padding: '6px 8px' }}>Time in class</th>
-                          </tr>
+                          <tr><th>Student</th><th>Enrollment</th><th>Status</th><th>Time in class</th></tr>
                         </thead>
                         <tbody>
                           {d.data.students.map((st) => (
-                            <tr key={st.studentId} style={{ borderTop: '1px solid #f3f3f3' }}>
-                              <td style={{ padding: '7px 8px', fontWeight: 600 }}>{st.name}</td>
-                              <td style={{ padding: '7px 8px', fontFamily: 'monospace', color: '#555' }}>{st.enrollmentNo || '—'}</td>
-                              <td style={{ padding: '7px 8px' }}><Pill status={st.status} /></td>
-                              <td style={{ padding: '7px 8px', color: '#555' }}>{st.durationMinutes ? `${Math.round(st.durationMinutes)} min` : '—'}</td>
+                            <tr key={st.studentId}>
+                              <td className="fp-strong">{st.name}</td>
+                              <td className="fp-mono">{st.enrollmentNo || '—'}</td>
+                              <td><Pill status={st.status} /></td>
+                              <td>{st.durationMinutes ? `${Math.round(st.durationMinutes)} min` : '—'}</td>
                             </tr>
                           ))}
                         </tbody>

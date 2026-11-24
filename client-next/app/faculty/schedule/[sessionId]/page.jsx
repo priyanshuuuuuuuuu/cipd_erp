@@ -5,13 +5,10 @@ import { ArrowLeft, MapPin, Clock, FileText, Link as LinkIcon, CheckCircle } fro
 import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '../../../contexts/AuthContext';
 import { api } from '@/lib/api';
+import { PageHeader, Loading, StatusPill, Empty } from '../../components/ui';
+import { Calendar } from 'lucide-react';
 
-const card = { background: '#fff', border: '1px solid #e8e8e8', borderRadius: 12, padding: '1rem 1.2rem', marginBottom: 14 };
-const inp = { width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.85rem', fontFamily: 'inherit', boxSizing: 'border-box' };
-const btn = { padding: '8px 16px', borderRadius: 8, border: 'none', background: '#111', color: '#fff', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' };
 const hhmm = (t) => (t ? String(t).slice(0, 5) : '');
-const pill = (st) => ({ padding: '2px 9px', borderRadius: 8, fontSize: '0.72rem', fontWeight: 600, background: st === 'approved' ? '#dcfce7' : st === 'rejected' ? '#fee2e2' : '#fef9c3', color: st === 'approved' ? '#166534' : st === 'rejected' ? '#991b1b' : '#92400e' });
-
 export default function FacultyClassDetailPage() {
   const router = useRouter();
   const { sessionId } = useParams();
@@ -47,90 +44,109 @@ export default function FacultyClassDetailPage() {
     } catch (err) { setMsg(err.message || 'Failed to send request'); } finally { setBusy(false); }
   };
 
-  if (error) return <div style={{ color: '#dc2626' }}>{error}</div>;
-  if (!data) return <div style={{ textAlign: 'center', padding: '3rem', color: '#888' }}>Loading...</div>;
+  if (error) return <div className="fp-msg fp-msg-error">{error}</div>;
+  if (!data) return <Loading />;
   const { session: s, roster, materials, change_requests: crs } = data;
   const hasPending = crs.some((c) => c.status === 'pending');
 
+  const sub = { display: 'inline-flex', gap: 5, alignItems: 'center' };
+
   return (
     <>
-      <button onClick={() => router.push('/faculty/schedule')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', marginBottom: 8 }}><ArrowLeft size={14} /> Schedule</button>
-      <h1 style={{ fontSize: '1.4rem', fontWeight: 700, margin: '0 0 6px' }}>{s.title}</h1>
-      <div style={{ fontSize: '0.85rem', color: '#666', marginBottom: 16, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-        <span>{s.course_name}</span>
-        <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}><Clock size={13} />{s.date} · {hhmm(s.start)}–{hhmm(s.end)}</span>
-        <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}><MapPin size={13} />{s.venue || 'TBA'}{s.building ? `, ${s.building}` : ''}</span>
-        <span style={{ textTransform: 'capitalize', fontWeight: 600 }}>{s.status}</span>
+      <button className="fp-link" style={{ marginBottom: 10 }} onClick={() => router.push('/faculty/schedule')}><ArrowLeft size={14} /> Schedule</button>
+      <div className="fp-hero">
+        <div>
+          <p>{s.course_name}</p>
+          <h2>{s.title}</h2>
+          <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', fontSize: '0.88rem', marginTop: 10, opacity: 0.95 }}>
+            <span style={sub}><Calendar size={14} />{s.date}</span>
+            <span style={sub}><Clock size={14} />{hhmm(s.start)}–{hhmm(s.end)}</span>
+            <span style={sub}><MapPin size={14} />{s.venue || 'TBA'}{s.building ? `, ${s.building}` : ''}</span>
+          </div>
+        </div>
+        <div className="fp-hero-chip">
+          <span>Status</span>
+          <b style={{ textTransform: 'capitalize' }}>{s.status}</b>
+        </div>
       </div>
 
-      {msg && <div style={{ ...card, color: msg.startsWith('Request sent') ? '#166534' : '#b91c1c', padding: '10px 14px' }}>{msg}</div>}
+      {msg && <div className={`fp-msg ${msg.startsWith('Request sent') ? 'fp-msg-ok' : 'fp-msg-error'}`} style={{ marginTop: 0, marginBottom: 16 }}>{msg}</div>}
 
       {s.status === 'scheduled' && (
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
-          <button style={btn} disabled={busy} onClick={complete}><CheckCircle size={13} style={{ verticalAlign: 'middle', marginRight: 4 }} />Mark completed</button>
-          <button style={{ ...btn, background: '#fff', color: '#111', border: '1px solid #e5e7eb' }} disabled={hasPending} onClick={() => setReq({ kind: 'reschedule', reason: '', date: s.date, start: hhmm(s.start), end: hhmm(s.end) })}>Request reschedule</button>
-          <button style={{ ...btn, background: '#fff', color: '#b91c1c', border: '1px solid #fecaca' }} disabled={hasPending} onClick={() => setReq({ kind: 'cancel', reason: '' })}>Request cancellation</button>
-          {hasPending && <span style={{ fontSize: '0.75rem', color: '#92400e', alignSelf: 'center' }}>A request is already pending.</span>}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 18 }}>
+          <button className="fp-btn fp-btn-primary" disabled={busy} onClick={complete}><CheckCircle size={14} /> Mark completed</button>
+          <button className="fp-btn" disabled={hasPending} onClick={() => setReq({ kind: 'reschedule', reason: '', date: s.date, start: hhmm(s.start), end: hhmm(s.end) })}>Request reschedule</button>
+          <button className="fp-btn" style={{ color: '#dc2626' }} disabled={hasPending} onClick={() => setReq({ kind: 'cancel', reason: '' })}>Request cancellation</button>
+          {hasPending && <span className="fp-pill fp-pill-amber" style={{ alignSelf: 'center' }}>A request is already pending</span>}
         </div>
       )}
 
       {req && (
-        <form onSubmit={submitRequest} style={card}>
-          <div style={{ fontWeight: 700, marginBottom: 10 }}>{req.kind === 'cancel' ? 'Request cancellation' : 'Request reschedule'}</div>
-          {req.kind === 'reschedule' && (
-            <div style={{ display: 'flex', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
-              <div><label style={{ fontSize: '0.72rem', fontWeight: 600 }}>New date</label><input type="date" style={inp} value={req.date} onChange={(e) => setReq({ ...req, date: e.target.value })} required /></div>
-              <div><label style={{ fontSize: '0.72rem', fontWeight: 600 }}>Start</label><input type="time" style={inp} value={req.start} onChange={(e) => setReq({ ...req, start: e.target.value })} required /></div>
-              <div><label style={{ fontSize: '0.72rem', fontWeight: 600 }}>End</label><input type="time" style={inp} value={req.end} onChange={(e) => setReq({ ...req, end: e.target.value })} required /></div>
+        <form onSubmit={submitRequest} className="fp-card">
+          <div className="fp-card-head">{req.kind === 'cancel' ? 'Request cancellation' : 'Request reschedule'}</div>
+          <div className="fp-card-body">
+            {req.kind === 'reschedule' && (
+              <div className="fp-field-row">
+                <div style={{ flex: '1 1 160px' }}><label className="fp-label">New date</label><input type="date" className="fp-input" value={req.date} onChange={(e) => setReq({ ...req, date: e.target.value })} required /></div>
+                <div style={{ flex: '1 1 120px' }}><label className="fp-label">Start</label><input type="time" className="fp-input" value={req.start} onChange={(e) => setReq({ ...req, start: e.target.value })} required /></div>
+                <div style={{ flex: '1 1 120px' }}><label className="fp-label">End</label><input type="time" className="fp-input" value={req.end} onChange={(e) => setReq({ ...req, end: e.target.value })} required /></div>
+              </div>
+            )}
+            <div className="fp-field">
+              <label className="fp-label">Reason</label>
+              <textarea rows={3} className="fp-input" maxLength={1000} placeholder="Reason" value={req.reason} onChange={(e) => setReq({ ...req, reason: e.target.value })} required />
             </div>
-          )}
-          <textarea rows={3} style={{ ...inp, resize: 'vertical', marginBottom: 10 }} maxLength={1000} placeholder="Reason" value={req.reason} onChange={(e) => setReq({ ...req, reason: e.target.value })} required />
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button style={btn} disabled={busy}>Send to admin</button>
-            <button type="button" style={{ ...btn, background: '#fff', color: '#111', border: '1px solid #e5e7eb' }} onClick={() => setReq(null)}>Cancel</button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button className="fp-btn fp-btn-primary" disabled={busy}>Send to admin</button>
+              <button type="button" className="fp-btn" onClick={() => setReq(null)}>Cancel</button>
+            </div>
           </div>
         </form>
       )}
 
       {crs.length > 0 && (
-        <div style={card}>
-          <div style={{ fontWeight: 700, marginBottom: 8 }}>Requests for this class</div>
+        <div className="fp-card">
+          <div className="fp-card-head">Requests for this class</div>
           {crs.map((c) => (
-            <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '6px 0', borderTop: '1px solid #f3f3f3', fontSize: '0.82rem' }}>
+            <div key={c.id} className="fp-row">
               <div>
-                <b>{c.kind}</b>{c.kind === 'reschedule' ? ` → ${c.proposed_date} ${hhmm(c.proposed_start)}–${hhmm(c.proposed_end)}` : ''} · {c.reason}
-                {c.admin_notes && <div style={{ color: '#888', fontSize: '0.75rem' }}>Admin: {c.admin_notes}</div>}
+                <b style={{ textTransform: 'capitalize', color: '#0f172a' }}>{c.kind}</b>{c.kind === 'reschedule' ? ` → ${c.proposed_date} ${hhmm(c.proposed_start)}–${hhmm(c.proposed_end)}` : ''} <span style={{ color: '#64748b' }}>· {c.reason}</span>
+                {c.admin_notes && <div style={{ color: '#94a3b8', fontSize: '0.76rem', marginTop: 3 }}>Admin: {c.admin_notes}</div>}
               </div>
-              <span style={pill(c.status)}>{c.status}</span>
+              <StatusPill status={c.status} />
             </div>
           ))}
         </div>
       )}
 
-      <div style={card}>
-        <div style={{ fontWeight: 700, marginBottom: 8 }}>Materials tagged to this class</div>
-        {materials.length === 0 && <div style={{ color: '#aaa', fontSize: '0.82rem' }}>None yet. Post from the module page and tag this class.</div>}
+      <div className="fp-card">
+        <div className="fp-card-head">
+          Materials tagged to this class
+          <span className="fp-spacer" />
+          {s.course_id && <button className="fp-btn fp-btn-sm" onClick={() => router.push(`/faculty/modules/${s.course_id}`)}>Open module</button>}
+        </div>
+        {materials.length === 0 && <Empty icon={FileText}>None yet. Post from the module page and tag this class.</Empty>}
         {materials.map((m) => (
-          <div key={m.id} style={{ padding: '6px 0', fontSize: '0.85rem', display: 'flex', gap: 8, alignItems: 'center' }}>
-            {m.link_url ? <LinkIcon size={14} /> : <FileText size={14} />}
-            {m.file_url || m.link_url ? <a href={m.file_url || m.link_url} target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb' }}>{m.title}</a> : m.title}
+          <div key={m.id} className="fp-row" style={{ justifyContent: 'flex-start' }}>
+            {m.link_url ? <LinkIcon size={15} /> : <FileText size={15} />}
+            {m.file_url || m.link_url ? <a href={m.file_url || m.link_url} target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb', fontWeight: 600 }}>{m.title}</a> : m.title}
           </div>
         ))}
-        {s.course_id && <button onClick={() => router.push(`/faculty/modules/${s.course_id}`)} style={{ ...btn, marginTop: 8, background: '#fff', color: '#111', border: '1px solid #e5e7eb' }}>Open module</button>}
       </div>
 
-      <div style={card}>
-        <div style={{ fontWeight: 700, marginBottom: 8 }}>Roster ({roster.length})</div>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.83rem' }}>
+      <div className="fp-card">
+        <div className="fp-card-head">Roster <span className="fp-count">{roster.length} students</span></div>
+        <div className="fp-table-wrap">
+          <table className="fp-table">
+            <thead><tr><th>Student</th><th>Enrollment</th></tr></thead>
             <tbody>
               {roster.map((r) => (
-                <tr key={r.id} style={{ borderTop: '1px solid #f3f3f3' }}>
-                  <td style={{ padding: '6px 8px', fontWeight: 600 }}>{r.name}</td>
-                  <td style={{ padding: '6px 8px', fontFamily: 'monospace', color: '#666' }}>{r.enrollment_no}</td>
+                <tr key={r.id}>
+                  <td className="fp-strong">{r.name}</td>
+                  <td className="fp-mono">{r.enrollment_no}</td>
                 </tr>
               ))}
-              {roster.length === 0 && <tr><td style={{ color: '#aaa', padding: 8 }}>No students enrolled.</td></tr>}
+              {roster.length === 0 && <tr><td colSpan={2} style={{ textAlign: 'center', color: '#94a3b8', padding: '1.6rem' }}>No students enrolled.</td></tr>}
             </tbody>
           </table>
         </div>

@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Download, Printer } from 'lucide-react';
+import { Download, Printer, FileText } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '@/lib/api';
+import { PageHeader, Loading } from '../components/ui';
 
 const monthOf = (d) => String(d || '').slice(0, 7);
 const csvCell = (v) => {
@@ -42,54 +43,60 @@ export default function FacultyStatementPage() {
     URL.revokeObjectURL(url);
   };
 
-  if (error) return <div style={{ color: '#dc2626' }}>{error}</div>;
-  if (!data) return <div style={{ textAlign: 'center', padding: '3rem', color: '#888' }}>Loading...</div>;
-  const btn = { display: 'inline-flex', gap: 6, alignItems: 'center', padding: '8px 14px', borderRadius: 8, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 };
+  if (error) return <div className="fp-msg fp-msg-error">{error}</div>;
+  if (!data) return <Loading />;
 
   return (
     <>
-      <style>{`@media print { .no-print, aside, header, .sidebar { display: none !important; } .main-content { margin: 0 !important; padding: 0 !important; } }`}</style>
-      <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: '1.2rem' }}>
-        <h1 style={{ fontSize: '1.4rem', fontWeight: 700, margin: 0 }}>Honorarium Statement</h1>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid #e5e7eb' }} />
-          <button style={btn} onClick={downloadCsv}><Download size={14} /> CSV</button>
-          <button style={btn} onClick={() => window.print()}><Printer size={14} /> Print / PDF</button>
-        </div>
+      <style>{`@media print { .no-print, aside, header, .sidebar { display: none !important; } .main-content { margin: 0 !important; padding: 0 !important; background: #fff !important; } .fp-card { box-shadow: none !important; border: none !important; } }`}</style>
+      <div className="no-print">
+        <PageHeader icon={FileText} title="Honorarium Statement" subtitle="Download or print your monthly earnings.">
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <input type="month" className="fp-input" style={{ width: 'auto' }} value={month} onChange={(e) => setMonth(e.target.value)} />
+            <button className="fp-btn" onClick={downloadCsv}><Download size={14} /> CSV</button>
+            <button className="fp-btn fp-btn-primary" onClick={() => window.print()}><Printer size={14} /> Print / PDF</button>
+          </div>
+        </PageHeader>
       </div>
 
-      <div style={{ background: '#fff', border: '1px solid #e8e8e8', borderRadius: 12, padding: '1.4rem 1.6rem' }}>
-        <div style={{ fontSize: '1.05rem', fontWeight: 700 }}>Honorarium statement — {month || 'All time'}</div>
-        <div style={{ fontSize: '0.82rem', color: '#666', margin: '4px 0 14px' }}>{name} · {user?.email}</div>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.84rem' }}>
+      <div className="fp-card">
+        <div style={{ background: '#111', color: '#fff', padding: '1.3rem 1.5rem', display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+          <div>
+            <div style={{ fontSize: '1.1rem', fontWeight: 800 }}>Honorarium statement — {month || 'All time'}</div>
+            <div style={{ fontSize: '0.84rem', opacity: 0.85, marginTop: 3 }}>{name} · {user?.email}</div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.1em', opacity: 0.8 }}>Total payable</div>
+            <div style={{ fontSize: '1.7rem', fontWeight: 800 }}>₹{amount.toLocaleString()}</div>
+          </div>
+        </div>
+        <div className="fp-table-wrap">
+          <table className="fp-table">
             <thead>
-              <tr style={{ textAlign: 'left', color: '#888', fontSize: '0.72rem', textTransform: 'uppercase' }}>
-                {['Date', 'Session', 'Course', 'Hours', 'Amount (₹)'].map((h) => <th key={h} style={{ padding: '8px 10px' }}>{h}</th>)}
-              </tr>
+              <tr>{['Date', 'Session', 'Course', 'Hours', 'Amount (₹)'].map((h) => <th key={h}>{h}</th>)}</tr>
             </thead>
             <tbody>
               {rows.map((r) => (
-                <tr key={r.session_id} style={{ borderTop: '1px solid #f3f3f3' }}>
-                  <td style={{ padding: '8px 10px', fontFamily: 'monospace' }}>{r.date_raw}</td>
-                  <td style={{ padding: '8px 10px', fontWeight: 600 }}>{r.title}</td>
-                  <td style={{ padding: '8px 10px' }}>{r.course}</td>
-                  <td style={{ padding: '8px 10px' }}>{r.hours.toFixed(2)}</td>
-                  <td style={{ padding: '8px 10px' }}>{Math.round(r.hours * rate).toLocaleString()}</td>
+                <tr key={r.session_id}>
+                  <td className="fp-mono">{r.date_raw}</td>
+                  <td className="fp-strong">{r.title}</td>
+                  <td><span className="fp-tag">{r.course}</span></td>
+                  <td className="fp-mono">{r.hours.toFixed(2)}</td>
+                  <td className="fp-mono">{Math.round(r.hours * rate).toLocaleString()}</td>
                 </tr>
               ))}
-              {rows.length === 0 && <tr><td colSpan={5} style={{ padding: 20, textAlign: 'center', color: '#aaa' }}>No completed classes in this period.</td></tr>}
+              {rows.length === 0 && <tr><td colSpan={5} style={{ textAlign: 'center', color: '#94a3b8', padding: '2rem' }}>No completed classes in this period.</td></tr>}
             </tbody>
             <tfoot>
-              <tr style={{ borderTop: '2px solid #111', fontWeight: 700 }}>
-                <td colSpan={3} style={{ padding: '10px' }}>Total @ ₹{rate.toLocaleString()}/hr</td>
-                <td style={{ padding: '10px' }}>{totalHours.toFixed(2)}</td>
-                <td style={{ padding: '10px' }}>{amount.toLocaleString()}</td>
+              <tr style={{ background: '#f8fafc', fontWeight: 800, color: '#0f172a' }}>
+                <td colSpan={3} style={{ padding: '14px 18px', borderTop: '2px solid #e2e8f0' }}>Total @ ₹{rate.toLocaleString()}/hr</td>
+                <td className="fp-mono" style={{ padding: '14px 18px', borderTop: '2px solid #e2e8f0' }}>{totalHours.toFixed(2)}</td>
+                <td className="fp-mono" style={{ padding: '14px 18px', borderTop: '2px solid #e2e8f0' }}>{amount.toLocaleString()}</td>
               </tr>
             </tfoot>
           </table>
         </div>
-        <div style={{ fontSize: '0.72rem', color: '#999', marginTop: 12 }}>Only classes marked completed are counted. This is an estimate; the final payout is confirmed by the administration.</div>
+        <div className="fp-hint" style={{ padding: '0 1.5rem 1.2rem', marginTop: 12 }}>Only classes marked completed are counted. This is an estimate; the final payout is confirmed by the administration.</div>
       </div>
     </>
   );

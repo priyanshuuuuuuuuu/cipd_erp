@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '@/lib/api';
+import { KeyRound } from 'lucide-react';
 
 export default function FacultyChangePasswordPage() {
   const router = useRouter();
@@ -33,35 +34,42 @@ export default function FacultyChangePasswordPage() {
   };
 
   const field = (key, label, autoComplete) => (
-    <div style={{ marginBottom: 14 }}>
-      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: 6 }}>{label}</label>
+    <div className="fp-field">
+      <label className="fp-label">{label}</label>
       <input
         type="password"
+        className="fp-input"
         value={form[key]}
         autoComplete={autoComplete}
         onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-        style={{ width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: 8, fontSize: '0.9rem' }}
       />
     </div>
   );
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f7f7f7', padding: 16 }}>
-      <form onSubmit={submit} style={{ background: '#fff', padding: 32, borderRadius: 16, width: '100%', maxWidth: 400, boxShadow: '0 4px 24px rgba(0,0,0,0.06)' }}>
-        <h2 style={{ margin: '0 0 6px' }}>Set a new password</h2>
-        <p style={{ margin: '0 0 20px', fontSize: '0.85rem', color: '#666' }}>
-          {user?.firstName ? `Hi ${user.firstName}, you` : 'You'} are using a default password. Choose your own to continue.
-        </p>
-        {field('current', 'Current (default) password', 'current-password')}
-        {field('next', 'New password', 'new-password')}
-        {field('confirm', 'Confirm new password', 'new-password')}
-        {error && <div style={{ color: '#c0392b', fontSize: '0.85rem', marginBottom: 12 }}>{error}</div>}
-        <button type="submit" disabled={saving} style={{ width: '100%', padding: 12, background: '#1a1a1a', color: '#fff', border: 0, borderRadius: 8, fontWeight: 700, cursor: 'pointer' }}>
-          {saving ? 'Saving…' : 'Update password'}
-        </button>
-        <button type="button" onClick={async () => { await logout(); router.push('/'); }} style={{ width: '100%', marginTop: 10, background: 'none', border: 0, color: '#888', cursor: 'pointer', fontSize: '0.8rem' }}>
-          Log out
-        </button>
+    <div className="fp-shell" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f7f7f7', padding: 16 }}>
+      <form onSubmit={submit} className="fp-modal" style={{ maxWidth: 420 }}>
+        <div className="fp-modal-head" style={{ padding: '1.6rem 1.6rem 1.4rem', alignItems: 'center', gap: 14, justifyContent: 'flex-start' }}>
+          <div className="fp-hero-avatar" style={{ width: 52, height: 52 }}><KeyRound size={22} /></div>
+          <div>
+            <h3 style={{ fontSize: '1.2rem' }}>Set a new password</h3>
+            <small style={{ textTransform: 'none', letterSpacing: 0, fontSize: '0.8rem', fontWeight: 500 }}>
+              {user?.firstName ? `Hi ${user.firstName}, you` : 'You'} are using a default password.
+            </small>
+          </div>
+        </div>
+        <div className="fp-modal-body">
+          {field('current', 'Current (default) password', 'current-password')}
+          {field('next', 'New password', 'new-password')}
+          {field('confirm', 'Confirm new password', 'new-password')}
+          {error && <div className="fp-msg fp-msg-error" style={{ marginTop: 0, marginBottom: 12 }}>{error}</div>}
+          <button type="submit" disabled={saving} className="fp-btn fp-btn-primary" style={{ width: '100%', padding: 12 }}>
+            {saving ? 'Saving…' : 'Update password'}
+          </button>
+          <button type="button" className="fp-link" style={{ width: '100%', marginTop: 12, justifyContent: 'center', color: '#94a3b8' }} onClick={async () => { await logout(); router.push('/'); }}>
+            Log out
+          </button>
+        </div>
       </form>
     </div>
   );

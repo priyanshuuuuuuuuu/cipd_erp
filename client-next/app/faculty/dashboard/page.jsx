@@ -1,15 +1,27 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Calendar, Clock, BookOpen, ChevronRight } from 'lucide-react';
+import { Calendar, Clock, BookOpen, ChevronRight, IndianRupee, MapPin, CheckCircle, Megaphone, CalendarOff, FileText } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '@/lib/api';
 import WeekCalendar from '../components/WeekCalendar';
+import { Loading, Empty, StatTile } from '../components/ui';
+
+const greeting = () => {
+  const h = new Date().getHours();
+  return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+};
+
+const dateParts = (d) => {
+  const dt = new Date(`${d}T00:00:00`);
+  if (isNaN(dt)) return { day: '–', mon: '' };
+  return { day: dt.getDate(), mon: dt.toLocaleDateString('en-GB', { month: 'short' }) };
+};
 
 export default function FacultyDashboardPage() {
   const router = useRouter();
-  const { authReady } = useAuth();
+  const { authReady, user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [upcoming, setUpcoming] = useState([]);
   const [summary, setSummary] = useState({ totalHours: 0, completedSessions: 0, estimatedHonorarium: 0 });
@@ -40,87 +52,94 @@ export default function FacultyDashboardPage() {
     if (authReady) fetchData();
   }, [authReady, fetchData]);
 
-  const cardStyle = {
-    background: '#fff',
-    borderRadius: '12px',
-    border: '1px solid #e8e8e8',
-    borderTop: '3px solid #00A5A0',
-    padding: '1.2rem 1.5rem',
-  };
+  const name = user?.firstName || 'Professor';
+  const today = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
 
   return (
     <>
-      <h1 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '1.5rem', color: '#111' }}>
-        Faculty Dashboard
-      </h1>
+      <div className="fp-hero">
+        <div>
+          <div className="fp-kicker">{today}</div>
+          <h2>{greeting()}, {name}.</h2>
+          <p>
+            {loading
+              ? 'Loading your schedule…'
+              : upcoming.length > 0
+                ? `${upcoming.length} upcoming session${upcoming.length > 1 ? 's' : ''} on your calendar.`
+                : 'Nothing scheduled ahead. Your calendar is clear.'}
+          </p>
+        </div>
+        {!loading && upcoming[0] && (
+          <div className="fp-hero-chip" style={{ cursor: 'pointer' }} onClick={() => router.push(`/faculty/schedule/${upcoming[0].id}`)}>
+            <span>Up next · {upcoming[0].date}</span>
+            <b>{upcoming[0].time}</b>
+            <span style={{ textTransform: 'none', letterSpacing: 0, fontWeight: 500 }}>{upcoming[0].course} · {upcoming[0].venue}</span>
+          </div>
+        )}
+      </div>
+
+      <div className="fp-quick">
+        {[
+          { label: 'Mark attendance', sub: 'See who came', icon: CheckCircle, tone: 'green', to: '/faculty/attendance' },
+          { label: 'Notify students', sub: 'Send an announcement', icon: Megaphone, tone: 'blue', to: '/faculty/notifications' },
+          { label: 'Apply for leave', sub: 'Request time off', icon: CalendarOff, tone: 'orange', to: '/faculty/leave' },
+          { label: 'Statement', sub: 'Monthly honorarium', icon: FileText, tone: 'ink', to: '/faculty/statement' },
+        ].map((q) => (
+          <button key={q.to} className={`fp-quick-item fp-q-${q.tone}`} onClick={() => router.push(q.to)}>
+            <i><q.icon size={18} /></i>
+            <span>{q.label}<small>{q.sub}</small></span>
+          </button>
+        ))}
+      </div>
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '3rem', color: '#888' }}>Loading...</div>
+        <Loading />
       ) : (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
-            {[
-              { label: 'Completed Sessions', value: summary.completedSessions, icon: BookOpen, color: '#2563eb' },
-              { label: 'Total Hours', value: `${summary.totalHours}h`, icon: Clock, color: '#16a34a' },
-              { label: 'Est. Honorarium', value: `₹${summary.estimatedHonorarium.toLocaleString()}`, icon: Calendar, color: '#7c3aed' },
-            ].map((stat) => (
-              <div key={stat.label} style={cardStyle}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-                  <stat.icon size={18} color={stat.color} />
-                  <span style={{ fontSize: '0.78rem', color: '#888', fontWeight: 500 }}>{stat.label}</span>
-                </div>
-                <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#111' }}>{stat.value}</div>
-              </div>
-            ))}
+          <div className="fp-stats">
+            <StatTile label="Completed" value={summary.completedSessions} icon={BookOpen} tone="blue" note="classes taught" />
+            <StatTile label="Teaching hrs" value={`${summary.totalHours}h`} icon={Clock} tone="amber" note="in the classroom" />
+            <StatTile label="Honorarium" value={`₹${summary.estimatedHonorarium.toLocaleString()}`} icon={IndianRupee} tone="violet" note="estimated, before payout" />
           </div>
 
-          <WeekCalendar />
+          <div className="fp-card">
+            <div className="fp-card-head">
+              <Calendar size={17} /> This week&apos;s classes
+            </div>
+            <div className="fp-card-body"><WeekCalendar /></div>
+          </div>
 
-          <div style={cardStyle}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <div style={{ fontSize: '0.95rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Calendar size={16} /> Upcoming Sessions
-              </div>
-              <button
-                onClick={() => router.push('/faculty/schedule')}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.78rem', color: '#2563eb', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}
-              >
+          <div className="fp-card">
+            <div className="fp-card-head">
+              <Calendar size={17} /> Upcoming Sessions
+              <span className="fp-spacer" />
+              <button className="fp-link" onClick={() => router.push('/faculty/schedule')}>
                 View all <ChevronRight size={14} />
               </button>
             </div>
 
             {upcoming.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '2rem', color: '#aaa', fontSize: '0.85rem' }}>
-                No upcoming sessions scheduled.
-              </div>
+              <Empty icon={Calendar} title="All clear">No upcoming sessions scheduled.</Empty>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {upcoming.map((s) => (
-                  <div
-                    key={s.id}
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '10px 14px',
-                      background: '#fafafa',
-                      borderRadius: '8px',
-                      border: '1px solid #f0f0f0',
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontSize: '0.88rem', fontWeight: 600, color: '#111' }}>{s.title}</div>
-                      <div style={{ fontSize: '0.72rem', color: '#888', marginTop: '2px' }}>
-                        {s.course} · {s.venue}
+              upcoming.map((s) => {
+                const { day, mon } = dateParts(s.date);
+                return (
+                  <div key={s.id} className="fp-session" onClick={() => router.push(`/faculty/schedule/${s.id}`)}>
+                    <div className="fp-date-chip"><b>{day}</b><span>{mon}</span></div>
+                    <div className="fp-session-main">
+                      <div className="fp-session-title">{s.title}</div>
+                      <div className="fp-session-sub">
+                        <span className="fp-tag" style={{ padding: '2px 8px', fontSize: '0.7rem' }}>{s.course}</span>
+                        <span><MapPin size={12} />{s.venue}</span>
                       </div>
                     </div>
-                    <div style={{ textAlign: 'right', fontSize: '0.75rem', color: '#555' }}>
-                      <div>{s.date}</div>
-                      <div>{s.time} – {s.endTime}</div>
+                    <div style={{ fontFamily: 'ui-monospace, Consolas, monospace', fontWeight: 700, fontSize: '0.8rem', color: '#475569', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      {s.time} – {s.endTime}
                     </div>
+                    <ChevronRight size={16} color="#cbd5e1" />
                   </div>
-                ))}
-              </div>
+                );
+              })
             )}
           </div>
         </>

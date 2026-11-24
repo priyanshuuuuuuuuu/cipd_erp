@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Clock, User } from 'lucide-react';
+import { Clock, User, CalendarCheck, CheckCircle2, Timer, Landmark, FileText } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '@/lib/api';
 import { useRouter } from 'next/navigation';
+import { PageHeader, Loading, Empty, StatTile, StatusPill, Notice } from '../components/ui';
 
 export default function FacultyProfilePage() {
   const router = useRouter();
@@ -35,92 +36,78 @@ export default function FacultyProfilePage() {
     if (authReady) fetchData();
   }, [authReady, fetchData]);
 
-  const cardStyle = {
-    background: '#fff',
-    borderRadius: '12px',
-    border: '1px solid #e8e8e8',
-    borderTop: '3px solid #00A5A0',
-    padding: '1.2rem 1.5rem',
-    marginBottom: '1.5rem',
-  };
-
   const displayName = user
     ? `${user.firstName || ''} ${user.lastName || ''}`.trim()
     : '';
 
+  const initials = ((user?.firstName?.[0] || '') + (user?.lastName?.[0] || '')).toUpperCase() || 'F';
+  const rate = hours?.profile?.honorarium_rate_per_hour || profile?.honorarium_rate_per_hour || 0;
+  const designation = profile?.designation || hours?.profile?.designation || 'Faculty';
+
   return (
     <>
-      <h1 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '1.5rem', color: '#111' }}>
-        Hours & Profile
-      </h1>
-
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '3rem', color: '#888' }}>Loading...</div>
+        <Loading />
       ) : (
         <>
-          <div style={cardStyle}>
-            <div style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <User size={16} /> Profile
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '0.85rem' }}>
-              <div><span style={{ color: '#888' }}>Name</span><div style={{ fontWeight: 600, color: '#111', marginTop: '2px' }}>{displayName}</div></div>
-              <div><span style={{ color: '#888' }}>Email</span><div style={{ fontWeight: 600, color: '#111', marginTop: '2px' }}>{user?.email}</div></div>
-              <div><span style={{ color: '#888' }}>Designation</span><div style={{ fontWeight: 600, color: '#111', marginTop: '2px' }}>{profile?.designation || hours?.profile?.designation || '—'}</div></div>
-              <div><span style={{ color: '#888' }}>Department</span><div style={{ fontWeight: 600, color: '#111', marginTop: '2px' }}>{profile?.department || hours?.profile?.department || '—'}</div></div>
-              <div><span style={{ color: '#888' }}>Experience</span><div style={{ fontWeight: 600, color: '#111', marginTop: '2px' }}>{profile?.years_experience ?? hours?.profile?.years_experience ?? '—'} years</div></div>
+          <div className="fp-hero">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+              <div className="fp-hero-avatar">{initials}</div>
               <div>
-                <span style={{ color: '#888' }}>Honorarium Rate</span>
-                <div style={{ fontWeight: 600, color: '#111', marginTop: '2px' }}>
-                  ₹{(hours?.profile?.honorarium_rate_per_hour || profile?.honorarium_rate_per_hour || 0).toLocaleString()} / hr
-                </div>
+                <h2>{displayName || 'Faculty'}</h2>
+                <p>{designation} · ₹{rate.toLocaleString()}/hr</p>
               </div>
+            </div>
+            <div className="fp-hero-chip">
+              <span>Est. honorarium</span>
+              <b>₹{(hours?.estimatedHonorarium || 0).toLocaleString()}</b>
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
-            {[
-              { label: 'Total Sessions', value: hours?.totalSessionCount ?? 0 },
-              { label: 'Completed', value: hours?.completedSessions ?? 0 },
-              { label: 'Total Hours', value: `${hours?.totalHours ?? 0}h` },
-            ].map((s) => (
-              <div key={s.label} style={{ ...cardStyle, marginBottom: 0, textAlign: 'center' }}>
-                <div style={{ fontSize: '0.78rem', color: '#888', marginBottom: '6px' }}>{s.label}</div>
-                <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#111' }}>{s.value}</div>
-              </div>
-            ))}
+          <div className="fp-stats">
+            <StatTile label="All Sessions" value={hours?.totalSessionCount ?? 0} icon={CalendarCheck} tone="blue" />
+            <StatTile label="Completed" value={hours?.completedSessions ?? 0} icon={CheckCircle2} tone="green" />
+            <StatTile label="Teaching Hrs" value={`${hours?.totalHours ?? 0}h`} icon={Timer} tone="amber" />
           </div>
 
-          <BankDetailsCard cardStyle={cardStyle} />
+          <div className="fp-card">
+            <div className="fp-card-head"><User size={17} /> Profile</div>
+            <dl className="fp-kv fp-card-body" style={{ margin: 0 }}>
+              <div><dt>Name</dt><dd>{displayName || '—'}</dd></div>
+              <div><dt>Email</dt><dd>{user?.email}</dd></div>
+              <div><dt>Designation</dt><dd>{profile?.designation || hours?.profile?.designation || '—'}</dd></div>
+              <div><dt>Department</dt><dd>{profile?.department || hours?.profile?.department || '—'}</dd></div>
+              <div><dt>Experience</dt><dd>{profile?.years_experience ?? hours?.profile?.years_experience ?? '—'} years</dd></div>
+              <div><dt>Honorarium Rate</dt><dd>₹{rate.toLocaleString()} / hr</dd></div>
+            </dl>
+          </div>
 
-          <div style={cardStyle}>
-            <div style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Clock size={16} /> Session History
-              <button onClick={() => router.push('/faculty/statement')} style={{ marginLeft: 'auto', fontSize: '0.78rem', fontWeight: 600, border: '1px solid #e5e7eb', background: '#fff', borderRadius: 8, padding: '4px 10px', cursor: 'pointer' }}>Monthly statement</button>
-              <span style={{ fontSize: '0.82rem', color: '#7c3aed', fontWeight: 600 }}>
-                Est. Honorarium: ₹{(hours?.estimatedHonorarium || 0).toLocaleString()}
-              </span>
+          <BankDetailsCard />
+
+          <div className="fp-card">
+            <div className="fp-card-head">
+              <Clock size={17} /> Session History
+              <span className="fp-count">{(hours?.sessions || []).length} total</span>
+              <span className="fp-spacer" />
+              <button className="fp-btn fp-btn-sm" onClick={() => router.push('/faculty/statement')}><FileText size={13} /> Monthly statement</button>
             </div>
             {(hours?.sessions || []).length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '2rem', color: '#aaa' }}>No sessions recorded.</div>
+              <Empty icon={Clock} title="No sessions recorded" />
             ) : (
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+              <div className="fp-table-wrap">
+                <table className="fp-table">
                   <thead>
-                    <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
-                      {['Date', 'Session', 'Course', 'Venue', 'Duration', 'Status'].map((h) => (
-                        <th key={h} style={{ padding: '8px 12px', textAlign: 'left', color: '#888', fontWeight: 600 }}>{h}</th>
-                      ))}
-                    </tr>
+                    <tr>{['Date', 'Session', 'Course', 'Venue', 'Duration', 'Status'].map((h) => <th key={h}>{h}</th>)}</tr>
                   </thead>
                   <tbody>
                     {(hours?.sessions || []).map((s) => (
-                      <tr key={s.session_id} style={{ borderBottom: '1px solid #f5f5f5' }}>
-                        <td style={{ padding: '10px 12px', fontFamily: 'monospace', color: '#555' }}>{s.date}</td>
-                        <td style={{ padding: '10px 12px', fontWeight: 600, color: '#111' }}>{s.title}</td>
-                        <td style={{ padding: '10px 12px', color: '#555' }}>{s.course}</td>
-                        <td style={{ padding: '10px 12px', color: '#555' }}>{s.venue}</td>
-                        <td style={{ padding: '10px 12px', color: '#555' }}>{s.duration}</td>
-                        <td style={{ padding: '10px 12px', color: '#555', textTransform: 'capitalize' }}>{s.status}</td>
+                      <tr key={s.session_id}>
+                        <td className="fp-mono">{s.date}</td>
+                        <td className="fp-strong">{s.title}</td>
+                        <td><span className="fp-tag">{s.course}</span></td>
+                        <td>{s.venue}</td>
+                        <td className="fp-mono">{s.duration}</td>
+                        <td><StatusPill status={s.status} /></td>
                       </tr>
                     ))}
                   </tbody>
@@ -134,7 +121,7 @@ export default function FacultyProfilePage() {
   );
 }
 
-function BankDetailsCard({ cardStyle }) {
+function BankDetailsCard() {
   const [bank, setBank] = useState({ bank_account_number: '', bank_account_holder: '', bank_ifsc_code: '', bank_branch: '' });
   const [msg, setMsg] = useState({ type: '', text: '' });
   const [saving, setSaving] = useState(false);
@@ -149,21 +136,24 @@ function BankDetailsCard({ cardStyle }) {
     try { await api.patch('/api/faculty/profile', bank); setMsg({ type: 'ok', text: 'Bank details saved.' }); }
     catch (err) { setMsg({ type: 'error', text: err.message || 'Failed to save' }); } finally { setSaving(false); }
   };
-  const inp = { width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.85rem', boxSizing: 'border-box' };
   const field = (k, label) => (
-    <div><label style={{ fontSize: '0.75rem', color: '#888' }}>{label}</label><input style={inp} value={bank[k]} onChange={(e) => setBank({ ...bank, [k]: e.target.value })} /></div>
+    <div><label className="fp-label">{label}</label><input className="fp-input" value={bank[k]} onChange={(e) => setBank({ ...bank, [k]: e.target.value })} /></div>
   );
   return (
-    <form onSubmit={save} style={cardStyle}>
-      <div style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '1rem' }}>Bank details (for honorarium)</div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
-        {field('bank_account_holder', 'Account holder')}
-        {field('bank_account_number', 'Account number')}
-        {field('bank_ifsc_code', 'IFSC code')}
-        {field('bank_branch', 'Branch')}
+    <form onSubmit={save} className="fp-card">
+      <div className="fp-card-head"><Landmark size={17} /> Bank details <span className="fp-count">for honorarium</span></div>
+      <div className="fp-card-body">
+        <div className="fp-grid-2">
+          {field('bank_account_holder', 'Account holder')}
+          {field('bank_account_number', 'Account number')}
+          {field('bank_ifsc_code', 'IFSC code')}
+          {field('bank_branch', 'Branch')}
+        </div>
+        <div style={{ marginTop: 16 }}>
+          <button className="fp-btn fp-btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Save details'}</button>
+        </div>
+        <Notice msg={msg} />
       </div>
-      <button disabled={saving} style={{ marginTop: 14, padding: '8px 18px', borderRadius: 8, border: 'none', background: '#111', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>{saving ? 'Saving…' : 'Save'}</button>
-      {msg.text && <span style={{ marginLeft: 12, fontSize: '0.82rem', color: msg.type === 'ok' ? '#166534' : '#b91c1c' }}>{msg.text}</span>}
     </form>
   );
 }

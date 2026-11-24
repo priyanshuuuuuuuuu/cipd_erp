@@ -2,11 +2,10 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { CalendarOff } from 'lucide-react';
 import { api } from '@/lib/api';
+import { PageHeader, Empty, StatusPill, Notice } from '../components/ui';
 
-const card = { background: '#fff', border: '1px solid #e8e8e8', borderRadius: 12, padding: '1rem 1.2rem', marginBottom: 14 };
-const inp = { width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #e5e7eb', fontSize: '0.85rem', fontFamily: 'inherit', boxSizing: 'border-box' };
-const pill = (st) => ({ padding: '2px 9px', borderRadius: 8, fontSize: '0.72rem', fontWeight: 600, background: st === 'approved' ? '#dcfce7' : st === 'rejected' ? '#fee2e2' : '#fef9c3', color: st === 'approved' ? '#166534' : st === 'rejected' ? '#991b1b' : '#92400e' });
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 
 export default function FacultyLeavePage() {
@@ -37,31 +36,43 @@ export default function FacultyLeavePage() {
 
   return (
     <>
-      <h1 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '1.2rem' }}>Leave</h1>
-      <form onSubmit={submit} style={card}>
-        <div style={{ fontWeight: 700, marginBottom: 10 }}>Apply for leave</div>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
-          <div><label style={{ fontSize: '0.72rem', fontWeight: 600 }}>From</label><input type="date" style={inp} min={today()} value={form.from_date} onChange={(e) => setForm({ ...form, from_date: e.target.value, to_date: form.to_date < e.target.value ? e.target.value : form.to_date })} required /></div>
-          <div><label style={{ fontSize: '0.72rem', fontWeight: 600 }}>To</label><input type="date" style={inp} min={form.from_date} value={form.to_date} onChange={(e) => setForm({ ...form, to_date: e.target.value })} required /></div>
+      <PageHeader icon={CalendarOff} title="Leave" subtitle="Apply for time off and track your requests." />
+      <form onSubmit={submit} className="fp-card">
+        <div className="fp-card-head">Apply for leave</div>
+        <div className="fp-card-body">
+          <div className="fp-field-row">
+            <div style={{ flex: '1 1 180px' }}>
+              <label className="fp-label">From</label>
+              <input type="date" className="fp-input" min={today()} value={form.from_date} onChange={(e) => setForm({ ...form, from_date: e.target.value, to_date: form.to_date < e.target.value ? e.target.value : form.to_date })} required />
+            </div>
+            <div style={{ flex: '1 1 180px' }}>
+              <label className="fp-label">To</label>
+              <input type="date" className="fp-input" min={form.from_date} value={form.to_date} onChange={(e) => setForm({ ...form, to_date: e.target.value })} required />
+            </div>
+          </div>
+          <div className="fp-field">
+            <label className="fp-label">Reason</label>
+            <textarea rows={3} maxLength={1000} className="fp-input" placeholder="Briefly describe the reason" value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} required />
+          </div>
+          <button disabled={busy} className="fp-btn fp-btn-primary">{busy ? 'Submitting…' : 'Submit request'}</button>
+          <Notice msg={msg} />
+          <div className="fp-hint">Classes in this period are not cancelled automatically; the admin will arrange cover or ask you to request a reschedule.</div>
         </div>
-        <textarea rows={3} maxLength={1000} style={{ ...inp, resize: 'vertical', marginBottom: 10 }} placeholder="Reason" value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} required />
-        <button disabled={busy} style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: '#111', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>Submit</button>
-        {msg.text && <div style={{ marginTop: 10, fontSize: '0.82rem', color: msg.type === 'ok' ? '#166534' : '#b91c1c' }}>{msg.text}</div>}
-        <div style={{ marginTop: 8, fontSize: '0.74rem', color: '#888' }}>Classes in this period are not cancelled automatically; the admin will arrange cover or ask you to request a reschedule.</div>
       </form>
 
-      <div style={card}>
-        <div style={{ fontWeight: 700, marginBottom: 8 }}>My requests</div>
-        {list.length === 0 && <div style={{ color: '#aaa', fontSize: '0.85rem' }}>No leave requests yet.</div>}
+      <div className="fp-card">
+        <div className="fp-card-head">My requests <span className="fp-count">{list.length} total</span></div>
+        {list.length === 0 && <Empty icon={CalendarOff} title="No leave requests yet" />}
         {list.map((l) => (
-          <div key={l.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, padding: '8px 0', borderTop: '1px solid #f3f3f3', fontSize: '0.84rem' }}>
+          <div key={l.id} className="fp-row">
             <div>
-              <b>{l.fromDate}{l.toDate !== l.fromDate ? ` → ${l.toDate}` : ''}</b> · {l.reason}
-              {l.adminNotes && <div style={{ color: '#888', fontSize: '0.75rem' }}>Admin: {l.adminNotes}</div>}
+              <b style={{ color: '#0f172a' }}>{l.fromDate}{l.toDate !== l.fromDate ? ` → ${l.toDate}` : ''}</b>
+              <span style={{ color: '#64748b' }}> · {l.reason}</span>
+              {l.adminNotes && <div style={{ color: '#94a3b8', fontSize: '0.76rem', marginTop: 3 }}>Admin: {l.adminNotes}</div>}
             </div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <span style={pill(l.status)}>{l.status}</span>
-              {l.status === 'pending' && <button onClick={() => withdraw(l.id)} style={{ border: 'none', background: 'none', color: '#b91c1c', cursor: 'pointer', fontSize: '0.75rem' }}>Withdraw</button>}
+              <StatusPill status={l.status} />
+              {l.status === 'pending' && <button className="fp-btn fp-btn-danger fp-btn-sm" onClick={() => withdraw(l.id)}>Withdraw</button>}
             </div>
           </div>
         ))}
