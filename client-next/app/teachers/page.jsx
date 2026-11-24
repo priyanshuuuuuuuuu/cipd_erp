@@ -78,7 +78,6 @@ export default function TeachersPage() {
                         <h1>Teachers</h1>
                     </div>
                     <div className="header-actions">
-                        <div className="search-bar"><Search size={16} color="#aaa" /><input type="text" placeholder="Search" className="search-input" /></div>
                         <MessageSquare size={20} color="#555" />
                         <img src="/logo.png" alt="Logo" style={{ height: '35px', marginLeft: '0.5rem' }} />
                     </div>

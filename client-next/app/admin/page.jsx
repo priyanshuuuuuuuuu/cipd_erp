@@ -394,7 +394,6 @@ export default function AdminDashboard() {
                             <h1>Dashboard</h1>
                         </div>
                         <div className="header-actions">
-                            <div className="search-bar"><Search size={16} color="#aaa" /><input type="text" placeholder="Search sessions, students..." className="search-input" /></div>
                             <Bell size={20} color="#555" style={{ cursor: 'pointer' }} />
                             <img src="/logo.png" alt="Logo" style={{ height: '30px' }} />
                         </div>

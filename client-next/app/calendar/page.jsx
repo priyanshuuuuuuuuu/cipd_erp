@@ -161,7 +161,6 @@ export default function CalendarPage() {
                         <h1>Calendar</h1>
                     </div>
                     <div className="header-actions">
-                        <div className="search-bar"><Search size={16} color="#aaa" /><input type="text" placeholder="Search" className="search-input" /></div>
                         <Bell size={20} color="#555" />
                         <MessageSquare size={20} color="#555" />
                         <img src="/logo.png" alt="Logo" style={{ height: '35px', marginLeft: '0.5rem' }} />

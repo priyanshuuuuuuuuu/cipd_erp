@@ -10,6 +10,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 
+import { useAuth } from '../../contexts/AuthContext';
 // ── Default options (shown until the shared lists load from the database) ──────
 const ADD_FACULTY_DESIGNATIONS = ['Professor', 'Visiting Professor', 'Guest Lecturer', 'Instructor', 'Other'];
 const DEFAULT_DEPARTMENT_OPTIONS = [
@@ -309,6 +310,8 @@ function FacultySessionModal({ faculty, onClose }) {
 export default function AdminFacultyHoursPage() {
 
     const router = useRouter();
+
+    const { logout, user: authUser } = useAuth();
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [selectedMonth, setSelectedMonth] = useState('2026-03');
@@ -512,7 +515,7 @@ export default function AdminFacultyHoursPage() {
             <div>
                 <div className="user-profile" style={{ position: 'relative' }}>
                     <div className="user-avatar" style={{ background: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700 }}>AD</div>
-                    <div className="user-info"><h3>Admin</h3><p>admin@cipd.edu</p></div>
+                    <div className="user-info"><h3>Admin</h3><p>{authUser?.email}</p></div>
                     <div onClick={() => setIsCollapsed(!isCollapsed)} style={{ position: 'absolute', right: '-12px', top: '50%', transform: 'translateY(-50%)', background: '#1a1a1a', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '1px solid #333', color: '#888' }}>
                         {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
                     </div>
@@ -538,7 +541,7 @@ export default function AdminFacultyHoursPage() {
                     </nav>
             </div>
             <div className="sidebar-footer">
-                <div className="nav-item" onClick={() => navTo('/')} style={{ cursor: 'pointer' }}><LogOut size={18} /> <span>Log out</span></div>
+                <div className="nav-item" onClick={async () => { await logout(); navTo('/'); }} style={{ cursor: 'pointer' }}><LogOut size={18} /> <span>Log out</span></div>
             </div>
         </aside>
     );
@@ -555,7 +558,6 @@ export default function AdminFacultyHoursPage() {
                             <h1>Faculty Management</h1>
                         </div>
                         <div className="header-actions">
-                            <div className="search-bar"><Search size={16} color="#aaa" /><input type="text" placeholder="Search faculty..." className="search-input" /></div>
                             <Bell size={20} color="#555" />
                             <img src="/logo.png" alt="Logo" style={{ height: '30px' }} />
                         </div>

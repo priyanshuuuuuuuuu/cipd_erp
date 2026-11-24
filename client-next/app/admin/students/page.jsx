@@ -13,6 +13,7 @@ import { api } from '@/lib/api';
 import { useCohort } from '../../contexts/CohortContext';
 import ProgramCourseModal from '../../components/ProgramCourseModal';
 
+import { useAuth } from '../../contexts/AuthContext';
 // ─── Input style helper ────────────────────────────────────────────────────
 const inp = {
     width: '100%', padding: '9px 12px', borderRadius: '8px',
@@ -865,6 +866,7 @@ function AttendanceSummaryPanel({ student, schema }) {
 // ─── Main Page Component ───────────────────────────────────────────────────
 export default function AdminStudentsPage() {
     const router = useRouter();
+    const { logout, user: authUser } = useAuth();
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -980,7 +982,7 @@ export default function AdminStudentsPage() {
             <div>
                 <div className="user-profile" style={{ position: 'relative' }}>
                     <div className="user-avatar" style={{ background: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700 }}>AD</div>
-                    <div className="user-info"><h3>Admin</h3><p>admin@cipd.edu</p></div>
+                    <div className="user-info"><h3>Admin</h3><p>{authUser?.email}</p></div>
                     <div onClick={() => setIsCollapsed(!isCollapsed)} style={{ position: 'absolute', right: '-12px', top: '50%', transform: 'translateY(-50%)', background: '#1a1a1a', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '1px solid #333', color: '#888' }}>
                         {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
                     </div>
@@ -1006,7 +1008,7 @@ export default function AdminStudentsPage() {
                     </nav>
             </div>
             <div className="sidebar-footer">
-                <div className="nav-item" onClick={() => navTo('/')} style={{ cursor: 'pointer' }}><LogOut size={18} /> <span>Log out</span></div>
+                <div className="nav-item" onClick={async () => { await logout(); navTo('/'); }} style={{ cursor: 'pointer' }}><LogOut size={18} /> <span>Log out</span></div>
             </div>
         </aside>
     );

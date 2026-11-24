@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import '../Dashboard.css';
 import './faculty.css';
 import {
-  LayoutGrid, Calendar, Clock, LogOut, Menu, ChevronLeft, ChevronRight, Search,
+  LayoutGrid, Calendar, Clock, LogOut, Menu, ChevronLeft, ChevronRight,
   CheckCircle, BookOpen, Bell, Star, CalendarOff,
 } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
@@ -124,10 +124,6 @@ export default function FacultyLayout({ children }) {
           <header className="fp-topbar">
             <div className="mobile-menu-btn" onClick={() => setIsMobileMenuOpen(true)} style={{ cursor: 'pointer' }}>
               <Menu size={24} />
-            </div>
-            <div className="fp-search">
-              <Search size={16} color="#94a3b8" />
-              <input type="text" placeholder="Search..." />
             </div>
             <div className="header-actions">
               <img src="/logo.png" alt="Logo" style={{ height: '32px' }} />

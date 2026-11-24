@@ -9,8 +9,10 @@ import {
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 
+import { useAuth } from '../../contexts/AuthContext';
 export default function AdminLiveStudentsPage() {
     const router = useRouter();
+    const { logout, user: authUser } = useAuth();
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -169,7 +171,7 @@ export default function AdminLiveStudentsPage() {
             <div>
                 <div className="user-profile" style={{ position: 'relative' }}>
                     <div className="user-avatar" style={{ background: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700 }}>AD</div>
-                    <div className="user-info"><h3>Admin</h3><p>admin@cipd.edu</p></div>
+                    <div className="user-info"><h3>Admin</h3><p>{authUser?.email}</p></div>
                     <div onClick={() => setIsCollapsed(!isCollapsed)} style={{ position: 'absolute', right: '-12px', top: '50%', transform: 'translateY(-50%)', background: '#1a1a1a', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '1px solid #333', color: '#888' }}>
                         {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
                     </div>
@@ -195,7 +197,7 @@ export default function AdminLiveStudentsPage() {
                     </nav>
             </div>
             <div className="sidebar-footer">
-                <div className="nav-item" onClick={() => navTo('/')} style={{ cursor: 'pointer' }}><LogOut size={18} /> <span>Log out</span></div>
+                <div className="nav-item" onClick={async () => { await logout(); navTo('/'); }} style={{ cursor: 'pointer' }}><LogOut size={18} /> <span>Log out</span></div>
             </div>
         </aside>
     );
@@ -216,7 +218,6 @@ export default function AdminLiveStudentsPage() {
                             </span>
                         </div>
                         <div className="header-actions">
-                            <div className="search-bar"><Search size={16} color="#aaa" /><input type="text" placeholder="Search students..." className="search-input" /></div>
                             <Bell size={20} color="#555" />
                             <img src="/logo.png" alt="Logo" style={{ height: '30px' }} />
                         </div>

@@ -10,8 +10,10 @@ import {
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 
+import { useAuth } from '../../contexts/AuthContext';
 export default function AdminSettingsPage() {
     const router = useRouter();
+    const { logout, user: authUser } = useAuth();
     const [gcStatus, setGcStatus] = useState(null); // 'success', 'db_error', etc.
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -29,7 +31,7 @@ export default function AdminSettingsPage() {
 
     const [bssidList, setBssidList] = useState([]);
     const [newBssid, setNewBssid] = useState({ bssid: '', venue: '' });
-    const [accountSettings, setAccountSettings] = useState({ email: 'admin@cipd.edu', currentPassword: '', newPassword: '' });
+    const [accountSettings, setAccountSettings] = useState({ currentPassword: '', newPassword: '' });
 
     const navTo = p => router.push(p);
 
@@ -70,6 +72,10 @@ export default function AdminSettingsPage() {
         setErrorMsg('');
         try {
             if (section === 'detection') {
+                const interval = Number(detectionConfig.scannerInterval);
+                if (!Number.isInteger(interval) || interval < 1 || interval > 30) {
+                    throw new Error('Rescan time must be between 1 and 30 minutes');
+                }
                 await api.put('/api/admin/settings/config', detectionConfig);
             } else if (section === 'account') {
                 if (!accountSettings.currentPassword || !accountSettings.newPassword) {
@@ -158,7 +164,7 @@ export default function AdminSettingsPage() {
             <div>
                 <div className="user-profile" style={{ position: 'relative' }}>
                     <div className="user-avatar" style={{ background: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700 }}>AD</div>
-                    <div className="user-info"><h3>Admin</h3><p>admin@cipd.edu</p></div>
+                    <div className="user-info"><h3>Admin</h3><p>{authUser?.email}</p></div>
                     <div onClick={() => setIsCollapsed(!isCollapsed)} style={{ position: 'absolute', right: '-12px', top: '50%', transform: 'translateY(-50%)', background: '#1a1a1a', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '1px solid #333', color: '#888' }}>
                         {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
                     </div>
@@ -185,7 +191,7 @@ export default function AdminSettingsPage() {
                     </nav>
             </div>
             <div className="sidebar-footer">
-                <div className="nav-item" onClick={() => navTo('/')} style={{ cursor: 'pointer' }}><LogOut size={18} /> <span>Log out</span></div>
+                <div className="nav-item" onClick={async () => { await logout(); navTo('/'); }} style={{ cursor: 'pointer' }}><LogOut size={18} /> <span>Log out</span></div>
             </div>
         </aside>
     );
@@ -293,7 +299,7 @@ export default function AdminSettingsPage() {
                                     <div key={field.key}>
                                         <label style={{ fontSize: '0.72rem', fontWeight: 600, color: '#888', display: 'block', marginBottom: '5px' }}>{field.label}</label>
                                         <input type="number" min={field.min} max={field.max} value={detectionConfig[field.key]}
-                                            onChange={e => setDetectionConfig({ ...detectionConfig, [field.key]: parseInt(e.target.value) || 0 })}
+                                            onChange={e => setDetectionConfig({ ...detectionConfig, [field.key]: Math.min(field.max, Math.max(field.min, parseInt(e.target.value) || field.min)) })}
                                             style={{ ...inputStyle, fontFamily: 'monospace', fontWeight: 600 }}
                                             onFocus={e => e.target.style.borderColor = '#111'} onBlur={e => e.target.style.borderColor = '#e5e7eb'} />
                                         <div style={{ fontSize: '0.65rem', color: '#bbb', marginTop: '4px' }}>{field.desc}</div>
@@ -322,8 +328,9 @@ export default function AdminSettingsPage() {
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', maxWidth: '600px' }}>
                                 <div style={{ gridColumn: '1 / -1' }}>
                                     <label style={{ fontSize: '0.72rem', fontWeight: 600, color: '#888', display: 'block', marginBottom: '5px' }}>Admin Email</label>
-                                    <input type="email" value={accountSettings.email} onChange={e => setAccountSettings({ ...accountSettings, email: e.target.value })}
-                                        style={inputStyle} onFocus={e => e.target.style.borderColor = '#111'} onBlur={e => e.target.style.borderColor = '#e5e7eb'} />
+                                    <input type="email" value={authUser?.email || ''} readOnly disabled
+                                        style={{ ...inputStyle, color: '#888', cursor: 'not-allowed' }} />
+                                    <div style={{ fontSize: '0.65rem', color: '#bbb', marginTop: '4px' }}>Your login email. It cannot be changed from here.</div>
                                 </div>
                                 <div>
                                     <label style={{ fontSize: '0.72rem', fontWeight: 600, color: '#888', display: 'block', marginBottom: '5px' }}>Current Password</label>

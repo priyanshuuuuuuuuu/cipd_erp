@@ -109,7 +109,6 @@ export default function ProfilePage() {
                         <h1>My Profile</h1>
                     </div>
                     <div className="header-actions">
-                        <div className="search-bar"><Search size={16} color="#aaa" /><input type="text" placeholder="Search" className="search-input" /></div>
                         <img src="/logo.png" alt="Logo" style={{ height: '35px' }} />
                     </div>
                 </header>

@@ -18,7 +18,7 @@ const button = { display: 'inline-flex', alignItems: 'center', gap: 5, padding: 
 
 export default function AdminProgramsPage() {
   const router = useRouter();
-  const { authReady } = useAuth();
+  const { authReady, logout, user: authUser } = useAuth();
   const { selectedCohort, selectedCohortObj, loading: cohortLoading, isReadOnly } = useCohort();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -107,7 +107,7 @@ export default function AdminProgramsPage() {
             {sidebarItem('/admin/settings', <Settings size={18} />, 'Settings')}
           </nav>
         </div>
-        <div className="sidebar-footer"><div className="nav-item" onClick={() => navTo('/')} style={{ cursor: 'pointer' }}><LogOut size={18} /><span>Log out</span></div></div>
+        <div className="sidebar-footer"><div className="nav-item" onClick={async () => { await logout(); navTo('/'); }} style={{ cursor: 'pointer' }}><LogOut size={18} /><span>Log out</span></div></div>
       </aside>
 
       <div className="main-content" style={{ padding: '2rem 3rem' }}>

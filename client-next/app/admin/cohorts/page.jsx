@@ -66,7 +66,7 @@ function EditModal({ cohort, onClose, onSaved }) {
 
 export default function AdminCohortsPage() {
     const router = useRouter();
-    const { authReady } = useAuth();
+    const { authReady, logout, user: authUser } = useAuth();
     const { openCreateModal, refreshCohorts, switchCohort } = useCohort();
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -135,7 +135,7 @@ export default function AdminCohortsPage() {
                     </nav>
                 </div>
                 <div className="sidebar-footer">
-                    <div className="nav-item" onClick={() => navTo('/')} style={{ cursor: 'pointer' }}><LogOut size={18} /> <span>Log out</span></div>
+                    <div className="nav-item" onClick={async () => { await logout(); navTo('/'); }} style={{ cursor: 'pointer' }}><LogOut size={18} /> <span>Log out</span></div>
                 </div>
             </aside>
 

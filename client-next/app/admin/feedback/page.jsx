@@ -12,7 +12,7 @@ import { api } from '@/lib/api';
 
 export default function AdminFeedbackPage() {
     const router = useRouter();
-    const { authReady } = useAuth();
+    const { authReady, logout, user: authUser } = useAuth();
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [activeTab, setActiveTab] = useState('overview');
@@ -297,7 +297,7 @@ export default function AdminFeedbackPage() {
                 <div>
                     <div className="user-profile" style={{ position: 'relative' }}>
                         <div className="user-avatar" style={{ background: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700 }}>AD</div>
-                        <div className="user-info"><h3>Admin</h3><p>admin@cipd.edu</p></div>
+                        <div className="user-info"><h3>Admin</h3><p>{authUser?.email}</p></div>
                         <div onClick={() => setIsCollapsed(!isCollapsed)} style={{ position: 'absolute', right: '-12px', top: '50%', transform: 'translateY(-50%)', background: '#1a1a1a', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '1px solid #333', color: '#888' }}>
                             {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
                         </div>
@@ -323,7 +323,7 @@ export default function AdminFeedbackPage() {
                     </nav>
                 </div>
                 <div className="sidebar-footer">
-                    <div className="nav-item" onClick={() => navTo('/')} style={{ cursor: 'pointer' }}><LogOut size={18} /> <span>Log out</span></div>
+                    <div className="nav-item" onClick={async () => { await logout(); navTo('/'); }} style={{ cursor: 'pointer' }}><LogOut size={18} /> <span>Log out</span></div>
                 </div>
             </aside>
 
@@ -335,7 +335,6 @@ export default function AdminFeedbackPage() {
                             <h1>Feedback Analytics</h1>
                         </div>
                         <div className="header-actions">
-                            <div className="search-bar"><Search size={16} color="#aaa" /><input type="text" placeholder="Search lectures..." className="search-input" /></div>
                             <Bell size={20} color="#555" />
                             <img src="/logo.png" alt="Logo" style={{ height: '30px' }} />
                         </div>

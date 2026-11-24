@@ -1164,7 +1164,6 @@ export default function AdminSchedulePage() {
                             <h1>Schedule Management</h1>
                         </div>
                         <div className="header-actions">
-                            <div className="search-bar"><Search size={16} color="#aaa" /><input type="text" placeholder="Search sessions..." className="search-input" /></div>
                             <Bell size={20} color="#555" />
                             <img src="/logo.png" alt="Logo" style={{ height: '30px' }} />
                         </div>

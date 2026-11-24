@@ -14,7 +14,7 @@ const podiumOrder = [1, 0, 2];
 
 export default function AdminLeaderboardPage() {
     const router = useRouter();
-    const { authReady } = useAuth();
+    const { authReady, logout, user: authUser } = useAuth();
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [leaderboard, setLeaderboard] = useState([]);
@@ -53,7 +53,7 @@ export default function AdminLeaderboardPage() {
                 <div>
                     <div className="user-profile" style={{ position: 'relative' }}>
                         <div className="user-avatar" style={{ background: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700 }}>AD</div>
-                        <div className="user-info"><h3>Admin</h3><p>admin@cipd.edu</p></div>
+                        <div className="user-info"><h3>Admin</h3><p>{authUser?.email}</p></div>
                         <div onClick={() => setIsCollapsed(!isCollapsed)} style={{ position: 'absolute', right: '-12px', top: '50%', transform: 'translateY(-50%)', background: '#1a1a1a', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '1px solid #333', color: '#888' }}>
                             {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
                         </div>
@@ -79,7 +79,7 @@ export default function AdminLeaderboardPage() {
                     </nav>
                 </div>
                 <div className="sidebar-footer">
-                    <div className="nav-item" onClick={() => navTo('/')} style={{ cursor: 'pointer' }}><LogOut size={18} /> <span>Log out</span></div>
+                    <div className="nav-item" onClick={async () => { await logout(); navTo('/'); }} style={{ cursor: 'pointer' }}><LogOut size={18} /> <span>Log out</span></div>
                 </div>
             </aside>
 
@@ -94,10 +94,6 @@ export default function AdminLeaderboardPage() {
                             </div>
                         </div>
                         <div className="header-actions">
-                            <div className="search-bar" style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '100px', padding: '8px 16px', boxShadow: '0 2px 10px rgba(0,0,0,0.02)' }}>
-                                <Search size={16} color="#94a3b8" />
-                                <input type="text" placeholder="Search students..." className="search-input" style={{ background: 'transparent' }} />
-                            </div>
                             <button onClick={fetchLeaderboard} disabled={loading} className="refresh-btn" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '100px', border: '1px solid #e2e8f0', background: '#fff', cursor: loading ? 'wait' : 'pointer', fontSize: '0.85rem', color: '#0f172a', fontWeight: 600, boxShadow: '0 2px 10px rgba(0,0,0,0.02)', transition: 'all 0.2s' }}>
                                 <RefreshCw size={16} style={{ animation: loading ? 'spin 1s linear infinite' : 'none', color: '#6366f1' }} /> 
                                 {loading ? 'Syncing...' : 'Sync Data'}

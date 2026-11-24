@@ -11,8 +11,10 @@ import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import FacultyRequestsPanel from '../../components/FacultyRequestsPanel';
 
+import { useAuth } from '../../contexts/AuthContext';
 export default function AdminLeaveRequestsPage() {
   const router = useRouter();
+  const { logout, user: authUser } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [requests, setRequests] = useState([]);
@@ -89,7 +91,7 @@ export default function AdminLeaveRequestsPage() {
           </nav>
         </div>
         <div className="sidebar-footer">
-          <div className="nav-item" onClick={() => navTo('/')} style={{ cursor: 'pointer' }}><LogOut size={18} /> <span>Log out</span></div>
+          <div className="nav-item" onClick={async () => { await logout(); navTo('/'); }} style={{ cursor: 'pointer' }}><LogOut size={18} /> <span>Log out</span></div>
         </div>
       </aside>
 

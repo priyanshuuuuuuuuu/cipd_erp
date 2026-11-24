@@ -242,7 +242,6 @@ export default function FeedbackPage() {
                             <h1>Lecture Feedback</h1>
                         </div>
                         <div className="header-actions">
-                            <div className="search-bar"><Search size={16} color="#aaa" /><input type="text" placeholder="Search" className="search-input" /></div>
                             <Bell size={20} color="#555" /><MessageSquare size={20} color="#555" />
                             <img src="/logo.png" alt="Logo" style={{ height: '30px' }} />
                         </div>
