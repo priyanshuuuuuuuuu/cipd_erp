@@ -1,8 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { sessionChangeRequests, sessions, courses } from '@/drizzle/schema';
-import { and, eq, gt, lt, ne, or } from 'drizzle-orm';
+import { sessionChangeRequests, sessions, courses, sessionFaculty } from '@/drizzle/schema';
+import { and, eq, gt, lt, ne, or, inArray } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
 import { notifyStudents, enrolledStudentIds } from '@/lib/notification-send';
 
@@ -23,13 +23,21 @@ async function handler(req, { params }) {
       if (s.status !== 'scheduled') return NextResponse.json({ error: `The class is already ${s.status}` }, { status: 409 });
       if (r.kind === 'reschedule') {
         // No double-booking of the faculty member or the venue at the new time.
-        const clashWho = [eq(sessions.facultyId, s.facultyId)];
+        // Clash if ANY of this class's faculty (session_faculty) is already teaching another class at the new time.
+        const facultyRows = await db.select({ id: sessionFaculty.facultyId }).from(sessionFaculty).where(eq(sessionFaculty.sessionId, s.id));
+        const clashWho = [];
+        if (facultyRows.length) {
+          clashWho.push(inArray(
+            sessions.id,
+            db.select({ id: sessionFaculty.sessionId }).from(sessionFaculty).where(inArray(sessionFaculty.facultyId, facultyRows.map(r => r.id))),
+          ));
+        }
         if (s.venueId) clashWho.push(eq(sessions.venueId, s.venueId));
         const [clash] = await db.select({ id: sessions.id, title: sessions.title }).from(sessions)
           .where(and(
             eq(sessions.sessionDate, r.proposedDate), ne(sessions.id, s.id), ne(sessions.status, 'cancelled'),
             lt(sessions.startTime, r.proposedEnd), gt(sessions.endTime, r.proposedStart),
-            or(...clashWho),
+            clashWho.length ? or(...clashWho) : undefined,
           )).limit(1);
         if (clash) return NextResponse.json({ error: `The new time clashes with "${clash.title}" (same faculty or venue).` }, { status: 409 });
       }

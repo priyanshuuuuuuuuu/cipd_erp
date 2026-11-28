@@ -1,12 +1,11 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { sessions, courses, faculty, users, venues, courseEnrollments, sessionSkills } from '@/drizzle/schema';
+import { sessions, courses, venues, courseEnrollments, sessionSkills } from '@/drizzle/schema';
 import { eq, ne, and, inArray, asc, count } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
 import { getISTDateString } from '@/lib/ist-date';
-import { enqueueTargetedEmails } from '@/lib/notification-stream';
-import { randomUUID } from 'node:crypto';
+import { loadSessionFaculty, parseFacultyIds, replaceSessionFaculty, notifyFacultyAssigned } from '@/lib/session-faculty';
 
 async function getHandler(req) {
   try {
@@ -33,17 +32,12 @@ async function getHandler(req) {
         created_at: sessions.createdAt,
         course_id: courses.id,
         course_name: courses.name,
-        faculty_id: faculty.id,
-        first_name: users.firstName,
-        last_name: users.lastName,
         venue_id: venues.id,
         venue_name: venues.name,
         venue_building: venues.building,
       })
       .from(sessions)
       .leftJoin(courses, eq(sessions.courseId, courses.id))
-      .leftJoin(faculty, eq(sessions.facultyId, faculty.id))
-      .leftJoin(users, eq(faculty.id, users.id))
       .leftJoin(venues, eq(sessions.venueId, venues.id))
       .where(conditions.length > 0 ? and(...conditions) : undefined)
       .orderBy(asc(sessions.sessionDate), asc(sessions.startTime))
@@ -66,6 +60,8 @@ async function getHandler(req) {
       });
     }
 
+    const facultyBySession = await loadSessionFaculty((sessionRows || []).map(s => s.id));
+
     const sessionsWithCounts = (sessionRows || []).map(s => ({
       id: s.id,
       title: s.title,
@@ -75,7 +71,10 @@ async function getHandler(req) {
       status: s.status,
       created_at: s.created_at,
       courses: s.course_id ? { id: s.course_id, name: s.course_name } : null,
-      faculty: s.faculty_id ? { id: s.faculty_id, users: { first_name: s.first_name, last_name: s.last_name } } : null,
+      faculty: (facultyBySession.get(s.id) || [])[0]
+        ? { id: facultyBySession.get(s.id)[0].id, users: { first_name: facultyBySession.get(s.id)[0].first_name, last_name: facultyBySession.get(s.id)[0].last_name } }
+        : null,
+      faculty_list: (facultyBySession.get(s.id) || []).map(f => ({ id: f.id, users: { first_name: f.first_name, last_name: f.last_name } })),
       venues: s.venue_id ? { id: s.venue_id, name: s.venue_name, building: s.venue_building } : null,
       enrolled_students: enrollmentCounts[s.course_id] || 0,
     }));
@@ -89,7 +88,9 @@ async function getHandler(req) {
 
 async function postHandler(req) {
   try {
-    const { course_id, faculty_id, title, venue_id, session_date, start_time, end_time, session_type_id, skill_ids } = await req.json();
+    const body = await req.json();
+    const { course_id, title, venue_id, session_date, start_time, end_time, session_type_id, skill_ids } = body;
+    const facultyIds = parseFacultyIds(body) || [];
 
     if (!title || !session_date || !start_time || !end_time) {
       return NextResponse.json({ error: 'title, session_date, start_time, and end_time are required' }, { status: 400 });
@@ -97,22 +98,25 @@ async function postHandler(req) {
 
     let inserted = null;
     try {
-      const [newSession] = await db
-        .insert(sessions)
-        .values({
-          courseId: course_id || null,
-          facultyId: faculty_id || null,
-          title,
-          venueId: venue_id || null,
-          sessionTypeId: session_type_id || null,
-          sessionDate: session_date,
-          startTime: start_time,
-          endTime: end_time,
-          status: 'scheduled',
-          createdBy: req.user.id,
-        })
-        .returning();
-      inserted = newSession;
+      inserted = await db.transaction(async (tx) => {
+        const [newSession] = await tx
+          .insert(sessions)
+          .values({
+            courseId: course_id || null,
+            facultyId: facultyIds[0] || null, // legacy column = first faculty; session_faculty is the source of truth
+            title,
+            venueId: venue_id || null,
+            sessionTypeId: session_type_id || null,
+            sessionDate: session_date,
+            startTime: start_time,
+            endTime: end_time,
+            status: 'scheduled',
+            createdBy: req.user.id,
+          })
+          .returning();
+        await replaceSessionFaculty(tx, newSession.id, facultyIds);
+        return newSession;
+      });
     } catch (dbErr) {
       if (dbErr.code === '23505' || dbErr.message?.includes('unique constraint')) {
         return NextResponse.json({ error: 'Venue conflict: another session is already scheduled at this venue and time' }, { status: 409 });
@@ -133,22 +137,7 @@ async function postHandler(req) {
       }
     }
 
-    let facultyEmail = null;
-    if (faculty_id && inserted) {
-      try {
-        const [recipient] = await db.select({ id: users.id, email: users.email, first_name: users.firstName, last_name: users.lastName }).from(users).where(eq(users.id, faculty_id));
-        if (recipient?.email) {
-          const result = await enqueueTargetedEmails({ eventType: 'general_notification', batchId: randomUUID(), items: [{ student: recipient, payload: {
-            type: 'class_reminder', title: `New class scheduled: ${title}`,
-            message: `A class has been assigned to you: ${title} on ${session_date}, ${start_time}–${end_time} (India time). Please check your schedule for details.`,
-          } }] });
-          facultyEmail = { queued: result.queued, sandbox: result.sandbox };
-        } else facultyEmail = { queued: 0, error: 'Faculty email address not found.' };
-      } catch (error) {
-        console.error('Faculty class notification queue error:', error);
-        facultyEmail = { queued: 0, error: 'Could not queue faculty email.' };
-      }
-    }
+    const facultyEmail = inserted ? await notifyFacultyAssigned(facultyIds, { title, session_date, start_time, end_time }) : null;
     return NextResponse.json({ session: inserted, facultyEmail }, { status: 201 });
   } catch (err) {
     console.error('Create session error:', err);

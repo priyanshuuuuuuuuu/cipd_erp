@@ -10,11 +10,13 @@ import {
   feedbackResponses,
   feedbackQuestions,
   faculty,
+  sessionFaculty,
   attendancePingLogs,
   venues,
 } from '@/drizzle/schema';
 import { eq, and, gte, lte, desc } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
+import { sessionHasFaculty, loadSessionFaculty, facultyNamesJoined } from '@/lib/session-faculty';
 import { getISTDateString } from '@/lib/ist-date';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -143,8 +145,9 @@ async function buildFacultyCSV({ dateFrom, dateTo, facultyId }) {
   const conditions = [eq(sessions.status, 'completed')];
   if (dateFrom) conditions.push(gte(sessions.sessionDate, dateFrom));
   if (dateTo) conditions.push(lte(sessions.sessionDate, dateTo));
-  if (facultyId && facultyId !== 'all') conditions.push(eq(sessions.facultyId, facultyId));
+  if (facultyId && facultyId !== 'all') conditions.push(eq(sessionFaculty.facultyId, facultyId));
 
+  // One row per (session, faculty): a class with two faculty appears once for each of them.
   const rowsData = await db
     .select({
       session_date: sessions.sessionDate,
@@ -159,8 +162,9 @@ async function buildFacultyCSV({ dateFrom, dateTo, facultyId }) {
       email: users.email,
     })
     .from(sessions)
+    .innerJoin(sessionFaculty, eq(sessionFaculty.sessionId, sessions.id))
     .leftJoin(courses, eq(sessions.courseId, courses.id))
-    .leftJoin(faculty, eq(sessions.facultyId, faculty.id))
+    .leftJoin(faculty, eq(sessionFaculty.facultyId, faculty.id))
     .leftJoin(users, eq(faculty.id, users.id))
     .where(and(...conditions))
     .orderBy(desc(sessions.sessionDate));
@@ -232,7 +236,7 @@ async function buildSessionsCSV({ dateFrom, dateTo, courseId, facultyId }) {
   if (dateFrom) conditions.push(gte(sessions.sessionDate, dateFrom));
   if (dateTo) conditions.push(lte(sessions.sessionDate, dateTo));
   if (courseId && courseId !== 'all') conditions.push(eq(sessions.courseId, courseId));
-  if (facultyId && facultyId !== 'all') conditions.push(eq(sessions.facultyId, facultyId));
+  if (facultyId && facultyId !== 'all') conditions.push(sessionHasFaculty(facultyId));
 
   const rowsData = await db
     .select({
@@ -241,20 +245,18 @@ async function buildSessionsCSV({ dateFrom, dateTo, courseId, facultyId }) {
       end_time: sessions.endTime,
       title: sessions.title,
       status: sessions.status,
+      id: sessions.id,
       course_name: courses.name,
-      first_name: users.firstName,
-      last_name: users.lastName,
       venue_name: venues.name,
       venue_building: venues.building,
     })
     .from(sessions)
     .leftJoin(courses, eq(sessions.courseId, courses.id))
-    .leftJoin(faculty, eq(sessions.facultyId, faculty.id))
-    .leftJoin(users, eq(faculty.id, users.id))
     .leftJoin(venues, eq(sessions.venueId, venues.id))
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(sessions.sessionDate));
 
+  const facultyBySession = await loadSessionFaculty(rowsData.map(r => r.id));
   const headers = ['Session Title', 'Course', 'Faculty', 'Venue', 'Building', 'Date', 'Start', 'End', 'Duration (hrs)', 'Status'];
   const rows = rowsData.map(s => {
     const start = new Date(`1970-01-01T${s.start_time}Z`);
@@ -263,7 +265,7 @@ async function buildSessionsCSV({ dateFrom, dateTo, courseId, facultyId }) {
     return {
       'Session Title':  s.title || '',
       'Course':         s.course_name || '',
-      'Faculty':        s.first_name || s.last_name ? `${s.first_name || ''} ${s.last_name || ''}`.trim() : '',
+      'Faculty':        facultyNamesJoined(facultyBySession.get(s.id)),
       'Venue':          s.venue_name || '',
       'Building':       s.venue_building || '',
       'Date':           s.session_date || '',

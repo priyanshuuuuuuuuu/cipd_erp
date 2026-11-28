@@ -13,6 +13,7 @@ import {
 } from '@/drizzle/schema';
 import { eq, gte, lte, inArray, and, asc, sql } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
+import { loadSessionFaculty, facultyFullName } from '@/lib/session-faculty';
 import { getISTDateString, getISTWeekRange } from '@/lib/ist-date';
 
 async function handler(request) {
@@ -53,25 +54,21 @@ async function handler(request) {
         feedback_deadline: sessions.feedbackDeadline,
         status: sessions.status,
         course_id: sessions.courseId,
-        faculty_id: sessions.facultyId,
         venue_id: sessions.venueId,
         session_type_id: sessions.sessionTypeId,
         course_name: courses.name,
-        first_name: users.firstName,
-        last_name: users.lastName,
         venue_name: venues.name,
         session_type_name: sessionTypes.name,
       })
       .from(sessions)
       .leftJoin(courses, eq(sessions.courseId, courses.id))
-      .leftJoin(faculty, eq(sessions.facultyId, faculty.id))
-      .leftJoin(users, eq(faculty.id, users.id))
       .leftJoin(venues, eq(sessions.venueId, venues.id))
       .leftJoin(sessionTypes, eq(sessions.sessionTypeId, sessionTypes.id))
       .where(conditions.length > 0 ? and(...conditions) : undefined)
       .orderBy(asc(sessions.sessionDate), asc(sessions.startTime));
 
     const sessionIds = (rows || []).map(s => s.id);
+    const facultyBySession = await loadSessionFaculty(sessionIds);
     const skillsMap = {};
 
     if (sessionIds.length > 0) {
@@ -164,8 +161,9 @@ async function handler(request) {
         }
       }
 
-      const facultyName = s.first_name || s.last_name
-        ? `Prof. ${s.first_name || ''} ${s.last_name || ''}`.trim()
+      const assignedFaculty = facultyBySession.get(s.id) || [];
+      const facultyName = assignedFaculty.length
+        ? assignedFaculty.map(f => `Prof. ${facultyFullName(f)}`.trim()).join(', ')
         : 'Unknown';
 
       return {
@@ -187,7 +185,8 @@ async function handler(request) {
         status: computedStatus,
         title: s.title || '',
         course_id: s.course_id || '',
-        faculty_id: s.faculty_id || '',
+        faculty_id: assignedFaculty[0]?.id || '',
+        faculty_ids: assignedFaculty.map(f => f.id),
         venue_id: s.venue_id || '',
         session_type_id: s.session_type_id || '',
         skill_ids: skillsMap[s.id] || [],

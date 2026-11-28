@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { faculty, sessions, courses, venues } from '@/drizzle/schema';
 import { eq, desc } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
+import { sessionHasFaculty } from '@/lib/session-faculty';
 
 const DEFAULT_RATE = 2000;
 
@@ -43,7 +44,7 @@ async function handler(req) {
         .from(sessions)
         .leftJoin(courses, eq(sessions.courseId, courses.id))
         .leftJoin(venues, eq(sessions.venueId, venues.id))
-        .where(eq(sessions.facultyId, facultyId))
+        .where(sessionHasFaculty(facultyId))
         .orderBy(desc(sessions.sessionDate)),
     ]);
 

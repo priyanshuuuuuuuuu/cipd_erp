@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { sessionChangeRequests, facultyLeave, sessions, courses, users } from '@/drizzle/schema';
 import { and, desc, eq, gte, lte, ne } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
+import { sessionHasFaculty } from '@/lib/session-faculty';
 
 // Faculty-originated requests for the admin: session cancel/reschedule requests and faculty leave.
 async function handler(req) {
@@ -42,7 +43,7 @@ async function handler(req) {
       const affected = await db
         .select({ id: sessions.id, title: sessions.title, date: sessions.sessionDate, start: sessions.startTime })
         .from(sessions)
-        .where(and(eq(sessions.facultyId, l.faculty_id), gte(sessions.sessionDate, l.from_date), lte(sessions.sessionDate, l.to_date), ne(sessions.status, 'cancelled')));
+        .where(and(sessionHasFaculty(l.faculty_id), gte(sessions.sessionDate, l.from_date), lte(sessions.sessionDate, l.to_date), ne(sessions.status, 'cancelled')));
       return { ...l, name: `${l.first_name || ''} ${l.last_name || ''}`.trim(), affected_sessions: affected };
     }));
 

@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { assignments, coursePosts, courses, sessions, users } from '@/drizzle/schema';
 import { and, eq } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
+import { sessionHasFaculty } from '@/lib/session-faculty';
 import { facultyOwnsCourse, forbidden, safeHttpUrl } from '@/lib/faculty-access';
 import { listCoursePosts, POST_BUCKET } from '@/lib/course-posts';
 import { validateUploadFile, sanitizeFilename, mimeToFileType } from '@/lib/file-validation';
@@ -59,7 +60,7 @@ async function postHandler(req, { params }) {
 
     if (sessionId) {
       const [s] = await db.select({ id: sessions.id }).from(sessions)
-        .where(and(eq(sessions.id, sessionId), eq(sessions.courseId, courseId), eq(sessions.facultyId, req.user.id))).limit(1);
+        .where(and(eq(sessions.id, sessionId), eq(sessions.courseId, courseId), sessionHasFaculty(req.user.id))).limit(1);
       if (!s) return NextResponse.json({ error: 'Class not found for this module' }, { status: 400 });
     }
 

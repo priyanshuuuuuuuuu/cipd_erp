@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { sessions, sessionMaterials } from '@/drizzle/schema';
 import { eq } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
+import { loadSessionFaculty } from '@/lib/session-faculty';
 import {
   validateUploadFile,
   sanitizeFilename,
@@ -41,7 +42,7 @@ async function handler(req) {
     let facultyId = null;
     if (sessionId) {
       const [session] = await db
-        .select({ id: sessions.id, course_id: sessions.courseId, faculty_id: sessions.facultyId })
+        .select({ id: sessions.id, course_id: sessions.courseId })
         .from(sessions)
         .where(eq(sessions.id, sessionId))
         .limit(1);
@@ -49,7 +50,7 @@ async function handler(req) {
       if (!session || session.course_id !== courseId) {
         return NextResponse.json({ error: 'Session not found for this course' }, { status: 400 });
       }
-      facultyId = session.faculty_id || null;
+      facultyId = (await loadSessionFaculty([session.id])).get(session.id)?.[0]?.id || null; // material is tagged to the first faculty
     }
 
     const sessionFolder = sessionId || 'general';

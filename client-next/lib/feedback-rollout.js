@@ -1,4 +1,5 @@
 import { db } from '@/lib/db';
+import { loadSessionFaculty, facultyNamesJoined } from '@/lib/session-faculty';
 import { sessions, courses, faculty, users, attendanceRecords, notifications } from '@/drizzle/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 import { getFeedbackDeadline } from '@/lib/feedback-deadline';
@@ -39,13 +40,9 @@ export async function rolloutFeedbackForSession(sessionId, onlyStudentIds = null
         feedback_deadline: sessions.feedbackDeadline,
         course_id: sessions.courseId,
         course_name: courses.name,
-        faculty_first_name: users.firstName,
-        faculty_last_name: users.lastName,
       })
       .from(sessions)
       .leftJoin(courses, eq(sessions.courseId, courses.id))
-      .leftJoin(faculty, eq(sessions.facultyId, faculty.id))
-      .leftJoin(users, eq(faculty.id, users.id))
       .where(eq(sessions.id, sessionId))
       .limit(1);
 
@@ -54,10 +51,11 @@ export async function rolloutFeedbackForSession(sessionId, onlyStudentIds = null
       return result;
     }
 
+    const sessionFaculty = (await loadSessionFaculty([session.id])).get(session.id);
     const formattedSession = {
       ...session,
       courses: { id: session.course_id, name: session.course_name },
-      faculty: { users: { first_name: session.faculty_first_name, last_name: session.faculty_last_name } },
+      faculty: { users: { first_name: facultyNamesJoined(sessionFaculty), last_name: '' } },
     };
 
     const deadline = getFeedbackDeadline(formattedSession);

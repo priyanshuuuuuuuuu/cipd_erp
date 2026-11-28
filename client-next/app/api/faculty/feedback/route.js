@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { feedbackResponses, feedbackQuestions, sessions, courses } from '@/drizzle/schema';
 import { eq } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
+import { sessionHasFaculty } from '@/lib/session-faculty';
 
 // Student feedback on the caller's own classes. Responses are anonymised: no student identity leaves this route.
 async function handler(req) {
@@ -18,7 +19,7 @@ async function handler(req) {
       .innerJoin(sessions, eq(feedbackResponses.sessionId, sessions.id))
       .leftJoin(courses, eq(sessions.courseId, courses.id))
       .leftJoin(feedbackQuestions, eq(feedbackResponses.questionId, feedbackQuestions.id))
-      .where(eq(sessions.facultyId, req.user.id));
+      .where(sessionHasFaculty(req.user.id));
 
     const bySession = new Map();
     for (const r of rows) {

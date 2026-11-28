@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { courses, programs, courseEnrollments, sessions, faculty, users, venues } from '@/drizzle/schema';
 import { eq, count, desc } from 'drizzle-orm';
 import { withAuth } from '@/lib/middleware';
+import { loadSessionFaculty, toFacultyRef, toFacultyRefs } from '@/lib/session-faculty';
 
 async function handler(req, { params }) {
   try {
@@ -44,20 +45,16 @@ async function handler(req, { params }) {
         start_time: sessions.startTime,
         end_time: sessions.endTime,
         status: sessions.status,
-        faculty_id: faculty.id,
-        faculty_first_name: users.firstName,
-        faculty_last_name: users.lastName,
         venue_id: venues.id,
         venue_name: venues.name,
       })
       .from(sessions)
-      .leftJoin(faculty, eq(sessions.facultyId, faculty.id))
-      .leftJoin(users, eq(faculty.id, users.id))
       .leftJoin(venues, eq(sessions.venueId, venues.id))
       .where(eq(sessions.courseId, id))
       .orderBy(desc(sessions.sessionDate))
       .limit(20);
 
+    const facultyBySession = await loadSessionFaculty(sessionRows.map(s => s.id));
     const formattedSessions = sessionRows.map(s => ({
       id: s.id,
       title: s.title,
@@ -65,7 +62,8 @@ async function handler(req, { params }) {
       start_time: s.start_time,
       end_time: s.end_time,
       status: s.status,
-      faculty: s.faculty_id ? { id: s.faculty_id, users: { first_name: s.faculty_first_name, last_name: s.faculty_last_name } } : null,
+      faculty: toFacultyRef((facultyBySession.get(s.id) || [])[0]),
+      faculty_list: toFacultyRefs(facultyBySession.get(s.id)),
       venues: s.venue_id ? { id: s.venue_id, name: s.venue_name } : null,
     }));
 

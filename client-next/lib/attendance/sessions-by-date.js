@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { sessions, courses, faculty, venues, students, users } from '@/drizzle/schema';
+import { sessions, courses, venues, students, users } from '@/drizzle/schema';
+import { loadSessionFaculty, sessionHasFaculty, facultyNamesJoined } from '@/lib/session-faculty';
 import { eq, and, asc, isNotNull } from 'drizzle-orm';
 import { getSnapshotsBetween, wifiErrorResponse } from '@/lib/wifi-snapshots';
 import { getISTDateString, getISTTimeString } from '@/lib/ist-date';
@@ -30,13 +31,6 @@ export async function sessionsByDateHandler(req) {
           id: courses.id,
           name: courses.name,
         },
-        faculty: {
-          id: faculty.id,
-          users: {
-            first_name: users.firstName,
-            last_name: users.lastName,
-          },
-        },
         venues: {
           id: venues.id,
           name: venues.name,
@@ -46,11 +40,11 @@ export async function sessionsByDateHandler(req) {
       })
       .from(sessions)
       .leftJoin(courses, eq(sessions.courseId, courses.id))
-      .leftJoin(faculty, eq(sessions.facultyId, faculty.id))
-      .leftJoin(users, eq(faculty.id, users.id))   // faculty.id IS the user FK
       .leftJoin(venues, eq(sessions.venueId, venues.id))
-      .where(req.facultyScope ? and(eq(sessions.sessionDate, date), eq(sessions.facultyId, req.facultyScope)) : eq(sessions.sessionDate, date))
+      .where(req.facultyScope ? and(eq(sessions.sessionDate, date), sessionHasFaculty(req.facultyScope)) : eq(sessions.sessionDate, date))
       .orderBy(asc(sessions.startTime));
+
+    const facultyBySession = await loadSessionFaculty((sessionList || []).map(s => s.id));
 
     // Fetch all students with MAC addresses (for matching)
     const allStudents = await db
@@ -119,9 +113,7 @@ export async function sessionsByDateHandler(req) {
         });
       });
 
-      const facultyName = session.faculty?.users
-        ? `${session.faculty.users.first_name || ''} ${session.faculty.users.last_name || ''}`.trim()
-        : '';
+      const facultyName = facultyNamesJoined(facultyBySession.get(session.id));
 
       return {
         id: session.id,

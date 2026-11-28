@@ -2,8 +2,9 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { sessions, sessionMaterials } from '@/drizzle/schema';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
+import { sessionHasFaculty } from '@/lib/session-faculty';
 import {
   validateUploadFile,
   sanitizeFilename,
@@ -38,7 +39,7 @@ async function handler(req) {
     const file = validation.file;
 
     const [session] = await db
-      .select({ id: sessions.id, course_id: sessions.courseId, faculty_id: sessions.facultyId })
+      .select({ id: sessions.id, course_id: sessions.courseId })
       .from(sessions)
       .where(eq(sessions.id, sessionId))
       .limit(1);
@@ -47,7 +48,9 @@ async function handler(req) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
-    if (session.faculty_id !== req.user.id) {
+    const [assigned] = await db.select({ id: sessions.id }).from(sessions)
+      .where(and(eq(sessions.id, sessionId), sessionHasFaculty(req.user.id))).limit(1);
+    if (!assigned) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

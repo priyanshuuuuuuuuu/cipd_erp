@@ -13,6 +13,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useCohort } from '../../contexts/CohortContext';
 import ProgramCourseModal from '../../components/ProgramCourseModal';
 import CourseFacultyModal from '../../components/CourseFacultyModal';
+import CohortListsManager from '../../components/CohortListsManager';
 
 const button = { display: 'inline-flex', alignItems: 'center', gap: 5, padding: '7px 12px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', fontSize: '0.74rem', fontWeight: 700, color: '#334155' };
 
@@ -176,6 +177,7 @@ export default function AdminProgramsPage() {
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>{unassigned.map((course) => <span key={course.id} style={{ padding: '5px 8px', borderRadius: 7, background: '#fff', border: '1px solid #fde68a', color: '#78350f', fontSize: '0.72rem' }}>{course.code ? `${course.code} — ` : ''}{course.name}</span>)}</div>
             </section>
           )}
+          {selectedCohort && <CohortListsManager key={selectedCohort} readOnly={isReadOnly} cohortLabel={selectedCohortObj?.label} />}
         </div>
       </div>
 

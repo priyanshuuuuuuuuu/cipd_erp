@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { sessions, courses, faculty, users, feedbackResponses } from '@/drizzle/schema';
 import { eq, gte, isNotNull, desc, and, count } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
+import { loadSessionFaculty, facultyFullName } from '@/lib/session-faculty';
 import { getISTMonthStart } from '@/lib/ist-date';
 
 async function handler(request) {
@@ -18,13 +19,9 @@ async function handler(request) {
           status: sessions.status,
           course_id: sessions.courseId,
           course_name: courses.name,
-          first_name: users.firstName,
-          last_name: users.lastName,
         })
         .from(sessions)
         .leftJoin(courses, eq(sessions.courseId, courses.id))
-        .leftJoin(faculty, eq(sessions.facultyId, faculty.id))
-        .leftJoin(users, eq(faculty.id, users.id))
         .where(eq(sessions.status, 'completed'))
         .orderBy(desc(sessions.sessionDate))
         .limit(10),
@@ -50,9 +47,11 @@ async function handler(request) {
       ? (allRatings.reduce((a, b) => a + b, 0) / allRatings.length).toFixed(1)
       : '—';
 
+    const recentFaculty = await loadSessionFaculty((recentSessions || []).map(s => s.id));
     const recentReports = (recentSessions || []).map((s, i) => {
-      const facultyName = s.first_name || s.last_name
-        ? `Prof. ${s.first_name || ''} ${s.last_name || ''}`.trim()
+      const assigned = recentFaculty.get(s.id) || [];
+      const facultyName = assigned.length
+        ? assigned.map(f => `Prof. ${facultyFullName(f)}`).join(', ')
         : 'Unknown';
       const courseName = s.course_name || 'Unknown Course';
       const dateStr = s.session_date

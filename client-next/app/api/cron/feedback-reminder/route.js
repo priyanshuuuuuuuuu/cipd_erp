@@ -42,14 +42,9 @@ async function cronHandler(req) {
         feedback_deadline: sessions.feedbackDeadline,
         course_id: sessions.courseId,
         course_name: courses.name,
-        faculty_id: faculty.id,
-        faculty_first_name: users.firstName,
-        faculty_last_name: users.lastName,
       })
       .from(sessions)
       .leftJoin(courses, eq(sessions.courseId, courses.id))
-      .leftJoin(faculty, eq(sessions.facultyId, faculty.id))
-      .leftJoin(users, eq(faculty.id, users.id))
       .where(eq(sessions.status, 'completed'));
 
     if (!sessionRows || sessionRows.length === 0) {

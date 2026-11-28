@@ -597,6 +597,15 @@ export const courseFaculty = pgTable("course_faculty", {
 	primaryKey({ columns: [table.courseId, table.facultyId], name: "course_faculty_pkey" }),
 ]);
 
+export const sessionFaculty = pgTable("session_faculty", {
+	sessionId: uuid("session_id").notNull(),
+	facultyId: uuid("faculty_id").notNull(),
+	position: smallint().default(0).notNull(),
+	assignedAt: timestamp("assigned_at", { mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	primaryKey({ columns: [table.sessionId, table.facultyId], name: "session_faculty_pkey" }),
+]);
+
 export const coursePosts = pgTable("course_posts", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	courseId: uuid("course_id").notNull(),

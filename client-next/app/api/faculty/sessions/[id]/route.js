@@ -74,7 +74,7 @@ async function patchHandler(req, { params }) {
     const started = owned.sessionDate < today || (owned.sessionDate === today && owned.startTime <= now);
     if (!started) return NextResponse.json({ error: 'You can mark a class completed only once it has started.' }, { status: 400 });
 
-    await db.update(sessions).set({ status: 'completed' }).where(and(eq(sessions.id, owned.id), eq(sessions.facultyId, req.user.id)));
+    await db.update(sessions).set({ status: 'completed' }).where(eq(sessions.id, owned.id)); // ownership already verified by getOwnedSession (session_faculty)
     return NextResponse.json({ success: true, status: 'completed' });
   } catch (err) {
     console.error('Faculty session update error:', err);

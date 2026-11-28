@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { loadSessionFaculty, facultyNamesJoined } from '@/lib/session-faculty';
 import { forEachRunningCohort, sumField, cronHandlerRunner } from '@/lib/cohort-jobs';
 import {
   sessions,
@@ -44,17 +45,12 @@ async function cronHandler(req) {
         end_time: sessions.endTime,
         course_id: sessions.courseId,
         course_name: courses.name,
-        faculty_id: faculty.id,
-        faculty_first_name: users.firstName,
-        faculty_last_name: users.lastName,
         venue_id: venues.id,
         venue_name: venues.name,
         venue_building: venues.building,
       })
       .from(sessions)
       .leftJoin(courses, eq(sessions.courseId, courses.id))
-      .leftJoin(faculty, eq(sessions.facultyId, faculty.id))
-      .leftJoin(users, eq(faculty.id, users.id))
       .leftJoin(venues, eq(sessions.venueId, venues.id))
       .where(
         and(
@@ -69,6 +65,7 @@ async function cronHandler(req) {
 
     let totalSent = 0;
     const errors = [];
+    const facultyBySession = await loadSessionFaculty(sessionRows.map(r => r.id));
 
     for (const session of sessionRows) {
       // Get all students enrolled in this course
@@ -112,7 +109,7 @@ async function cronHandler(req) {
             ...session,
             courses: { name: session.course_name },
             venues: { name: session.venue_name, building: session.venue_building },
-            faculty: { users: { first_name: session.faculty_first_name, last_name: session.faculty_last_name } },
+            faculty: { users: { first_name: facultyNamesJoined(facultyBySession.get(session.id)), last_name: '' } },
           };
           await sendDayBeforeReminderEmail(student.email, name, sessionPayload);
           totalSent++;

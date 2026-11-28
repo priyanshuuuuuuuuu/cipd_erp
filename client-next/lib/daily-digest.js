@@ -1,4 +1,5 @@
 import { db, runWithSchema } from '@/lib/db';
+import { loadSessionFaculty, facultyNamesJoined } from '@/lib/session-faculty';
 import {
   sessions,
   courses,
@@ -123,14 +124,10 @@ export async function generateAndSendDailyDigests({
         courseCode: courses.code,
         venueId: sessions.venueId,
         venueName: venues.name,
-        facultyFirstName: users.firstName,
-        facultyLastName: users.lastName,
       })
       .from(sessions)
       .leftJoin(courses, eq(sessions.courseId, courses.id))
       .leftJoin(venues, eq(sessions.venueId, venues.id))
-      .leftJoin(faculty, eq(sessions.facultyId, faculty.id))
-      .leftJoin(users, eq(faculty.id, users.id))
       .where(
         and(
           eq(sessions.sessionDate, date),
@@ -154,6 +151,7 @@ export async function generateAndSendDailyDigests({
     }
 
     const sessionIds = sessionRows.map((s) => s.id);
+    const facultyBySession = await loadSessionFaculty(sessionIds);
 
     // 2. Query active students
     let studentRows = await db
@@ -314,7 +312,7 @@ export async function generateAndSendDailyDigests({
           feedbackSubmittedCount++;
         }
 
-        const facultyName = `${s.facultyFirstName || ''} ${s.facultyLastName || ''}`.trim() || 'CiPD Faculty';
+        const facultyName = facultyNamesJoined(facultyBySession.get(s.id)) || 'CiPD Faculty';
 
         return {
           id: s.id,

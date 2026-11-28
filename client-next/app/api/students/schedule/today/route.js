@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { courseEnrollments, sessions as sessionsTable, courses, faculty, users, venues, sessionTypes } from '@/drizzle/schema';
 import { eq, and, inArray, ne, asc } from 'drizzle-orm';
 import { withAuth } from '@/lib/middleware';
+import { loadSessionFaculty, toFacultyRef, toFacultyRefs } from '@/lib/session-faculty';
 import { getISTDateString } from '@/lib/ist-date';
 
 async function handler(req) {
@@ -34,13 +35,6 @@ async function handler(req) {
           id: courses.id,
           name: courses.name,
         },
-        faculty: {
-          id: faculty.id,
-          users: {
-            first_name: users.firstName,
-            last_name: users.lastName,
-          },
-        },
         venues: {
           id: venues.id,
           name: venues.name,
@@ -53,8 +47,6 @@ async function handler(req) {
       })
       .from(sessionsTable)
       .leftJoin(courses, eq(sessionsTable.courseId, courses.id))
-      .leftJoin(faculty, eq(sessionsTable.facultyId, faculty.id))
-      .leftJoin(users, eq(faculty.id, users.id))
       .leftJoin(venues, eq(sessionsTable.venueId, venues.id))
       .leftJoin(sessionTypes, eq(sessionsTable.sessionTypeId, sessionTypes.id))
       .where(
@@ -66,7 +58,14 @@ async function handler(req) {
       )
       .orderBy(asc(sessionsTable.startTime));
 
-    return NextResponse.json({ sessions: sessions || [] });
+    const facultyBySession = await loadSessionFaculty((sessions || []).map(s => s.id));
+    const withFaculty = (sessions || []).map(s => ({
+      ...s,
+      faculty: toFacultyRef((facultyBySession.get(s.id) || [])[0]),
+      faculty_list: toFacultyRefs(facultyBySession.get(s.id)),
+    }));
+
+    return NextResponse.json({ sessions: withFaculty });
   } catch (err) {
     console.error('Schedule today error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

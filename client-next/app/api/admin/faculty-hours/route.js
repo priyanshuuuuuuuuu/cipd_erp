@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { faculty, users, sessions, feedbackResponses } from '@/drizzle/schema';
+import { faculty, users, sessions, feedbackResponses, sessionFaculty } from '@/drizzle/schema';
 import { eq, and, ne, isNotNull } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
 import { createFaculty } from '@/lib/faculty-service';
@@ -30,6 +30,15 @@ async function handler(request) {
             }
         });
 
+        // Which sessions each faculty member is assigned to. A class with several faculty counts in FULL
+        // (hours and honorarium) for each of them.
+        const assignmentRows = await db.select({ sessionId: sessionFaculty.sessionId, facultyId: sessionFaculty.facultyId }).from(sessionFaculty);
+        const sessionIdsByFaculty = new Map();
+        for (const a of assignmentRows) {
+            if (!sessionIdsByFaculty.has(a.facultyId)) sessionIdsByFaculty.set(a.facultyId, new Set());
+            sessionIdsByFaculty.get(a.facultyId).add(a.sessionId);
+        }
+
         // Fetch all feedback ratings grouped by session
         const feedbackRows = await db.query.feedbackResponses.findMany({
             columns: { sessionId: true, rating: true },
@@ -49,7 +58,8 @@ async function handler(request) {
 
         // Map data to calculate hours and honorarium
         const facultyData = (facultyList || []).map(fac => {
-            const facSessions = (sessionsData || []).filter(s => s.facultyId === fac.id);
+            const facSessionIds = sessionIdsByFaculty.get(fac.id);
+            const facSessions = (sessionsData || []).filter(s => facSessionIds?.has(s.id));
             const completedSessions = facSessions.filter(s => s.status === 'completed');
             let totalHours = 0;
 

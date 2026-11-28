@@ -14,6 +14,7 @@ import {
 } from '@/drizzle/schema';
 import { eq, count } from 'drizzle-orm';
 import { withAuth } from '@/lib/middleware';
+import { loadSessionFaculty, facultyNamesJoined } from '@/lib/session-faculty';
 
 async function handler(req) {
   try {
@@ -80,16 +81,15 @@ async function handler(req) {
             end_time: sessions.endTime,
             session_date: sessions.sessionDate,
             venue_name: venues.name,
-            faculty_first_name: users.firstName,
-            faculty_last_name: users.lastName,
           })
           .from(sessions)
           .leftJoin(venues, eq(sessions.venueId, venues.id))
-          .leftJoin(faculty, eq(sessions.facultyId, faculty.id))
-          .leftJoin(users, eq(faculty.id, users.id))
           .where(eq(sessions.courseId, course.id));
 
         const sessionsCount = sessionList.length;
+        const firstSessionFaculty = sessionList.length > 0
+          ? ((await loadSessionFaculty([sessionList[0].id])).get(sessionList[0].id) || [])
+          : [];
 
         // 3. Calculate materials count
         const [matRes] = await db
@@ -108,8 +108,8 @@ async function handler(req) {
 
         if (sessionList.length > 0) {
           const first = sessionList[0];
-          if (first.faculty_first_name || first.faculty_last_name) {
-             facultyName = `Prof. ${first.faculty_first_name || ''} ${first.faculty_last_name || ''}`.trim();
+          if (firstSessionFaculty.length) {
+             facultyName = firstSessionFaculty.map(f => `Prof. ${facultyNamesJoined([f])}`).join(', ');
           }
           if (first.venue_name) {
              venueName = first.venue_name;

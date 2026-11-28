@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { sessions, sessionSkills } from '@/drizzle/schema';
+import { sessions, sessionSkills, sessionFaculty } from '@/drizzle/schema';
+import { parseFacultyIds, replaceSessionFaculty, notifyFacultyAssigned } from '@/lib/session-faculty';
 import { eq } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
 import { rolloutFeedbackForSession } from '@/lib/feedback-rollout';
@@ -68,7 +69,6 @@ async function handler(req, { params }) {
     const {
       title,
       course_id,
-      faculty_id,
       venue_id,
       session_type_id,
       category_id,
@@ -83,7 +83,7 @@ async function handler(req, { params }) {
     const updates = {};
     if (title !== undefined)           updates.title           = title?.trim() || null;
     if (course_id !== undefined)       updates.courseId        = course_id || null;
-    if (faculty_id !== undefined)      updates.facultyId       = faculty_id || null;
+    const facultyIds = parseFacultyIds(body); // undefined = faculty not part of this edit
     if (venue_id !== undefined)        updates.venueId         = venue_id || null;
     if (session_type_id !== undefined) updates.sessionTypeId  = session_type_id || null;
     if (category_id !== undefined)     updates.categoryId      = category_id || null;
@@ -103,7 +103,7 @@ async function handler(req, { params }) {
     }
     if (status !== undefined)          updates.status          = status;
 
-    if (Object.keys(updates).length === 0 && skill_ids === undefined) {
+    if (Object.keys(updates).length === 0 && skill_ids === undefined && facultyIds === undefined) {
       return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
     }
 
@@ -112,16 +112,24 @@ async function handler(req, { params }) {
     }
 
     let sessionData = null;
-    if (Object.keys(updates).length > 0) {
+    let previousFacultyIds = [];
+    if (facultyIds !== undefined) {
+      previousFacultyIds = (await db.select({ id: sessionFaculty.facultyId }).from(sessionFaculty).where(eq(sessionFaculty.sessionId, id))).map(r => r.id);
+    }
+    if (Object.keys(updates).length > 0 || facultyIds !== undefined) {
       try {
-        const [updated] = await db
-          .update(sessions)
-          .set(updates)
-          .where(eq(sessions.id, id))
-          .returning();
-
-        if (!updated) return NextResponse.json({ error: 'Session not found' }, { status: 404 });
-        sessionData = updated;
+        sessionData = await db.transaction(async (tx) => {
+          let updated;
+          if (Object.keys(updates).length > 0) {
+            [updated] = await tx.update(sessions).set(updates).where(eq(sessions.id, id)).returning();
+          } else {
+            [updated] = await tx.select().from(sessions).where(eq(sessions.id, id)).limit(1);
+          }
+          if (!updated) return null;
+          if (facultyIds !== undefined) await replaceSessionFaculty(tx, id, facultyIds);
+          return updated;
+        });
+        if (!sessionData) return NextResponse.json({ error: 'Session not found' }, { status: 404 });
       } catch (dbErr) {
         if (dbErr.code === '23505' || dbErr.message?.includes('unique constraint')) {
           return NextResponse.json(
@@ -131,6 +139,18 @@ async function handler(req, { params }) {
         }
         console.error('Edit session error:', dbErr);
         return NextResponse.json({ error: 'Failed to update session' }, { status: 500 });
+      }
+    }
+
+    // Tell faculty who were newly added to this class
+    let facultyEmail = null;
+    if (facultyIds !== undefined && sessionData) {
+      const added = facultyIds.filter(f => !previousFacultyIds.includes(f));
+      if (added.length) {
+        facultyEmail = await notifyFacultyAssigned(added, {
+          title: sessionData.title, session_date: sessionData.sessionDate,
+          start_time: sessionData.startTime, end_time: sessionData.endTime,
+        }, { updated: true });
       }
     }
 
@@ -153,7 +173,7 @@ async function handler(req, { params }) {
       }
     }
 
-    return NextResponse.json({ session: sessionData, skill_ids: skill_ids ?? [] });
+    return NextResponse.json({ session: sessionData, skill_ids: skill_ids ?? [], facultyEmail });
   } catch (err) {
     console.error('Session PATCH error:', err);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

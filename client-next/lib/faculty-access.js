@@ -2,13 +2,14 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { courseFaculty, sessions, courseEnrollments } from '@/drizzle/schema';
 import { and, eq, isNotNull } from 'drizzle-orm';
+import { sessionHasFaculty } from '@/lib/session-faculty';
 
 /** Modules a faculty member teaches: explicit admin assignment ∪ any module they have a session in. */
 export async function getFacultyCourseIds(facultyId) {
   const [assigned, taught] = await Promise.all([
     db.select({ id: courseFaculty.courseId }).from(courseFaculty).where(eq(courseFaculty.facultyId, facultyId)),
     db.selectDistinct({ id: sessions.courseId }).from(sessions)
-      .where(and(eq(sessions.facultyId, facultyId), isNotNull(sessions.courseId))),
+      .where(and(sessionHasFaculty(facultyId), isNotNull(sessions.courseId))),
   ]);
   return [...new Set([...assigned, ...taught].map((r) => r.id).filter(Boolean))];
 }
@@ -22,7 +23,7 @@ export async function facultyOwnsCourse(facultyId, courseId) {
 export async function getOwnedSession(facultyId, sessionId) {
   if (!sessionId) return null;
   const [row] = await db.select().from(sessions)
-    .where(and(eq(sessions.id, sessionId), eq(sessions.facultyId, facultyId))).limit(1);
+    .where(and(eq(sessions.id, sessionId), sessionHasFaculty(facultyId))).limit(1);
   return row || null;
 }
 

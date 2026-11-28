@@ -14,6 +14,7 @@ import {
 } from '@/drizzle/schema';
 import { asc, isNotNull } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
+import { loadSessionFaculty } from '@/lib/session-faculty';
 
 async function handler(request) {
   try {
@@ -38,7 +39,6 @@ async function handler(request) {
           end_time: sessions.endTime,
           status: sessions.status,
           course_id: sessions.courseId,
-          faculty_id: sessions.facultyId,
           venue_id: sessions.venueId,
           session_type_id: sessions.sessionTypeId,
         })
@@ -116,11 +116,13 @@ async function handler(request) {
       return Math.max(0, (eh * 60 + em) - (sh * 60 + sm));
     };
 
+    const facultyBySession = await loadSessionFaculty((sessionRows || []).map(s => s.id));
+
     // ── Master rows ───────────────────────────────────────────────────────────
     const masterRows = (sessionRows || []).map((s, idx) => {
-      const faculty      = facultyById[s.faculty_id];
-      const user         = faculty ? userById[faculty.id] : null;
-      const facultyName  = user ? `${user.first_name} ${user.last_name}` : 'TBA';
+      const assigned     = facultyBySession.get(s.id) || [];
+      const faculty      = assigned.length ? facultyById[assigned[0].id] : null; // experience is reported for the first faculty
+      const facultyName  = assigned.length ? assigned.map(f => `${f.first_name || ''} ${f.last_name || ''}`.trim()).join(', ') : 'TBA';
       const skills       = (skillNamesBySession[s.id] || []).join(', ');
 
       return {

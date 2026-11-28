@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { notifications, sessions, courses, courseEnrollments, users, venues, faculty, feedbackResponses } from '@/drizzle/schema';
 import { eq, and, inArray, gte, lte, ne, desc, count } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
+import { loadSessionFaculty, facultyNamesJoined } from '@/lib/session-faculty';
 import { randomUUID } from 'node:crypto';
 import {
   fetchPreferencesMap,
@@ -245,15 +246,11 @@ async function postHandler(req) {
                 end_time: sessions.endTime,
                 course_id: sessions.courseId,
                 course_name: courses.name,
-                faculty_first_name: users.firstName,
-                faculty_last_name: users.lastName,
                 venue_name: venues.name,
                 venue_building: venues.building,
               })
               .from(sessions)
               .leftJoin(courses, eq(sessions.courseId, courses.id))
-              .leftJoin(faculty, eq(sessions.facultyId, faculty.id))
-              .leftJoin(users, eq(faculty.id, users.id))
               .leftJoin(venues, eq(sessions.venueId, venues.id))
               .where(and(
                 inArray(sessions.courseId, allCourseIds),
@@ -263,6 +260,7 @@ async function postHandler(req) {
               ))
               .orderBy(sessions.sessionDate, sessions.startTime);
 
+            const weekFaculty = await loadSessionFaculty(weekSessionsRows.map(s => s.id));
             const weekSessions = weekSessionsRows.map(s => ({
               id: s.id,
               title: s.title,
@@ -271,7 +269,8 @@ async function postHandler(req) {
               end_time: s.end_time,
               course_id: s.course_id,
               courses: { name: s.course_name },
-              faculty: { users: { first_name: s.faculty_first_name, last_name: s.faculty_last_name } },
+              // Several faculty are shown as one comma-separated name (the email template prints first + last name)
+              faculty: { users: { first_name: facultyNamesJoined(weekFaculty.get(s.id)), last_name: '' } },
               venues: { name: s.venue_name, building: s.venue_building },
             }));
 

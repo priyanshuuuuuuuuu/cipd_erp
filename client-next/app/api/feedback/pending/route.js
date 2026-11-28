@@ -12,6 +12,7 @@ import {
 } from '@/drizzle/schema';
 import { eq, ne, and, inArray, asc, desc } from 'drizzle-orm';
 import { withAuth } from '@/lib/middleware';
+import { loadSessionFaculty, toFacultyRef, toFacultyRefs } from '@/lib/session-faculty';
 import { getFeedbackDeadline, getFeedbackHoursLeft, isFeedbackExpired } from '@/lib/feedback-deadline';
 import { getEligibleSessionIdsForStudent } from '@/lib/feedback-eligibility';
 
@@ -103,16 +104,11 @@ async function handler(req) {
           status: sessions.status,
           course_id: courses.id,
           course_name: courses.name,
-          faculty_id: faculty.id,
-          faculty_first_name: users.firstName,
-          faculty_last_name: users.lastName,
           venue_id: venues.id,
           venue_name: venues.name,
         })
         .from(sessions)
         .leftJoin(courses, eq(sessions.courseId, courses.id))
-        .leftJoin(faculty, eq(sessions.facultyId, faculty.id))
-        .leftJoin(users, eq(faculty.id, users.id))
         .leftJoin(venues, eq(sessions.venueId, venues.id))
         .where(
           and(
@@ -122,6 +118,7 @@ async function handler(req) {
         )
         .orderBy(desc(sessions.sessionDate));
 
+      const pendingFaculty = await loadSessionFaculty(pendingSessionRows.map(s => s.id));
       pendingForms = pendingSessionRows.map((s) => {
         const deadline = getFeedbackDeadline(s);
         const expired = isFeedbackExpired(s);
@@ -133,7 +130,8 @@ async function handler(req) {
           start_time: s.start_time,
           end_time: s.end_time,
           course: s.course_id ? { id: s.course_id, name: s.course_name } : null,
-          faculty: s.faculty_id ? { id: s.faculty_id, users: { first_name: s.faculty_first_name, last_name: s.faculty_last_name } } : null,
+          faculty: toFacultyRef((pendingFaculty.get(s.id) || [])[0]),
+          faculty_list: toFacultyRefs(pendingFaculty.get(s.id)),
           venue: s.venue_id ? { id: s.venue_id, name: s.venue_name } : null,
           deadline: deadline.toISOString(),
           expired,
@@ -154,24 +152,21 @@ async function handler(req) {
           end_time: sessions.endTime,
           course_id: courses.id,
           course_name: courses.name,
-          faculty_id: faculty.id,
-          faculty_first_name: users.firstName,
-          faculty_last_name: users.lastName,
         })
         .from(sessions)
         .leftJoin(courses, eq(sessions.courseId, courses.id))
-        .leftJoin(faculty, eq(sessions.facultyId, faculty.id))
-        .leftJoin(users, eq(faculty.id, users.id))
         .where(inArray(sessions.id, submittedSessionIds))
         .orderBy(desc(sessions.sessionDate))
         .limit(10);
 
+      const submittedFaculty = await loadSessionFaculty(submittedSessionRows.map(s => s.id));
       submittedForms = submittedSessionRows.map((s) => ({
         session_id: s.id,
         title: s.title,
         session_date: s.session_date,
         course: s.course_id ? { id: s.course_id, name: s.course_name } : null,
-        faculty: s.faculty_id ? { id: s.faculty_id, users: { first_name: s.faculty_first_name, last_name: s.faculty_last_name } } : null,
+        faculty: toFacultyRef((submittedFaculty.get(s.id) || [])[0]),
+        faculty_list: toFacultyRefs(submittedFaculty.get(s.id)),
         submitted: true,
       }));
     }

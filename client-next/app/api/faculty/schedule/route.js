@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { sessions, courses, venues } from '@/drizzle/schema';
 import { eq, and, ne, gte, lte, asc } from 'drizzle-orm';
 import { withRole } from '@/lib/middleware';
+import { sessionHasFaculty } from '@/lib/session-faculty';
 import { getISTDateString } from '@/lib/ist-date';
 
 async function handler(req) {
@@ -11,7 +12,7 @@ async function handler(req) {
     const { searchParams } = new URL(req.url);
     const upcoming = searchParams.get('upcoming') === 'true';
 
-    const conditions = [eq(sessions.facultyId, req.user.id)];
+    const conditions = [sessionHasFaculty(req.user.id)];
     const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
     const from = searchParams.get('from');
     const to = searchParams.get('to');
